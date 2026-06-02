@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Pilecap rectangle -->
+  <rect x="4" y="12" width="24" height="8" rx="1" fill="none" stroke="#333333" stroke-width="1.5"/>
+  <!-- Piles -->
+  <line x1="9"  y1="20" x2="9"  y2="29" stroke="#333333" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="16" y1="20" x2="16" y2="29" stroke="#333333" stroke-width="2.2" stroke-linecap="round"/>
+  <line x1="23" y1="20" x2="23" y2="29" stroke="#333333" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Column above -->
+  <rect x="13" y="4" width="6" height="8" fill="none" stroke="#333333" stroke-width="1.5"/>
+  <!-- Check -->
+  <circle cx="26" cy="8" r="5" fill="#FF5F00"/>
+  <polyline points="23.5,8 25.5,10 28.5,6"
+            fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Ground line -->
+  <line x1="3" y1="21" x2="29" y2="21" stroke="#DCDCDC" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- Hatch below ground -->
+  <line x1="3"  y1="21" x2="6"  y2="25" stroke="#888888" stroke-width="1"/>
+  <line x1="7"  y1="21" x2="10" y2="25" stroke="#888888" stroke-width="1"/>
+  <line x1="13" y1="21" x2="16" y2="25" stroke="#888888" stroke-width="1"/>
+  <line x1="19" y1="21" x2="22" y2="25" stroke="#888888" stroke-width="1"/>
+  <line x1="25" y1="21" x2="28" y2="25" stroke="#888888" stroke-width="1"/>
+  <!-- Left pile -->
+  <rect x="6" y="10" width="5" height="11" rx="1" fill="none" stroke="#DCDCDC" stroke-width="1.4"/>
+  <!-- Center pile (orange — main) -->
+  <rect x="13" y="6" width="6" height="15" rx="1" fill="#FF5F00"/>
+  <!-- Right pile -->
+  <rect x="21" y="10" width="5" height="11" rx="1" fill="none" stroke="#DCDCDC" stroke-width="1.4"/>
+  <!-- Driving arrow (center pile) -->
+  <line x1="16" y1="1" x2="16" y2="5" stroke="#FF5F00" stroke-width="2" stroke-linecap="round"/>
+  <polyline points="13,4 16,7 19,4" fill="none" stroke="#FF5F00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

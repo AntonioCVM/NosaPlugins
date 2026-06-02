@@ -1,0 +1,18 @@
+{
+  "elements": {
+    "1327597": {
+      "name": "2435 x 2435 x 800mm EXISTING", 
+      "category": "Structural Foundations", 
+      "type": "2435 x 2435 x 800mm EXISTING", 
+      "location": [
+        5479.6920000000000, 
+        1314.7650000000001, 
+        0.42699999999999999
+      ], 
+      "params": {
+        "HOST_VOLUME_COMPUTED": 159.97829999999999, 
+        "ALL_MODEL_MARK": null, 
+        "FAMILY_LEVEL_PARAM": "Ground floor SSL", 
+        "STRUCTURAL_MATERIAL_PARAM": "Concrete - RC40/50"
+      }, 
+      "id": 

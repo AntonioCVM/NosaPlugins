@@ -1,0 +1,392 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sheet Composer v2.1" Height="720" Width="1260"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="14,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBox" x:Key="FieldBox">
+            <Setter Property="Height"    Value="26"/>
+            <Setter Property="FontSize"  Value="11"/>
+            <Setter Property="Padding"   Value="4,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin"     Value="0,3"/>
+            <Setter Property="FontSize"   Value="11"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══ SIDEBAR ═══ -->
+        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title -->
+            <StackPanel Grid.Row="0" Margin="20,28,20,16">
+                <TextBlock Text="SHEET" FontSize="15" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="COMPOSER" FontSize="15" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Name="TxtSheetCount" Text="Loading..." FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <!-- Contextual sidebar panels -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20,0,20,10">
+
+                    <!-- ── EDIT sidebar ── -->
+                    <StackPanel Name="SidebarEdit" Visibility="Visible">
+                        <TextBlock Text="Edit Sheets" FontWeight="Bold" FontSize="12"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <TextBlock Text="Filter:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtEditFilter" Style="{DynamicResource FieldBox}"
+                                 TextChanged="EditFilter_Changed" Margin="0,0,0,8"/>
+                        <TextBlock Text="Selected rows (Edit grid)" FontSize="10"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.65"
+                                   Margin="0,0,0,4"/>
+                        <Button Content="Duplicate selected (layouts + views)" Name="BtnDupSelectedEdit"
+                                Click="DuplicateSelectedFromEdit_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="0,0,0,4" Padding="10,8" FontSize="10"/>
+                        <Button Content="Send selection → Create grid" Name="BtnSendToCreate"
+                                Click="SendSelectionToCreateGrid_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="0,0,0,12" Padding="10,8" FontSize="10"/>
+                        <Button Content="APPLY CHANGES" Name="BtnApply"
+                                Click="Apply_Click" Style="{DynamicResource ActionButton}"
+                                IsEnabled="False" Margin="0,0,0,8"/>
+                        <Button Content="Export CSV" Name="BtnExportEdit"
+                                Click="ExportEdit_Click" Style="{DynamicResource SecondaryButton}"
+                                IsEnabled="False"/>
+                    </StackPanel>
+
+                    <!-- ── CREATE sidebar ── -->
+                    <StackPanel Name="SidebarCreate" Visibility="Collapsed">
+                        <TextBlock Text="Create Sheets" FontWeight="Bold" FontSize="12"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <TextBlock Text="Title block:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <ComboBox Name="CboTitleblockCreate" Height="26" FontSize="10"
+                                  DisplayMemberPath="Name" Margin="0,0,0,10"/>
+                        <Button Content="+ Add Row" Name="BtnAddRow"
+                                Click="AddRow_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="0,0,0,4"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                            <TextBlock Text="+ Add multiple:" VerticalAlignment="Center"
+                                       FontSize="10" Margin="0,0,8,0"
+                                       Foreground="{DynamicResource TextColor}"/>
+                            <TextBox Name="TxtBulkRows" Width="44" Height="26" Text="5"
+                                     Style="{DynamicResource FieldBox}" Margin="0,0,6,0"/>
+                            <Button Content="Rows" Padding="12,6" FontSize="10"
+                                    Click="BulkAddRows_Click" Style="{DynamicResource SecondaryButton}"/>
+                        </StackPanel>
+                        <Button Content="− Remove Selected" Name="BtnRemoveRow"
+                                Click="RemoveRow_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="0,0,0,12"/>
+                        <Button Content="CREATE SHEETS" Name="BtnCreateSheets"
+                                Click="CreateSheets_Click" Style="{DynamicResource ActionButton}"
+                                Margin="0,0,0,16"/>
+                        <Separator Margin="0,0,0,10"/>
+                        <TextBlock Text="— Clone from existing —" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                                   HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <TextBlock Text="Source sheet:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <ComboBox Name="CboCloneSource" Height="26" FontSize="10"
+                                  DisplayMemberPath="Label" Margin="0,0,0,8"/>
+                        <TextBlock Text="Copies:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtCloneCount" Text="1"
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,6"/>
+                        <TextBlock Text="Start number:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtCloneStart" Text="100"
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,6"/>
+                        <TextBlock Text="Name template ({n} = index):" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"
+                                   TextWrapping="Wrap"/>
+                        <TextBox Name="TxtCloneName" Text=""
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                        <Button Content="CLONE SHEET" Name="BtnClone"
+                                Click="Clone_Click" Style="{DynamicResource ActionButton}"/>
+                    </StackPanel>
+
+                    <!-- ── IMPORT sidebar ── -->
+                    <StackPanel Name="SidebarImport" Visibility="Collapsed">
+                        <TextBlock Text="Import CSV" FontWeight="Bold" FontSize="12"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <TextBlock Text="Title block (for new sheets):" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"
+                                   TextWrapping="Wrap"/>
+                        <ComboBox Name="CboTitleblockImport" Height="26" FontSize="10"
+                                  DisplayMemberPath="Name" Margin="0,0,0,12"/>
+                        <TextBlock Text="Import mode:" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                        <RadioButton Name="RbCreate" Content="Create new sheets only"
+                                     IsChecked="True" GroupName="ImportMode"/>
+                        <RadioButton Name="RbUpdate" Content="Update existing sheets"
+                                     GroupName="ImportMode"/>
+                        <RadioButton Name="RbBoth"   Content="Create new + update existing"
+                                     GroupName="ImportMode" Margin="0,3,0,12"/>
+                        <Button Content="Browse CSV..." Name="BtnBrowseCSV"
+                                Click="BrowseCSV_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="0,0,0,6"/>
+                        <TextBlock Name="TxtCsvPath" Text="No file selected"
+                                   FontSize="10" Foreground="{DynamicResource TextColor}"
+                                   Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                        <Button Content="IMPORT" Name="BtnImport"
+                                Click="Import_Click" Style="{DynamicResource ActionButton}"
+                                IsEnabled="False"/>
+                    </StackPanel>
+
+                    <!-- ── RENUMBER sidebar ── -->
+                    <StackPanel Name="SidebarRenum" Visibility="Collapsed">
+                        <TextBlock Text="Renumber Settings" FontWeight="Bold" FontSize="12"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <TextBlock Text="Prefix:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtRenumPrefix" Text=""
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Start number:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtRenumStart" Text="1"
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Step:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtRenumStep" Text="1"
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Zero-pad digits (0 = off):" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"
+                                   TextWrapping="Wrap"/>
+                        <TextBox Name="TxtRenumPad" Text="0"
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,8"/>
+                        <TextBlock Text="Suffix:" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                        <TextBox Name="TxtRenumSuffix" Text=""
+                                 Style="{DynamicResource FieldBox}" Margin="0,0,0,14"/>
+                        <Button Content="RENUMBER" Name="BtnRenumber"
+                                Click="Renumber_Click" Style="{DynamicResource ActionButton}"/>
+                    </StackPanel>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Bottom controls -->
+            <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                <Separator Margin="0,0,0,10"/>
+                <Button Content="Refresh Sheets" Name="BtnRefresh"
+                        Click="Refresh_Click" Style="{DynamicResource SecondaryButton}"
+                        Margin="0,0,0,8"/>
+                <CheckBox Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ═══ MAIN TabControl ═══ -->
+        <TabControl Grid.Column="1" Name="TabMain"
+                    SelectionChanged="Tab_Changed"
+                    Background="{DynamicResource BgColor}"
+                    BorderThickness="0,1,0,0"
+                    BorderBrush="{DynamicResource BorderColor}">
+
+            <!-- ─── Tab 1: Edit Sheets ─── -->
+            <TabItem FontSize="12" FontWeight="SemiBold">
+                <TabItem.Header><TextBlock Text="  Edit Sheets  " Padding="4,2"/></TabItem.Header>
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                               Margin="0,0,0,10">
+                        Click a cell to edit. Pending rows turn orange. Apply writes to Revit.
+                        Duplicate / Send buttons use sheets selected in this grid — no CSV needed.
+                    </TextBlock>
+                    <Grid Grid.Row="1">
+                        <DataGrid Name="GridEdit" AutoGenerateColumns="False"
+                                  IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                  CellEditEnding="Edit_CellEditEnding"
+                                  SelectionMode="Extended" SelectionChanged="EditGrid_SelectionChanged"
+                                  AlternatingRowBackground="#06000000" Background="Transparent"
+                                  BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                                  GridLinesVisibility="Horizontal">
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasPending}" Value="True">
+                                            <Setter Property="Background" Value="#FFF0D0"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="#"           Binding="{Binding RowNum}"    Width="40"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Number"      Binding="{Binding Number}"    Width="110" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Name"        Binding="{Binding SheetName}" Width="200"/>
+                                <DataGridTextColumn Header="Project No." Binding="{Binding ProjNum}"   Width="90"/>
+                                <DataGridTextColumn Header="Originator"  Binding="{Binding Originator}" Width="80"/>
+                                <DataGridTextColumn Header="Func."       Binding="{Binding FuncBreak}" Width="55"/>
+                                <DataGridTextColumn Header="Spatial"     Binding="{Binding SpatBreak}" Width="65"/>
+                                <DataGridTextColumn Header="Form"        Binding="{Binding FormId}"    Width="45"/>
+                                <DataGridTextColumn Header="Disc."       Binding="{Binding Discipline}" Width="45"/>
+                                <DataGridTextColumn Header="Doc No."     Binding="{Binding DocNum}"    Width="70"/>
+                                <DataGridTextColumn Header="Rev"         Binding="{Binding Revision}"  Width="50"/>
+                                <DataGridTextColumn Header="Rev Date"    Binding="{Binding RevDate}"   Width="85"/>
+                                <DataGridTextColumn Header="Rev Desc"    Binding="{Binding RevDesc}"   Width="160"/>
+                                <DataGridTextColumn Header="Scale"       Binding="{Binding Scale}"     Width="65"/>
+                                <DataGridTextColumn Header="Drawn By"    Binding="{Binding DrawnBy}"   Width="85"/>
+                                <DataGridTextColumn Header="Checked By"  Binding="{Binding CheckedBy}" Width="85"/>
+                                <DataGridTextColumn Header="Approved By" Binding="{Binding ApprovedBy}" Width="85"/>
+                                <DataGridTextColumn Header="Issue Date"  Binding="{Binding IssueDate}" Width="85"/>
+                                <DataGridTextColumn Header="Views"       Binding="{Binding ViewCount}" Width="50" IsReadOnly="True"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <!-- Loading overlay -->
+                        <Grid Name="LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA"
+                              VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+                            <Border Background="White" CornerRadius="6" Padding="24,16"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="Working..." HorizontalAlignment="Center"
+                                               FontSize="13" Margin="0,0,0,12"/>
+                                    <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                                 IsIndeterminate="True"
+                                                 Foreground="{DynamicResource AccentColor}"/>
+                                    <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center"
+                                               FontSize="11" Opacity="0.6" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── Tab 2: Create / Clone ─── -->
+            <TabItem FontSize="12" FontWeight="SemiBold">
+                <TabItem.Header><TextBlock Text="  Create / Clone  " Padding="4,2"/></TabItem.Header>
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                               Margin="0,0,0,10">
+                        Type sheet rows here (CSV not required): Add rows, edit numbers/NOSA fields, CREATE SHEETS.
+                        Sidebar clone copies viewports like the Duplicate button on Edit.
+                    </TextBlock>
+                    <DataGrid Grid.Row="1" Name="GridCreate" AutoGenerateColumns="False"
+                              IsReadOnly="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              SelectionMode="Extended"
+                              AlternatingRowBackground="#06000000" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Number"      Binding="{Binding Number}"     Width="110"/>
+                            <DataGridTextColumn Header="Name"        Binding="{Binding SheetName}"  Width="200"/>
+                            <DataGridTextColumn Header="Project No." Binding="{Binding ProjNum}"    Width="90"/>
+                            <DataGridTextColumn Header="Originator"  Binding="{Binding Originator}" Width="80"/>
+                            <DataGridTextColumn Header="Func."       Binding="{Binding FuncBreak}"  Width="55"/>
+                            <DataGridTextColumn Header="Spatial"     Binding="{Binding SpatBreak}"  Width="65"/>
+                            <DataGridTextColumn Header="Form"        Binding="{Binding FormId}"     Width="45"/>
+                            <DataGridTextColumn Header="Disc."       Binding="{Binding Discipline}" Width="55"/>
+                            <DataGridTextColumn Header="Doc No."     Binding="{Binding DocNum}"     Width="80"/>
+                            <DataGridTextColumn Header="Drawn By"    Binding="{Binding DrawnBy}"    Width="85"/>
+                            <DataGridTextColumn Header="Checked By"  Binding="{Binding CheckedBy}"  Width="85"/>
+                            <DataGridTextColumn Header="Approved By" Binding="{Binding ApprovedBy}" Width="85"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── Tab 3: Import CSV ─── -->
+            <TabItem FontSize="12" FontWeight="SemiBold">
+                <TabItem.Header><TextBlock Text="  Import CSV  " Padding="4,2"/></TabItem.Header>
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                               Margin="0,0,0,10">
+                        Browse a CSV. Required column: "Number". Optional columns match NOSA param names
+                        (Name, Originator, Discipline, Drawn By, etc.). Preview shown below.
+                    </TextBlock>
+                    <DataGrid Grid.Row="1" Name="GridImport" AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              AlternatingRowBackground="#06000000" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal">
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- ─── Tab 4: Renumber ─── -->
+            <TabItem FontSize="12" FontWeight="SemiBold">
+                <TabItem.Header><TextBlock Text="  Renumber  " Padding="4,2"/></TabItem.Header>
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="1*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Grid.Row="0" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                               Margin="0,0,0,10">
+                        Select sheets (Ctrl+click / Shift+click), configure in the sidebar, then click Renumber.
+                        Two-pass strategy avoids conflicts.
+                    </TextBlock>
+                    <DataGrid Grid.Row="1" Name="GridRenum" AutoGenerateColumns="False"
+                              IsReadOnly="True" SelectionMode="Extended"
+                              AlternatingRowBackground="#06000000" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Number" Binding="{Binding Number}"    Width="120"/>
+                            <DataGridTextColumn Header="Name"   Binding="{Binding SheetName}" Width="420"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</Window>

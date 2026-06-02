@@ -1,0 +1,18 @@
+{
+  "allowed_scales": [5, 10, 20, 50, 100, 200, 500, 1000],
+  "sheet_number_pattern": "^[A-Z]{1,3}[-_]?\\d{2,5}$",
+  "sheet_name_min_length": 4,
+  "required_view_types_with_template": [
+    "FloorPlan", "CeilingPlan", "Section", "Elevation", "Detail"
+  ],
+  "allowed_detail_levels": {
+    "FloorPlan":   ["Medium", "Fine"],
+    "Section":     ["Medium", "Fine"],
+    "Elevation":   ["Medium", "Fine"],
+    "Detail":      ["Fine"],
+    "CeilingPlan": ["Medium", "Fine"],
+    "ThreeD":      ["Coarse", "Medium", "Fine"]
+  },
+  "require_crop_on_sheet_views": true,
+  "flag_manual_overrides": true
+}

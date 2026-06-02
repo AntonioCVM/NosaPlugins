@@ -1,0 +1,50 @@
+// Script de Dynamo para editar curvas de nivel de toposólido
+// Basado en: Revit Arazi Modelleme | #3 Arazi Model Eğrilerini Düzenleme
+// Autor: Antonio Viñas
+
+// ============================================================================
+// NODOS REQUERIDOS:
+// ============================================================================
+// 1. Element Selection (Select Model Element)
+// 2. Toposolid.GetContourCurves
+// 3. Curve.Translate
+// 4. Curve.Elevation
+// 5. Toposolid.EditContourCurves
+// ============================================================================
+
+// PASO 1: Seleccionar el toposólido
+// Usa el nodo "Select Model Element" para seleccionar el toposólido en Revit
+// O usa "Categories" + "Toposolid" + "All Elements of Category"
+
+// PASO 2: Obtener las curvas de contorno del toposólido
+// Nodo: Toposolid.GetContourCurves
+// Input: toposolid (del paso 1)
+// Output: Lista de curvas de contorno
+
+// PASO 3: Obtener elevaciones de las curvas
+// Nodo: Curve.Elevation
+// Input: curvas de contorno (del paso 2)
+// Output: Lista de elevaciones (Z)
+
+// PASO 4: Modificar elevaciones (opcional - suavizado)
+// Aquí puedes aplicar un algoritmo de suavizado o modificación
+// Por ejemplo, usar "List.Map" con una función personalizada
+
+// PASO 5: Crear nuevas curvas con elevaciones modificadas
+// Nodo: Curve.Translate
+// Input: 
+//   - curve: curvas originales
+//   - translation: Vector con componente Z modificado
+
+// PASO 6: Editar el toposólido con las nuevas curvas
+// Nodo: Toposolid.EditContourCurves
+// Input:
+//   - toposolid: toposólido original
+//   - newCurves: curvas modificadas
+
+// ============================================================================
+// ALTERNATIVA: Script Python en Dynamo
+// ============================================================================
+
+
+

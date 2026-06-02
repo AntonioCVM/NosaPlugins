@@ -1,0 +1,193 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Structural Annotation Batch v1.0" Height="660" Width="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}"
+        FontFamily="Century Gothic"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="NavButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"  Value="15,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor"   Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Name="border" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter Property="Background" Value="#20FF5F00"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="4,0,0,0"/>
+                                <Setter TargetName="border" Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding"    Value="20,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"    Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"   Value="Transparent"/>
+            <Setter Property="Foreground"   Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"   Value="SemiBold"/>
+            <Setter Property="Padding"      Value="12,7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"  Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"       Value="Hand"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin"     Value="0,4"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- SIDEBAR: view selection + actions -->
+        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Margin="20,28,20,12">
+                <TextBlock Text="ANNOTATION BATCH" FontSize="15" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="Structural Views" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Margin="20,0,20,6">
+                <TextBlock Text="Target views" FontWeight="Bold"
+                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                <TextBox Name="TxtSearchViews" Height="26" Padding="5,2"
+                         VerticalContentAlignment="Center" Margin="0,0,0,6"
+                         TextChanged="SearchViews_Changed"/>
+                <CheckBox Name="ChkOnlyOnSheetsAnno" Content="Only views placed on sheets"
+                          IsChecked="False" Click="FilterViews_Changed"
+                          Foreground="{DynamicResource TextColor}"/>
+            </StackPanel>
+            <ListBox Name="ListViews" Grid.Row="2" Margin="20,0,20,10"
+                     SelectionMode="Extended"
+                     BorderBrush="{DynamicResource BorderColor}" Background="White">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}"/>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <Button Grid.Row="3" Content="Select All Views" Click="SelectAllViews_Click"
+                    Style="{DynamicResource SecondaryButton}" Margin="20,0,20,8"/>
+            <Separator Grid.Row="4" Margin="20,4"/>
+            <CheckBox Grid.Row="5" Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"
+                      Foreground="{DynamicResource TextColor}" Margin="20,8,20,20"/>
+        </Grid>
+
+        <!-- MAIN: action tabs -->
+        <Grid Grid.Column="1" Margin="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>  <!-- Tab nav -->
+                <RowDefinition Height="*"/>     <!-- Tab content -->
+                <RowDefinition Height="Auto"/>  <!-- Result + run -->
+            </Grid.RowDefinitions>
+
+            <!-- Tab nav -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal"
+                        Background="{DynamicResource PanelColor}">
+                <Button Name="BtnTabTags" Content="Structural Tags"
+                        Style="{DynamicResource NavButton}" Tag="Selected"
+                        Click="NavButton_Click"/>
+                <Button Name="BtnTabGrids" Content="Grid Bubbles"
+                        Style="{DynamicResource NavButton}"
+                        Click="NavButton_Click"/>
+            </StackPanel>
+
+            <!-- Tab: Tags -->
+            <StackPanel Name="TabTags" Grid.Row="1" Margin="24">
+                <TextBlock Text="Tag structural elements in selected views" FontSize="14"
+                           FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,16"/>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <CheckBox Grid.Row="0" Grid.Column="0" Name="ChkTagColumns" Content="Structural Columns"      IsChecked="True"  Margin="0,6,12,6"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1" Name="CmbTagColumns" Height="24" VerticalContentAlignment="Center" FontSize="11"/>
+                    <CheckBox Grid.Row="1" Grid.Column="0" Name="ChkTagFraming" Content="Structural Framing"      IsChecked="True"  Margin="0,6,12,6"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1" Name="CmbTagFraming" Height="24" VerticalContentAlignment="Center" FontSize="11"/>
+                    <CheckBox Grid.Row="2" Grid.Column="0" Name="ChkTagFound"   Content="Structural Foundations"  IsChecked="False" Margin="0,6,12,6"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1" Name="CmbTagFound"   Height="24" VerticalContentAlignment="Center" FontSize="11"/>
+                </Grid>
+
+                <Separator Margin="0,16,0,14"/>
+                <CheckBox Name="ChkLeader" Content="Add leader line" IsChecked="False"/>
+            </StackPanel>
+
+            <!-- Tab: Grid Bubbles -->
+            <StackPanel Name="TabGrids" Grid.Row="1" Visibility="Collapsed" Margin="24">
+                <TextBlock Text="Grid bubble visibility in selected views" FontSize="14"
+                           FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,16"/>
+                <RadioButton GroupName="GridBubble" Name="RbShowBubbles"
+                             Content="Show grid bubbles" IsChecked="True"
+                             Foreground="{DynamicResource TextColor}" Margin="0,6"/>
+                <RadioButton GroupName="GridBubble" Name="RbHideBubbles"
+                             Content="Hide grid bubbles"
+                             Foreground="{DynamicResource TextColor}" Margin="0,6"/>
+            </StackPanel>
+
+            <!-- Result log + Run -->
+            <Grid Grid.Row="2" Margin="24,0,24,24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Border Grid.Row="0" Name="PanelResult" Visibility="Collapsed"
+                        Background="{DynamicResource PanelColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        CornerRadius="4" Padding="12,8" Margin="0,0,0,12">
+                    <TextBlock Name="TxtResult" Text="" TextWrapping="Wrap" FontSize="12"
+                               Foreground="{DynamicResource TextColor}"/>
+                </Border>
+                <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="APPLY TO SELECTED VIEWS" Name="BtnRun"
+                            Click="Run_Click" Style="{DynamicResource ActionButton}"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>

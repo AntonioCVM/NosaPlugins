@@ -1,0 +1,14 @@
+{
+  "checks": {
+    "param_missing": true, 
+    "no_level": true, 
+    "unhosted_rebar": true, 
+    "bad_offset": true, 
+    "warnings": true, 
+    "no_material": true, 
+    "no_analytical": true, 
+    "orphan_found": true, 
+    "dup_marks": true
+  }, 
+  "dark_mode": false
+}

@@ -1,0 +1,102 @@
+// Script de Dynamo simplificado para editar curvas de contorno de toposólido
+// Basado en el video: Revit Arazi Modelleme | #3 Arazi Model Eğrilerini Düzenleme
+
+// ============================================================================
+// ESTRUCTURA DEL GRAPH DE DYNAMO:
+// ============================================================================
+
+// BLOQUE 1: SELECCIÓN DE TOPOSÓLIDO
+// ┌─────────────────────────────────┐
+// │ Categories                      │
+// │ Category: Toposolid             │
+// └─────────────┬───────────────────┘
+//               │
+// ┌─────────────▼───────────────────┐
+// │ All Elements of Category        │
+// └─────────────┬───────────────────┘
+//               │
+// ┌─────────────▼───────────────────┐
+// │ Element.GetParameterValueByName │
+// │ Parameter Name: "Name"          │
+// └─────────────────────────────────┘
+
+// BLOQUE 2: OBTENER CURVAS DE CONTORNO
+// ┌─────────────────────────────────┐
+// │ Toposolid.GetContourCurves      │
+// │ Input: Toposolid                │
+// └─────────────┬───────────────────┘
+//               │
+// ┌─────────────▼───────────────────┐
+// │ Flatten (si es necesario)        │
+// └─────────────┬───────────────────┘
+
+// BLOQUE 3: EXTRAER ELEVACIONES
+// ┌─────────────────────────────────┐
+// │ Curve.StartPoint                 │
+// └─────────────┬───────────────────┘
+//               │
+// ┌─────────────▼───────────────────┐
+// │ Point.Z                          │
+// └─────────────┬───────────────────┘
+//               │
+// ┌─────────────▼───────────────────┐
+// │ List.Map (para todas las curvas) │
+// └─────────────────────────────────┘
+
+// BLOQUE 4: APLICAR SUAVIZADO (OPCIONAL)
+// ┌─────────────────────────────────┐
+// │ Code Block                       │
+// │ // Suavizado simple              │
+// │ avg = (z1 + z2) / 2;            │
+// │ newZ = z * 0.5 + avg * 0.5;     │
+// └─────────────┬───────────────────┘
+
+// BLOQUE 5: CREAR NUEVAS CURVAS
+// ┌─────────────────────────────────┐
+// │ Curve.Translate                 │
+// │ Vector: (0, 0, elevationChange)  │
+// └─────────────┬───────────────────┘
+
+// BLOQUE 6: ACTUALIZAR TOPOSÓLIDO
+// ┌─────────────────────────────────┐
+// │ Toposolid.EditContourCurves     │
+// │ Input:                           │
+// │   - Toposolid                    │
+// │   - New Curves                   │
+// └─────────────────────────────────┘
+
+// ============================================================================
+// NODOS ALTERNATIVOS SI NO EXISTEN LOS ANTERIORES:
+// ============================================================================
+
+// Si "Toposolid.GetContourCurves" no existe:
+// 1. Usar "Element.Geometry" para obtener geometría
+// 2. Filtrar curvas usando "Curve.IsClosed" o "Curve.Length"
+// 3. Agrupar por elevación usando "List.GroupByKey"
+
+// Si "Toposolid.EditContourCurves" no existe:
+// 1. Exportar puntos modificados a CSV
+// 2. Usar "Toposolid.ByPoints" para recrear
+// 3. O usar "Toposolid.CreateFromImport" con archivo CSV
+
+// ============================================================================
+// EJEMPLO DE CÓDIGO EN CODE BLOCK PARA SUAVIZADO:
+// ============================================================================
+
+// Suavizado de elevaciones:
+// smoothed = [Imperative]
+// {
+//     return = [];
+//     for (i in 0..List.Count(elevations)-1)
+//     {
+//         prev = i > 0 ? elevations[i-1] : elevations[i];
+//         curr = elevations[i];
+//         next = i < List.Count(elevations)-1 ? elevations[i+1] : next = elevations[i];
+//         avg = (prev + curr + next) / 3.0;
+//         return[i] = curr * 0.6 + avg * 0.4;
+//     }
+//     return return;
+// };
+
+
+

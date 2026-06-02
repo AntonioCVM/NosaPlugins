@@ -1,0 +1,71 @@
+{
+  "rules": [
+    {
+      "keyword": "overlap",
+      "severity": "High",
+      "action": "Check element geometry and joining settings — overlapping solids cause incorrect quantities."
+    },
+    {
+      "keyword": "highlighted elements are joined",
+      "severity": "Medium",
+      "action": "Review joined elements — unwanted joins can alter structural analysis."
+    },
+    {
+      "keyword": "not in correct position",
+      "severity": "High",
+      "action": "Verify element placement and level assignment."
+    },
+    {
+      "keyword": "duplicate",
+      "severity": "High",
+      "action": "Identify and remove or merge duplicate elements."
+    },
+    {
+      "keyword": "analytical",
+      "severity": "High",
+      "action": "Review analytical model connectivity — may affect structural analysis."
+    },
+    {
+      "keyword": "cannot be made into a",
+      "severity": "High",
+      "action": "Element geometry issue — check sketch and constraints."
+    },
+    {
+      "keyword": "room",
+      "severity": "Low",
+      "action": "Room-related warning — typically non-structural, review if relevant."
+    },
+    {
+      "keyword": "rebar",
+      "severity": "Medium",
+      "action": "Review rebar hosting and placement constraints."
+    },
+    {
+      "keyword": "cut",
+      "severity": "Medium",
+      "action": "Check cut/join geometry — may indicate modelling issue."
+    },
+    {
+      "keyword": "floor",
+      "severity": "Medium",
+      "action": "Review floor sketch and boundary conditions."
+    },
+    {
+      "keyword": "wall",
+      "severity": "Medium",
+      "action": "Check wall connections and top/base constraints."
+    },
+    {
+      "keyword": "column",
+      "severity": "Medium",
+      "action": "Verify column base and top attachment levels."
+    },
+    {
+      "keyword": "beam",
+      "severity": "Medium",
+      "action": "Check beam end attachments and hosting."
+    }
+  ],
+  "default_severity": "Low",
+  "default_action": "Review warning description and affected elements."
+}

@@ -1,0 +1,23 @@
+# Runtime logs
+Logs/
+*.log
+
+# pyRevit cache
+__pycache__/
+*.pyc
+*.pyo
+.pyrevit/
+
+# Claude Code internal files
+.claude/settings.local.json
+.claude/worktrees/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Temp / editor
+*.swp
+*.bak
+*~

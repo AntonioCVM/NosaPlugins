@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Orange outer frame -->
+  <rect x="1" y="1" width="30" height="30" rx="5" ry="5" fill="#FF5F00"/>
+  <rect x="3" y="3" width="26" height="26" rx="3.5" ry="3.5" fill="white"/>
+
+  <!-- Top-left finder eye -->
+  <circle cx="9"  cy="9"  r="4.2" fill="#FF5F00"/>
+  <circle cx="9"  cy="9"  r="2.8" fill="white"/>
+  <circle cx="9"  cy="9"  r="1.5" fill="#222"/>
+
+  <!-- Top-right finder eye -->
+  <circle cx="23" cy="9"  r="4.2" fill="#FF5F00"/>
+  <circle cx="23" cy="9"  r="2.8" fill="white"/>
+  <circle cx="23" cy="9"  r="1.5" fill="#222"/>
+
+  <!-- Bottom-left finder eye -->
+  <circle cx="9"  cy="23" r="4.2" fill="#FF5F00"/>
+  <circle cx="9"  cy="23" r="2.8" fill="white"/>
+  <circle cx="9"  cy="23" r="1.5" fill="#222"/>
+
+  <!-- Data dots (bottom-right quadrant) -->
+  <circle cx="19" cy="19" r="1.1" fill="#333"/>
+  <circle cx="22" cy="19" r="1.1" fill="#333"/>
+  <circle cx="25" cy="19" r="1.1" fill="#333"/>
+  <circle cx="19" cy="22" r="1.1" fill="#333"/>
+  <circle cx="25" cy="22" r="1.1" fill="#333"/>
+  <circle cx="19" cy="25" r="1.1" fill="#333"/>
+  <circle cx="22" cy="25" r="1.1" fill="#333"/>
+  <circle cx="25" cy="25" r="1.1" fill="#FF5F00"/>
+
+  <!-- NOSA N mark in centre -->
+  <polygon points="15,13 16.5,13 19,19 17.5,19" fill="#FF5F00"/>
+  <rect x="13" y="13" width="2" height="6" rx="0.3" fill="#FF5F00"/>
+  <rect x="17" y="13" width="2" height="6" rx="0.3" fill="#FF5F00"/>
+</svg>

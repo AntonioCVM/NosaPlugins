@@ -1,0 +1,221 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Family Audit v1.0" Height="700" Width="1080"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="DangerButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="#CC3333"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="#CC3333"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin"     Value="0,3"/>
+        </Style>
+        <Style TargetType="TextBox" x:Key="SearchBox">
+            <Setter Property="FontSize"       Value="12"/>
+            <Setter Property="Padding"        Value="6,4"/>
+            <Setter Property="Height"         Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush"    Value="{DynamicResource BorderColor}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230"/>
+            <ColumnDefinition Width="1*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ═══ SIDEBAR ═══ -->
+        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="20,28,20,16">
+                <TextBlock Text="FAMILY" FontSize="16" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="AUDIT" FontSize="16" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Name="TxtFamilyCount" Text="0 families" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20,0,20,10">
+
+                    <TextBlock Text="Filters" FontWeight="Bold" FontSize="12"
+                               Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+
+                    <!-- Category filter -->
+                    <TextBlock Text="Category:" FontSize="11"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                    <ComboBox Name="CboCategory" Height="26" FontSize="11"
+                              SelectionChanged="Category_Changed"/>
+
+                    <!-- Checkboxes -->
+                    <CheckBox Name="ChkOnlyUnused" Content="Unused only (0 instances)"
+                              IsChecked="False" Click="Filter_Changed" Margin="0,10,0,0"/>
+                    <CheckBox Name="ChkOnlyEditable" Content="Editable families only"
+                              IsChecked="False" Click="Filter_Changed"/>
+                    <CheckBox Name="ChkOnlyIncomplete" Content="Incomplete params only"
+                              IsChecked="False" Click="Filter_Changed"/>
+
+                    <Separator Margin="0,14,0,12"/>
+
+                    <CheckBox Name="ChkDarkMode" Content="Dark Mode"
+                              Click="Theme_Toggled" Foreground="{DynamicResource TextColor}"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Button Grid.Row="2" Content="SCAN FAMILIES" Name="BtnScan"
+                    Click="Scan_Click" Style="{DynamicResource ActionButton}"
+                    Margin="20,0,20,8"/>
+            <Button Grid.Row="3" Content="Purge Selected" Name="BtnPurge"
+                    Click="Purge_Click" Style="{DynamicResource DangerButton}"
+                    Margin="20,0,20,8" IsEnabled="False"
+                    ToolTip="Delete selected families from the project"/>
+            <Button Grid.Row="4" Content="Export CSV" Name="BtnExport"
+                    Click="Export_Click" Style="{DynamicResource SecondaryButton}"
+                    Margin="20,0,20,8" IsEnabled="False"/>
+            <Button Grid.Row="5" Content="Select in Model" Name="BtnSelect"
+                    Click="SelectInModel_Click" Style="{DynamicResource SecondaryButton}"
+                    Margin="20,0,20,20" IsEnabled="False"
+                    ToolTip="Select all instances of the highlighted family"/>
+        </Grid>
+
+        <!-- ═══ MAIN ═══ -->
+        <Grid Grid.Column="1" Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="1*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Pills row -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                <Border CornerRadius="12" Background="#F0F0F0" Padding="10,4" Margin="0,0,8,0">
+                    <TextBlock Name="TxtPillTotal" Text="0 families" FontSize="11"
+                               Foreground="#666" FontWeight="Bold"/>
+                </Border>
+                <Border CornerRadius="12" Background="#FFEEEE" Padding="10,4" Margin="0,0,8,0">
+                    <TextBlock Name="TxtPillUnused" Text="0 unused" FontSize="11"
+                               Foreground="#CC3333" FontWeight="Bold"/>
+                </Border>
+                <Border CornerRadius="12" Background="#FFF3E6" Padding="10,4" Margin="0,0,8,0">
+                    <TextBlock Name="TxtPillSelected" Text="0 checked" FontSize="11"
+                               Foreground="#FF5F00" FontWeight="Bold"/>
+                </Border>
+                <Border CornerRadius="12" Background="#E8F5E9" Padding="10,4">
+                    <TextBlock Name="TxtPillInstances" Text="0 instances" FontSize="11"
+                               Foreground="#2E7D32" FontWeight="Bold"/>
+                </Border>
+            </StackPanel>
+
+            <!-- Search + select-all row -->
+            <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="1*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Grid.Column="0" Name="TxtSearch" Style="{DynamicResource SearchBox}"
+                         Text="Search families..." Foreground="Gray"
+                         GotFocus="Search_GotFocus" LostFocus="Search_LostFocus"
+                         TextChanged="Search_Changed"/>
+                <Button Grid.Column="1" Content="Check All"  Click="CheckAll_Click"
+                        Style="{DynamicResource SecondaryButton}"
+                        Margin="8,0,4,0" FontSize="11" Padding="10,4"/>
+                <Button Grid.Column="2" Content="Check None" Click="CheckNone_Click"
+                        Style="{DynamicResource SecondaryButton}"
+                        FontSize="11" Padding="10,4"/>
+            </Grid>
+
+            <!-- Family grid -->
+            <Grid Grid.Row="2">
+                <DataGrid Name="GridFamilies"
+                          AutoGenerateColumns="False" IsReadOnly="False"
+                          AlternatingRowBackground="#06000000" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                          GridLinesVisibility="Horizontal"
+                          SelectionMode="Single"
+                          SelectionChanged="Grid_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="" Width="36" CanUserResize="False">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Center"
+                                              Click="RowCheck_Click"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Category"   Binding="{Binding Category}"    Width="140"/>
+                        <DataGridTextColumn Header="Family"     Binding="{Binding Name}"        Width="*"/>
+                        <DataGridTextColumn Header="Types"      Binding="{Binding TypeCount}"   Width="55"/>
+                        <DataGridTextColumn Header="Instances"  Binding="{Binding InstanceCount}" Width="75"/>
+                        <DataGridTextColumn Header="Size (MB)"  Binding="{Binding SizeMB}"      Width="75"/>
+                        <DataGridTextColumn Header="Params"     Binding="{Binding ParamFill}"   Width="65"/>
+                        <DataGridTextColumn Header="Editable"   Binding="{Binding Editable}"    Width="65"/>
+                    </DataGrid.Columns>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsUnused}" Value="True">
+                                    <Setter Property="Background" Value="#10CC0000"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
+
+                <!-- Loading overlay -->
+                <Grid Name="LoadingPanel" Visibility="Collapsed"
+                      Background="#AAFAFAFA" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="Scanning families..." HorizontalAlignment="Center"
+                                   FontSize="13" Foreground="{DynamicResource TextColor}" Margin="0,0,0,10"/>
+                        <ProgressBar Name="ProcessBar" Width="240" Height="12"
+                                     IsIndeterminate="True" Foreground="{DynamicResource AccentColor}"/>
+                        <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center"
+                                   FontSize="11" Opacity="0.6" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
