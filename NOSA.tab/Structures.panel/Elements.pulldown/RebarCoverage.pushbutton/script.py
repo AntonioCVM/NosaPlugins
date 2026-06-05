@@ -1,36 +1,41 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 __title__   = "Rebar\nCoverage"
 __version__ = "1.0"
-__doc__     = """Rebar Coverage Checker v1.0
+__doc__     = """Rebar Coverage v1.0
 
-Detects structural elements with no rebar assigned.
+Checks and reports rebar cover dimensions in concrete elements:
 
-Shows:
-  - Overall coverage percentage (with / without rebar)
-  - Summary table by category
-  - Full list of elements missing rebar (select in model)
-
-Export results to CSV for reporting.
+  - Reads cover parameters from rebar instances
+  - Validates against minimum cover requirements per exposure class
+  - Highlights non-compliant bars
+  - Exports coverage summary to CSV
 """
-__author__ = "NOSA Engineering"
+__author__  = "NOSA Engineering"
 
 import sys, os
 from pyrevit import revit
 
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
-if lib_path not in sys.path: sys.path.insert(0, lib_path)
+if lib_path not in sys.path:
+    sys.path.insert(0, lib_path)
 
-def _lm(n, p):
-    try:
-        import importlib.util as _iu
-        s = _iu.spec_from_file_location(n, p); m = _iu.module_from_spec(s)
-        sys.modules[n] = m; s.loader.exec_module(m); return m
-    except (ImportError, AttributeError):
-        import imp; m = imp.load_source(n, p); sys.modules[n] = m; return m
+try:
+    import importlib.util as _iu
+    def _lm(n, p):
+        s = _iu.spec_from_file_location(n, p)
+        m = _iu.module_from_spec(s)
+        sys.modules[n] = m
+        s.loader.exec_module(m)
+        return m
+except (ImportError, AttributeError):
+    import imp
+    def _lm(n, p):
+        m = imp.load_source(n, p)
+        sys.modules[n] = m
+        return m
 
-ui_module = _lm('rebarcov_ui_local', os.path.join(lib_path, 'ui.py'))
-RebarCoverageWindow = ui_module.RebarCoverageWindow
+ui_module = _lm('rebarcov_ui', os.path.join(lib_path, 'ui.py'))
 
 if __name__ == '__main__':
-    win = RebarCoverageWindow(revit.doc)
+    win = ui_module.RebarCoverageWindow(revit.doc)
     win.ShowDialog()
