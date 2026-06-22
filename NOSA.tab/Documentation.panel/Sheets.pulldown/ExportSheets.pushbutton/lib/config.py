@@ -9,34 +9,42 @@ class Config:
     VERSION = "4.2.0-OPTIMIZED"
     
     PROFILES_DIR = os.path.join(
-        os.getenv('APPDATA'), 
-        'pyRevit', 
-        'Extensions', 
-        'ExportSheetsPro', 
+        os.getenv('APPDATA'),
+        'pyRevit',
+        'Extensions',
+        'NOSA.extension',
+        'NOSA_Configs',
+        'ExportSheets',
         'Profiles'
     )
-    
+
     VIEWSETS_DIR = os.path.join(
-        os.getenv('APPDATA'), 
-        'pyRevit', 
-        'Extensions', 
-        'ExportSheetsPro', 
+        os.getenv('APPDATA'),
+        'pyRevit',
+        'Extensions',
+        'NOSA.extension',
+        'NOSA_Configs',
+        'ExportSheets',
         'ViewSets'
     )
-    
+
     NAMING_PROFILES_DIR = os.path.join(
-        os.getenv('APPDATA'), 
-        'pyRevit', 
-        'Extensions', 
-        'ExportSheetsPro', 
+        os.getenv('APPDATA'),
+        'pyRevit',
+        'Extensions',
+        'NOSA.extension',
+        'NOSA_Configs',
+        'ExportSheets',
         'NamingProfiles'
     )
-    
+
     EXPORT_PROFILES_DIR = os.path.join(
-        os.getenv('APPDATA'), 
-        'pyRevit', 
-        'Extensions', 
-        'ExportSheetsPro', 
+        os.getenv('APPDATA'),
+        'pyRevit',
+        'Extensions',
+        'NOSA.extension',
+        'NOSA_Configs',
+        'ExportSheets',
         'ExportProfiles'
     )
     

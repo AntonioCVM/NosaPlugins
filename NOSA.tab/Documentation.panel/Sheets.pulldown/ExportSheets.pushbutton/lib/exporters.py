@@ -243,10 +243,18 @@ class ExportManager:
                 logger.warning("PDF export returned False for {}".format(filename))
                 debug_print("      - PDF Export Failed (API returned False)")
                 return False
-            
-            time.sleep(0.5)
-            
-            new_pdf = self._find_newest_pdf(before_files)
+
+            # Poll until Revit finishes writing the file (max 3 s)
+            deadline = time.time() + 3.0
+            new_pdf = None
+            while time.time() < deadline:
+                new_pdf = self._find_newest_pdf(before_files)
+                if new_pdf:
+                    break
+                time.sleep(0.15)
+
+            if new_pdf is None:
+                new_pdf = self._find_newest_pdf(before_files)
             
             if not new_pdf:
                 logger.warning("No se detectó PDF creado para {}".format(filename))
@@ -347,11 +355,18 @@ class ExportManager:
                 logger.warning("PDF export returned False for view {}".format(filename))
                 debug_print("      - PDF Export Failed (API returned False)")
                 return False
-            
-            time.sleep(0.5)
-            
-            new_pdf = self._find_newest_pdf(before_files)
-            
+
+            # Poll until Revit finishes writing the file (max 3 s)
+            deadline = time.time() + 3.0
+            new_pdf = None
+            while time.time() < deadline:
+                new_pdf = self._find_newest_pdf(before_files)
+                if new_pdf:
+                    break
+                time.sleep(0.15)
+            if new_pdf is None:
+                new_pdf = self._find_newest_pdf(before_files)
+
             if not new_pdf:
                 logger.warning("No PDF detected for view {}".format(filename))
                 debug_print("      - PDF Created but file not found in folder.")

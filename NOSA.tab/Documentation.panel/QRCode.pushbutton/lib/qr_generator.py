@@ -403,3 +403,85 @@ def generate_nosa_qr(url, size_mm=24, dpi=1200):
     if _IS_IRONPYTHON:
         return _generate_ironpython(url, size_mm, dpi)
     return _generate_cpython(url, size_mm, dpi)
+
+
+# ---------------------------------------------------------------------------
+# Matrix-only API  (used by vector / FilledRegion mode)
+# ---------------------------------------------------------------------------
+
+def _generate_matrix_cpython(url):
+    """Return (matrix, n) using qrcode directly (CPython3)."""
+    ok, err = _ensure_deps()
+    if not ok:
+        raise ImportError(err)
+    import qrcode
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=1, border=0,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    matrix = [[bool(cell) for cell in row] for row in qr.modules]
+    return matrix, qr.modules_count
+
+
+def _generate_matrix_ironpython(url):
+    """Return (matrix, n) by spawning the CPython3 subprocess in --matrix-json mode."""
+    import subprocess as sp
+    import tempfile
+    import json as _json
+
+    cpy_exe = _find_cpython3_exe()
+    if not cpy_exe:
+        raise RuntimeError(
+            u'Python 3 no encontrado para generación de matriz QR.\n' + _diagnose()
+        )
+
+    fd, json_out = tempfile.mkstemp(suffix='.json', prefix='nosa_qrmat_')
+    os.close(fd)
+    fd2, url_file = tempfile.mkstemp(suffix='.txt', prefix='nosa_qr_url_')
+    try:
+        os.write(fd2, url.encode('utf-8'))
+    except Exception:
+        os.write(fd2, url)
+    os.close(fd2)
+
+    bridge = os.path.join(os.path.dirname(__file__), '_qr_subprocess.py')
+    try:
+        ret = sp.call([cpy_exe, bridge, url_file, '--matrix-json', json_out])
+    finally:
+        try:
+            os.unlink(url_file)
+        except Exception:
+            pass
+
+    if ret != 0:
+        try:
+            os.unlink(json_out)
+        except Exception:
+            pass
+        raise RuntimeError(u'QR matrix subprocess falló con código {}'.format(ret))
+
+    try:
+        with open(json_out, 'r') as f:
+            data = _json.load(f)
+        return data['matrix'], data['n']
+    finally:
+        try:
+            os.unlink(json_out)
+        except Exception:
+            pass
+
+
+def generate_nosa_qr_matrix(url):
+    """
+    Return (matrix, n) — the raw QR boolean matrix and module count.
+
+    matrix : list[list[bool]]  — row 0 is the TOP of the QR code
+    n      : int               — modules per side
+
+    Used by vector (FilledRegion) placement mode.
+    """
+    if _IS_IRONPYTHON:
+        return _generate_matrix_ironpython(url)
+    return _generate_matrix_cpython(url)

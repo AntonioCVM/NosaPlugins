@@ -146,6 +146,8 @@ class QRCodeWindow(WPFWindow):
         self._doc      = doc    # Revit Document (may be None outside Revit context)
         self._result   = None   # PIL Image or temp PNG path
         self._tmp_path = None   # last temp file (IronPython path); cleaned up on close
+        self._restore_last_url()
+        self._wire_mode_hints()
 
     # ------------------------------------------------------------------
     # Config helpers
@@ -161,9 +163,9 @@ class QRCodeWindow(WPFWindow):
 
     def _restore_last_url(self):
         try:
-            import json
+            import io as _io, json
             if os.path.exists(self._cfg_path):
-                with open(self._cfg_path, 'r') as f:
+                with _io.open(self._cfg_path, 'r', encoding='utf-8') as f:
                     saved = json.load(f).get('last_url', '')
                 if saved:
                     self.TxtUrl.Text = saved
@@ -172,14 +174,45 @@ class QRCodeWindow(WPFWindow):
 
     def _save_last_url(self, url):
         try:
-            import json
+            import io as _io, json
             root = os.path.dirname(self._cfg_path)
             if not os.path.exists(root):
                 os.makedirs(root)
-            with open(self._cfg_path, 'w') as f:
+            with _io.open(self._cfg_path, 'w', encoding='utf-8') as f:
                 json.dump({'last_url': url}, f)
         except Exception:
             pass
+
+    def _wire_mode_hints(self):
+        """Connect RadioButton change events to update the mode hint text."""
+        try:
+            self.RboPng.Checked    += self._on_mode_changed
+            self.RboVector.Checked += self._on_mode_changed
+        except Exception:
+            pass
+
+    def _on_mode_changed(self, sender, args):
+        try:
+            if self.RboVector.IsChecked:
+                self.TxtModeHint.Text = (
+                    u'Geometría nativa: FilledRegion de Revit — '
+                    u'el QR exporta a DWG como trama CAD sin imagen externa'
+                )
+            else:
+                self.TxtModeHint.Text = (
+                    u'PNG: el QR se guarda como imagen incrustada en la familia titleblock'
+                )
+        except Exception:
+            pass
+
+    def _get_mode(self):
+        """Return 'vector' or 'png' based on the UI toggle."""
+        try:
+            if self.RboVector.IsChecked:
+                return 'vector'
+        except Exception:
+            pass
+        return 'png'
 
     # ------------------------------------------------------------------
     # Cleanup
@@ -281,16 +314,29 @@ class QRCodeWindow(WPFWindow):
             self.BtnGenerate.IsEnabled = True
 
     def PlaceTitleblocks_Click(self, sender, args):
-        """Replace the QR image in every unique titleblock family in the project."""
+        """Replace the QR in every unique titleblock family in the project."""
         if self._result is None or self._doc is None:
             return
 
+        mode = self._get_mode()
         self.BtnPlaceTB.IsEnabled = False
-        self._set_tb_status(u'Updating titleblock families\u2026', ok=False)
+        self._set_tb_status(
+            u'Actualizando familias de titleblock\u2026 (modo {})'.format(mode),
+            ok=False
+        )
 
         try:
             tb_logic = _load_tb_logic()
-            results = tb_logic.run(self._doc, self._result)
+
+            if mode == 'vector':
+                url = (self.TxtUrl.Text or u'').strip()
+                self._set_tb_status(u'Generando matriz QR\u2026', ok=False)
+                matrix, n = qr_generator.generate_nosa_qr_matrix(url)
+                qr_data = (matrix, n)
+            else:
+                qr_data = self._result
+
+            results = tb_logic.run(self._doc, qr_data, mode=mode)
 
             ok_count   = sum(1 for _, s, _ in results if s == 'ok')
             skip_count = sum(1 for _, s, _ in results if s == 'skip')

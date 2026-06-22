@@ -164,12 +164,10 @@ def generate(url, size_mm, dpi):
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print('Usage: _qr_subprocess.py <url_file> <output_png> [size_mm] [dpi]')
+        print('   or: _qr_subprocess.py <url_file> --matrix-json <output_json>')
         sys.exit(1)
 
-    url_file   = sys.argv[1]
-    output_png = sys.argv[2]
-    size_mm    = float(sys.argv[3]) if len(sys.argv) > 3 else 24
-    dpi        = int(sys.argv[4])   if len(sys.argv) > 4 else 1200
+    url_file = sys.argv[1]
 
     try:
         with open(url_file, 'r', encoding='utf-8') as f:
@@ -177,6 +175,33 @@ if __name__ == '__main__':
     except TypeError:
         with open(url_file, 'r') as f:
             url = f.read().strip()
+
+    # ── Matrix-only mode ────────────────────────────────────────────────
+    if len(sys.argv) >= 4 and sys.argv[2] == '--matrix-json':
+        json_out = sys.argv[3]
+        try:
+            import json
+            qr = qrcode.QRCode(
+                error_correction=qrcode.constants.ERROR_CORRECT_M,
+                box_size=1, border=0,
+            )
+            qr.add_data(url)
+            qr.make(fit=True)
+            data = {
+                'matrix': [[bool(cell) for cell in row] for row in qr.modules],
+                'n': qr.modules_count,
+            }
+            with open(json_out, 'w') as f:
+                json.dump(data, f)
+            sys.exit(0)
+        except Exception as e:
+            print('ERROR: {}'.format(e), file=sys.stderr)
+            sys.exit(1)
+
+    # ── PNG generation mode (default) ───────────────────────────────────
+    output_png = sys.argv[2]
+    size_mm    = float(sys.argv[3]) if len(sys.argv) > 3 else 24
+    dpi        = int(sys.argv[4])   if len(sys.argv) > 4 else 1200
 
     try:
         img = generate(url, size_mm, dpi)

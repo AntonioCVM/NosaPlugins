@@ -4,7 +4,7 @@ RevisionTracker Logic — snapshot-based delta detection.
 Saves a JSON snapshot of structural elements + parameters.
 Compares current model against snapshot to find Added / Removed / Changed.
 """
-import os, json, datetime
+import io, os, json, datetime
 from pyrevit import DB
 
 _SNAP_DIR = os.path.join(
@@ -82,7 +82,7 @@ def take_snapshot(doc, label=None):
             'count': len(elements), 'elements': elements}
     fname = 'snapshot_{}.json'.format(datetime.datetime.now().strftime('%Y%m%d_%H%M%S'))
     path = os.path.join(_SNAP_DIR, fname)
-    with open(path, 'w') as f: json.dump(data, f, indent=2)
+    with io.open(path, 'w', encoding='utf-8') as f: json.dump(data, f, indent=2)
     return path, label, len(elements)
 
 def list_snapshots():
@@ -101,7 +101,7 @@ def list_snapshots():
 
 def load_snapshot(fname):
     path = os.path.join(_SNAP_DIR, fname)
-    with open(path) as f: return json.load(f)
+    with io.open(path, encoding='utf-8') as f: return json.load(f)
 
 def delete_snapshot(fname):
     path = os.path.join(_SNAP_DIR, fname)
