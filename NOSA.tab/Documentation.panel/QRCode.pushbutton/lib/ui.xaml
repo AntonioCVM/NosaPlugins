@@ -245,7 +245,7 @@
         </Grid>
 
         <!-- ── Place mode toggle ─────────────────────────────────────────── -->
-        <Border Grid.Row="10"
+        <Border Grid.Row="11"
                 Background="#F5F5F5"
                 CornerRadius="4"
                 Padding="10,7">
@@ -280,13 +280,13 @@
         </Border>
 
         <!-- ── Divider ────────────────────────────────────────────────── -->
-        <Rectangle Grid.Row="12"
+        <Rectangle Grid.Row="13"
                    Fill="{DynamicResource BorderColor}"
                    Height="1"
                    HorizontalAlignment="Stretch"/>
 
         <!-- ── Place in Titleblocks bar ──────────────────────────────── -->
-        <Grid Grid.Row="14">
+        <Grid Grid.Row="15">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="10"/>

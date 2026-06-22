@@ -378,10 +378,6 @@ def _diagnose(doc):
 # ---------------------------------------------------------------------------
 
 import math as _math
-try:
-    from System.Collections.Generic import List as _List
-except Exception:
-    _List = None  # IronPython without System — fallback handled per-call
 
 _MIN_SEG_FT = 1e-7   # minimum line length to avoid Revit tolerance errors
 
@@ -428,25 +424,23 @@ def _hexagon_pts(cx, cy, r):
 
 def _make_list(item_type=None):
     """Return a generic List[CurveLoop] or fall back to a plain Python list."""
-    if _List is not None:
-        try:
-            return _List[DB.CurveLoop]()
-        except Exception:
-            pass
-    return []
+    try:
+        from System.Collections.Generic import List as _L
+        return _L[DB.CurveLoop]()
+    except Exception:
+        return []
 
 
 def _create_fr(fam_doc, type_id, view_id, loops):
     """Create a FilledRegion from a plain list or System.Collections.Generic.List."""
-    if _List is not None:
-        try:
-            if not isinstance(loops, _List[DB.CurveLoop]):
-                net_list = _List[DB.CurveLoop]()
-                for lp in loops:
-                    net_list.Add(lp)
-                loops = net_list
-        except Exception:
-            pass
+    try:
+        from System.Collections.Generic import List as _L
+        net_list = _L[DB.CurveLoop]()
+        for lp in loops:
+            net_list.Add(lp)
+        loops = net_list
+    except Exception:
+        pass
     return DB.FilledRegion.Create(fam_doc, type_id, view_id, loops)
 
 
