@@ -21,6 +21,64 @@ from nosa_utils.logging import Logger
 
 logger = Logger()
 
+
+def launch_nosa_window(window_class, *args, **kwargs):
+    """
+    Instantiate a NOSAWindow subclass and show it.
+    Surfaces init / ShowDialog failures via forms.alert (avoids blank AzureAD window).
+    """
+    from pyrevit import forms
+    name = getattr(window_class, '__name__', 'NOSA plugin')
+    win = None
+    try:
+        win = window_class(*args, **kwargs)
+    except TypeError as e:
+        msg = unicode(e)
+        if u'2 given' in msg and (u'3 arguments' in msg or u'3 argument' in msg):
+            try:
+                from pyrevit import revit
+                uidoc = getattr(revit, 'uidoc', None)
+                if uidoc is not None:
+                    win = window_class(*(args + (uidoc,)), **kwargs)
+                else:
+                    raise
+            except Exception:
+                forms.alert(
+                    u'{} failed to initialise:\n{}'.format(name, e),
+                    title=u'NOSA — Window Error')
+                return None
+        else:
+            forms.alert(
+                u'{} failed to initialise:\n{}'.format(name, e),
+                title=u'NOSA — Window Error')
+            return None
+    except Exception as e:
+        forms.alert(
+            u'{} failed to initialise:\n{}'.format(name, e),
+            title=u'NOSA — Window Error')
+        return None
+    if not getattr(win, '_init_ok', True):
+        try:
+            win.Close()
+        except Exception:
+            pass
+        return None
+    try:
+        win.ShowDialog()
+    except Exception as e:
+        forms.alert(
+            u'{} error while open:\n{}'.format(name, e),
+            title=u'NOSA — Window Error')
+        return win
+    try:
+        from nosa_utils import usage as _usage
+        _key = getattr(win, '_plugin_key', None) or name
+        _usage.record(_key)
+    except Exception:
+        pass
+    return win
+
+
 _CONFIGS_ROOT = os.path.join(
     os.getenv('APPDATA', ''),
     'pyRevit', 'Extensions', 'NOSA.extension', 'NOSA_Configs'
@@ -45,13 +103,63 @@ class NOSAWindow(WPFWindow):
             xaml_path  (str): Absolute path to ui.xaml.
             plugin_key (str): Short unique key used for config file name, e.g. 'health_score'.
         """
-        WPFWindow.__init__(self, xaml_path)
+        self._init_ok = False
         self._plugin_key = plugin_key
-        self._config_file = os.path.join(_CONFIGS_ROOT, '_{}.json'.format(plugin_key))
-        self._ensure_config_dir()
+        try:
+            WPFWindow.__init__(self, xaml_path)
+            self._config_file = os.path.join(_CONFIGS_ROOT, '_{}.json'.format(plugin_key))
+            self._ensure_config_dir()
+            self.dark_mode = ThemeManager.load_theme()
+            self.ApplyTheme(self.dark_mode)
+            self._restore_window_size()
+            self._init_ok = True
+        except Exception as e:
+            self._init_ok = False
+            from pyrevit import forms
+            forms.alert(
+                u'{} — XAML / window load failed:\n{}'.format(plugin_key, e),
+                title=u'NOSA — Window Error')
+            raise
 
-        self.dark_mode = ThemeManager.load_theme()
-        self.ApplyTheme(self.dark_mode)
+    # ------------------------------------------------------------------
+    # Window size persistence (resizable windows only)
+    # ------------------------------------------------------------------
+
+    def _is_resizable(self):
+        try:
+            return str(self.ResizeMode) in ('CanResize', 'CanResizeWithGrip')
+        except Exception:
+            return False
+
+    def _restore_window_size(self):
+        if not self._is_resizable():
+            return
+        try:
+            cfg = self.LoadConfig()
+            w = float(cfg.get('win_w', 0))
+            h = float(cfg.get('win_h', 0))
+            if w >= 400 and h >= 300:
+                sw = System.Windows.SystemParameters.PrimaryScreenWidth
+                sh = System.Windows.SystemParameters.PrimaryScreenHeight
+                self.Width  = min(w, sw)
+                self.Height = min(h, sh)
+        except Exception:
+            pass
+        try:
+            self.Closing += self._nosa_save_window_size
+        except Exception:
+            pass
+
+    def _nosa_save_window_size(self, sender, args):
+        if not self._is_resizable():
+            return
+        try:
+            cfg = self.LoadConfig()
+            cfg['win_w'] = float(self.ActualWidth)
+            cfg['win_h'] = float(self.ActualHeight)
+            self.SaveConfig(cfg)
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------
     # Theme
@@ -134,6 +242,33 @@ class NOSAWindow(WPFWindow):
                 self.TxtStatus.Text = message
             except Exception:
                 pass
+
+    def SetProgress(self, current, total, message=None):
+        """
+        Determinate progress on 'ProcessBar' (0..total) with optional status
+        text on 'TxtStatus'. Pumps the WPF dispatcher so the bar repaints
+        during long loops. Both controls are optional — silently ignored
+        if absent. Call SetLoading(False) when done to reset.
+        """
+        try:
+            self.ProcessBar.IsIndeterminate = False
+            self.ProcessBar.Minimum = 0
+            self.ProcessBar.Maximum = max(1, int(total))
+            self.ProcessBar.Value   = min(int(current), int(total))
+        except Exception:
+            pass
+        if message:
+            try:
+                self.TxtStatus.Text = message
+            except Exception:
+                pass
+        try:
+            import System
+            from System.Windows.Threading import DispatcherPriority
+            self.Dispatcher.Invoke(System.Action(lambda: None),
+                                   DispatcherPriority.Background)
+        except Exception:
+            pass
 
     def LogLine(self, msg):
         """Append a line to a TextBox named 'TxtLog' (optional)."""
