@@ -3,6 +3,7 @@ import io
 """Material Manager Logic — audit and clean up Revit materials."""
 import sys, os, csv
 from Autodesk.Revit import DB
+from System.Collections.Generic import List
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -103,7 +104,7 @@ def delete_materials(doc, material_ids):
         t.Start()
         for mid in material_ids:
             try:
-                doc.Delete(DB.ICollection[DB.ElementId]([mid]))
+                doc.Delete(List[DB.ElementId]([mid]))
                 deleted += 1
             except Exception:
                 failed += 1

@@ -2,6 +2,7 @@
 """Family Audit Logic — inspect, score and purge Revit families."""
 import io, sys, os, csv
 from Autodesk.Revit import DB
+from System.Collections.Generic import List
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -139,7 +140,7 @@ def purge_families(doc, family_ids):
     """
     deleted = 0
     failed  = []
-    id_set  = DB.ICollection[DB.ElementId](list(family_ids))
+    id_set  = List[DB.ElementId](list(family_ids))
     with DB.Transaction(doc, u"NOSA — Family Audit — Purge Families") as t:
         t.Start()
         try:
@@ -149,7 +150,7 @@ def purge_families(doc, family_ids):
             # Fall back to deleting one by one
             for fid in family_ids:
                 try:
-                    doc.Delete(DB.ICollection[DB.ElementId]([fid]))
+                    doc.Delete(List[DB.ElementId]([fid]))
                     deleted += 1
                 except Exception:
                     failed.append(fid)

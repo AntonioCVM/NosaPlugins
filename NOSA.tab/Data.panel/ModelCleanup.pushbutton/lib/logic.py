@@ -4,6 +4,7 @@ ModelCleanup Logic — find orphan views, unused families/types/templates,
 CAD imports, unplaced rooms, and trivial warnings.
 """
 from Autodesk.Revit import DB
+from System.Collections.Generic import List
 from nosa_utils.revit_helpers import get_id_value
 import math
 
@@ -47,7 +48,7 @@ def purge_orphan_views(doc, view_ids):
         t.Start()
         for vid in view_ids:
             try:
-                doc.Delete(DB.ICollection[DB.ElementId]([DB.ElementId(int(vid))]))
+                doc.Delete(List[DB.ElementId]([DB.ElementId(int(vid))]))
                 deleted += 1
             except Exception:
                 failed += 1
@@ -95,7 +96,7 @@ def purge_unused_families(doc, symbol_ids):
         t.Start()
         for sid in symbol_ids:
             try:
-                doc.Delete(DB.ICollection[DB.ElementId]([DB.ElementId(int(sid))]))
+                doc.Delete(List[DB.ElementId]([DB.ElementId(int(sid))]))
                 deleted += 1
             except Exception:
                 failed += 1
@@ -129,7 +130,7 @@ def purge_unused_templates(doc, template_ids):
         t.Start()
         for tid in template_ids:
             try:
-                doc.Delete(DB.ICollection[DB.ElementId]([DB.ElementId(int(tid))]))
+                doc.Delete(List[DB.ElementId]([DB.ElementId(int(tid))]))
                 deleted += 1
             except Exception:
                 failed += 1
@@ -173,7 +174,7 @@ def purge_cad_imports(doc, import_ids):
         t.Start()
         for iid in import_ids:
             try:
-                doc.Delete(DB.ICollection[DB.ElementId]([DB.ElementId(int(iid))]))
+                doc.Delete(List[DB.ElementId]([DB.ElementId(int(iid))]))
                 deleted += 1
             except Exception:
                 failed += 1
@@ -223,7 +224,7 @@ def purge_unplaced_rooms(doc, room_ids):
         t.Start()
         for rid in room_ids:
             try:
-                doc.Delete(DB.ICollection[DB.ElementId]([DB.ElementId(int(rid))]))
+                doc.Delete(List[DB.ElementId]([DB.ElementId(int(rid))]))
                 deleted += 1
             except Exception:
                 failed += 1
