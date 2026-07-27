@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 __title__   = "Pilecap\nGeometry Check"
 __version__ = "1.1"
-__doc__     = """Pilecap Geometry Check v1.1
+__doc__     = """Pilecap Geometry & Load Check v1.1
 
-Checks geometric properties of pile cap elements:
+Checks geometric properties of pile cap elements and a partial load check:
 
   - Validates pile cap dimensions and layout
   - Reports geometric inconsistencies per pile cap
+  - Reads N, Mx, My reactions from the analytical model where available
+  - Pass/fail utilisation check is based on axial load (N) vs pile
+    bearing capacity only — combined N+Mx+My utilisation and Vx/Vy shear
+    checks are not yet implemented
   - Exports results to CSV
-
-NOTE: Load verification against analytical model reactions
-(N, Mx, My, Vx, Vy) is planned for a future release (Sprint 9).
 """
 __author__  = "A. Viñas"
 
