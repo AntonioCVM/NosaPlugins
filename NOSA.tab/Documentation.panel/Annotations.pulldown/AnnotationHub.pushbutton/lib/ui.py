@@ -140,6 +140,8 @@ class AnnotationHubWindow(NOSAWindow):
                         res = self._dw_logic.create_arc_dimensions(wall, view, dim_type, offset_mm)
                         if res:
                             created += len(res)
+                        else:
+                            failed += 1
                     elif not is_arc and do_straight:
                         dim = self._dw_logic.create_linear_dimension(wall, view, dim_type, offset_mm)
                         if dim:
