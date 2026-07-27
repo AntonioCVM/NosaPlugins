@@ -143,14 +143,30 @@ def _diagnose():
 # CPython3 direct path  (qrcode + Pillow)
 # ---------------------------------------------------------------------------
 
-def _ensure_deps():
-    """Import or auto-install qrcode + Pillow. Returns (ok, err_msg)."""
+def _deps_present():
+    """Check whether qrcode + Pillow are importable, without installing anything."""
     try:
         import qrcode       # noqa: F401
         from PIL import Image  # noqa: F401
-        return True, None
+        return True
     except ImportError:
-        pass
+        return False
+
+
+def _ensure_deps(confirm=None):
+    """
+    Import or auto-install qrcode + Pillow. Returns (ok, err_msg).
+
+    confirm: optional no-arg callable returning True/False. Called before
+    actually installing anything (never before a plain import that already
+    succeeds). If it returns False, installation is skipped and (False, ...)
+    is returned instead of silently running pip.
+    """
+    if _deps_present():
+        return True, None
+
+    if confirm is not None and not confirm():
+        return False, u'Installation of qrcode/Pillow was declined by the user.'
 
     # Try pip internal API first (no subprocess needed)
     try:
@@ -313,9 +329,9 @@ def _render_pil(matrix, n, size_mm, dpi):
     return img
 
 
-def _generate_cpython(url, size_mm, dpi):
+def _generate_cpython(url, size_mm, dpi, confirm=None):
     """Generate QR code using qrcode + Pillow (CPython3 only)."""
-    ok, err = _ensure_deps()
+    ok, err = _ensure_deps(confirm=confirm)
     if not ok:
         raise ImportError(err)
 
@@ -334,10 +350,26 @@ def _generate_cpython(url, size_mm, dpi):
 # IronPython bridge path  (spawn CPython3 subprocess)
 # ---------------------------------------------------------------------------
 
-def _generate_ironpython(url, size_mm, dpi):
+def _cpython_deps_present(cpy_exe):
+    """Check (no install) whether qrcode + Pillow are importable in cpy_exe."""
+    import subprocess as sp
+    try:
+        with open(os.devnull, 'wb') as _devnull:
+            ret = sp.call([cpy_exe, '-c', 'import qrcode, PIL'],
+                          stdout=_devnull, stderr=_devnull)
+        return ret == 0
+    except Exception:
+        return False
+
+
+def _generate_ironpython(url, size_mm, dpi, confirm=None):
     """
     IronPython path: find CPython3 in pyRevit engines, spawn _qr_subprocess.py,
     return temp PNG file path.
+
+    confirm: optional no-arg callable returning True/False, asked before the
+    subprocess is allowed to auto-install qrcode/Pillow (the subprocess itself
+    always installs unconditionally if missing, so the check must happen here).
     """
     import subprocess as sp
     import tempfile
@@ -349,6 +381,12 @@ def _generate_ironpython(url, size_mm, dpi):
             'or enable the CPython3 engine in pyRevit Settings.\n\n'
             + _diagnose()
         )
+
+    if confirm is not None and not _cpython_deps_present(cpy_exe):
+        if not confirm():
+            raise RuntimeError(
+                u'Installation of qrcode/Pillow was declined by the user.'
+            )
 
     fd, tmp = tempfile.mkstemp(suffix='.png', prefix='nosa_qr_')
     os.close(fd)
@@ -387,9 +425,15 @@ def _generate_ironpython(url, size_mm, dpi):
 # Public API
 # ---------------------------------------------------------------------------
 
-def generate_nosa_qr(url, size_mm=24, dpi=1200):
+def generate_nosa_qr(url, size_mm=24, dpi=1200, confirm=None):
     """
     Generate a branded NOSA QR code.
+
+    confirm: optional no-arg callable returning True/False, used to ask the
+    user before qrcode/Pillow are auto-installed via pip (only asked if the
+    packages are actually missing). If omitted, installation proceeds without
+    asking (previous behaviour), so headless/non-interactive callers are
+    unaffected.
 
     Returns
     -------
@@ -401,8 +445,8 @@ def generate_nosa_qr(url, size_mm=24, dpi=1200):
     ImportError / RuntimeError on failure.
     """
     if _IS_IRONPYTHON:
-        return _generate_ironpython(url, size_mm, dpi)
-    return _generate_cpython(url, size_mm, dpi)
+        return _generate_ironpython(url, size_mm, dpi, confirm=confirm)
+    return _generate_cpython(url, size_mm, dpi, confirm=confirm)
 
 
 # ---------------------------------------------------------------------------

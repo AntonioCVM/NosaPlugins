@@ -10,6 +10,8 @@ generate_nosa_qr() returns:
 import os
 import sys
 
+from pyrevit import forms
+
 import System.Windows
 import System.Windows.Media as Media
 import System.Windows.Input as Input
@@ -224,6 +226,15 @@ class QRCodeWindow(NOSAWindow):
     # Core logic
     # ------------------------------------------------------------------
 
+    def _confirm_install_deps(self):
+        return forms.alert(
+            u'QR code generation needs the "qrcode" and "Pillow" Python '
+            u'packages, which are not installed yet.\n\n'
+            u'Install them now via pip?',
+            title=u'NOSA — Install dependencies',
+            yes=True, no=True
+        )
+
     def _do_generate(self):
         url = (self.TxtUrl.Text or '').strip()
         if not url or url == 'https://':
@@ -240,7 +251,7 @@ class QRCodeWindow(NOSAWindow):
             if was_shortened:
                 self.TxtUrl.Text = url
 
-            result = qr_generator.generate_nosa_qr(url)
+            result = qr_generator.generate_nosa_qr(url, confirm=self._confirm_install_deps)
 
             # Track temp file so we can clean it up later
             if isinstance(result, str):
