@@ -1,0 +1,346 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Parameter Hub" Height="740" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/> <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding" Value="18,9"/> <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="SecBtn" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight" Value="SemiBold"/> <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin" Value="0,3"/>
+        </Style>
+        <Style x:Key="FieldBox" TargetType="TextBox">
+            <Setter Property="Height" Value="26"/> <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="4,2"/> <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,14">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="PARAMETER HUB" FontSize="18" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                <TextBlock Text="Inspector · Bulk editor" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.55"
+                           VerticalAlignment="Center" Margin="14,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontSize" Value="12"/> <Setter Property="FontFamily" Value="Century Gothic"/>
+                    <Setter Property="Padding" Value="16,8"/> <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ═══ TAB 1: PARAMETER INSPECTOR ═══ -->
+            <TabItem Header="Inspector">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="230"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Sidebar -->
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,20,20,12">
+                            <TextBlock Text="PARAMETER INSPECTOR" FontSize="13" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}" TextWrapping="Wrap"/>
+                            <TextBlock Name="PI_TxtElementCount" Text="0 elements" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20,0,20,10">
+                                <TextBlock Text="Filters" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                <CheckBox Name="PI_ChkShowBuiltin"  Content="Built-in parameters" IsChecked="True"  Click="PI_Filter_Changed"/>
+                                <CheckBox Name="PI_ChkShowShared"   Content="Shared parameters"   IsChecked="True"  Click="PI_Filter_Changed"/>
+                                <CheckBox Name="PI_ChkShowProject"  Content="Project parameters"  IsChecked="True"  Click="PI_Filter_Changed"/>
+                                <CheckBox Name="PI_ChkOnlyDiffs"    Content="Differences only"    IsChecked="False" Click="PI_Filter_Changed"/>
+                                <CheckBox Name="PI_ChkOnlyWritable" Content="Writable only"       IsChecked="False" Click="PI_Filter_Changed"/>
+
+                                <Separator Margin="0,14,0,12"/>
+                                <TextBlock Text="Bulk edit" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                <TextBlock Text="New value:" FontSize="11" Margin="0,0,0,3"/>
+                                <TextBox Name="PI_TxtNewValue" Height="26" Padding="6,3" FontSize="11"
+                                         VerticalContentAlignment="Center"
+                                         BorderBrush="{DynamicResource BorderColor}"/>
+                                <Button Name="PI_BtnApply" Content="Apply to selected row"
+                                        Click="PI_Apply_Click" Style="{DynamicResource SecBtn}"
+                                        Margin="0,8,0,0" IsEnabled="False"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Button Grid.Row="2" Name="PI_BtnLoad" Content="LOAD SELECTION"
+                                Click="PI_Load_Click" Style="{DynamicResource ActionBtn}" Margin="20,0,20,8"/>
+                        <Button Grid.Row="3" Name="PI_BtnCopyFrom" Content="Copy from first element"
+                                Click="PI_CopyFrom_Click" Style="{DynamicResource SecBtn}"
+                                Margin="20,0,20,8" IsEnabled="False"/>
+                        <Button Grid.Row="4" Name="PI_BtnExport" Content="Export CSV"
+                                Click="PI_Export_Click" Style="{DynamicResource SecBtn}"
+                                Margin="20,0,20,20" IsEnabled="False"/>
+                    </Grid>
+
+                    <!-- Main -->
+                    <Grid Grid.Column="1" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Search + pills -->
+                        <Grid Grid.Row="0" Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Name="PI_TxtSearch"
+                                     Height="30" FontSize="12" Padding="8,4"
+                                     VerticalContentAlignment="Center"
+                                     BorderBrush="{DynamicResource BorderColor}"
+                                     Text="Search parameters..." Foreground="Gray"
+                                     GotFocus="PI_Search_GotFocus" LostFocus="PI_Search_LostFocus"
+                                     TextChanged="PI_Search_Changed"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0">
+                                <Border CornerRadius="12" Background="#F0F0F0" Padding="10,4" Margin="0,0,8,0">
+                                    <TextBlock Name="PI_TxtTotalParams" Text="0 params" FontSize="11"
+                                               Foreground="#666" FontWeight="Bold"/>
+                                </Border>
+                                <Border CornerRadius="12" Background="#FFEEEE" Padding="10,4">
+                                    <TextBlock Name="PI_TxtDiffParams" Text="0 diffs" FontSize="11"
+                                               Foreground="#CC3333" FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- Parameter grid -->
+                        <DataGrid Name="PI_GridParams" Grid.Row="1"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  AlternatingRowBackground="#06000000" Background="Transparent"
+                                  BorderBrush="{DynamicResource BorderColor}"
+                                  GridLinesVisibility="Horizontal" SelectionMode="Single"
+                                  SelectionChanged="PI_Grid_SelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Group"     Binding="{Binding Group}"   Width="130"/>
+                                <DataGridTextColumn Header="Parameter" Binding="{Binding Name}"    Width="200"/>
+                                <DataGridTextColumn Header="Type"      Binding="{Binding Storage}" Width="70"/>
+                                <DataGridTextColumn Header="R/W"       Binding="{Binding RW}"      Width="40"/>
+                                <DataGridTextColumn Header="Value(s)"  Binding="{Binding ValueStr}" Width="*"/>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasDiff}" Value="True">
+                                            <Setter Property="Background" Value="#18CC0000"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 2: BULK PARAMETER EDITOR ═══ -->
+            <TabItem Header="Bulk Editor">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="356"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Sidebar -->
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="18,20,18,10">
+                            <TextBlock Text="BULK PARAMETER EDITOR" FontSize="13" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}" TextWrapping="Wrap"/>
+                            <TextBlock Name="BE_TxtStatusHint" FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.62" Margin="0,6,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="18,0,18,14">
+                                <TextBlock Text="Presets" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,6"/>
+                                <ComboBox Name="BE_ComboPresetPick" Height="26" Margin="0,0,0,8"
+                                          SelectionChanged="BE_PresetLoad_Changed"/>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Name="BE_TxtPresetSaveName" Width="150" Margin="0,0,8,12"
+                                             Style="{DynamicResource FieldBox}"/>
+                                    <Button Content="Save preset" Click="BE_PresetSave_Click"
+                                            Style="{DynamicResource SecBtn}" Padding="10,6" Margin="0,0,0,12"/>
+                                </StackPanel>
+
+                                <TextBlock Text="Category" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
+                                <ComboBox Name="BE_ComboCategory" Height="28" DisplayMemberPath="Title"
+                                          SelectionChanged="BE_Category_Changed"/>
+
+                                <CheckBox Name="BE_ChkRestrictSelection" Margin="0,10,0,4"
+                                          Content="Limit to current Revit selection"/>
+                                <CheckBox Name="BE_ChkExcludeNonModifiable" Margin="0,0,0,4"
+                                          Content="Exclude non-modifiable instances"/>
+                                <CheckBox Name="BE_ChkOpenWorksetsOnly" Margin="0,0,0,6"
+                                          Content="Exclude elements on closed worksets"/>
+
+                                <TextBlock FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                                           Text="Active document only; linked models cannot be queried."/>
+
+                                <TextBlock Text="Filter family (contains)" FontSize="10" Margin="0,12,0,3"/>
+                                <TextBox Name="BE_TxtFamFilter"  Style="{DynamicResource FieldBox}"/>
+                                <TextBlock Text="Filter type / name (contains)" FontSize="10" Margin="0,8,0,3"/>
+                                <TextBox Name="BE_TxtTypeFilter" Style="{DynamicResource FieldBox}"/>
+
+                                <Button Content="SCAN ELEMENTS" Name="BE_BtnScan" Click="BE_Scan_Click"
+                                        Style="{DynamicResource SecBtn}" Margin="0,12,0,0"/>
+                                <TextBlock Name="BE_TxtRowCount" Text="0 instances" Margin="0,8,0,0"
+                                           FontWeight="SemiBold" Foreground="{DynamicResource AccentColor}"/>
+
+                                <Separator Margin="0,14,0,12"/>
+                                <TextBlock Text="Parameter filter &amp; scope" FontWeight="Bold"
+                                           FontSize="11" Margin="0,0,0,6"/>
+                                <TextBox Name="BE_TxtParamFilter" Height="26" Margin="0,0,0,8"
+                                         Style="{DynamicResource FieldBox}"
+                                         TextChanged="BE_ParamFilter_TextChanged"/>
+                                <ComboBox Name="BE_ComboParamScope" Height="26" Margin="0,0,0,8"
+                                          SelectionChanged="BE_ParamScope_Changed"/>
+
+                                <TextBlock Text="Primary parameter (editable)" FontWeight="SemiBold"
+                                           FontSize="11" Margin="0,4,0,4"/>
+                                <ComboBox Name="BE_ComboParam" Height="26" Margin="0,0,0,8"
+                                          IsEditable="True" SelectionChanged="BE_Param_SelectionChanged"/>
+                                <TextBlock Text="Secondary column (read-only reference)"
+                                           FontSize="10" Margin="0,0,0,4"/>
+                                <ComboBox Name="BE_ComboParamAux" Height="26" Margin="0,0,0,8"
+                                          SelectionChanged="BE_AuxParam_SelectionChanged"/>
+
+                                <CheckBox Name="BE_ChkWritableOnlyDiscover"
+                                          Content="Discover writable-only when scanning" Margin="0,0,0,8"/>
+
+                                <Separator Margin="0,6,0,12"/>
+                                <TextBlock Text="Apply same value (optional)" FontSize="10" Margin="0,0,0,3"/>
+                                <TextBox Name="BE_TxtApplyAll" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                    <Button Content="Fill new from field" Padding="10,6" FontSize="10"
+                                            Click="BE_FillAll_Click" Style="{DynamicResource SecBtn}"
+                                            Margin="0,0,8,0"/>
+                                    <CheckBox Name="BE_ChkWritableApply" VerticalAlignment="Center"
+                                              Content="Hide read-only in grid" IsChecked="True"/>
+                                </StackPanel>
+                                <CheckBox Name="BE_ChkDryRunPreview"
+                                          Content="Detailed preview before APPLY" IsChecked="True" Margin="0,0,0,10"/>
+                                <Button Content="APPLY CHANGES" Name="BE_BtnApply" Click="BE_Apply_Click"
+                                        Style="{DynamicResource ActionBtn}" Margin="0,0,0,8"/>
+                                <Button Content="EXPORT CSV…" Click="BE_Export_Click"
+                                        Style="{DynamicResource SecBtn}"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- Main grid -->
+                    <Grid Grid.Column="1">
+                        <DataGrid Name="BE_GridMain" AutoGenerateColumns="False"
+                                  Margin="22" CanUserAddRows="False"
+                                  SelectionMode="Extended"
+                                  BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                                  GridLinesVisibility="Horizontal" Background="Transparent"
+                                  AlternatingRowBackground="#07000000"
+                                  BeginningEdit="BE_Grid_Main_BeginningEdit">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Family : Type" Binding="{Binding FamType}"    Width="280" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Name"           Binding="{Binding InstName}"  Width="140" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Elem ID"        Binding="{Binding ElemId}"    Width="90"  IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Aux ref"        Binding="{Binding AuxVal}"    Width="160" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="Current"        Binding="{Binding CurrentVal}" Width="180" IsReadOnly="True"/>
+                                <DataGridTextColumn Header="New"            Binding="{Binding NewVal}"    Width="240"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+
+                        <!-- BE local loading overlay -->
+                        <Grid Name="BE_LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA"
+                              Margin="22">
+                            <Border Padding="24,14" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Background="White" CornerRadius="4"
+                                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Name="BE_TxtLoadingMsg" HorizontalAlignment="Center"
+                                               FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
+                                    <ProgressBar Width="210" Height="10" Margin="0,14,0,0"
+                                                 IsIndeterminate="True"
+                                                 Foreground="{DynamicResource AccentColor}"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Shared loading overlay (NOSAWindow) -->
+        <Grid Grid.Row="1" Name="LoadingPanel" Visibility="Collapsed"
+              Background="#CCFAFAFA" Panel.ZIndex="100">
+            <Border Background="White" CornerRadius="6" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                    <ProgressBar Name="ProcessBar" Width="220" Height="10" IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="24,10">
+            <CheckBox Name="ChkDarkMode" Content="Dark mode" Click="Theme_Toggled"
+                      Foreground="{DynamicResource TextColor}"/>
+        </Border>
+    </Grid>
+</Window>

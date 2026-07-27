@@ -1,0 +1,19 @@
+{
+  "naming": {
+    "separator": "-", 
+    "template": [
+      "Project Number", 
+      "Organization Name", 
+      "Functional Breakdown", 
+      "Spatial Breakdown", 
+      "Form", 
+      "Discipline", 
+      "Sheet Number", 
+      "Current Revision", 
+      "Sheet Name"
+    ], 
+    "version": "2.0"
+  }, 
+  "created": "2026-06-23 18:35:36", 
+  "name": "NOSA Standard"
+}

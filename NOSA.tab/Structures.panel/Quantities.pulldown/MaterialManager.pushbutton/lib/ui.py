@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import imp
 import os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
@@ -8,9 +9,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.loader import load_local_module as _lm
 from nosa_utils.base_window import NOSAWindow
-_logic = _lm('materialmanager_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+_logic = imp.load_source('materialmanager_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 _SEARCH_PH   = "Search materials..."
 _ALL_CLASSES = "All Classes"

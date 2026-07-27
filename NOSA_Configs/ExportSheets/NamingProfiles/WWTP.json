@@ -1,0 +1,16 @@
+{
+  "naming": {
+    "separator": "-", 
+    "version": "2.0", 
+    "template": [
+      "Project Number", 
+      "SH_Designed", 
+      "SH_Area", 
+      "SH_Discipline", 
+      "SH_DrawingType", 
+      "SH_Sequencial"
+    ]
+  }, 
+  "created": "2026-07-16 19:32:35", 
+  "name": "WWTP"
+}

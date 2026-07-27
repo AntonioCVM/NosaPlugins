@@ -1,0 +1,10 @@
+layout:
+  - ViewManager
+  - ViewOverrides
+  - ViewTemplateManager
+  - ViewDependencyExplorer
+  - ColourByParam
+  - AlignViewTitles
+  - BaySections
+  - LevelNavigator
+  - SectionBoxer

@@ -5,26 +5,29 @@ Extracts volumes, areas, rebar counts by category, material and level.
 Detects missing materials, volume outliers, zero-volume elements.
 """
 import math
-from pyrevit import DB
-
+from Autodesk.Revit import DB
+from nosa_utils.revit_helpers import get_id_value
 # ─────────────────────────────────────────────────
 # Category lists
 # ─────────────────────────────────────────────────
 
-_CONCRETE_BICS = [
-    ('Structural Columns',     DB.BuiltInCategory.OST_StructuralColumns),
-    ('Structural Framing',     DB.BuiltInCategory.OST_StructuralFraming),
-    ('Structural Foundations', DB.BuiltInCategory.OST_StructuralFoundation),
-    ('Floors',                 DB.BuiltInCategory.OST_Floors),
-    ('Walls',                  DB.BuiltInCategory.OST_Walls),
-]
+def _concrete_bics():
+    return [
+        ('Structural Columns',     DB.BuiltInCategory.OST_StructuralColumns),
+        ('Structural Framing',     DB.BuiltInCategory.OST_StructuralFraming),
+        ('Structural Foundations', DB.BuiltInCategory.OST_StructuralFoundation),
+        ('Floors',                 DB.BuiltInCategory.OST_Floors),
+        ('Walls',                  DB.BuiltInCategory.OST_Walls),
+    ]
 
-_STEEL_BICS = [
-    ('Steel Columns',  DB.BuiltInCategory.OST_StructuralColumns),
-    ('Steel Framing',  DB.BuiltInCategory.OST_StructuralFraming),
-]
+def _steel_bics():
+    return [
+        ('Steel Columns',  DB.BuiltInCategory.OST_StructuralColumns),
+        ('Steel Framing',  DB.BuiltInCategory.OST_StructuralFraming),
+    ]
 
-_REBAR_BIC = DB.BuiltInCategory.OST_Rebar
+def _rebar_bic():
+    return DB.BuiltInCategory.OST_Rebar
 
 # ─────────────────────────────────────────────────
 # Constants
@@ -41,10 +44,6 @@ _FT_TO_M            = 0.3048
 # Internal helpers
 # ─────────────────────────────────────────────────
 
-def _get_id(eid):
-    if hasattr(eid, 'Value'):        return eid.Value
-    if hasattr(eid, 'IntegerValue'): return eid.IntegerValue
-    return int(str(eid))
 
 
 def _collect(doc, bic):
@@ -79,6 +78,14 @@ def _volume_m3(el):
         p = el.get_Parameter(DB.BuiltInParameter.HOST_VOLUME_COMPUTED)
         if p and p.AsDouble() > 0:
             return p.AsDouble() * _FT3_TO_M3
+    except Exception:
+        pass
+    # Geometric fallback: parameter missing or zero — sum solid volumes directly
+    try:
+        from nosa_utils.solids import total_volume
+        v = total_volume(el)
+        if v > 0:
+            return v * _FT3_TO_M3
     except Exception:
         pass
     return 0.0
@@ -179,7 +186,7 @@ def collect_concrete_quantities(doc, selected_cats=None, selected_levels=None):
       {id, name, category, level, volume_m3, area_m2, has_material}
     """
     rows = []
-    for cat_name, bic in _CONCRETE_BICS:
+    for cat_name, bic in _concrete_bics():
         if selected_cats and cat_name not in selected_cats:
             continue
         for el in _collect(doc, bic):
@@ -188,7 +195,7 @@ def collect_concrete_quantities(doc, selected_cats=None, selected_levels=None):
                 if selected_levels and level not in selected_levels:
                     continue
                 rows.append({
-                    'id':           _get_id(el.Id),
+                    'id':           get_id_value(el.Id),
                     'name':         getattr(el, 'Name', str(el.Id)),
                     'category':     cat_name,
                     'level':        level,
@@ -213,7 +220,7 @@ def collect_concrete_quantities_v2(doc, selected_cats=None, selected_levels=None
     """
     excluded = set(excluded_families) if excluded_families else set()
     rows = []
-    for cat_name, bic in _CONCRETE_BICS:
+    for cat_name, bic in _concrete_bics():
         if selected_cats and cat_name not in selected_cats:
             continue
         for el in _collect(doc, bic):
@@ -230,7 +237,7 @@ def collect_concrete_quantities_v2(doc, selected_cats=None, selected_levels=None
                     continue
                 mat_name = _get_element_material_name(doc, el)
                 rows.append({
-                    'id':            _get_id(el.Id),
+                    'id':            get_id_value(el.Id),
                     'name':          getattr(el, 'Name', str(el.Id)),
                     'category':      cat_name,
                     'level':         level,
@@ -253,10 +260,10 @@ def collect_steel_quantities(doc, excluded_families=None, exclude_existing_phase
     excluded = set(excluded_families) if excluded_families else set()
     rows = []
     seen_ids = set()
-    for cat_name, bic in _STEEL_BICS:
+    for cat_name, bic in _steel_bics():
         for el in _collect(doc, bic):
             try:
-                el_id = _get_id(el.Id)
+                el_id = get_id_value(el.Id)
                 if el_id in seen_ids:
                     continue
                 if exclude_existing_phase and _is_existing_phase(doc, el):
@@ -359,7 +366,7 @@ def aggregate_steel(rows):
 def collect_rebar_quantities(doc, selected_levels=None):
     """Returns list of rebar element dicts {level, diam_mm, length_m}."""
     rows = []
-    for el in _collect(doc, _REBAR_BIC):
+    for el in _collect(doc, _rebar_bic()):
         try:
             level = _level_name(doc, el)
             if selected_levels and level not in selected_levels:
@@ -373,7 +380,7 @@ def collect_rebar_quantities(doc, selected_levels=None):
             if p_len:
                 length_m = round(p_len.AsDouble() * _FT_TO_M, 3)
             rows.append({
-                'id':       _get_id(el.Id),
+                'id':       get_id_value(el.Id),
                 'level':    level,
                 'diam_mm':  diam_mm,
                 'length_m': length_m,
@@ -409,7 +416,7 @@ def aggregate_rebar(rows):
 def get_all_family_names(doc):
     """Return sorted list of distinct family names from all structural elements."""
     names = set()
-    all_bics = list(_CONCRETE_BICS) + [b for b in _STEEL_BICS if b not in _CONCRETE_BICS]
+    all_bics = list(_concrete_bics()) + [b for b in _steel_bics() if b not in _concrete_bics()]
     for _, bic in all_bics:
         try:
             for el in _collect(doc, bic):
@@ -491,7 +498,7 @@ def get_available_levels(doc):
 
 
 def get_available_categories():
-    return [n for n, _ in _CONCRETE_BICS]
+    return [n for n, _ in _concrete_bics()]
 
 
 # ─────────────────────────────────────────────────
@@ -534,3 +541,5 @@ def run_all(doc, selected_cats=None, selected_levels=None, excluded_families=Non
         'qa_issues':     qa,
         'totals':        totals,
     }
+
+

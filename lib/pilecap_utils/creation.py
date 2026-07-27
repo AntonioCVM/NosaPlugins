@@ -2,7 +2,8 @@
 """
 Creation utilities for pilecaps and piles.
 """
-from pyrevit import revit, DB
+from pyrevit import revit
+from Autodesk.Revit import DB
 from System.Collections.Generic import List
 from Autodesk.Revit.DB import JoinGeometryUtils
 
@@ -13,8 +14,12 @@ except ImportError:
     # Fallback/Mock just for linting, runtime assumes sys.path is correct
     pass
 
-doc = revit.doc
-uidoc = revit.uidoc
+def _doc():
+    return revit.doc
+
+
+def _uidoc():
+    return revit.uidoc
 
 DEFAULT_PILE_HEIGHT_MM = 6000
 
@@ -42,7 +47,7 @@ def create_foundation_slab(width_mm, length_mm, level, center_point, slab_type):
         curve_loops = List[DB.CurveLoop]()
         curve_loops.Add(curve_loop)
         
-        foundation_slab = DB.Floor.Create(doc, curve_loops, slab_type.Id, level.Id)
+        foundation_slab = DB.Floor.Create(_doc(), curve_loops, slab_type.Id, level.Id)
         
         if not foundation_slab: raise Exception("Floor.Create retorno None")
         
@@ -110,7 +115,7 @@ def create_piles_array(center_point, num_horizontal, num_vertical, pile_spacing_
                 
                 try:
                     pile_location = DB.XYZ(x, y, level_elevation)
-                    pile = doc.Create.NewFamilyInstance(
+                    pile = _doc().Create.NewFamilyInstance(
                         pile_location, pile_family_symbol, level, DB.Structure.StructuralType.Footing
                     )
                     
@@ -142,7 +147,7 @@ def create_pilecap_elements(num_horizontal, num_vertical, pile_spacing,
     """Crea los elementos (losa y pilotes) en una transaccion."""
     t = None
     try:
-        t = DB.Transaction(doc, "Create Pilecap Elements")
+        t = DB.Transaction(_doc(), "Create Pilecap Elements")
         t.Start()
         
         foundation_slab = create_foundation_slab(width, length, level, center_point, slab_type)
@@ -170,12 +175,12 @@ def create_pilecap_elements(num_horizontal, num_vertical, pile_spacing,
             return None, []
         
         # Desunir
-        slab_element = doc.GetElement(foundation_slab.Id)
+        slab_element = _doc().GetElement(foundation_slab.Id)
         if slab_element:
             for pile in piles:
                 try:
-                    if JoinGeometryUtils.AreElementsJoined(doc, slab_element, pile):
-                        JoinGeometryUtils.UnjoinGeometry(doc, slab_element, pile)
+                    if JoinGeometryUtils.AreElementsJoined(_doc(), slab_element, pile):
+                        JoinGeometryUtils.UnjoinGeometry(_doc(), slab_element, pile)
                 except Exception: pass
         
         t.Commit()
@@ -193,20 +198,20 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
     
     t = None
     try:
-        t = DB.Transaction(doc, "Create and Rename Group")
+        t = DB.Transaction(_doc(), "Create and Rename Group")
         t.Start()
         
         # Unjoin check
-        slab_element = doc.GetElement(foundation_slab.Id)
+        slab_element = _doc().GetElement(foundation_slab.Id)
         if slab_element:
             for pile in piles:
                 try:
-                    if JoinGeometryUtils.AreElementsJoined(doc, slab_element, pile):
-                        JoinGeometryUtils.UnjoinGeometry(doc, slab_element, pile)
+                    if JoinGeometryUtils.AreElementsJoined(_doc(), slab_element, pile):
+                        JoinGeometryUtils.UnjoinGeometry(_doc(), slab_element, pile)
                 except Exception: pass
         
         ids = List[DB.ElementId]([foundation_slab.Id] + [p.Id for p in piles])
-        group = doc.Create.NewGroup(ids)
+        group = _doc().Create.NewGroup(ids)
         
         if not group:
             t.RollBack()
@@ -216,8 +221,8 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
         if slab_element:
             for pile in piles:
                 try:
-                    if JoinGeometryUtils.AreElementsJoined(doc, slab_element, pile):
-                        JoinGeometryUtils.UnjoinGeometry(doc, slab_element, pile)
+                    if JoinGeometryUtils.AreElementsJoined(_doc(), slab_element, pile):
+                        JoinGeometryUtils.UnjoinGeometry(_doc(), slab_element, pile)
                 except Exception: pass
         
         # Rename logic
@@ -228,7 +233,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
         
         # Post-commit rename
         rename_success = False
-        t2 = DB.Transaction(doc, "Rename Group")
+        t2 = DB.Transaction(_doc(), "Rename Group")
         t2.Start()
         try:
             gt = group.GroupType
@@ -266,9 +271,9 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
     elements = []
     t = None
     try:
-        if doc.IsModifiable: doc.Regenerate()
+        if _doc().IsModifiable: _doc().Regenerate()
         
-        t = DB.Transaction(doc, "Crear Encepado Independiente")
+        t = DB.Transaction(_doc(), "Crear Encepado Independiente")
         t.Start()
         
         slab = create_foundation_slab(width, length, level, center_point, slab_type)
@@ -294,21 +299,21 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
         if piles: elements.extend(piles)
         
         # Unjoin
-        slab_elem = doc.GetElement(slab.Id)
+        slab_elem = _doc().GetElement(slab.Id)
         if slab_elem and piles:
             for p in piles:
                 try:
-                    if JoinGeometryUtils.AreElementsJoined(doc, slab_elem, p):
-                        JoinGeometryUtils.UnjoinGeometry(doc, slab_elem, p)
+                    if JoinGeometryUtils.AreElementsJoined(_doc(), slab_elem, p):
+                        JoinGeometryUtils.UnjoinGeometry(_doc(), slab_elem, p)
                 except Exception: pass
         
         t.Commit()
-        doc.Regenerate()
+        _doc().Regenerate()
         
         if elements:
             try:
                 ids = List[DB.ElementId]([e.Id for e in elements if e])
-                uidoc.Selection.SetElementIds(ids)
+                _uidoc().Selection.SetElementIds(ids)
             except Exception: pass
             
         return elements

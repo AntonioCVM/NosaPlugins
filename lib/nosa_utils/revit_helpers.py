@@ -12,33 +12,48 @@ from Autodesk.Revit.DB import (
 )
 
 # =============================================================================
-# ELEMENT ID COMPATIBILITY (Revit 2024+)
+# ELEMENT ID COMPATIBILITY (Revit 2024–2027)
 # =============================================================================
+# Revit 2025+ removed ElementId.IntegerValue — use .Value (int64).
+# Always use get_id_value() / element_id_from_int() instead of direct API access.
 
 def get_id_value(element_id):
-    """
-    Get integer value from ElementId - compatible with Revit 2024+.
-    
-    In Revit 2024+, ElementId.IntegerValue was replaced with ElementId.Value.
-    This function handles both API versions.
-    
-    Args:
-        element_id: Revit ElementId object
-        
-    Returns:
-        int: Integer value of the ElementId
-        
-    Example:
-        >>> wall_id_int = get_id_value(wall.Id)
-        >>> if wall_id_int in processed_ids:
-        >>>     continue
-    """
-    if hasattr(element_id, 'Value'):
-        return element_id.Value
-    elif hasattr(element_id, 'IntegerValue'):
-        return element_id.IntegerValue
-    else:
-        return int(str(element_id))
+    """Return the integer value of an ElementId (2024–2027 safe)."""
+    if element_id is None:
+        return 0
+    try:
+        if hasattr(element_id, 'Value'):
+            return int(element_id.Value)
+    except Exception:
+        pass
+    try:
+        if hasattr(element_id, 'IntegerValue'):
+            return int(element_id.IntegerValue)
+    except Exception:
+        pass
+    return int(str(element_id))
+
+
+def element_id_from_int(val):
+    """Construct an ElementId from an int — uses Int64 on Revit 2024+."""
+    from Autodesk.Revit.DB import ElementId
+    try:
+        from System import Int64
+        return ElementId(Int64(int(val)))
+    except Exception:
+        return ElementId(int(val))
+
+
+def coerce_element_id(val):
+    """Return ElementId from an ElementId or int-like value (2024–2027 safe)."""
+    if val is None:
+        return None
+    try:
+        if hasattr(val, 'Value') or hasattr(val, 'IntegerValue'):
+            return val
+    except Exception:
+        pass
+    return element_id_from_int(val)
 
 
 # =============================================================================

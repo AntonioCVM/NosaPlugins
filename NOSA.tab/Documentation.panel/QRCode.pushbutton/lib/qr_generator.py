@@ -460,7 +460,7 @@ def _generate_matrix_ironpython(url):
             os.unlink(json_out)
         except Exception:
             pass
-        raise RuntimeError(u'QR matrix subprocess falló con código {}'.format(ret))
+        raise RuntimeError(u'QR matrix subprocess failed with code {}'.format(ret))
 
     try:
         with open(json_out, 'r') as f:

@@ -1,41 +1,20 @@
 # -*- coding: utf-8 -*-
-__title__   = "Rebar\nCoverage"
+__title__   = "Missing\nRebar"
 __version__ = "1.0"
-__doc__     = """Rebar Coverage v1.0
+__doc__     = "Find structural elements with no rebar assigned. Summary by category with coverage percentage. CSV export."
+__author__  = "A. Viñas"
 
-Checks and reports rebar cover dimensions in concrete elements:
+import os, sys, imp
 
-  - Reads cover parameters from rebar instances
-  - Validates against minimum cover requirements per exposure class
-  - Highlights non-compliant bars
-  - Exports coverage summary to CSV
-"""
-__author__  = "NOSA Engineering"
+# Pulldown pushbutton: 4×'..'
+_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
+if _lib not in sys.path:
+    sys.path.insert(0, _lib)
 
-import sys, os
+from nosa_utils.base_window import launch_nosa_window
 from pyrevit import revit
 
-lib_path = os.path.join(os.path.dirname(__file__), 'lib')
-if lib_path not in sys.path:
-    sys.path.insert(0, lib_path)
+_ui = imp.load_source('rebarcoverageqa_ui',
+                      os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 
-try:
-    import importlib.util as _iu
-    def _lm(n, p):
-        s = _iu.spec_from_file_location(n, p)
-        m = _iu.module_from_spec(s)
-        sys.modules[n] = m
-        s.loader.exec_module(m)
-        return m
-except (ImportError, AttributeError):
-    import imp
-    def _lm(n, p):
-        m = imp.load_source(n, p)
-        sys.modules[n] = m
-        return m
-
-ui_module = _lm('rebarcov_ui', os.path.join(lib_path, 'ui.py'))
-
-if __name__ == '__main__':
-    win = ui_module.RebarCoverageWindow(revit.doc)
-    win.ShowDialog()
+launch_nosa_window(_ui.RebarCoverageWindow, revit.doc)

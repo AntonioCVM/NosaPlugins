@@ -4,6 +4,7 @@ import os, sys, csv, imp
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
+from Autodesk.Revit import DB
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -179,7 +180,6 @@ class QuantificationQAWindow(NOSAWindow):
         if not rows:
             return
         try:
-            from pyrevit import DB
             from System.Collections.Generic import List
             ids = List[DB.ElementId]([DB.ElementId(int(r.Id)) for r in rows if r.Id])
             revit.uidoc.Selection.SetElementIds(ids)
@@ -193,7 +193,6 @@ class QuantificationQAWindow(NOSAWindow):
         if not rows:
             return
         try:
-            from pyrevit import DB
             mats = sorted(
                 DB.FilteredElementCollector(self.doc).OfClass(DB.Material).ToElements(),
                 key=lambda m: m.Name

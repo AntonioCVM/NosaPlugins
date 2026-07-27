@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Shared parameter discovery / edit helpers for Element and ElementType (IronPython-safe)."""
 
-from pyrevit import DB
+from Autodesk.Revit import DB
 
 from nosa_utils.revit_helpers import get_id_value
 

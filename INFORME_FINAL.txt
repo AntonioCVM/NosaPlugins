@@ -1,0 +1,219 @@
+================================================================================
+INFORME FINAL DE AUDITORIA — NOSA.extension (pyRevit)
+Fecha: 2 de julio de 2026
+Alcance: ~88 plugins, 5 paneles, lib/nosa_utils compartida
+Modo: solo lectura (ningun archivo modificado)
+================================================================================
+
+
+--------------------------------------------------------------------------------
+1. HALLAZGOS PENDIENTES CONFIRMADOS (5)
+--------------------------------------------------------------------------------
+
+#1 — DMU ROTO EN RUNTIME (CRITICO)
+   Archivo: Foundations.panel/PileMaster.pushbutton/lib/logic_dmu.py (lineas 40-44)
+   Problema: _LIB_DIR sigue apuntando a "Piling.panel", que fue renombrado a
+   "Foundations.panel". El DMU se registra bien (startup.py ya esta corregido),
+   pero al ejecutarse falla el import de logic_coords y hace return silencioso.
+   Consecuencia: las coordenadas de pilotes en vivo NO se escriben.
+   Fix: cambiar _LIB_DIR a Foundations.panel/PileMaster.pushbutton/lib y
+   registrar el fallo con log_error en lugar de silenciarlo.
+
+#2 — EXPORTSHEETS: PRE-FLIGHT SILENCIOSO (ALTO)
+   Archivo: Documentation.panel/Issue.pulldown/ExportSheets.pushbutton/script.py
+   (lineas 39-40)
+   Problema: el chequeo previo de Issue Gate esta envuelto en
+   "except Exception: pass" — si el gate falla, se exporta sin control y sin aviso.
+   Fix: sustituir pass por log_error('ExportSheets', ...) + aviso no bloqueante.
+
+#3 — CONFIG EN DOS RUTAS (ALTO)
+   Archivos: lib/nosa_utils/config_manager.py (lineas 20-24) vs
+   lib/nosa_utils/base_window.py (lineas 55-58)
+   Problema: ConfigManager guarda en %APPDATA%/pyRevit/NOSA_Configs y
+   NOSAWindow (usado por ~88 plugins) en
+   %APPDATA%/pyRevit/Extensions/NOSA.extension/NOSA_Configs.
+   Los presets pueden fragmentarse entre dos carpetas.
+   Fix: unificar en la ruta de base_window; deprecar o redirigir ConfigManager.
+
+#4 — REBARCOVERAGE DUPLICADO (ALTO)
+   Archivos: Structures.panel/Elements.pulldown/RebarCoverage.pushbutton (visible
+   en bundle.yaml linea 6) + Coordination.pulldown/RebarCoverage.nobutton (huerfano)
+   Problema: dos herramientas distintas con el mismo nombre. La de Elements
+   detecta elementos sin armadura; la de Coordination valida recubrimiento EC2.
+   Fix: renombrar y consolidar (p. ej. "Missing Rebar Check" en Elements y
+   "Cover Compliance" en Coordination) y eliminar la copia redundante.
+
+#5 — CARPETA HUERFANA Sheets.pulldown (MEDIO)
+   Archivo: Documentation.panel/Sheets.pulldown/DrawingIndex.pushbutton/
+   Problema: restos de la migracion a Issue.pulldown. No aparece en el ribbon
+   pero es codigo muerto que confunde el mantenimiento.
+   Fix: eliminar la carpeta completa. Requiere reinicio completo de Revit.
+
+
+--------------------------------------------------------------------------------
+2. MEJORAS PROPUESTAS POR EJE
+--------------------------------------------------------------------------------
+
+EJE A — CODIGO Y ARQUITECTURA
+  Contexto: la infraestructura compartida (bootstrap, collectors, transactions,
+  telemetry, progress, export_io) esta bien construida pero casi sin adoptar
+  (~1-3 plugins la usan). Quedan ~130-154 archivos con imp.load_source y ~51
+  bloques "except: pass".
+
+  A1. Telemetria global en launch_nosa_window          [Esfuerzo S | Impacto ALTO]
+      Anadir usage.record + log_error dentro de launch_nosa_window
+      (base_window.py). Un solo cambio cubre ~80 plugins de golpe.
+      ES EL QUICK WIN MAS RENTABLE DE TODA LA AUDITORIA.
+
+  A2. Unificacion de config                            [Esfuerzo S | Impacto ALTO]
+      Ver hallazgo #3.
+
+  A3. Decorador @nosa_transaction                      [Esfuerzo M | Impacto MEDIO]
+      Wrapper sobre nosa_utils.transactions para escritura al modelo:
+      nombres consistentes "NOSA — Accion", rollback automatico.
+
+  A4. Migracion bootstrap por lotes                    [Esfuerzo L | Impacto MEDIO]
+      Lote 1: los ~88 script.py. Lote 2: los ~40 ui.py con imp interno.
+      Necesario para CPython 3 / pyRevit 6. No migrar todo de golpe.
+
+  A5. Politica anti-silencio                           [Esfuerzo M | Impacto ALTO]
+      Regla: "except Exception: pass" solo en cosmetica de UI; todo lo demas
+      pasa por log_error. Los bugs del DMU y del pre-flight existieron por esto.
+
+EJE B — DISTRIBUCION DEL RIBBON
+  B1. Renombrar Elements → Model                       [Esfuerzo M | Impacto MEDIO]
+      Pendiente del plan aprobado. Actualizar tambien _PANELS_ORDER del
+      Dashboard (aun dice "Piling").
+
+  B2. Bundles faltantes                                [Esfuerzo S | Impacto MEDIO]
+      PileTools.pulldown y Survey.pulldown no tienen bundle.yaml (orden
+      alfabetico impredecible).
+
+  B3. Limpiar nobuttons duplicados en Data             [Esfuerzo M | Impacto MEDIO]
+      ExcelSync, LinkManager, etc. duplicados como .nobutton sueltos.
+
+  B4. Reordenar Issue pulldown por flujo real          [Esfuerzo S | Impacto ALTO]
+      Orden propuesto: IssueGate → DrawingProtocolChecker → SheetHub →
+      RevisionTracker → ExportSheets → SheetIssueManager → RevisionPackageDiff.
+
+  B5. Iconos PNG faltantes                             [Esfuerzo S | Impacto MEDIO]
+      7 botones sin icono: HalftoneSelection, CenterBeamToColumn, WaffleSlab,
+      TagAll, AlignViewTitles, ViewDependencyExplorer, NOSA Dashboard.
+      5 solo con SVG: RebarCoverage, ElementJoin, AnnotationBatch,
+      QuantificationQA, MaterialManager.
+      Generar PNG 32x32 naranja NOSA #FF5F00 fondo transparente.
+
+  B6. Resolver RebarCoverage                           [Esfuerzo M | Impacto ALTO]
+      Ver hallazgo #4.
+
+  EXTRA: valorar fusionar DrawingProtocolChecker como pestana dentro de
+  IssueGate (este ya orquesta su logica) — un boton menos en el ribbon.
+
+EJE C — VISUAL / UX
+  Diagnostico: ~78 XAML; solo IssueGate define MinHeight/MinWidth; dos familias
+  visuales (hubs nuevos con header naranja vs legacy con header blanco);
+  etiquetas de dark mode inconsistentes; DataGrids con estilos ad hoc.
+
+  PROPUESTA: plantilla "NOSA SHELL" (basada en IssueGate como referencia):
+    - Window: MinHeight=480, MinWidth=700, Century Gothic/Segoe UI, resize grip
+    - Recursos obligatorios: BgColor, PanelColor, TextColor, AccentColor,
+      BorderColor
+    - Header naranja #FF5F00: titulo 16pt bold blanco + subtitulo + ChkDarkMode
+      (etiqueta unificada: "Dark mode")
+    - Layout hub: Header / Body (sidebar 270px con cards) / Footer con
+      boton primario naranja + TxtStatus
+    - LoadingPanel + ProcessBar en operaciones > 2 segundos
+    - DataGrid: filas 28px, cabeceras 9pt, zebra, seleccion naranja legible
+  Implementacion recomendada: ResourceDictionary compartido
+  (lib/nosa_ui/nosa_shell.xaml) cargado via MergedDictionaries desde
+  NOSAWindow.__init__ — evita copiar recursos en 78 ventanas.
+  [Esfuerzo M | Impacto ALTO]
+
+  CHECKLIST VISUAL POR VENTANA (8 puntos):
+    1. Hereda NOSAWindow con plugin_key unico
+    2. Recursos/tema aplicables
+    3. Header naranja (o justificacion documentada)
+    4. MinWidth/MinHeight definidos
+    5. ChkDarkMode con etiqueta "Dark mode"
+    6. Loading overlay en operaciones largas
+    7. DataGrid con estilo NOSA
+    8. icon.png 32x32 en el ribbon
+
+EJE D — PRODUCTO / FLUJO DE TRABAJO
+  D1. Cadena Issue integrada                           [Esfuerzo M | Impacto ALTO]
+      Botones cruzados: "Open in Issue Gate" / "Export anyway" /
+      "View in Revision Tracker" entre ExportSheets, SheetHub y
+      RevisionPackageDiff.
+
+  D2. PileMaster ↔ Survey                              [Esfuerzo S | Impacto ALTO]
+      Enlace directo a Survey export tras activar live coords + health check
+      del DMU en el Dashboard.
+
+  D3. Dashboard como onboarding                        [Esfuerzo M | Impacto ALTO]
+      Panel "Getting started" con los flujos Issue / Foundations / Model QA.
+      Corregir referencias obsoletas (_PANELS_ORDER).
+
+  D4. Versionado por plugin                            [Esfuerzo M | Impacto MEDIO]
+      Dashboard lee __version__ de cada script.py; CHANGELOG por plugin.
+
+  D5. Documentacion de usuario                         [Esfuerzo L | Impacto MEDIO]
+      Una pagina por flujo enlazada desde la pestana Protocol del Dashboard.
+
+
+--------------------------------------------------------------------------------
+3. ROADMAP SUGERIDO (3 SPRINTS)
+--------------------------------------------------------------------------------
+
+SPRINT 1 — PENDIENTES + QUICK WINS (1-2 semanas)
+  [ ] Fix #1 DMU (logic_dmu.py → Foundations.panel)
+  [ ] Fix #2 pre-flight ExportSheets con log_error + aviso
+  [ ] Fix #3 config unificada en base_window
+  [ ] Fix #4 RebarCoverage (renombrar + limpiar duplicado)
+  [ ] Fix #5 eliminar Sheets.pulldown huerfano
+  [ ] A1 telemetria global en launch_nosa_window
+  [ ] B5 iconos PNG (los 7 criticos)
+  [ ] B4 reorden del pulldown Issue
+  RESULTADO: el producto pasa de "potente pero fragil" a "confiable en produccion".
+
+SPRINT 2 — COHERENCIA DE PRODUCTO (2-3 semanas)
+  [ ] NOSA Shell XAML compartido + migrar 6-8 hubs piloto
+  [ ] B1 Elements → Model + actualizar Dashboard
+  [ ] B2 bundles PileTools/Survey
+  [ ] D1 deep links del flujo Issue
+  [ ] D2 PileMaster ↔ Survey + test DMU end-to-end
+  [ ] A5 auditoria de except:pass en plugins criticos
+
+SPRINT 3 — ESCALA Y POLISH PREMIUM (3-4 semanas)
+  [ ] A4 migracion bootstrap lote 1 (todos los script.py)
+  [ ] B3 limpieza de nobuttons duplicados en Data
+  [ ] D3-D4 Dashboard onboarding + versionado por plugin
+  [ ] A3 @nosa_transaction en plugins de escritura masiva
+  [ ] Checklist visual aplicada al resto de ventanas legacy (~60 XAML)
+
+
+--------------------------------------------------------------------------------
+4. VEREDICTO EJECUTIVO
+--------------------------------------------------------------------------------
+
+NOSA v5.0 es un producto funcionalmente ambicioso (~88 plugins, flujo de
+emision bien disenado, hubs maduros como SheetHub e IssueGate) con identidad
+visual clara alli donde se aplica la plantilla nueva.
+
+La infraestructura compartida esta construida pero desconectada: telemetria,
+bootstrap, transactions y config unificada existen pero casi no se usan, lo
+que explica los bugs silenciosos como el DMU y el pre-flight.
+
+El ribbon refleja una refactorizacion a medio camino (Foundations renombrado,
+Elements pendiente, carpetas huerfanas, duplicados nobutton) que resta
+sensacion premium.
+
+La deuda UX (78 ventanas, solo 1 con tamano minimo, dos familias visuales,
+DataGrids heterogeneos) es el gap mas visible para el usuario frente a
+competidores comerciales.
+
+Con el Sprint 1 el producto queda confiable en produccion; los Sprints 2-3
+cierran la brecha hacia producto comercial premium sin reescritura masiva.
+
+================================================================================
+FIN DEL INFORME
+================================================================================

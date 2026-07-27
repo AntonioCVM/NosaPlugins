@@ -19,6 +19,7 @@ Run before every release. Test on **at least one real project model**.
 | ClashReport | ☐ | ☐ | ☐ |
 | TagAll | ☐ | ☐ | ☐ |
 | PileMaster | ☐ | ☐ | ☐ |
+| LevelNavigator | ☐ | ☐ | ☐ |
 | WaffleSlab | ☐ | ☐ | ☐ |
 
 ---
@@ -94,14 +95,32 @@ Run before every release. Test on **at least one real project model**.
 - [ ] Coordinate tab works
 - [ ] Numbering tab works
 
+### LevelNavigator
+- [ ] Grid lists all project levels with elevation in metres
+- [ ] Levels without a floor-plan view shown at reduced opacity
+- [ ] Double-click on level with view → Revit active view changes and window closes
+- [ ] Activate button disabled when no-view row is selected
+- [ ] Refresh button reloads after model changes
+- [ ] Dark mode toggle persists between sessions
+
 ---
 
 ## Visual consistency
 
-- [ ] All new windows use Century Gothic font
-- [ ] All new windows respond to Dark Mode toggle
+- [ ] All windows use Century Gothic font
+- [ ] All windows respond to Dark Mode toggle
 - [ ] `AccentColor` (#FF5F00) correct throughout
-- [ ] NOSA Dashboard lists all 8 new plugins
+- [ ] NOSA Dashboard auto-detects all plugins (dynamic scan)
+
+---
+
+## Convention compliance (v3.1.0 additions)
+
+- [ ] PilecapLoadChecker — Type column shows cap type correctly (`{Binding Etype}`)
+- [ ] RevisionTracker — all labels in English (no Spanish text visible)
+- [ ] TagAll — dark mode restored between sessions
+- [ ] QRCode — last-used URL restored on open
+- [ ] DimensionWalls / AlignViewTitles / CopyViewTemplates — dark mode toggle works
 
 ---
 
@@ -112,7 +131,8 @@ Run before every release. Test on **at least one real project model**.
 - [ ] WaffleSlab creates floor with voids
 - [ ] AddPileToPilecap places piles
 - [ ] DimensionWalls creates dimensions
+- [ ] PileMaster opens without `ValueError: Attempted relative import`
 
 ---
 
-_Mark ☑ when verified. Sign off: ________________________  Date: ___________  Version: v3.0.0_
+_Mark ☑ when verified. Sign off: ________________________  Date: ___________  Version: v3.2.0_

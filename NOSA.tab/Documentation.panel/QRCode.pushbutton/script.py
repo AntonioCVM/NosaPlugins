@@ -9,35 +9,31 @@ Error correction level M (15 %) + automatic URL cleaning for optimal density.
 
 After generating, click "Place in Titleblocks" to update every unique
 titleblock family in the project – all sheets refresh automatically."""
-__author__ = 'NOSA Engineering'
+__author__  = "A. Viñas"
 
 import os
 import sys
+import imp
 
 from pyrevit import revit
 
 _lib = os.path.join(os.path.dirname(__file__), 'lib')
+_ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
+from nosa_utils.base_window import launch_nosa_window
+if _ext_lib not in sys.path:
+    sys.path.insert(0, _ext_lib)
 
-def _load_ui():
-    try:
-        import importlib.util as iu
-        spec = iu.spec_from_file_location('qrcode_ui', os.path.join(_lib, 'ui.py'))
-        mod = iu.module_from_spec(spec)
-        sys.modules['qrcode_ui'] = mod
-        spec.loader.exec_module(mod)
-        return mod
-    except (ImportError, AttributeError):
-        import imp
-        return imp.load_source('qrcode_ui', os.path.join(_lib, 'ui.py'))
+_ui = imp.load_source('qrcode_ui', os.path.join(_lib, 'ui.py'))
 
+_doc   = getattr(revit, 'doc',   None)
+_uidoc = getattr(revit, 'uidoc', None)
+launch_nosa_window(_ui.QRCodeWindow, _doc, _uidoc)
 
-_ui = _load_ui()
-QRCodeWindow = _ui.QRCodeWindow
-
-if __name__ == '__main__':
-    _doc   = getattr(revit, 'doc',   None)
-    _uidoc = getattr(revit, 'uidoc', None)
-    QRCodeWindow(_doc, _uidoc).ShowDialog()
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('qrcode')
+except Exception:
+    pass

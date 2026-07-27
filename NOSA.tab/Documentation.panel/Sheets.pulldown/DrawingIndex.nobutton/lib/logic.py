@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import io
 """
 DrawingIndex Logic — collect sheet data and build a drawing index.
@@ -6,17 +6,17 @@ Can export to CSV/HTML or create a Revit key schedule.
 """
 import csv, os, sys
 
-from pyrevit import DB
-
+from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import sheet_protocol as _sp
 
 # NOSA File Naming Protocol fields — in display order
 _NOSA_PARAM_ORDER = [
     # Core identification (NOSA protocol fields 1-8)
-    'Sheet Number',           # F1+F2+F3+F4+F5+F6+F7 encoded
+    'Sheet Number',           # ViewSheet number (F7 document number only)
     'Sheet Name',             # Description
     'Project Number',         # Field 1
     'Originator',             # Field 2 (NOSA)
@@ -36,12 +36,20 @@ _NOSA_PARAM_ORDER = [
     'Approved By',
     'Sheet Issue Date',
     'File Path',
+    'Package',
 ]
 
-def _get_id(eid):
-    if hasattr(eid, 'Value'): return eid.Value
-    if hasattr(eid, 'IntegerValue'): return eid.IntegerValue
-    return int(str(eid))
+
+def get_unique_packages(doc):
+    """Return sorted unique non-empty Package parameter values from all sheets."""
+    packages = set()
+    for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet).ToElements():
+        val = _param_str(s, 'Package')
+        if val:
+            packages.add(val)
+    return sorted(packages)
+
+
 
 def _param_str(el, name_or_bip):
     try:
@@ -111,13 +119,36 @@ def collect_sheets(doc, filter_text='', param_names=None):
         name = s.Name or ''
         if filter_lower and filter_lower not in num.lower() and filter_lower not in name.lower():
             continue
-        row = {'id': _get_id(s.Id), 'number': num, 'name': name, 'element': s}
+        row = {'id': get_id_value(s.Id), 'number': num, 'name': name, 'element': s}
+        nosa_fields = _sp.read_nosa_fields_from_sheet(doc, s)
+        row['nosa_display'] = _sp.build_nosa_display_from_sheet(doc, s)
         # Collect all NOSA + custom params
         for pname in names:
             if pname in ('Sheet Number', 'Sheet Name'):
                 continue
             if pname == 'Form':
                 row[pname] = _sp.read_form_value(doc, s)
+                continue
+            if pname == 'Project Number':
+                row[pname] = _sp.read_project_number(doc, s)
+                continue
+            if pname == 'Originator':
+                row[pname] = _get_originator(doc, s)
+                continue
+            if pname == 'Document Number':
+                row[pname] = _sp.read_document_number(doc, s)
+                continue
+            if pname == 'Functional Breakdown':
+                row[pname] = nosa_fields.get('f3', '') or _param_str(s, pname)
+                continue
+            if pname == 'Spatial Breakdown':
+                row[pname] = nosa_fields.get('f4', '') or _param_str(s, pname)
+                continue
+            if pname == 'Discipline':
+                row[pname] = nosa_fields.get('f6', '') or _param_str(s, pname)
+                continue
+            if pname == 'Current Revision':
+                row[pname] = nosa_fields.get('f8', '') or _param_str(s, pname)
                 continue
             row[pname] = _param_str(s, pname)
             # Legacy CSV / grids may still carry "Form Identifier"
@@ -140,6 +171,7 @@ def collect_sheets(doc, filter_text='', param_names=None):
         # Shortcut keys for common params used in exports
         row['scale']    = row.get('Scale', '')
         row['drawn_by'] = row.get('Drawn By', '') or _param_str(s, DB.BuiltInParameter.SHEET_DRAWN_BY)
+        row['package'] = _param_str(s, 'Package')
         try:
             row['viewport_count'] = len(list(s.GetAllViewports()))
         except Exception:

@@ -11,7 +11,7 @@ Shows: Sheet Number, Name, Scale, Revision, Rev Date, Rev Description,
 Filter by sheet number/name prefix.
 Export to CSV (Excel-ready) or HTML (formatted report).
 """
-__author__  = "NOSA Engineering"
+__author__  = "A. Viñas"
 
 import sys, os
 from pyrevit import revit
@@ -19,6 +19,8 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+
+from nosa_utils.base_window import launch_nosa_window
 
 try:
     import importlib.util as _iu
@@ -37,6 +39,10 @@ except (ImportError, AttributeError):
 
 ui_module = _lm('drawingidx_ui', os.path.join(lib_path, 'ui.py'))
 
-if __name__ == '__main__':
-    win = ui_module.DrawingIndexWindow(revit.doc)
-    win.ShowDialog()
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('drawingindex')
+except Exception:
+    pass
+launch_nosa_window(ui_module.DrawingIndexWindow, revit.doc)

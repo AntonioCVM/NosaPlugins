@@ -2,7 +2,8 @@
 """
 Data retrieval utilities for pilecap creation in Revit.
 """
-from pyrevit import revit, DB
+from pyrevit import revit
+from Autodesk.Revit import DB
 import sys
 
 # Constants
@@ -14,14 +15,20 @@ try:
     from nosa_utils.revit_helpers import get_id_value
     from nosa_utils.unit_conversion import feet_to_mm
 except ImportError:
-    # Fallbacks if paths not set up (should be set by main script)
-    def feet_to_mm(val): return val * 304.8
-    def get_id_value(element_id):
-        if hasattr(element_id, "Value"): return element_id.Value
-        elif hasattr(element_id, "IntegerValue"): return element_id.IntegerValue
-        else: return int(str(element_id))
+    def feet_to_mm(val):
+        return val * 304.8
 
-doc = revit.doc
+    def get_id_value(element_id):
+        if hasattr(element_id, 'Value'):
+            return element_id.Value
+        return int(str(element_id))
+
+
+def get_element_id_int(element_id):
+    return get_id_value(element_id)
+
+def _doc():
+    return revit.doc
 
 def get_slab_thickness(slab_type):
     """
@@ -79,7 +86,7 @@ def get_foundation_slab_types():
     
     try:
         # Metodo 1: Buscar FloorType con categoria OST_StructuralFoundation
-        collector = DB.FilteredElementCollector(doc).OfClass(DB.FloorType)
+        collector = DB.FilteredElementCollector(_doc()).OfClass(DB.FloorType)
         
         for floor_type in collector:
             try:
@@ -122,7 +129,7 @@ def get_foundation_slab_types():
         
         # Metodo 2: Buscar todos los FloorType y filtrar por nombre si no se encontro nada
         if not slab_types:
-            collector_all = DB.FilteredElementCollector(doc).OfClass(DB.FloorType)
+            collector_all = DB.FilteredElementCollector(_doc()).OfClass(DB.FloorType)
             for floor_type in collector_all:
                 try:
                     type_name = 'Unknown'
@@ -190,7 +197,7 @@ def get_pile_types():
     pile_dict = {}
     
     try:
-        collector = DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
+        collector = DB.FilteredElementCollector(_doc()).OfClass(DB.FamilySymbol)
         
         for symbol in collector:
             try:

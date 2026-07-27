@@ -10,19 +10,23 @@ generate_nosa_qr() returns:
 import os
 import sys
 
-from pyrevit.forms import WPFWindow
 import System.Windows
 import System.Windows.Media as Media
 import System.Windows.Input as Input
 
 # ---------------------------------------------------------------------------
-# Ensure the lib/ folder is on the path
+# Ensure the lib/ folder is on the path (local lib for qr_generator; extension lib for nosa_utils)
 # ---------------------------------------------------------------------------
-_lib = os.path.dirname(__file__)
-if _lib not in sys.path:
-    sys.path.insert(0, _lib)
+_local_lib = os.path.dirname(__file__)
+if _local_lib not in sys.path:
+    sys.path.insert(0, _local_lib)
+
+_ext_lib = os.path.abspath(os.path.join(_local_lib, '..', '..', '..', '..', 'lib'))
+if _ext_lib not in sys.path:
+    sys.path.insert(0, _ext_lib)
 
 import qr_generator   # noqa: E402
+from nosa_utils.base_window import NOSAWindow
 
 
 def _clean_url(url):
@@ -77,11 +81,11 @@ def _load_tb_logic():
     and IronPython 3.x (.NET 8) – both Revit 2024 and 2026/2027.
     """
     import types
-    tb_path = os.path.join(_lib, 'tb_logic.py')
+    tb_path = os.path.join(_local_lib, 'tb_logic.py')
     mod = types.ModuleType('_tb_logic_live')
     mod.__file__ = tb_path
-    if _lib not in sys.path:
-        sys.path.insert(0, _lib)
+    if _local_lib not in sys.path:
+        sys.path.insert(0, _local_lib)
     with open(tb_path, 'rb') as fh:
         src = fh.read()
     exec(compile(src, tb_path, 'exec'), mod.__dict__)  # noqa: S102
@@ -137,82 +141,35 @@ def _result_to_wpf_bitmap(result):
 # Window
 # ---------------------------------------------------------------------------
 
-class QRCodeWindow(WPFWindow):
+class QRCodeWindow(NOSAWindow):
     """Main QR Code Generator window (generation + titleblock placement)."""
 
     def __init__(self, doc=None, uidoc=None):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml)
+        NOSAWindow.__init__(self, xaml, 'qr_code')
         self._doc      = doc    # Revit Document (may be None outside Revit context)
         self._result   = None   # PIL Image or temp PNG path
         self._tmp_path = None   # last temp file (IronPython path); cleaned up on close
         self._restore_last_url()
-        self._wire_mode_hints()
-
-    # ------------------------------------------------------------------
-    # Config helpers
-    # ------------------------------------------------------------------
-
-    @property
-    def _cfg_path(self):
-        root = os.path.join(
-            os.getenv('APPDATA', ''),
-            'pyRevit', 'Extensions', 'NOSA.extension', 'NOSA_Configs'
-        )
-        return os.path.join(root, '_qr_code.json')
+        cfg = self.LoadConfig()
+        self.ApplyTheme(cfg.get('dark_mode', False))
+        self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
 
     def _restore_last_url(self):
         try:
-            import io as _io, json
-            if os.path.exists(self._cfg_path):
-                with _io.open(self._cfg_path, 'r', encoding='utf-8') as f:
-                    saved = json.load(f).get('last_url', '')
-                if saved:
-                    self.TxtUrl.Text = saved
+            saved = self.LoadConfig().get('last_url', '')
+            if saved:
+                self.TxtUrl.Text = saved
         except Exception:
             pass
 
     def _save_last_url(self, url):
         try:
-            import io as _io, json
-            root = os.path.dirname(self._cfg_path)
-            if not os.path.exists(root):
-                os.makedirs(root)
-            with _io.open(self._cfg_path, 'w', encoding='utf-8') as f:
-                json.dump({'last_url': url}, f)
+            cfg = self.LoadConfig()
+            cfg['last_url'] = url
+            self.SaveConfig(cfg)
         except Exception:
             pass
-
-    def _wire_mode_hints(self):
-        """Connect RadioButton change events to update the mode hint text."""
-        try:
-            self.RboPng.Checked    += self._on_mode_changed
-            self.RboVector.Checked += self._on_mode_changed
-        except Exception:
-            pass
-
-    def _on_mode_changed(self, sender, args):
-        try:
-            if self.RboVector.IsChecked:
-                self.TxtModeHint.Text = (
-                    u'Geometría nativa: FilledRegion de Revit — '
-                    u'el QR exporta a DWG como trama CAD sin imagen externa'
-                )
-            else:
-                self.TxtModeHint.Text = (
-                    u'PNG: el QR se guarda como imagen incrustada en la familia titleblock'
-                )
-        except Exception:
-            pass
-
-    def _get_mode(self):
-        """Return 'vector' or 'png' based on the UI toggle."""
-        try:
-            if self.RboVector.IsChecked:
-                return 'vector'
-        except Exception:
-            pass
-        return 'png'
 
     # ------------------------------------------------------------------
     # Cleanup
@@ -300,9 +257,9 @@ class QRCodeWindow(WPFWindow):
             if self._doc is not None:
                 self.BtnPlaceTB.IsEnabled = True
 
-            short_note = u'  \u2022  URL limpiada (par\u00e1metros extra eliminados)' if was_shortened else u''
+            short_note = u'  \u2022  URL cleaned (extra parameters removed)' if was_shortened else u''
             self._set_status(
-                u'\u2713  Listo  \u2022  24\u00d724 mm  \u2022  1200 dpi  \u2022  2\u00d7 supersampling'
+                u'\u2713  Ready  \u2022  24\u00d724 mm  \u2022  1200 dpi  \u2022  2\u00d7 supersampling'
                 + short_note,
                 ok=True
             )
@@ -318,35 +275,22 @@ class QRCodeWindow(WPFWindow):
         if self._result is None or self._doc is None:
             return
 
-        mode = self._get_mode()
         self.BtnPlaceTB.IsEnabled = False
-        self._set_tb_status(
-            u'Actualizando familias de titleblock\u2026 (modo {})'.format(mode),
-            ok=False
-        )
+        self._set_tb_status(u'Updating titleblock families\u2026', ok=False)
 
         try:
             tb_logic = _load_tb_logic()
-
-            if mode == 'vector':
-                url = (self.TxtUrl.Text or u'').strip()
-                self._set_tb_status(u'Generando matriz QR\u2026', ok=False)
-                matrix, n = qr_generator.generate_nosa_qr_matrix(url)
-                qr_data = (matrix, n)
-            else:
-                qr_data = self._result
-
-            results = tb_logic.run(self._doc, qr_data, mode=mode)
+            results  = tb_logic.run(self._doc, self._result)
 
             ok_count   = sum(1 for _, s, _ in results if s == 'ok')
             skip_count = sum(1 for _, s, _ in results if s == 'skip')
             err_count  = sum(1 for _, s, _ in results if s == 'error')
 
-            summary = u'{} actualizada(s)'.format(ok_count)
+            summary = u'{} updated'.format(ok_count)
             if skip_count:
-                summary += u', {} sin imagen (omitida(s))'.format(skip_count)
+                summary += u', {} without image (skipped)'.format(skip_count)
             if err_count:
-                summary += u', {} con error(es)'.format(err_count)
+                summary += u', {} error(s)'.format(err_count)
             self._set_tb_status(summary,
                                 ok=(err_count == 0 and ok_count > 0),
                                 error=(err_count > 0 and ok_count == 0))
@@ -355,13 +299,11 @@ class QRCodeWindow(WPFWindow):
             for name, status, msg in results:
                 if status == 'ok':
                     icon = u'\u2713'
-                    detail = u''
                 elif status == 'skip':
-                    icon = u'\u25cb'   # empty circle = skipped
-                    detail = u''
+                    icon = u'\u25cb'
                 else:
                     icon = u'\u2717'
-                    detail = u' \u2192 {}'.format(msg)
+                detail = u' \u2192 {}'.format(msg) if status == 'error' else u''
                 lines.append(u'{}  {}{}'.format(icon, name, detail))
             self._set_status(u'  \u2502  '.join(lines),
                              ok=(err_count == 0 and ok_count > 0))
@@ -396,3 +338,9 @@ class QRCodeWindow(WPFWindow):
             )
         else:
             self.TxtStatus.Foreground = Media.Brushes.Gray
+
+    def Theme_Toggled(self, sender, args):
+        NOSAWindow.Theme_Toggled(self, sender, args)
+        cfg = self.LoadConfig()
+        cfg['dark_mode'] = self.dark_mode
+        self.SaveConfig(cfg)

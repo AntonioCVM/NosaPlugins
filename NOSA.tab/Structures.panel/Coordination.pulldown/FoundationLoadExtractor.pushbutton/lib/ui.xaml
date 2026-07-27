@@ -1,0 +1,160 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Foundation Load Extractor v1.0" Height="620" Width="1080"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="11"/>
+        </Style>
+        <Style x:Key="SecBtn" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,8"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="11"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Background="White" Margin="0,0,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="24,18,0,18">
+                <TextBlock Text="FOUNDATION LOAD EXTRACTOR" FontSize="17" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="Analytical model reactions — governing envelope per foundation"
+                           FontSize="11" Opacity="0.55"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                        VerticalAlignment="Center" Margin="0,0,24,0">
+                <ProgressBar Name="ProgBar" Width="140" Height="4" IsIndeterminate="True"
+                             Foreground="{DynamicResource AccentColor}" BorderThickness="0"
+                             Visibility="Collapsed" Margin="0,0,16,0"/>
+                <Button Name="BtnRun" Content="▶ EXTRACT LOADS"
+                        Style="{DynamicResource ActionBtn}" Click="Run_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Grid -->
+        <DataGrid Name="GridLoads" Grid.Row="1" Margin="16,12,16,0"
+                  AutoGenerateColumns="False" IsReadOnly="True"
+                  SelectionMode="Extended" SelectionUnit="FullRow"
+                  AlternatingRowBackground="#06000000" Background="Transparent"
+                  BorderBrush="{DynamicResource BorderColor}"
+                  GridLinesVisibility="Horizontal" FontSize="11">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Mark"      Binding="{Binding mark}"    Width="80"/>
+                <DataGridTextColumn Header="Type"      Binding="{Binding etype}"    Width="*"/>
+                <DataGridTextColumn Header="Level"     Binding="{Binding level}"   Width="90"/>
+                <DataGridTextColumn Header="Location (m)" Binding="{Binding loc}"  Width="140"/>
+                <DataGridTextColumn Header="N (kN)"    Binding="{Binding N_kN}"    Width="80">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,6,0"/>
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Vx (kN)"   Binding="{Binding Vx_kN}"   Width="80">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,6,0"/>
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Vy (kN)"   Binding="{Binding Vy_kN}"   Width="80">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,6,0"/>
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Mx (kN·m)" Binding="{Binding Mx_kNm}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,6,0"/>
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="My (kN·m)" Binding="{Binding My_kNm}" Width="90">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                            <Setter Property="Margin" Value="0,0,6,0"/>
+                            <Setter Property="FontFamily" Value="Consolas"/>
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTextColumn Header="Nodes" Binding="{Binding nodes}" Width="60"/>
+            </DataGrid.Columns>
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding N_kN}" Value="—">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </DataGrid.RowStyle>
+        </DataGrid>
+
+        <!-- Footer -->
+        <Grid Grid.Row="2" Margin="16,10,16,14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <CheckBox Name="ChkDarkMode" Grid.Column="0" Content="Dark Mode"
+                      Click="Theme_Toggled" VerticalAlignment="Center" Margin="0,0,16,0"/>
+            <TextBlock Name="TxtStatus" Grid.Column="1"
+                       Text="Click ▶ EXTRACT LOADS to read analytical model reactions."
+                       FontSize="11" Opacity="0.6" VerticalAlignment="Center"/>
+            <Button Grid.Column="2" Name="BtnSelect" Content="Select in model"
+                    Style="{DynamicResource SecBtn}" Click="Select_Click" IsEnabled="False"/>
+            <Button Grid.Column="4" Name="BtnExport" Content="Export CSV"
+                    Style="{DynamicResource SecBtn}" Click="Export_Click" IsEnabled="False"/>
+            <Button Grid.Column="6" Name="BtnExportPDF" Content="Export PDF Report"
+                    Style="{DynamicResource SecBtn}" Click="ExportPDF_Click" IsEnabled="False"
+                    ToolTip="Export a formatted geotechnical PDF report (HTML → PDF via Chrome)"/>
+        </Grid>
+    </Grid>
+</Window>
+

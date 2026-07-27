@@ -3,7 +3,7 @@
         Title="Align View Titles v3.0" Height="550" Width="800"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}"
-        FontFamily="Century Gothic"
+        FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanResizeWithGrip">
     
     <Window.Resources>

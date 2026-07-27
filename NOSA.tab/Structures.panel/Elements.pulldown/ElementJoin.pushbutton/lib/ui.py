@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import imp
 import io
 import os
 import sys
@@ -7,14 +8,15 @@ import csv
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
+from Autodesk.Revit import DB
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.loader import load_local_module as _lm
 from nosa_utils.base_window import NOSAWindow
-_logic = _lm('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.revit_helpers import get_id_value
+_logic = imp.load_source('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 # ── Data rows ────────────────────────────────────────────────────────────────
@@ -213,10 +215,10 @@ class ElementJoinWindow(NOSAWindow):
                     ok, msg = _logic.swap_join_order(self.doc, self._picked_a, self._picked_b)
             status = op if ok else 'failed'
             self._rows.Add(JoinRow({
-                'id1': _logic._get_id(self._picked_a.Id),
+                'id1': get_id_value(self._picked_a.Id),
                 'name1': getattr(self._picked_a, 'Name', str(self._picked_a.Id)),
                 'cat1': '',
-                'id2': _logic._get_id(self._picked_b.Id),
+                'id2': get_id_value(self._picked_b.Id),
                 'name2': getattr(self._picked_b, 'Name', str(self._picked_b.Id)),
                 'cat2': '',
                 'status': status, 'msg': msg,
@@ -246,7 +248,6 @@ class ElementJoinWindow(NOSAWindow):
 
         try:
             if self.RbSelection.IsChecked == True:
-                from pyrevit import DB
                 sel_ids  = list(revit.uidoc.Selection.GetElementIds())
                 elements = []
                 for eid in sel_ids:
@@ -257,7 +258,7 @@ class ElementJoinWindow(NOSAWindow):
                         for name, bic in _logic._JOINABLE_BICS.items():
                             if el.Category and el.Category.Id == DB.ElementId(bic) and name in cats:
                                 elements.append({
-                                    'id': _logic._get_id(el.Id),
+                                    'id': get_id_value(el.Id),
                                     'name': getattr(el, 'Name', str(el.Id)),
                                     'category': name,
                                     'element': el,
@@ -321,7 +322,6 @@ class ElementJoinWindow(NOSAWindow):
         if not row:
             return
         try:
-            from pyrevit import DB
             from System.Collections.Generic import List
             ids = List[DB.ElementId]([
                 DB.ElementId(int(row.Id1)),

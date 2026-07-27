@@ -15,7 +15,7 @@ Features:
   - Assign a material to multiple selected elements at once
   - Export both material and element reports to CSV
 """
-__author__ = "NOSA Engineering"
+__author__  = "A. Viñas"
 
 import sys, os
 from pyrevit import revit
@@ -23,6 +23,8 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+
+from nosa_utils.base_window import launch_nosa_window
 
 def _lm(n, p):
     try:
@@ -35,6 +37,10 @@ def _lm(n, p):
 ui_module = _lm('materialmanager_ui_local', os.path.join(lib_path, 'ui.py'))
 MaterialManagerWindow = ui_module.MaterialManagerWindow
 
-if __name__ == '__main__':
-    win = MaterialManagerWindow(revit.doc)
-    win.ShowDialog()
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('materialmanager')
+except Exception:
+    pass
+launch_nosa_window(MaterialManagerWindow, revit.doc)

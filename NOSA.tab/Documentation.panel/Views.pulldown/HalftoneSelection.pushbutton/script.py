@@ -1,10 +1,12 @@
+from nosa_utils.base_window import launch_nosa_window
 # -*- coding: utf-8 -*-
 __title__ = "Halftone\nSelection"
-__author__ = "NOSA"
+__author__  = "A. Viñas"
 __version__ = "1.1"
 __doc__ = """Apply halftone override to selected elements in current view."""
 
-from pyrevit import revit, forms, DB
+from Autodesk.Revit import DB
+from pyrevit import revit, forms
 
 
 def main():
@@ -71,5 +73,12 @@ def main():
     )
 
 
-if __name__ == "__main__":
-    main()
+
+main()
+
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('halftoneselection')
+except Exception:
+    pass

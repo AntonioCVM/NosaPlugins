@@ -11,10 +11,11 @@ FEATURES v3.1:
 ✓ Preview before alignment
 ✓ Progress reporting
 """
-__author__ = "Antonio Viñas"
+__author__  = "A. Viñas"
 __version__ = "3.1"
 
-from pyrevit import revit, forms, script, DB
+from Autodesk.Revit import DB
+from pyrevit import revit, forms, script
 import math
 import sys
 import json
@@ -610,5 +611,13 @@ def main():
     )
 
 
+
 if __name__ == "__main__":
     main()
+
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('centerbeamtocolumn')
+except Exception:
+    pass

@@ -3,7 +3,7 @@
         Title="Rebar Coverage Checker v1.0" Height="620" Width="960"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}"
-        FontFamily="Century Gothic"
+        FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>

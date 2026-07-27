@@ -1,11 +1,10 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """Structural / host type browser — edit one type-parameter column across ElementTypes."""
 
 import sys
 import os
 
-from pyrevit import DB
-
+from Autodesk.Revit import DB
 # lib = NOSA.extension/lib (StructuralType…/lib is 5 levels below extension root)
 _lib = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
@@ -14,6 +13,11 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.worksharing_quick import element_workset_is_open
+
+try:
+    unicode
+except NameError:
+    unicode = str  # CPython 3 compat
 from nosa_utils import param_element_ops as pe
 
 _TYPE_CAP = 8000

@@ -6,7 +6,7 @@ __doc__ = """Structural Type Manager v2.0
 ElementTypes per category: optional Revit selection, presets,
 parameter scope + substring filters, Aux read-only column,
 unit-aware numeric writes, DUPLICATE, dry-run previews, CSV, logging."""
-__author__ = "NOSA Engineering"
+__author__  = "A. Viñas"
 
 import sys
 import os
@@ -15,6 +15,8 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+
+from nosa_utils.base_window import launch_nosa_window
 
 
 def _lm(n, p):
@@ -38,6 +40,10 @@ ui_module = _lm(
 StructuralTypeManagerWindow = ui_module.StructuralTypeManagerWindow
 
 
-if __name__ == '__main__':
-    win = StructuralTypeManagerWindow(revit.doc, getattr(revit, 'uidoc', None))
-    win.ShowDialog()
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('structuraltypemanager')
+except Exception:
+    pass
+launch_nosa_window(StructuralTypeManagerWindow, revit.doc, getattr(revit, 'uidoc', None))

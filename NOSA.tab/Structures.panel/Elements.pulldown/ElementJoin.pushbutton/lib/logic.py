@@ -1,17 +1,20 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 SmartJoin Pro Logic — priority-aware join, unjoin and swap of structural geometry.
 Uses Revit JoinGeometryUtils API.
 """
 import sys
 import os
-from pyrevit import DB
-
+from Autodesk.Revit import DB
+_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _lib not in sys.path:
+    sys.path.insert(0, _lib)
+from nosa_utils.revit_helpers import get_id_value
 _FT_TO_MM = 304.8
 
 # Default priority: index 0 = highest (cuts everyone below it).
 # Lower index = more dominant (cuts).
-DEFAULT_PRIORITY = [
+_DEFAULT_PRIORITY = [
     'Floors',
     'Framing',
     'Columns',
@@ -19,13 +22,18 @@ DEFAULT_PRIORITY = [
     'Foundations',
 ]
 
-_JOINABLE_BICS = {
-    'Columns':     DB.BuiltInCategory.OST_StructuralColumns,
-    'Framing':     DB.BuiltInCategory.OST_StructuralFraming,
-    'Floors':      DB.BuiltInCategory.OST_Floors,
-    'Walls':       DB.BuiltInCategory.OST_Walls,
-    'Foundations': DB.BuiltInCategory.OST_StructuralFoundation,
-}
+DEFAULT_PRIORITY = _DEFAULT_PRIORITY
+
+
+def _joinable_bics():
+    """Lazy BuiltInCategory map — avoids module-level API access in IronPython."""
+    return {
+        'Columns':     DB.BuiltInCategory.OST_StructuralColumns,
+        'Framing':     DB.BuiltInCategory.OST_StructuralFraming,
+        'Floors':      DB.BuiltInCategory.OST_Floors,
+        'Walls':       DB.BuiltInCategory.OST_Walls,
+        'Foundations': DB.BuiltInCategory.OST_StructuralFoundation,
+    }
 
 # Config persistence
 _CONFIGS_ROOT = os.path.join(
@@ -68,10 +76,6 @@ def save_priority(priority_list):
         pass
 
 
-def _get_id(eid):
-    if hasattr(eid, 'Value'):        return eid.Value
-    if hasattr(eid, 'IntegerValue'): return eid.IntegerValue
-    return int(str(eid))
 
 
 def _cat_name_for_element(el):
@@ -80,7 +84,7 @@ def _cat_name_for_element(el):
         cat = el.Category
         if cat is None:
             return None
-        for name, bic in _JOINABLE_BICS.items():
+        for name, bic in _joinable_bics().items():
             try:
                 if cat.Id == DB.ElementId(bic):
                     return name
@@ -94,10 +98,10 @@ def _cat_name_for_element(el):
 def collect_joinable_elements(doc, category_names=None):
     """Return list of dicts {id, name, category, element}."""
     if category_names is None:
-        category_names = list(_JOINABLE_BICS.keys())
+        category_names = list(_joinable_bics().keys())
     elements = []
     for cat_name in category_names:
-        bic = _JOINABLE_BICS.get(cat_name)
+        bic = _joinable_bics().get(cat_name)
         if bic is None:
             continue
         try:
@@ -111,7 +115,7 @@ def collect_joinable_elements(doc, category_names=None):
                 try:
                     name = getattr(el, 'Name', '') or str(el.Id)
                     elements.append({
-                        'id':       _get_id(el.Id),
+                        'id':       get_id_value(el.Id),
                         'name':     name,
                         'category': cat_name,
                         'element':  el,
@@ -216,7 +220,7 @@ def batch_join_by_proximity(doc, elements, operation='join', tolerance_mm=50):
     op_func = _op_funcs.get(operation, join_elements)
 
     try:
-        with DB.Transaction(doc, "SmartJoin — {}".format(operation.capitalize())) as t:
+        with DB.Transaction(doc, u"NOSA — SmartJoin — {}".format(operation.capitalize())) as t:
             t.Start()
             for i in range(n):
                 for j in range(i + 1, n):
@@ -274,7 +278,7 @@ def batch_join_ordered(doc, elements, priority_list, tolerance_mm=50, fix_existi
     n = len(elements)
 
     try:
-        with DB.Transaction(doc, "SmartJoin Pro — Priority Join") as t:
+        with DB.Transaction(doc, u"NOSA — SmartJoin — Priority Join") as t:
             t.Start()
             for i in range(n):
                 for j in range(i + 1, n):

@@ -1,0 +1,456 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sheet Hub — NOSA" Height="780" Width="1280"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionBtn">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="TabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Padding"         Value="20,9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SubTabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="FontSize"        Value="11"/>
+            <Setter Property="Padding"         Value="14,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBox" x:Key="FieldBox">
+            <Setter Property="Height"   Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding"  Value="4,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns"       Value="False"/>
+            <Setter Property="CanUserAddRows"            Value="False"/>
+            <Setter Property="CanUserDeleteRows"         Value="False"/>
+            <Setter Property="GridLinesVisibility"       Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush"  Value="{DynamicResource BorderColor}"/>
+            <Setter Property="RowBackground"             Value="{DynamicResource PanelColor}"/>
+            <Setter Property="AlternatingRowBackground"  Value="{DynamicResource BgColor}"/>
+            <Setter Property="FontSize"                  Value="11"/>
+            <Setter Property="SelectionMode"             Value="Single"/>
+            <Setter Property="BorderBrush"               Value="{DynamicResource BorderColor}"/>
+        </Style>
+        <Style x:Key="ProtocolCellStyle" TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="#333333"/>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Foreground" Value="#333333"/>
+                    <Setter Property="Background" Value="#FFE0CC"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="70"/>
+        </Grid.RowDefinitions>
+
+        <!-- ── Main Tab Bar ──────────────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Grid.Column="0">
+                    <Border Width="4" Background="{DynamicResource AccentColor}"/>
+                    <TextBlock Text="Sheet Hub" FontSize="15" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}"
+                               VerticalAlignment="Center" Margin="10,0,24,0"/>
+                    <TextBlock Text="Sheets" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{DynamicResource TextColor}"
+                               VerticalAlignment="Center" Opacity="0.85"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Column="1"
+                            VerticalAlignment="Center" Margin="0,0,12,0">
+                    <TextBlock Text="🌙" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <CheckBox Name="ChkDarkMode" VerticalAlignment="Center"
+                              Click="Theme_Toggled"/>
+                    <Button Content="Close" Style="{StaticResource TabBtn}"
+                            Click="Close_Click" Margin="8,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Content ───────────────────────────────────────────────────── -->
+        <Grid Grid.Row="1">
+
+            <!-- ══ Unified Sheets Panel ════════════════════════════════════ -->
+            <Grid Name="PanelSheets" Visibility="Visible">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Help text -->
+                <Border Grid.Row="0" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="12,8">
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.85"
+                               Foreground="{DynamicResource TextColor}"
+                               Text="1) Load / Refresh — read current F1–F9 and Package from Revit.  2) Suggest from Protocol — infer changes (orange = differs).  3) Edit fields and tick rows with changes.  4) Apply to Revit writes selected rows immediately (Approve is optional).  Duplicate selected sheets in-place, then edit and apply."/>
+                </Border>
+
+                <!-- Quick apply (collapsed by default) -->
+                <Expander Grid.Row="1" Margin="12,6,12,0" IsExpanded="False"
+                          Header="Quick apply to active sheet only"
+                          FontSize="11" Foreground="{DynamicResource TextColor}">
+                    <Border Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="4" Padding="12,8" Margin="0,6,0,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+                                <TextBlock Name="SnTxtPreview" FontSize="16" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                                <TextBlock Name="SnTxtValidation" FontSize="10"
+                                           Foreground="#BF360C" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                            </StackPanel>
+                            <UniformGrid Grid.Row="1" Rows="2" Margin="0,0,0,8">
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="F1 — Project No.:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <TextBox Name="SnTxtF1" Style="{StaticResource FieldBox}" TextChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="F3 — Functional:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <ComboBox Name="SnCmbF3" Height="26" FontSize="11" SelectionChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="F4 — Spatial:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <ComboBox Name="SnCmbF4" Height="26" FontSize="11" IsEditable="True"
+                                              SelectionChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,6">
+                                    <TextBlock Text="F5 — Form:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <ComboBox Name="SnCmbF5" Height="26" FontSize="11" SelectionChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="F6 — Discipline:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <ComboBox Name="SnCmbF6" Height="26" FontSize="11" SelectionChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="F7 — Document No.:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <TextBox Name="SnTxtF7" Style="{StaticResource FieldBox}" TextChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="F8 — Revision:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <ComboBox Name="SnCmbF8" Height="26" FontSize="11" IsEditable="True"
+                                              SelectionChanged="SnFieldChanged"/>
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="F9 — Sheet title:" FontSize="10" Opacity="0.7"
+                                               Foreground="{DynamicResource TextColor}"/>
+                                    <TextBox Name="SnTxtF9" Style="{StaticResource FieldBox}" TextChanged="SnFieldChanged"/>
+                                </StackPanel>
+                            </UniformGrid>
+                            <WrapPanel Grid.Row="2">
+                                <Button Content="Apply Number" Tag="number" Style="{StaticResource ActionBtn}"
+                                        Margin="0,0,4,0" Click="SnApply_Click"/>
+                                <Button Content="Apply Name" Tag="name" Style="{StaticResource ActionBtn}"
+                                        Margin="4,0" Click="SnApply_Click"/>
+                                <Button Content="Apply Both" Tag="both" Style="{StaticResource ActionBtn}"
+                                        Margin="4,0" Click="SnApply_Click"/>
+                                <Button Content="Suggest from active sheet" Style="{StaticResource SubTabBtn}"
+                                        Margin="12,0,0,0" Click="SnSuggest_Click"
+                                        Foreground="{DynamicResource AccentColor}"/>
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
+                </Expander>
+
+                <!-- Toolbar -->
+                <Border Grid.Row="2" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="8,4">
+                    <WrapPanel>
+                        <TextBlock Text="Filter:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <TextBox Name="TxtSheetsFilter" Width="160" Style="{StaticResource FieldBox}"
+                                 TextChanged="SheetsFilter_Changed" Margin="0,0,8,0"/>
+                        <TextBlock Text="Package:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <ComboBox Name="CmbPackageFilter" Width="180" Height="26" FontSize="11"
+                                  SelectionChanged="PackageFilter_Changed" Margin="0,0,8,0"/>
+                        <CheckBox Name="ChkChangesOnly" Content="Changes only"
+                                  VerticalAlignment="Center" Margin="0,0,8,0"
+                                  Click="ChangesOnly_Changed"/>
+                        <Button Content="Load / Refresh" Style="{StaticResource ActionBtn}"
+                                Click="SheetsLoad_Click" Margin="4,2"/>
+                        <Button Name="BtnSheetsSuggest" Content="Suggest from Protocol"
+                                Style="{StaticResource ActionBtn}" Margin="4,2"
+                                Click="SheetsSuggest_Click"/>
+                        <Button Name="BtnSheetsApprove" Content="Approve Selected"
+                                IsEnabled="False" Style="{StaticResource ActionBtn}"
+                                Margin="4,2" Click="SheetsApprove_Click"/>
+                        <Button Name="BtnSheetsApproveAll" Content="Approve all with changes"
+                                IsEnabled="False" Style="{StaticResource SubTabBtn}"
+                                Margin="4,2" Click="SheetsApproveAll_Click"
+                                Foreground="{DynamicResource AccentColor}"/>
+                        <Button Name="BtnSheetsApply" Content="Apply to Revit" IsEnabled="False"
+                                Style="{StaticResource ActionBtn}" Margin="4,2"
+                                Click="SheetsApply_Click"/>
+                        <Separator Width="1" Height="20" Margin="8,0"
+                                   Background="{DynamicResource BorderColor}"/>
+                        <Button Content="Export CSV" Name="BtnSheetsCsv" IsEnabled="False"
+                                Style="{StaticResource ActionBtn}"
+                                Click="SheetsExportCsv_Click" Margin="4,2"/>
+                        <Button Content="Export HTML" Name="BtnSheetsHtml" IsEnabled="False"
+                                Style="{StaticResource ActionBtn}"
+                                Click="SheetsExportHtml_Click" Margin="4,2"/>
+                        <TextBlock VerticalAlignment="Center" FontSize="10" Margin="12,0,0,0"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                                   Text="Green = match · Orange = change · Blue = approved · Red = error"/>
+                        <TextBlock Name="TxtSheetsStatus" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="16,0,0,0"/>
+                    </WrapPanel>
+                </Border>
+
+                <!-- Duplicate panel (visible when rows are selected) -->
+                <Border Name="PanelDuplicate" Grid.Row="3" Visibility="Collapsed"
+                        Background="{DynamicResource PanelColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="8,6">
+                    <WrapPanel>
+                        <TextBlock Text="Duplicate selected:" VerticalAlignment="Center" FontSize="11"
+                                   FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"
+                                   Margin="0,0,12,0"/>
+                        <TextBlock Text="Count:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <Button Content="10" Tag="10" Style="{StaticResource SubTabBtn}"
+                                Click="SheetsDupCountPreset_Click" Margin="2,0"/>
+                        <Button Content="20" Tag="20" Style="{StaticResource SubTabBtn}"
+                                Click="SheetsDupCountPreset_Click" Margin="2,0"/>
+                        <Button Content="30" Tag="30" Style="{StaticResource SubTabBtn}"
+                                Click="SheetsDupCountPreset_Click" Margin="2,0"/>
+                        <TextBlock Text="Custom:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="8,0,4,0"/>
+                        <TextBox Name="TxtSheetsDupCount" Width="50" Text="1"
+                                 Style="{StaticResource FieldBox}" Margin="0,0,12,0"/>
+                        <CheckBox Name="ChkSheetsDupViewports" Content="Copy viewports"
+                                  IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <CheckBox Name="ChkDupInheritPackage" Content="Inherit package"
+                                  IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Button Name="BtnSheetsDuplicate" Content="Duplicate Selected"
+                                Style="{StaticResource ActionBtn}" Margin="4,2"
+                                Click="SheetsDuplicate_Click"/>
+                        <Separator Width="1" Height="20" Margin="12,0"
+                                   Background="{DynamicResource BorderColor}"/>
+                        <TextBlock Text="Set package on selected:" VerticalAlignment="Center"
+                                   FontSize="11" Foreground="{DynamicResource TextColor}"
+                                   Margin="0,0,4,0"/>
+                        <ComboBox Name="CmbBulkPackage" Width="160" Height="26" FontSize="11"
+                                  IsEditable="True" Margin="0,0,4,0"/>
+                        <Button Content="Apply package" Style="{StaticResource SubTabBtn}"
+                                Click="SheetsSetPackage_Click" Margin="4,2"
+                                Foreground="{DynamicResource AccentColor}"/>
+                    </WrapPanel>
+                </Border>
+
+                <!-- Unified protocol grid -->
+                <DataGrid Name="SheetsGrid" Grid.Row="4" Margin="0"
+                          CanUserReorderColumns="False"
+                          CellEditEnding="SheetsGrid_CellEditEnding">
+                    <DataGrid.Resources>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#FFE0CC"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#333333"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#FFE0CC"/>
+                        <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#333333"/>
+                    </DataGrid.Resources>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="{Binding RowBrush}"/>
+                            <Setter Property="Foreground" Value="#333333"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#FFE0CC"/>
+                                    <Setter Property="Foreground" Value="#333333"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="✔" Width="30">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Click="SheetRowSelected_Click"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Header="F1 Project No" Binding="{Binding F1}" Width="80">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F1Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F1Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F2 Originator" Binding="{Binding F2}" Width="72" IsReadOnly="True">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F2Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F2Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F3 Functional" Binding="{Binding F3}" Width="72">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F3Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F3Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F4 Spatial" Binding="{Binding F4}" Width="68">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F4Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F4Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F5 Form" Binding="{Binding F5}" Width="52">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F5Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F5Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F6 Discipline" Binding="{Binding F6}" Width="68">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F6Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F6Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F7 Doc No" Binding="{Binding F7}" Width="68">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F7Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F7Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F8 Revision" Binding="{Binding F8}" Width="72">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F8Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F8Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="F9 Sheet Title" Binding="{Binding F9}" Width="180">
+                            <DataGridTextColumn.CellStyle>
+                                <Style TargetType="DataGridCell" BasedOn="{StaticResource ProtocolCellStyle}">
+                                    <Setter Property="Background" Value="{Binding F9Brush}"/>
+                                    <Setter Property="ToolTip" Value="{Binding F9Tip}"/>
+                                </Style>
+                            </DataGridTextColumn.CellStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Current No." Binding="{Binding CurrentNumber}" Width="170" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Proposed No." Binding="{Binding ProposedNumber}" Width="170" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Background" Value="{Binding ProposedNumberBrush}"/>
+                                    <Setter Property="FontWeight" Value="{Binding ProposedNumberWeight}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Package" Binding="{Binding Package}" Width="140"/>
+                        <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="110" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="ToolTip" Value="{Binding Message}"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <Border Grid.Row="5" Padding="8,4" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+                    <TextBlock FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"
+                               Text="Tick source rows to duplicate. New sheets appear in the grid — edit F1–F9, tick changed rows, then Apply to Revit."/>
+                </Border>
+            </Grid>
+
+        </Grid>
+
+        <!-- ── Log ───────────────────────────────────────────────────────── -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+            <TextBox Name="TxtLog" IsReadOnly="True" TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto" FontSize="10"
+                     Background="Transparent" BorderThickness="0"
+                     Foreground="{DynamicResource TextColor}" Padding="8,4"
+                     FontFamily="Consolas, Courier New"/>
+        </Border>
+
+        <!-- ── Loading Overlay ───────────────────────────────────────────── -->
+        <Grid Name="LoadingPanel" Grid.RowSpan="3" Visibility="Collapsed"
+              Background="#CCFAFAFA">
+            <Border Background="White" CornerRadius="6" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Processing…" HorizontalAlignment="Center" FontSize="13"
+                               Foreground="{DynamicResource TextColor}"/>
+                    <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                 IsIndeterminate="True" Margin="0,8,0,0"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtStatus" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,8,0,0"
+                               Foreground="{DynamicResource TextColor}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Window>

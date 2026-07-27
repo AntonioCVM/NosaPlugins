@@ -10,7 +10,7 @@ Bulk-manages element joins across structural categories:
   - Select elements by category or filter
   - Preview joins before applying
 """
-__author__  = "NOSA Engineering"
+__author__  = "A. Viñas"
 
 import sys, os
 from pyrevit import revit
@@ -18,6 +18,8 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+
+from nosa_utils.base_window import launch_nosa_window
 
 try:
     import importlib.util as _iu
@@ -36,6 +38,10 @@ except (ImportError, AttributeError):
 
 ui_module = _lm('elemjoin_ui', os.path.join(lib_path, 'ui.py'))
 
-if __name__ == '__main__':
-    win = ui_module.ElementJoinWindow(revit.doc)
-    win.ShowDialog()
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('elementjoin')
+except Exception:
+    pass
+launch_nosa_window(ui_module.ElementJoinWindow, revit.doc)

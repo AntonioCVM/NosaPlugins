@@ -1,0 +1,7 @@
+layout:
+  - WaffleSlab
+  - PourSequencePlanner
+  - ElementJoin
+  - CenterBeamToColumn
+  - RebarCoverage
+  - StructuralTypeManager

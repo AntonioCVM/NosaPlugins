@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import imp
 import os
 import sys
 import codecs
@@ -13,12 +14,16 @@ if _lib not in sys.path:
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms
 
-from nosa_utils.loader import load_local_module as _lm
+try:
+    unicode
+except NameError:
+    unicode = str  # CPython 3 compat
+
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value as _gid
 from nosa_utils import diroots_tools_log as _trace
 
-_logic = _lm(
+_logic = imp.load_source(
     'struct_type_mgr_logic',
     os.path.join(os.path.dirname(__file__), 'logic.py'))
 

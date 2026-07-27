@@ -4,6 +4,7 @@ import os, sys, csv, imp
 import System.Windows, System.Windows.Media
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
+from Autodesk.Revit import DB
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path: sys.path.insert(0, _lib)
@@ -96,7 +97,6 @@ class RebarCoverageWindow(NOSAWindow):
         rows = list(self.GridMissing.SelectedItems)
         if not rows: return
         try:
-            from pyrevit import DB
             from System.Collections.Generic import List
             ids = List[DB.ElementId]([DB.ElementId(int(r.Id)) for r in rows])
             revit.uidoc.Selection.SetElementIds(ids)

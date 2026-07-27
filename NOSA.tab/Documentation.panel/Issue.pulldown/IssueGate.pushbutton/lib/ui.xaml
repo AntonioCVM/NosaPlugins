@@ -1,0 +1,331 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Issue Gate — NOSA Pre-flight"
+        Height="600" Width="900"
+        MinHeight="480" MinWidth="700"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}"
+        FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ── Header ── -->
+        <Border Grid.Row="0" Background="{DynamicResource AccentColor}" Padding="16,10">
+            <DockPanel>
+                <CheckBox Name="ChkDarkMode" DockPanel.Dock="Right" Content="Dark"
+                          Foreground="White" VerticalAlignment="Center" FontSize="11"
+                          Click="Theme_Toggled"/>
+                <StackPanel>
+                    <TextBlock Text="Issue Gate" FontSize="16" FontWeight="Bold"
+                               Foreground="White"/>
+                    <TextBlock Text="Pre-flight validation before sheet issue"
+                               FontSize="10" Foreground="#FFD0B0" Margin="0,1,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- ── Main 2-col layout ── -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="270"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT sidebar -->
+            <Grid Grid.Column="0" Background="{DynamicResource BgColor}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              Padding="10,12,10,10">
+                    <StackPanel>
+                        <TextBlock Text="CHECKS" FontSize="9" FontWeight="Bold"
+                                   Foreground="#AAAAAA" Margin="2,0,0,8"/>
+
+                        <!-- Card: Sheet Protocol -->
+                        <Border Background="{DynamicResource PanelColor}" CornerRadius="4"
+                                Margin="0,0,0,6" BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="1">
+                            <Border Name="CardAccentProtocol" BorderThickness="5,0,0,0"
+                                    CornerRadius="4,0,0,4">
+                                <Button Tag="protocol" Click="Card_Click"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="10,10" HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="28"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Sheet Protocol" FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextColor}"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Name="TxtStatusProtocol" FontSize="10"
+                                                       Margin="0,2,0,0"/>
+                                            <TextBlock Name="TxtCountProtocol" FontSize="9"
+                                                       Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}"/>
+                                        </StackPanel>
+                                        <TextBlock Name="TxtIconProtocol" Grid.Column="1"
+                                                   FontSize="18" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+                            </Border>
+                        </Border>
+
+                        <!-- Card: Revision Completeness -->
+                        <Border Background="{DynamicResource PanelColor}" CornerRadius="4"
+                                Margin="0,0,0,6" BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="1">
+                            <Border Name="CardAccentRevisions" BorderThickness="5,0,0,0"
+                                    CornerRadius="4,0,0,4">
+                                <Button Tag="revisions" Click="Card_Click"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="10,10" HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="28"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Revision Completeness" FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextColor}"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Name="TxtStatusRevisions" FontSize="10"
+                                                       Margin="0,2,0,0"/>
+                                            <TextBlock Name="TxtCountRevisions" FontSize="9"
+                                                       Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}"/>
+                                        </StackPanel>
+                                        <TextBlock Name="TxtIconRevisions" Grid.Column="1"
+                                                   FontSize="18" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+                            </Border>
+                        </Border>
+
+                        <!-- Card: Title Block Parameters -->
+                        <Border Background="{DynamicResource PanelColor}" CornerRadius="4"
+                                Margin="0,0,0,6" BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="1">
+                            <Border Name="CardAccentTitleblock" BorderThickness="5,0,0,0"
+                                    CornerRadius="4,0,0,4">
+                                <Button Tag="titleblock" Click="Card_Click"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="10,10" HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="28"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Title Block Parameters" FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextColor}"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Name="TxtStatusTitleblock" FontSize="10"
+                                                       Margin="0,2,0,0"/>
+                                            <TextBlock Name="TxtCountTitleblock" FontSize="9"
+                                                       Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}"/>
+                                        </StackPanel>
+                                        <TextBlock Name="TxtIconTitleblock" Grid.Column="1"
+                                                   FontSize="18" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+                            </Border>
+                        </Border>
+
+                        <!-- Card: Duplicate Sheet Numbers -->
+                        <Border Background="{DynamicResource PanelColor}" CornerRadius="4"
+                                Margin="0,0,0,6" BorderBrush="{DynamicResource BorderColor}"
+                                BorderThickness="1">
+                            <Border Name="CardAccentDuplicates" BorderThickness="5,0,0,0"
+                                    CornerRadius="4,0,0,4">
+                                <Button Tag="duplicates" Click="Card_Click"
+                                        Background="Transparent" BorderThickness="0"
+                                        Padding="10,10" HorizontalContentAlignment="Stretch"
+                                        Cursor="Hand">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="28"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                            <TextBlock Text="Duplicate Sheet Numbers" FontSize="11"
+                                                       FontWeight="Bold"
+                                                       Foreground="{DynamicResource TextColor}"
+                                                       TextWrapping="Wrap"/>
+                                            <TextBlock Name="TxtStatusDuplicates" FontSize="10"
+                                                       Margin="0,2,0,0"/>
+                                            <TextBlock Name="TxtCountDuplicates" FontSize="9"
+                                                       Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}"/>
+                                        </StackPanel>
+                                        <TextBlock Name="TxtIconDuplicates" Grid.Column="1"
+                                                   FontSize="18" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Button>
+                            </Border>
+                        </Border>
+
+                        <!-- Run button -->
+                        <Button Content="Run All Checks" Click="RunChecks_Click"
+                                Margin="0,8,0,0" Padding="0,10"
+                                Background="{DynamicResource AccentColor}"
+                                Foreground="White" FontSize="12" FontWeight="Bold"
+                                BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="1" Background="{DynamicResource BorderColor}"
+                          HorizontalAlignment="Center" VerticalAlignment="Stretch"/>
+
+            <!-- RIGHT: Detail area -->
+            <Grid Grid.Column="2" Margin="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Detail header -->
+                <Border Grid.Row="0" Padding="14,10"
+                        BorderBrush="{DynamicResource BorderColor}"
+                        BorderThickness="0,0,0,1"
+                        Background="{DynamicResource PanelColor}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Select Sheets"
+                                Click="SelectSheets_Click"
+                                Padding="10,4" FontSize="10" Cursor="Hand"
+                                Background="Transparent" BorderThickness="1"
+                                BorderBrush="{DynamicResource AccentColor}"
+                                Foreground="{DynamicResource AccentColor}"
+                                ToolTip="Selects the sheets listed below in the Revit model (highlighted row only, or all rows if none is highlighted)"/>
+                        <TextBlock Name="TxtDetailTitle"
+                                   Text="Select a check on the left to see details."
+                                   FontSize="12" FontWeight="Bold"
+                                   Foreground="{DynamicResource TextColor}"
+                                   TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </DockPanel>
+                </Border>
+
+                <!-- Detail DataGrid -->
+                <DataGrid Name="DetailGrid" Grid.Row="1"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          CanUserReorderColumns="False" CanUserResizeRows="False"
+                          SelectionMode="Single"
+                          AlternatingRowBackground="#F6F6F6"
+                          RowBackground="{DynamicResource PanelColor}"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="Horizontal"
+                          HorizontalGridLinesBrush="{DynamicResource BorderColor}"
+                          BorderThickness="0"
+                          FontSize="11">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#F0F0F0"/>
+                            <Setter Property="Foreground" Value="#555555"/>
+                            <Setter Property="FontSize" Value="10"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="Padding" Value="8,6"/>
+                            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Padding" Value="8,5"/>
+                            <Setter Property="BorderThickness" Value="0"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Sheet No"
+                                            Binding="{Binding SheetNumber}"
+                                            Width="80" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Sheet Name"
+                                            Binding="{Binding SheetName}"
+                                            Width="180" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Sev."
+                                            Binding="{Binding Severity}"
+                                            Width="52" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Issue"
+                                            Binding="{Binding Issue}"
+                                            Width="*" IsReadOnly="True"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Grid>
+        </Grid>
+
+        <!-- ── Status bar / footer ── -->
+        <Border Grid.Row="2" Padding="14,8"
+                Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}"
+                BorderThickness="0,1,0,0">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Name="BtnExport" Content="Proceed to Export Sheets →"
+                            Click="Export_Click" IsEnabled="False"
+                            Padding="16,8" Margin="0,0,8,0"
+                            Background="{DynamicResource AccentColor}"
+                            Foreground="White" FontSize="11" FontWeight="Bold"
+                            BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="Close" Click="Close_Click"
+                            Padding="12,8"
+                            Background="#E0E0E0" Foreground="#333333"
+                            FontSize="11" BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+                <TextBlock Name="TxtGateStatus" VerticalAlignment="Center"
+                           FontSize="11" Foreground="{DynamicResource TextColor}"
+                           TextWrapping="Wrap"/>
+            </DockPanel>
+        </Border>
+
+        <!-- ── Loading overlay ── -->
+        <Grid Name="LoadingPanel" Grid.RowSpan="3" Visibility="Collapsed"
+              Background="#CCFAFAFA" Panel.ZIndex="100">
+            <Border Background="{DynamicResource PanelColor}" CornerRadius="6"
+                    Padding="28,18" HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    BorderBrush="{DynamicResource BorderColor}"
+                    BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Running checks…" HorizontalAlignment="Center"
+                               FontSize="13" Foreground="{DynamicResource TextColor}"
+                               Margin="0,0,0,10"/>
+                    <ProgressBar Name="ProcessBar" Width="220" Height="8"
+                                 IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"
+                                 Background="#EEEEEE"/>
+                    <TextBlock Name="TxtStatus" HorizontalAlignment="Center"
+                               FontSize="10" Opacity="0.6"
+                               Foreground="{DynamicResource TextColor}"
+                               Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

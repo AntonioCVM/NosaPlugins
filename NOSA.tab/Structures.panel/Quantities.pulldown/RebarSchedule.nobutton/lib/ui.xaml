@@ -1,0 +1,247 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rebar Schedule v1.0" Height="740" Width="1300"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <Style x:Key="SHead" TargetType="TextBlock">
+            <Setter Property="FontSize"   Value="10"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Margin"     Value="0,12,0,6"/>
+        </Style>
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="14,9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="11"/>
+        </Style>
+        <Style x:Key="SecBtn" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,7"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="11"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="220"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ══ SIDEBAR ══════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="0" Background="White">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="16,18,16,0">
+                <TextBlock Text="REBAR SCHEDULE" FontSize="13" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="Bar Bending Schedule v1.0" FontSize="10"
+                           Opacity="0.5" Margin="0,2,0,0"/>
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="16,4,16,16">
+
+                    <!-- Group by -->
+                    <TextBlock Text="GROUP BY" Style="{DynamicResource SHead}"/>
+                    <RadioButton Name="RbGroupHost"     Content="Host element"  GroupName="Group"
+                                 IsChecked="True" FontSize="11" Margin="0,0,0,4"/>
+                    <RadioButton Name="RbGroupDiameter" Content="Bar diameter"  GroupName="Group"
+                                 FontSize="11" Margin="0,0,0,4"/>
+                    <RadioButton Name="RbGroupShape"    Content="Shape code"    GroupName="Group"
+                                 FontSize="11" Margin="0,0,0,4"/>
+
+                    <!-- Host category filter -->
+                    <TextBlock Text="HOST CATEGORY" Style="{DynamicResource SHead}"/>
+                    <ComboBox Name="CboHostCat" Height="26" FontSize="11"
+                              VerticalContentAlignment="Center" Margin="0,0,0,4"/>
+
+                    <!-- Level filter -->
+                    <TextBlock Text="LEVEL" Style="{DynamicResource SHead}"/>
+                    <ComboBox Name="CboLevel" Height="26" FontSize="11"
+                              VerticalContentAlignment="Center" Margin="0,0,0,4"/>
+
+                    <!-- Phase filter -->
+                    <TextBlock Text="EXCLUDE PHASE" Style="{DynamicResource SHead}"/>
+                    <ComboBox Name="CboPhase" Height="26" FontSize="11"
+                              VerticalContentAlignment="Center" Margin="0,0,0,4"/>
+
+                    <!-- Options -->
+                    <TextBlock Text="OPTIONS" Style="{DynamicResource SHead}"/>
+                    <CheckBox Name="ChkSubtotals" Content="Show subtotals"
+                              IsChecked="True" FontSize="11" Margin="0,0,0,4"/>
+
+                    <!-- Generate -->
+                    <Button Name="BtnGenerate" Content="▶ GENERATE SCHEDULE"
+                            Style="{DynamicResource ActionBtn}"
+                            Click="Generate_Click" Margin="0,10,0,0"/>
+
+                    <ProgressBar Name="ProgBar" Height="3" Margin="0,8,0,0"
+                                 IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"
+                                 BorderThickness="0" Visibility="Collapsed"/>
+                    <TextBlock Name="TxtProgress" Text="" FontSize="10"
+                               Opacity="0.6" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- Export -->
+            <StackPanel Grid.Row="2" Margin="16,0,16,16">
+                <Button Name="BtnXlsx" Content="Export Excel"
+                        Style="{DynamicResource ActionBtn}"
+                        Click="ExportXlsx_Click" IsEnabled="False" Margin="0,0,0,6"/>
+                <Button Name="BtnCsv" Content="Export CSV"
+                        Style="{DynamicResource SecBtn}"
+                        Click="ExportCsv_Click" IsEnabled="False" Margin="0,0,0,6"/>
+                <Separator Margin="0,4,0,8"/>
+                <ComboBox Name="CboStandard" Margin="0,0,0,6">
+                    <ComboBoxItem Content="EC2 checks" IsSelected="True"/>
+                    <ComboBoxItem Content="EHE-08 checks"/>
+                </ComboBox>
+                <Button Name="BtnCompliance" Content="Check Compliance"
+                        Style="{DynamicResource SecBtn}"
+                        Click="Compliance_Click" IsEnabled="False"
+                        ToolTip="Run EC2-1-1 / EHE-08 compliance checks on the current schedule"/>
+                <Separator Margin="0,10,0,8"/>
+                <CheckBox Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- ══ MAIN ══════════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <DataGrid Name="GridSchedule" Grid.Row="0" Margin="12,12,12,0"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Extended" SelectionUnit="FullRow"
+                      AlternatingRowBackground="#06000000"
+                      Background="Transparent"
+                      BorderBrush="{DynamicResource BorderColor}"
+                      GridLinesVisibility="Horizontal" FontSize="11"
+                      SelectionChanged="Grid_SelectionChanged">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Group"         Binding="{Binding group_str}"      Width="*"/>
+                    <DataGridTextColumn Header="Host"          Binding="{Binding host_cat_str}"   Width="80"/>
+                    <DataGridTextColumn Header="Mark"          Binding="{Binding host_mark_str}"  Width="65"/>
+                    <DataGridTextColumn Header="Level"         Binding="{Binding host_level_str}" Width="70"/>
+                    <DataGridTextColumn Header="Bar Mark"      Binding="{Binding bar_mark_str}"   Width="70"/>
+                    <DataGridTextColumn Header="Shape"         Binding="{Binding shape_str}"      Width="80"/>
+                    <DataGridTextColumn Header="Ø"             Binding="{Binding dia_str}"        Width="50">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                                <Setter Property="FontWeight"          Value="SemiBold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="No."           Binding="{Binding n_bars_str}"     Width="45">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Center"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Cut (mm)"      Binding="{Binding cut_str}"        Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Margin"              Value="0,0,6,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Total (m)"     Binding="{Binding total_len_str}"  Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Margin"              Value="0,0,6,0"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="kg/m"          Binding="{Binding wt_per_m_str}"   Width="60">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Margin"              Value="0,0,6,0"/>
+                                <Setter Property="Opacity"             Value="0.65"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Total Wt."     Binding="{Binding total_wt_str}"   Width="90">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Margin"              Value="0,0,6,0"/>
+                                <Setter Property="Foreground"          Value="#1565C0"/>
+                                <Setter Property="FontWeight"          Value="SemiBold"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                </DataGrid.Columns>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding is_subtotal}" Value="True">
+                                <Setter Property="Background" Value="#FFD5B0"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+            </DataGrid>
+
+            <!-- Totals bar -->
+            <Border Grid.Row="1" Background="#FF5F00" Margin="12,4,12,12">
+                <Grid Margin="14,9">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="GRAND TOTAL"
+                               FontWeight="Bold" FontSize="11" Foreground="White"
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,28,0">
+                        <TextBlock Text="Bars: " FontSize="11" Foreground="White" Opacity="0.75"/>
+                        <TextBlock Name="TxtTotalBars" Text="—" FontSize="11"
+                                   Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,28,0">
+                        <TextBlock Text="Total Length: " FontSize="11" Foreground="White" Opacity="0.75"/>
+                        <TextBlock Name="TxtTotalLength" Text="—" FontSize="11"
+                                   Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal">
+                        <TextBlock Text="Total Weight: " FontSize="11" Foreground="White" Opacity="0.75"/>
+                        <TextBlock Name="TxtTotalWeight" Text="—" FontSize="11"
+                                   Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

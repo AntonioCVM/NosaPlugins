@@ -1,0 +1,227 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rebar Auditor v1.0 — EC2" Height="680" Width="960"
+        WindowStartupLocation="CenterScreen"
+        Background="#FAFAFA" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <Style x:Key="TabBtn" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="#888"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush"     Value="Transparent"/>
+            <Setter Property="Padding"         Value="18,10"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Style.Triggers>
+                <Trigger Property="Tag" Value="Active">
+                    <Setter Property="Foreground"  Value="#FF5F00"/>
+                    <Setter Property="BorderBrush" Value="#FF5F00"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ActionBtn" TargetType="Button">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="11"/>
+        </Style>
+
+        <Style x:Key="SecBtn" TargetType="Button">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,8"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="FontSize"        Value="11"/>
+        </Style>
+
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns"    Value="False"/>
+            <Setter Property="IsReadOnly"             Value="True"/>
+            <Setter Property="SelectionMode"          Value="Extended"/>
+            <Setter Property="SelectionUnit"          Value="FullRow"/>
+            <Setter Property="AlternatingRowBackground" Value="#06000000"/>
+            <Setter Property="Background"             Value="Transparent"/>
+            <Setter Property="BorderBrush"            Value="{DynamicResource BorderColor}"/>
+            <Setter Property="GridLinesVisibility"    Value="Horizontal"/>
+            <Setter Property="FontSize"               Value="11"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Background="White">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="24,18,0,18">
+                <TextBlock Text="REBAR AUDITOR" FontSize="18" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="Rebar audit to EC2 EN 1992-1-1"
+                           FontSize="11" Opacity="0.55"/>
+            </StackPanel>
+
+            <!-- Config bar -->
+            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                        VerticalAlignment="Center" Margin="0,0,24,0">
+                <TextBlock Text="Exposure:" VerticalAlignment="Center"
+                           Margin="0,0,8,0" FontSize="11" Opacity="0.65"/>
+                <ComboBox Name="CboExposure" Width="80" Height="30"
+                          VerticalContentAlignment="Center" FontSize="11"/>
+                <TextBlock Text="Cover manual (mm):" VerticalAlignment="Center"
+                           Margin="16,0,6,0" FontSize="11" Opacity="0.65"/>
+                <TextBox Name="TxtCustomCover" Width="50" Height="30"
+                         Text=""
+                         TextAlignment="Center" VerticalContentAlignment="Center"
+                         BorderBrush="{DynamicResource BorderColor}"/>
+                <Button Name="BtnRun" Content="AUDIT" Margin="16,0,0,0"
+                        Style="{DynamicResource ActionBtn}" Click="Run_Click"/>
+                <CheckBox Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"
+                          VerticalAlignment="Center" Margin="16,0,0,0"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Tab bar -->
+        <Border Grid.Row="1" BorderBrush="{DynamicResource BorderColor}"
+                BorderThickness="0,0,0,1" Background="White">
+            <StackPanel Orientation="Horizontal" Margin="12,0">
+                <Button Name="BtnTabCover"   Content="Cover"              Tag="Active"
+                        Style="{DynamicResource TabBtn}" Click="Tab_Click"/>
+                <Button Name="BtnTabRatio"   Content="Rebar Ratio"
+                        Style="{DynamicResource TabBtn}" Click="Tab_Click"/>
+                <Button Name="BtnTabUnrein"  Content="Unreinforced"
+                        Style="{DynamicResource TabBtn}" Click="Tab_Click"/>
+                <Border Name="BadgeCoverFail" CornerRadius="8" Background="#FFEEEE"
+                        Padding="6,2" Margin="0,8,0,8" VerticalAlignment="Center">
+                    <TextBlock Name="TxtCoverFail" Text="0 FAIL"
+                               FontSize="10" Foreground="#CC3333" FontWeight="Bold"/>
+                </Border>
+            </StackPanel>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Padding="24,8" Background="#FFF8F5"
+                Visibility="{Binding ElementName=ProgressPanel, Path=Visibility}">
+            <StackPanel Name="ProgressPanel" Orientation="Horizontal" Visibility="Collapsed">
+                <ProgressBar Name="ProgBar" Width="200" Height="4" IsIndeterminate="True"
+                             Foreground="{DynamicResource AccentColor}"
+                             BorderThickness="0" VerticalAlignment="Center"/>
+                <TextBlock Name="TxtStatus" Text="Auditing…" Margin="12,0,0,0"
+                           FontSize="11" Opacity="0.6" VerticalAlignment="Center"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Tab content -->
+        <Grid Grid.Row="3" Margin="16,8,16,0">
+
+            <!-- COVER tab -->
+            <DataGrid Name="GridCover">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID"              Binding="{Binding id}"           Width="70"/>
+                    <DataGridTextColumn Header="Type"            Binding="{Binding element_type}"  Width="90"/>
+                    <DataGridTextColumn Header="Mark"            Binding="{Binding host_mark}"     Width="80"/>
+                    <DataGridTextColumn Header="Ø (mm)"          Binding="{Binding bar_dia_mm}"    Width="70"/>
+                    <DataGridTextColumn Header="Actual Cover"    Binding="{Binding actual_cover}"  Width="90"/>
+                    <DataGridTextColumn Header="Required Cover"  Binding="{Binding required_cover}" Width="100"/>
+                    <DataGridTextColumn Header="Status"          Binding="{Binding status}"        Width="80"/>
+                </DataGrid.Columns>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding status}" Value="FAIL">
+                                <Setter Property="Background" Value="#10CC0000"/>
+                                <Setter Property="Foreground" Value="#CC0000"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding status}" Value="OK">
+                                <Setter Property="Background" Value="#08009900"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+            </DataGrid>
+
+            <!-- RATIO tab -->
+            <DataGrid Name="GridRatio" Visibility="Collapsed">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID"       Binding="{Binding id}"           Width="80"/>
+                    <DataGridTextColumn Header="Type"     Binding="{Binding element_type}"  Width="90"/>
+                    <DataGridTextColumn Header="Mark"     Binding="{Binding host_mark}"     Width="80"/>
+                    <DataGridTextColumn Header="Ac (mm²)" Binding="{Binding Ac_mm2}"        Width="100"/>
+                    <DataGridTextColumn Header="As (mm²)" Binding="{Binding As_mm2}"        Width="100"/>
+                    <DataGridTextColumn Header="ρ"        Binding="{Binding rho}"           Width="80"/>
+                    <DataGridTextColumn Header="ρ_min"    Binding="{Binding rho_min}"       Width="70"/>
+                    <DataGridTextColumn Header="ρ_max"    Binding="{Binding rho_max}"       Width="70"/>
+                    <DataGridTextColumn Header="Status"   Binding="{Binding status}"        Width="70"/>
+                    <DataGridTextColumn Header="Issue"    Binding="{Binding issues}"        Width="*"/>
+                </DataGrid.Columns>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding status}" Value="FAIL">
+                                <Setter Property="Background" Value="#10CC0000"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </DataGrid.RowStyle>
+            </DataGrid>
+
+            <!-- UNREINFORCED tab -->
+            <DataGrid Name="GridUnrein" Visibility="Collapsed">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="ID"           Binding="{Binding id}"           Width="80"/>
+                    <DataGridTextColumn Header="Type"         Binding="{Binding element_type}"  Width="90"/>
+                    <DataGridTextColumn Header="Mark"         Binding="{Binding mark}"          Width="100"/>
+                    <DataGridTextColumn Header="Level"        Binding="{Binding level}"         Width="100"/>
+                    <DataGridTextColumn Header="Family Type"  Binding="{Binding family_type}"   Width="*"/>
+                </DataGrid.Columns>
+                <DataGrid.RowStyle>
+                    <Style TargetType="DataGridRow">
+                        <Setter Property="Background" Value="#0AFF6600"/>
+                    </Style>
+                </DataGrid.RowStyle>
+            </DataGrid>
+        </Grid>
+
+        <!-- Footer -->
+        <Grid Grid.Row="4" Margin="16,10,16,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="10"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBlock Name="TxtSummary" Grid.Column="0" Text="Click AUDIT to scan the project."
+                       FontSize="11" Opacity="0.6" VerticalAlignment="Center"/>
+            <Button Grid.Column="1" Name="BtnSelectFail" Content="Select FAILs"
+                    Style="{DynamicResource SecBtn}" Click="SelectFails_Click"
+                    IsEnabled="False"/>
+            <Button Grid.Column="3" Name="BtnExport" Content="Export CSV"
+                    Style="{DynamicResource SecBtn}" Click="Export_Click"
+                    IsEnabled="False"/>
+        </Grid>
+    </Grid>
+</Window>

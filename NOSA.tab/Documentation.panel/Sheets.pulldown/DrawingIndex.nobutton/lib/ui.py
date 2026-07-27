@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
+from Autodesk.Revit import DB
 import os, sys, imp, json
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from System.Windows.Controls import CheckBox as _WPFCheckBox
-from pyrevit import forms, revit, DB
-
+from pyrevit import forms, revit
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -302,7 +302,7 @@ class DrawingIndexWindow(NOSAWindow):
                         try:
                             param_name = row._param_map.get(attr_name, attr_name)
                             if param_name == 'Form' or attr_name == 'FormId':
-                                okt, _f = _sp.write_form_value(self.doc, el, new_val)
+                                okt, _f, _h = _sp.write_form_value(self.doc, el, new_val)
                                 if okt > 0:
                                     ok += 1
                                 else:
@@ -360,3 +360,5 @@ class DrawingIndexWindow(NOSAWindow):
             _os.startfile(path)
         except Exception as e:
             forms.alert("Export failed: {}".format(e))
+
+

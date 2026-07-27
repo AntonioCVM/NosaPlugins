@@ -19,8 +19,7 @@ class ConfigManager:
     
     DEFAULT_CONFIG_DIR = os.path.join(
         os.getenv('APPDATA', ''),
-        'pyRevit',
-        'NOSA_Configs'
+        'pyRevit', 'Extensions', 'NOSA.extension', 'NOSA_Configs'
     )
     
     def __init__(self, config_name, config_dir=None):
@@ -56,41 +55,51 @@ class ConfigManager:
                 pass
     
     def load(self):
-        """
-        Load configuration from file.
-        
-        Returns:
-            dict: Configuration dictionary
-        """
+        """Load configuration from file. Returns dict."""
         if self._data is not None:
             return self._data
-        
+
         try:
             if os.path.exists(self.config_file):
                 with open(self.config_file, 'r') as f:
                     self._data = json.load(f)
                     return self._data
-        except Exception:
-            pass
-        
+        except Exception as ex:
+            try:
+                from nosa_utils.telemetry import log_error
+                log_error('ConfigManager', str(ex))
+            except Exception:
+                pass
+
         self._data = {}
         return self._data
-    
+
+    def load_with_defaults(self, defaults):
+        """
+        Load config and fill any missing keys from defaults.
+
+        Saved values take priority; new keys in defaults are added on first save.
+        """
+        data = self.load()
+        merged = dict(defaults)
+        merged.update(data)
+        return merged
+
     def save(self):
-        """
-        Save current configuration to file.
-        
-        Returns:
-            bool: True if successful
-        """
+        """Save current configuration to file. Returns True on success."""
         if self._data is None:
             return False
-        
+
         try:
             with open(self.config_file, 'w') as f:
                 json.dump(self._data, f, indent=2)
             return True
-        except Exception:
+        except Exception as ex:
+            try:
+                from nosa_utils.telemetry import log_error
+                log_error('ConfigManager', str(ex))
+            except Exception:
+                pass
             return False
     
     def get(self, key, default=None):

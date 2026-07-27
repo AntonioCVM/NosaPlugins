@@ -6,7 +6,7 @@
 
         WindowStartupLocation="CenterScreen"
 
-        Background="{DynamicResource BgColor}" FontFamily="Century Gothic"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
 
         ResizeMode="CanResizeWithGrip">
 

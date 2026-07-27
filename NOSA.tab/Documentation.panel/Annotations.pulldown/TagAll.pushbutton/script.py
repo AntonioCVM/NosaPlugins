@@ -8,7 +8,7 @@ FEATURES v3.1:
 ✓ Batch View Selection
 ✓ Skip Duplicates
 """
-__author__ = "Antonio Viñas"
+__author__  = "A. Viñas"
 __version__ = "3.1"
 
 import sys, os
@@ -17,6 +17,8 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), "lib")
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+
+from nosa_utils.base_window import launch_nosa_window
 
 def _lm(n, p):
     try:
@@ -29,6 +31,10 @@ def _lm(n, p):
 ui_module = _lm('tagall_ui_local', os.path.join(lib_path, 'ui.py'))
 TagAllWindow = ui_module.TagAllWindow
 
-if __name__ == '__main__':
-    win = TagAllWindow(revit.doc)
-    win.ShowDialog()
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('tagall')
+except Exception:
+    pass
+launch_nosa_window(TagAllWindow, revit.doc)

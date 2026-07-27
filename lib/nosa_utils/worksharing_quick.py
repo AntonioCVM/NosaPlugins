@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Tiny worksharing probes — avoids hard dependency failures on non-workshared docs."""
 
-from pyrevit import DB
+from Autodesk.Revit import DB
 
 
 def element_workset_is_open(doc, el):

@@ -2,7 +2,7 @@
 __title__   = "NOSA\nDashboard"
 __version__ = "3.0"
 __doc__     = "NOSA extension dashboard — version, environment, health checks and plugin index."
-__author__  = "Antonio Viñas"
+__author__  = "A. Viñas"
 
 import os
 import sys
@@ -12,8 +12,16 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
+from nosa_utils.base_window import launch_nosa_window
+
 _ui = imp.load_source('nosa_dashboard_ui',
                       os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 
-win = _ui.NOSADashboardWindow()
-win.ShowDialog()
+launch_nosa_window(_ui.NOSADashboardWindow)
+
+# -- usage tracking --
+try:
+    import nosa_utils.usage as _ut
+    _ut.record('nosa')
+except Exception:
+    pass

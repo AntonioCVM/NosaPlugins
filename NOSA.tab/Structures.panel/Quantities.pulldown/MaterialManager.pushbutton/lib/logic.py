@@ -2,8 +2,7 @@
 import io
 """Material Manager Logic — audit and clean up Revit materials."""
 import sys, os, csv
-from pyrevit import DB
-
+from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -100,7 +99,7 @@ def _lev(a, b):
 def delete_materials(doc, material_ids):
     """Delete materials by ElementId. Returns (deleted_count, failed_count)."""
     deleted = failed = 0
-    with DB.Transaction(doc, "Material Manager — Delete Materials") as t:
+    with DB.Transaction(doc, u"NOSA — Material Manager — Delete Materials") as t:
         t.Start()
         for mid in material_ids:
             try:
@@ -134,13 +133,14 @@ def get_all_materials(doc):
 
 # ── element material helpers ───────────────────────────────────────────────────
 
-_STRUCT_BICS = [
-    DB.BuiltInCategory.OST_StructuralFraming,
-    DB.BuiltInCategory.OST_StructuralColumns,
-    DB.BuiltInCategory.OST_Walls,
-    DB.BuiltInCategory.OST_Floors,
-    DB.BuiltInCategory.OST_StructuralFoundation,
-]
+def _struct_bics():
+    return [
+        DB.BuiltInCategory.OST_StructuralFraming,
+        DB.BuiltInCategory.OST_StructuralColumns,
+        DB.BuiltInCategory.OST_Walls,
+        DB.BuiltInCategory.OST_Floors,
+        DB.BuiltInCategory.OST_StructuralFoundation,
+    ]
 
 _MATERIAL_KEYWORDS = [
     ('concrete', ['concrete', 'hormigon', 'concreto', 'c25', 'c30', 'c35', 'c40', 'c45']),
@@ -219,7 +219,7 @@ def collect_element_materials(doc):
     mat_list = get_all_materials(doc)
     result = []
 
-    for bic in _STRUCT_BICS:
+    for bic in _struct_bics():
         try:
             els = DB.FilteredElementCollector(doc)\
                     .OfCategory(bic)\
@@ -260,7 +260,7 @@ def assign_material_to_elements(doc, element_ids, material_id):
     falling back to MATERIAL_ID_PARAM. Returns (ok_count, failed_count).
     """
     ok = failed = 0
-    with DB.Transaction(doc, "Material Manager — Assign Material") as t:
+    with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material") as t:
         t.Start()
         for eid in element_ids:
             try:
@@ -300,3 +300,6 @@ def export_element_materials_csv(rows, path):
                 'YES' if r['is_missing'] else '',
                 r['proposed_name'] if r['is_missing'] else '',
             ])
+
+
+

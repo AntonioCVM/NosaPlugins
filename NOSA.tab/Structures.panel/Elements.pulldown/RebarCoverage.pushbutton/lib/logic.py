@@ -1,23 +1,26 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 RebarCoverage Logic — Detect structural elements with no rebar assigned.
 Groups results by category and level.
 """
-from pyrevit import DB
-
-_STRUCTURAL_BICS = [
-    ('Structural Columns',    DB.BuiltInCategory.OST_StructuralColumns),
-    ('Structural Framing',    DB.BuiltInCategory.OST_StructuralFraming),
-    ('Structural Foundations',DB.BuiltInCategory.OST_StructuralFoundation),
-    ('Floors',                DB.BuiltInCategory.OST_Floors),
-    ('Walls',                 DB.BuiltInCategory.OST_Walls),
-]
+from Autodesk.Revit import DB
+from nosa_utils.revit_helpers import get_id_value
+_STRUCTURAL_BICS = None
 
 
-def _get_id(eid):
-    if hasattr(eid, 'Value'):        return eid.Value
-    if hasattr(eid, 'IntegerValue'): return eid.IntegerValue
-    return int(str(eid))
+def _structural_bics():
+    global _STRUCTURAL_BICS
+    if _STRUCTURAL_BICS is None:
+        _STRUCTURAL_BICS = [
+            ('Structural Columns',     DB.BuiltInCategory.OST_StructuralColumns),
+            ('Structural Framing',     DB.BuiltInCategory.OST_StructuralFraming),
+            ('Structural Foundations', DB.BuiltInCategory.OST_StructuralFoundation),
+            ('Floors',                 DB.BuiltInCategory.OST_Floors),
+            ('Walls',                  DB.BuiltInCategory.OST_Walls),
+        ]
+    return _STRUCTURAL_BICS
+
+
 
 
 def _collect(doc, bic):
@@ -82,14 +85,14 @@ def check_rebar_coverage(doc, selected_cats=None):
     with_rebar    = []
     without_rebar = []
 
-    for cat_name, bic in _STRUCTURAL_BICS:
+    for cat_name, bic in _structural_bics():
         if selected_cats and cat_name not in selected_cats:
             continue
         for el in _collect(doc, bic):
             try:
                 level = _level_name(doc, el)
                 entry = {
-                    'id':       _get_id(el.Id),
+                    'id':       get_id_value(el.Id),
                     'name':     getattr(el, 'Name', str(el.Id)),
                     'category': cat_name,
                     'level':    level,
@@ -129,4 +132,4 @@ def check_rebar_coverage(doc, selected_cats=None):
 
 
 def get_available_categories():
-    return [n for n, _ in _STRUCTURAL_BICS]
+    return [n for n, _ in _structural_bics()]

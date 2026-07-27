@@ -1,10 +1,10 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="NOSA QR Code Generator v1.3"
-        Height="700" Width="420"
+        Title="NOSA QR Code Generator v1.4"
+        Height="620" Width="420"
         WindowStartupLocation="CenterScreen"
-        Background="#FAFAFA"
-        FontFamily="Century Gothic"
+        Background="{DynamicResource BgColor}"
+        FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanMinimize">
 
     <Window.Resources>
@@ -105,11 +105,10 @@
             <RowDefinition Height="12"/>     <!-- spacer           -->
             <RowDefinition Height="Auto"/>   <!-- Bottom bar       -->
             <RowDefinition Height="10"/>     <!-- spacer           -->
-            <RowDefinition Height="Auto"/>   <!-- Mode toggle      -->
-            <RowDefinition Height="10"/>     <!-- spacer           -->
             <RowDefinition Height="1"/>      <!-- divider          -->
             <RowDefinition Height="12"/>     <!-- spacer           -->
             <RowDefinition Height="Auto"/>   <!-- Titleblock bar   -->
+            <RowDefinition Height="Auto"/>   <!-- Dark mode        -->
         </Grid.RowDefinitions>
 
         <!-- ── Header ─────────────────────────────────────────────────── -->
@@ -244,49 +243,14 @@
                     Click="Save_Click"/>
         </Grid>
 
-        <!-- ── Place mode toggle ─────────────────────────────────────────── -->
-        <Border Grid.Row="11"
-                Background="#F5F5F5"
-                CornerRadius="4"
-                Padding="10,7">
-            <StackPanel>
-                <TextBlock Text="Modo de inserción en titleblock"
-                           FontSize="10" FontWeight="SemiBold"
-                           Foreground="{DynamicResource TextColor}"
-                           Margin="0,0,0,5"/>
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton Name="RboPng"
-                                 Content="PNG (imagen)"
-                                 IsChecked="True"
-                                 FontFamily="Century Gothic"
-                                 FontSize="11"
-                                 Foreground="{DynamicResource TextColor}"
-                                 VerticalContentAlignment="Center"/>
-                    <RadioButton Name="RboVector"
-                                 Content="Geometría nativa  (sin imagen en CAD)"
-                                 Margin="14,0,0,0"
-                                 FontFamily="Century Gothic"
-                                 FontSize="11"
-                                 Foreground="{DynamicResource TextColor}"
-                                 VerticalContentAlignment="Center"/>
-                </StackPanel>
-                <TextBlock Name="TxtModeHint"
-                           Text="PNG: el QR se guarda como imagen incrustada en la familia titleblock"
-                           FontSize="9"
-                           Foreground="{DynamicResource SubText}"
-                           Margin="0,4,0,0"
-                           TextWrapping="Wrap"/>
-            </StackPanel>
-        </Border>
-
         <!-- ── Divider ────────────────────────────────────────────────── -->
-        <Rectangle Grid.Row="13"
+        <Rectangle Grid.Row="11"
                    Fill="{DynamicResource BorderColor}"
                    Height="1"
                    HorizontalAlignment="Stretch"/>
 
         <!-- ── Place in Titleblocks bar ──────────────────────────────── -->
-        <Grid Grid.Row="15">
+        <Grid Grid.Row="13">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="10"/>
@@ -312,5 +276,8 @@
                     IsEnabled="False"
                     Click="PlaceTitleblocks_Click"/>
         </Grid>
+
+        <CheckBox Grid.Row="14" Name="ChkDarkMode" Content="Dark Mode"
+                  Click="Theme_Toggled" Margin="0,12,0,0"/>
     </Grid>
 </Window>

@@ -1,0 +1,450 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rebar Hub — NOSA" Height="780" Width="1120"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionBtn">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="TabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Padding"         Value="18,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SubTabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="FontSize"        Value="11"/>
+            <Setter Property="Padding"         Value="14,6"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="TextBox" x:Key="FieldBox">
+            <Setter Property="Height"   Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding"  Value="4,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns"      Value="False"/>
+            <Setter Property="CanUserAddRows"           Value="False"/>
+            <Setter Property="CanUserDeleteRows"        Value="False"/>
+            <Setter Property="GridLinesVisibility"      Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="RowBackground"            Value="{DynamicResource PanelColor}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource BgColor}"/>
+            <Setter Property="FontSize"                 Value="11"/>
+            <Setter Property="SelectionMode"            Value="Single"/>
+            <Setter Property="BorderBrush"              Value="{DynamicResource BorderColor}"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- main tab bar -->
+            <RowDefinition Height="*"/>     <!-- content -->
+            <RowDefinition Height="80"/>    <!-- log -->
+        </Grid.RowDefinitions>
+
+        <!-- ── Main Tab Bar ──────────────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Grid.Column="0">
+                    <Button Name="BtnMainBS"    Tag="BS"    Style="{StaticResource TabBtn}"
+                            Click="MainTab_Click">BS 8666 Schedule</Button>
+                    <Button Name="BtnMainSched" Tag="Sched" Style="{StaticResource TabBtn}"
+                            Click="MainTab_Click">Rebar Schedule</Button>
+                    <Button Name="BtnMainAudit" Tag="Audit" Style="{StaticResource TabBtn}"
+                            Click="MainTab_Click">EC2 Audit</Button>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Grid.Column="1" VerticalAlignment="Center"
+                            Margin="0,0,12,0">
+                    <TextBlock Text="🌙" FontSize="14" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <CheckBox Name="ChkDarkMode" VerticalAlignment="Center"
+                              Click="Theme_Toggled"/>
+                    <Button Content="Close" Style="{StaticResource TabBtn}"
+                            Click="Close_Click" Margin="8,0,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── Content area ──────────────────────────────────────────────── -->
+        <Grid Grid.Row="1">
+
+            <!-- ══ BS 8666 Panel ══════════════════════════════════════════ -->
+            <Grid Name="PanelBS" Visibility="Visible">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- BS inner toolbar -->
+                <Border Grid.Row="0" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="8,4">
+                    <WrapPanel>
+                        <Button Name="BtnBsTabSched" Tag="Sched" Style="{StaticResource SubTabBtn}"
+                                Click="BsTab_Click">Schedule</Button>
+                        <Button Name="BtnBsTabMarks" Tag="Marks" Style="{StaticResource SubTabBtn}"
+                                Click="BsTab_Click">Bar Marks</Button>
+                        <Separator Width="1" Height="20" Margin="4,0"
+                                   Background="{DynamicResource BorderColor}"/>
+                        <Button Content="Load Rebar" Style="{StaticResource ActionBtn}"
+                                Click="BsLoad_Click" Margin="4,2"/>
+                        <Button Content="Export Excel (BS 8666)" Style="{StaticResource ActionBtn}"
+                                Click="BsExportExcel_Click" Margin="4,2"/>
+                        <Separator Width="1" Height="20" Margin="4,0"
+                                   Background="{DynamicResource BorderColor}"/>
+                        <TextBlock Text="Proj No:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="4,0,4,0"/>
+                        <TextBox Name="TxtBsProjectNo" Width="80" Style="{StaticResource FieldBox}"
+                                 Margin="0,0,8,0"/>
+                        <TextBlock Text="Rev:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <TextBox Name="TxtBsRevision" Width="60" Style="{StaticResource FieldBox}"/>
+                    </WrapPanel>
+                </Border>
+
+                <!-- BS Schedule sub-panel -->
+                <Grid Name="PanelBsSched" Grid.Row="1" Visibility="Visible">
+                    <DataGrid Name="GridBsSchedule" Margin="8">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Mark"      Binding="{Binding Mark}"      Width="80"/>
+                            <DataGridTextColumn Header="Ø (mm)"    Binding="{Binding DiamLabel}"  Width="70"/>
+                            <DataGridTextColumn Header="Qty"       Binding="{Binding Quantity}"   Width="50"/>
+                            <DataGridTextColumn Header="Shape"     Binding="{Binding Shape}"      Width="60"/>
+                            <DataGridTextColumn Header="Shape Desc" Binding="{Binding ShapeDesc}" Width="140"/>
+                            <DataGridTextColumn Header="Length (m)" Binding="{Binding TotalLenM}" Width="90"/>
+                            <DataGridTextColumn Header="Mass (kg)" Binding="{Binding MassKg}"    Width="90"/>
+                            <DataGridTextColumn Header="Levels"    Binding="{Binding Levels}"    Width="120"/>
+                            <DataGridTextColumn Header="Hosts"     Binding="{Binding Hosts}"     Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <!-- Bar Marks sub-panel -->
+                <Grid Name="PanelBsMarks" Grid.Row="1" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <!-- Marks toolbar -->
+                    <Border Grid.Row="0" Padding="8,4"
+                            Background="{DynamicResource BgColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                        <WrapPanel>
+                            <Button Content="Refresh Marks" Style="{StaticResource ActionBtn}"
+                                    Click="BsLoadMarks_Click" Margin="4,2"/>
+                            <Button Content="Detect Duplicates" Style="{StaticResource ActionBtn}"
+                                    Click="BsDetectDupes_Click" Margin="4,2"/>
+                            <Separator Width="1" Height="20" Margin="4,0"
+                                       Background="{DynamicResource BorderColor}"/>
+                            <TextBlock Text="Prefix:" VerticalAlignment="Center" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Margin="4,0,4,0"/>
+                            <TextBox Name="TxtBsMarkPrefix" Width="60" Text="S"
+                                     Style="{StaticResource FieldBox}" Margin="0,0,8,0"/>
+                            <TextBlock Text="Start:" VerticalAlignment="Center" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                            <TextBox Name="TxtBsMarkStart" Width="50" Text="1"
+                                     Style="{StaticResource FieldBox}" Margin="0,0,8,0"/>
+                            <Button Content="Renumber Selected" Style="{StaticResource ActionBtn}"
+                                    Click="BsRenumber_Click" Margin="4,2"/>
+                        </WrapPanel>
+                    </Border>
+                    <!-- Marks grid -->
+                    <DataGrid Name="GridBsMarks" Grid.Row="1" Margin="8">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="✔" Width="30">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Mark"     Binding="{Binding Mark}"        Width="80"/>
+                            <DataGridTextColumn Header="Ø (mm)"   Binding="{Binding Diameter}"    Width="70"/>
+                            <DataGridTextColumn Header="Qty"      Binding="{Binding Quantity}"    Width="50"/>
+                            <DataGridTextColumn Header="Shape"    Binding="{Binding Shape}"       Width="60"/>
+                            <DataGridTextColumn Header="Levels"   Binding="{Binding Levels}"      Width="120"/>
+                            <DataGridTextColumn Header="Warning"  Binding="{Binding DupeWarning}" Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <!-- Duplicate warning panel -->
+                    <Border Name="PanelBsDuplicates" Grid.Row="2" Visibility="Collapsed"
+                            Background="#FFF3E0" Padding="8,4" Margin="8,0,8,4"
+                            BorderBrush="#FF5F00" BorderThickness="1" CornerRadius="4">
+                        <TextBlock Name="TxtBsDuplicates" FontSize="11" TextWrapping="Wrap"
+                                   Foreground="#BF360C"/>
+                    </Border>
+                </Grid>
+
+                <!-- BS status bar -->
+                <Border Grid.Row="2" Padding="8,4" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+                    <Grid>
+                        <TextBlock Name="TxtBsSchedStatus" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}"
+                                   Visibility="{Binding Visibility, ElementName=PanelBsSched}"/>
+                        <TextBlock Name="TxtBsMarksStatus" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}"
+                                   Visibility="{Binding Visibility, ElementName=PanelBsMarks}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- ══ Rebar Schedule Panel ════════════════════════════════════ -->
+            <Grid Name="PanelSched" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Schedule filters toolbar -->
+                <Border Grid.Row="0" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="8,6">
+                    <WrapPanel>
+                        <TextBlock Text="Group by:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,8,0"/>
+                        <RadioButton Name="RbRsGroupHost"     Content="Host element"
+                                     IsChecked="True" VerticalAlignment="Center" Margin="0,0,10,0"
+                                     Foreground="{DynamicResource TextColor}" FontSize="11"/>
+                        <RadioButton Name="RbRsGroupDiameter" Content="Diameter"
+                                     VerticalAlignment="Center" Margin="0,0,10,0"
+                                     Foreground="{DynamicResource TextColor}" FontSize="11"/>
+                        <RadioButton Name="RbRsGroupShape"    Content="Shape code"
+                                     VerticalAlignment="Center" Margin="0,0,16,0"
+                                     Foreground="{DynamicResource TextColor}" FontSize="11"/>
+                        <TextBlock Text="Host:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <ComboBox Name="CboRsHostCat" Width="160" Height="26" FontSize="11"
+                                  Margin="0,0,12,0"/>
+                        <TextBlock Text="Level:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <ComboBox Name="CboRsLevel" Width="120" Height="26" FontSize="11"
+                                  Margin="0,0,12,0"/>
+                        <TextBlock Text="Phase:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <ComboBox Name="CboRsPhase" Width="120" Height="26" FontSize="11"
+                                  Margin="0,0,12,0"/>
+                        <CheckBox Name="ChkRsSubtotals" Content="Show subtotals"
+                                  VerticalAlignment="Center" FontSize="11" Margin="0,0,16,0"
+                                  Foreground="{DynamicResource TextColor}"/>
+                        <Button Content="Generate" Style="{StaticResource ActionBtn}"
+                                Name="BtnRsGenerate" Click="RsGenerate_Click" Margin="4,2"/>
+                        <Button Content="Export Excel" Style="{StaticResource ActionBtn}"
+                                Name="BtnRsXlsx" IsEnabled="False"
+                                Click="RsExportXlsx_Click" Margin="4,2"/>
+                        <Button Content="Export CSV" Style="{StaticResource ActionBtn}"
+                                Name="BtnRsCsv" IsEnabled="False"
+                                Click="RsExportCsv_Click" Margin="4,2"/>
+                    </WrapPanel>
+                </Border>
+
+                <!-- Schedule grid -->
+                <DataGrid Name="GridRsSchedule" Grid.Row="1" Margin="8"
+                          SelectionChanged="RsGrid_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Host"          Binding="{Binding host_mark_str}"  Width="140"/>
+                        <DataGridTextColumn Header="Category"      Binding="{Binding host_cat_str}"   Width="100"/>
+                        <DataGridTextColumn Header="Level"         Binding="{Binding host_level_str}" Width="100"/>
+                        <DataGridTextColumn Header="Bar Mark"      Binding="{Binding bar_mark_str}"   Width="80"/>
+                        <DataGridTextColumn Header="Ø"             Binding="{Binding dia_str}"        Width="60"/>
+                        <DataGridTextColumn Header="Shape"         Binding="{Binding shape_str}"      Width="60"/>
+                        <DataGridTextColumn Header="Qty"           Binding="{Binding n_bars_str}"     Width="50"/>
+                        <DataGridTextColumn Header="Cut len (mm)"  Binding="{Binding cut_str}"        Width="90"/>
+                        <DataGridTextColumn Header="Total len (m)" Binding="{Binding total_len_str}"  Width="90"/>
+                        <DataGridTextColumn Header="Wt/m (kg)"     Binding="{Binding wt_per_m_str}"   Width="80"/>
+                        <DataGridTextColumn Header="Total wt (kg)" Binding="{Binding total_wt_str}"   Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+
+                <!-- Schedule status bar -->
+                <Border Grid.Row="2" Padding="8,6" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <ProgressBar Name="ProgRs" Width="120" Height="8"
+                                     IsIndeterminate="True" Visibility="Collapsed"
+                                     Foreground="{DynamicResource AccentColor}" Margin="0,0,8,0"/>
+                        <TextBlock Name="TxtRsProgress" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,20,0"/>
+                        <TextBlock Text="Bars:" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <TextBlock Name="TxtRsTotalBars" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
+                                   Margin="0,0,16,0"/>
+                        <TextBlock Text="Length:" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <TextBlock Name="TxtRsTotalLength" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
+                                   Margin="0,0,16,0"/>
+                        <TextBlock Text="Weight:" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,4,0"/>
+                        <TextBlock Name="TxtRsTotalWeight" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ══ EC2 Audit Panel ═════════════════════════════════════════ -->
+            <Grid Name="PanelAudit" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Audit toolbar -->
+                <Border Grid.Row="0" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="8,6">
+                    <WrapPanel>
+                        <TextBlock Text="Exposure class:" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,6,0"/>
+                        <ComboBox Name="CboAudExposure" Width="80" Height="26" FontSize="11"
+                                  Margin="0,0,16,0"/>
+                        <TextBlock Text="Custom cover (mm):" VerticalAlignment="Center" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,6,0"/>
+                        <TextBox Name="TxtAudCustomCover" Width="70"
+                                 Style="{StaticResource FieldBox}" Margin="0,0,16,0"/>
+                        <Button Name="BtnAudRun" Content="Run Audit"
+                                Style="{StaticResource ActionBtn}" Click="AudRun_Click" Margin="4,2"/>
+                    </WrapPanel>
+                </Border>
+
+                <!-- Audit sub-tabs -->
+                <Border Grid.Row="1" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                        Padding="8,2">
+                    <StackPanel Orientation="Horizontal">
+                        <Button Name="BtnAudTabCover"  Style="{StaticResource SubTabBtn}"
+                                Click="AudTab_Click">Cover Check</Button>
+                        <Button Name="BtnAudTabRatio"  Style="{StaticResource SubTabBtn}"
+                                Click="AudTab_Click">Rebar Ratio</Button>
+                        <Button Name="BtnAudTabUnrein" Style="{StaticResource SubTabBtn}"
+                                Click="AudTab_Click">Unreinforced</Button>
+                        <!-- Progress indicator -->
+                        <Border Name="PanelAudProgress" Visibility="Collapsed"
+                                Background="#FFF3E0" CornerRadius="4" Padding="8,2" Margin="16,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Auditing…" FontSize="11" VerticalAlignment="Center"
+                                           Foreground="#BF360C"/>
+                                <ProgressBar Width="80" Height="6" IsIndeterminate="True"
+                                             Foreground="{DynamicResource AccentColor}" Margin="8,0,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
+                <!-- Audit grids -->
+                <Grid Grid.Row="2">
+                    <DataGrid Name="GridAudCover" Margin="8" Visibility="Visible">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Status"   Binding="{Binding status}"    Width="60"/>
+                            <DataGridTextColumn Header="Element"  Binding="{Binding elem_name}"  Width="160"/>
+                            <DataGridTextColumn Header="Cover (mm)" Binding="{Binding cover_mm}" Width="90"/>
+                            <DataGridTextColumn Header="Min (mm)" Binding="{Binding req_mm}"    Width="80"/>
+                            <DataGridTextColumn Header="Gap (mm)" Binding="{Binding gap_mm}"    Width="80"/>
+                            <DataGridTextColumn Header="Bar"      Binding="{Binding bar_id}"    Width="80"/>
+                            <DataGridTextColumn Header="Level"    Binding="{Binding level}"     Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DataGrid Name="GridAudRatio" Margin="8" Visibility="Collapsed">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Status"     Binding="{Binding status}"     Width="60"/>
+                            <DataGridTextColumn Header="Element"    Binding="{Binding elem_name}"   Width="160"/>
+                            <DataGridTextColumn Header="ρ actual"   Binding="{Binding rho_actual}"  Width="90"/>
+                            <DataGridTextColumn Header="ρ min"      Binding="{Binding rho_min}"     Width="80"/>
+                            <DataGridTextColumn Header="ρ max"      Binding="{Binding rho_max}"     Width="80"/>
+                            <DataGridTextColumn Header="Level"      Binding="{Binding level}"       Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <DataGrid Name="GridAudUnrein" Margin="8" Visibility="Collapsed">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Element"  Binding="{Binding elem_name}" Width="200"/>
+                            <DataGridTextColumn Header="Category" Binding="{Binding category}"  Width="140"/>
+                            <DataGridTextColumn Header="Level"    Binding="{Binding level}"     Width="120"/>
+                            <DataGridTextColumn Header="Mark"     Binding="{Binding mark}"      Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+
+                <!-- Audit status bar -->
+                <Border Grid.Row="3" Padding="8,6" Background="{DynamicResource BgColor}"
+                        BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Name="TxtAudCoverFail" FontSize="11" FontWeight="Bold"
+                                   Foreground="#BF360C" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <TextBlock Name="TxtAudSummary" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" VerticalAlignment="Center"
+                                   Margin="0,0,16,0"/>
+                        <Button Name="BtnAudSelectFail" Content="Select FAIL in Revit"
+                                Style="{StaticResource ActionBtn}" IsEnabled="False"
+                                Click="AudSelectFail_Click" Margin="4,0"/>
+                        <Button Name="BtnAudExport" Content="Export CSV"
+                                Style="{StaticResource ActionBtn}" IsEnabled="False"
+                                Click="AudExport_Click" Margin="4,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ── Log ───────────────────────────────────────────────────────── -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+            <TextBox Name="TxtLog" IsReadOnly="True" TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto" FontSize="10"
+                     Background="Transparent" BorderThickness="0"
+                     Foreground="{DynamicResource TextColor}" Padding="8,4"
+                     FontFamily="Consolas, Courier New"/>
+        </Border>
+
+        <!-- ── Loading Overlay ───────────────────────────────────────────── -->
+        <Grid Name="LoadingPanel" Grid.RowSpan="3" Visibility="Collapsed"
+              Background="#CCFAFAFA">
+            <Border Background="White" CornerRadius="6" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                <StackPanel>
+                    <TextBlock Text="Processing…" HorizontalAlignment="Center" FontSize="13"
+                               Foreground="{DynamicResource TextColor}"/>
+                    <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                 IsIndeterminate="True" Margin="0,8,0,0"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtStatus" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,8,0,0"
+                               Foreground="{DynamicResource TextColor}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+    </Grid>
+</Window>

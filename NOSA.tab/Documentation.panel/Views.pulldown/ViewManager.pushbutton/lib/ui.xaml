@@ -1,0 +1,439 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOSA — View Manager" Height="640" Width="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionBtn">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding"    Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SecBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,5"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="TabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Name="bd"
+                                BorderThickness="0,0,0,3" BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="FieldLabel">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin"     Value="0,0,6,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="4" Background="{DynamicResource AccentColor}"/>
+                    <TextBlock Text="View Manager" FontSize="15" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}"
+                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    <TextBlock Name="TxtSummary" FontSize="11"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.6"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1" Name="ChkDarkMode" Content="Dark mode"
+                          Click="Theme_Toggled" VerticalAlignment="Center"
+                          Foreground="{DynamicResource TextColor}" FontSize="11"/>
+            </Grid>
+        </Border>
+
+        <!-- Tab bar -->
+        <Border Grid.Row="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Name="BtnTabCreate"    Content="Create"    Style="{StaticResource TabBtn}"
+                        Tag="Selected" Click="Tab_Click"/>
+                <Button Name="BtnTabDuplicate" Content="Duplicate" Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+                <Button Name="BtnTabRename"    Content="Rename"    Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+                <Button Name="BtnTabTemplates" Content="Templates" Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+                <Button Name="BtnTabProps"     Content="Properties" Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+                <Button Name="BtnTabClean"     Content="Clean"     Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ TAB CONTENT ═══ -->
+        <Grid Grid.Row="2" Margin="12,10,12,4">
+
+            <!-- ── CREATE ── -->
+            <Grid Name="TabCreate" Visibility="Visible">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="300"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="{DynamicResource BorderColor}"
+                        BorderThickness="1" CornerRadius="4" Margin="0,0,10,0">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="LEVELS" FontSize="10"
+                                   FontWeight="Bold" Opacity="0.5" Margin="10,8,10,4"/>
+                        <ListView Name="ListLevels" BorderThickness="0" Background="Transparent"
+                                  FontSize="11" Margin="4,0,4,4">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                              Content="{Binding Label}"
+                                              Foreground="{DynamicResource TextColor}"/>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="View family type" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Name="CmbCreateType" FontSize="11" Margin="0,0,0,12"/>
+                    <TextBlock Text="Name pattern — {level} is replaced with the level name"
+                               Style="{StaticResource FieldLabel}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtCreatePattern" Text="{}{level} - STRUCTURAL PLAN" FontSize="11"
+                             Padding="4,3" Margin="0,0,0,12"
+                             BorderBrush="{DynamicResource BorderColor}"/>
+                    <TextBlock Text="View template (optional)" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Name="CmbCreateTemplate" FontSize="11" Margin="0,0,0,12"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <TextBlock Text="Scale  1 :" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtCreateScale" Text="50" Width="60" FontSize="11"
+                                 Padding="4,3" TextAlignment="Center"
+                                 BorderBrush="{DynamicResource BorderColor}"/>
+                    </StackPanel>
+                    <Button Content="CREATE VIEWS" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="CreateViews_Click"/>
+
+                    <Separator Margin="0,16,0,12"/>
+                    <Button Content="3D VIEW PER LEVEL" Style="{StaticResource SecBtn}"
+                            HorizontalAlignment="Left" Click="Create3D_Click"
+                            Margin="0,0,0,10"
+                            ToolTip="One isometric 3D view per project level, section-boxed to that storey"/>
+                    <WrapPanel>
+                        <Button Content="DRAFTING VIEWS" Style="{StaticResource SecBtn}"
+                                Click="CreateDrafting_Click" Margin="0,0,8,0"/>
+                        <TextBlock Text="Count:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtDraftCount" Text="1" Width="44" FontSize="11"
+                                 Padding="4,3" TextAlignment="Center"
+                                 BorderBrush="{DynamicResource BorderColor}"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── DUPLICATE ── -->
+            <Grid Name="TabDuplicate" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+                <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="Search:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtDupSearch" FontSize="11" Padding="4,3"
+                                 BorderBrush="{DynamicResource BorderColor}"
+                                 TextChanged="DupSearch_Changed"/>
+                    </DockPanel>
+                    <DataGrid Name="GridDupViews" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal" FontSize="11"
+                              AlternatingRowBackground="#06000000">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="View"     Binding="{Binding ViewName}" Width="*"/>
+                            <DataGridTextColumn Header="Type"     Binding="{Binding ViewKind}" Width="100"/>
+                            <DataGridTextColumn Header="Sheet"    Binding="{Binding OnSheet}"  Width="80"/>
+                            <DataGridTextColumn Header="No."      Binding="{Binding DetailNo}" Width="44"/>
+                            <DataGridTextColumn Header="Template" Binding="{Binding Template}" Width="110"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Mode" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <RadioButton Name="RbDupPlain" Content="Duplicate" IsChecked="True"
+                                 GroupName="DupMode" Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbDupDetail" Content="Duplicate with detailing"
+                                 GroupName="DupMode" Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbDupDependent" Content="Duplicate as dependent"
+                                 GroupName="DupMode" Margin="0,0,0,12"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <TextBlock Text="Copies per view:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtDupCopies" Text="1" Width="50" FontSize="11"
+                                 Padding="4,3" TextAlignment="Center"
+                                 BorderBrush="{DynamicResource BorderColor}"/>
+                    </StackPanel>
+                    <TextBlock Text="Name pattern — {name} and {n} are replaced"
+                               Style="{StaticResource FieldLabel}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtDupPattern" Text="{}{name} - Copy {n}" FontSize="11"
+                             Padding="4,3" Margin="0,0,0,16"
+                             BorderBrush="{DynamicResource BorderColor}"/>
+                    <Button Content="DUPLICATE" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="Duplicate_Click"/>
+                    <Button Content="Preview selected view" Style="{StaticResource SecBtn}"
+                            HorizontalAlignment="Left" Click="Preview_Click"
+                            Margin="0,10,0,0"
+                            ToolTip="Exports a PNG snapshot of the highlighted view and opens it"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── RENAME ── -->
+            <Grid Name="TabRename" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+                <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="Search:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtRenSearch" FontSize="11" Padding="4,3"
+                                 BorderBrush="{DynamicResource BorderColor}"
+                                 TextChanged="RenameRule_Changed"/>
+                    </DockPanel>
+                    <DataGrid Name="GridRename" AutoGenerateColumns="False" IsReadOnly="False"
+                              SelectionMode="Extended" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal" FontSize="11"
+                              AlternatingRowBackground="#06000000"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              CellEditEnding="Rename_CellEdit">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Current name" Binding="{Binding ViewName}"
+                                                Width="*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Sheet" Binding="{Binding OnSheet}"
+                                                Width="80" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="No." Binding="{Binding DetailNo}"
+                                                Width="44" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="New name" Binding="{Binding NewName}"
+                                                Width="*"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+                <StackPanel Grid.Column="1">
+                    <RadioButton Name="RbRenFR" Content="Find &amp; replace" IsChecked="True"
+                                 GroupName="RenMode" Checked="RenameRule_Changed"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbRenPS" Content="Prefix / suffix"
+                                 GroupName="RenMode" Checked="RenameRule_Changed"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbRenCase" Content="Case transform"
+                                 GroupName="RenMode" Margin="0,0,0,10" Checked="RenameRule_Changed"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <TextBlock Text="Find" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Name="TxtRenFind" FontSize="11" Padding="4,3" Margin="0,2,0,6"
+                             BorderBrush="{DynamicResource BorderColor}" TextChanged="RenameRule_Changed"/>
+                    <TextBlock Text="Replace" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Name="TxtRenReplace" FontSize="11" Padding="4,3" Margin="0,2,0,6"
+                             BorderBrush="{DynamicResource BorderColor}" TextChanged="RenameRule_Changed"/>
+                    <TextBlock Text="Prefix" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Name="TxtRenPrefix" FontSize="11" Padding="4,3" Margin="0,2,0,6"
+                             BorderBrush="{DynamicResource BorderColor}" TextChanged="RenameRule_Changed"/>
+                    <TextBlock Text="Suffix" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Name="TxtRenSuffix" FontSize="11" Padding="4,3" Margin="0,2,0,6"
+                             BorderBrush="{DynamicResource BorderColor}" TextChanged="RenameRule_Changed"/>
+                    <TextBlock Text="Case" Style="{StaticResource FieldLabel}"/>
+                    <ComboBox Name="CmbRenCase" FontSize="11" Margin="0,2,0,14"
+                              SelectionChanged="RenameRule_Changed"/>
+                    <Button Content="APPLY TO SELECTED" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="Rename_Click"
+                            ToolTip="Renames the highlighted rows, or all listed rows if none is highlighted"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── TEMPLATES ── -->
+            <Grid Name="TabTemplates" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+                <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="Search:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtTplSearch" FontSize="11" Padding="4,3"
+                                 BorderBrush="{DynamicResource BorderColor}"
+                                 TextChanged="TplSearch_Changed"/>
+                    </DockPanel>
+                    <DataGrid Name="GridTplViews" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal" FontSize="11"
+                              AlternatingRowBackground="#06000000">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="View"             Binding="{Binding ViewName}" Width="*"/>
+                            <DataGridTextColumn Header="Type"             Binding="{Binding ViewKind}" Width="100"/>
+                            <DataGridTextColumn Header="Sheet"            Binding="{Binding OnSheet}"  Width="80"/>
+                            <DataGridTextColumn Header="No."              Binding="{Binding DetailNo}" Width="44"/>
+                            <DataGridTextColumn Header="Current template" Binding="{Binding Template}" Width="130"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Template to apply" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <ComboBox Name="CmbTplApply" FontSize="11" Margin="0,0,0,14"/>
+                    <Button Content="APPLY TEMPLATE" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="ApplyTemplate_Click"
+                            Margin="0,0,0,8"/>
+                    <Button Content="Remove template from selected" Style="{StaticResource SecBtn}"
+                            HorizontalAlignment="Left" Click="RemoveTemplate_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── PROPERTIES ── -->
+            <Grid Name="TabProps" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="280"/>
+                </Grid.ColumnDefinitions>
+                <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                        <TextBlock Text="Search:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtPropSearch" FontSize="11" Padding="4,3"
+                                 BorderBrush="{DynamicResource BorderColor}"
+                                 TextChanged="PropSearch_Changed"/>
+                    </DockPanel>
+                    <DataGrid Name="GridPropViews" AutoGenerateColumns="False" IsReadOnly="True"
+                              SelectionMode="Extended" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal" FontSize="11"
+                              AlternatingRowBackground="#06000000">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="View"     Binding="{Binding ViewName}" Width="*"/>
+                            <DataGridTextColumn Header="Type"     Binding="{Binding ViewKind}" Width="100"/>
+                            <DataGridTextColumn Header="Sheet"    Binding="{Binding OnSheet}"  Width="90"/>
+                            <DataGridTextColumn Header="Template" Binding="{Binding Template}" Width="120"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+                <StackPanel Grid.Column="1">
+                    <CheckBox Name="ChkPropScale" Content="Set scale  1 :" FontSize="11"
+                              Foreground="{DynamicResource TextColor}"/>
+                    <TextBox Name="TxtPropScale" Text="50" Width="60" FontSize="11"
+                             Padding="4,3" TextAlignment="Center" HorizontalAlignment="Left"
+                             Margin="20,4,0,10" BorderBrush="{DynamicResource BorderColor}"/>
+                    <CheckBox Name="ChkPropDetail" Content="Set detail level" FontSize="11"
+                              Foreground="{DynamicResource TextColor}"/>
+                    <ComboBox Name="CmbPropDetail" FontSize="11" Width="150"
+                              HorizontalAlignment="Left" Margin="20,4,0,10"/>
+                    <CheckBox Name="ChkPropDisc" Content="Set discipline" FontSize="11"
+                              Foreground="{DynamicResource TextColor}"/>
+                    <ComboBox Name="CmbPropDisc" FontSize="11" Width="150"
+                              HorizontalAlignment="Left" Margin="20,4,0,16"/>
+                    <Button Content="APPLY TO SELECTED" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="ApplyProps_Click"
+                            ToolTip="Applies the ticked properties to the highlighted views. Template-controlled properties are skipped"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── CLEAN ── -->
+            <Grid Name="TabClean" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" FontSize="11" Opacity="0.6" Margin="0,0,0,8"
+                           Foreground="{DynamicResource TextColor}"
+                           Text="Views not placed on any sheet. Review carefully — deleting a view cannot be undone from this window (use Revit undo)."/>
+                <DataGrid Grid.Row="1" Name="GridClean" AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                          GridLinesVisibility="Horizontal" FontSize="11"
+                          AlternatingRowBackground="#06000000">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="View" Binding="{Binding ViewName}" Width="*"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding ViewKind}" Width="140"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <WrapPanel Grid.Row="2" Margin="0,8,0,0">
+                    <Button Content="Refresh List" Style="{StaticResource SecBtn}"
+                            Click="RefreshClean_Click" Margin="0,0,8,0"/>
+                    <Button Content="DELETE SELECTED" Style="{StaticResource ActionBtn}"
+                            Click="DeleteViews_Click"/>
+                </WrapPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="3" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <TextBlock Name="TxtStatus" FontSize="11"
+                       Foreground="{DynamicResource TextColor}" Opacity="0.7"/>
+        </Border>
+
+        <Grid Name="LoadingPanel" Grid.Row="2" Visibility="Collapsed" Background="#CCFAFAFA"
+              Panel.ZIndex="100">
+            <Border Background="White" CornerRadius="6" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"/>
+                    <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                 IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}" Margin="0,10,0,0"/>
+                    <TextBlock Name="TxtLoadStatus" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

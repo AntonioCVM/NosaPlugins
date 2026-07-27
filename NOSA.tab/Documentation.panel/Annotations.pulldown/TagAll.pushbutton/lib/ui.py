@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from pyrevit import forms, DB, revit
-from pyrevit.forms import WPFWindow
+from Autodesk.Revit import DB
+from pyrevit import forms, revit
 import os
 import sys
 import System.Windows
@@ -21,7 +21,7 @@ def _ensure_extension_lib():
         sys.path.append(lib_path)
 
 _ensure_extension_lib()
-from nosa_utils.theme import ThemeManager
+from nosa_utils.base_window import NOSAWindow
 
 class CategoryItem(object):
     def __init__(self, data):
@@ -47,55 +47,30 @@ class AssignmentItem(object):
         self.TagSymbol = tag_symbol
         self.BicName = bic_name
 
-class TagAllWindow(WPFWindow):
+class TagAllWindow(NOSAWindow):
     def __init__(self, doc):
         self.doc = doc
         self.logic = TagLogic(doc)
-        
-        # DIAGNOSTIC RUN (Removed for performance)
-        # try:
-        #      self.logic.diagnose_tags_in_project()
-        # (diagnostic block removed)
-        
+
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'tag_all')
+        self.ChkDarkMode.IsChecked = self.dark_mode
 
         # Collections
         self.all_categories = []
-        self.all_views = [] 
+        self.all_views = []
         self.assignments = ObservableCollection[AssignmentItem]()
         self.GridAssignments.ItemsSource = self.assignments
-        
+
         # Internal Map
-        self.current_tag_map = {} 
-        
+        self.current_tag_map = {}
+
         # Load Data
         self.LoadCategories()
         self.LoadViews()
-        
+
         # Events
         self.ListCategories.SelectionChanged += self.OnCategorySelectionChanged
-
-        # Theme
-        self._dark_mode = ThemeManager.load_theme()
-        self.ChkDarkMode.IsChecked = self._dark_mode
-        self.ApplyTheme()
-
-    def ApplyTheme(self):
-        colors = ThemeManager.get_colors(self._dark_mode)
-        try:
-            self.Resources["BgColor"].Color = colors['bg']
-            self.Resources["PanelColor"].Color = colors['panel']
-            self.Resources["TextColor"].Color = colors['text']
-            self.Resources["AccentColor"].Color = colors['accent']
-            self.Resources["BorderColor"].Color = colors['border']
-        except Exception:
-            pass
-
-    def Theme_Toggled(self, sender, args):
-        self._dark_mode = bool(self.ChkDarkMode.IsChecked)
-        ThemeManager.save_theme(self._dark_mode)
-        self.ApplyTheme()
 
     def LoadCategories(self):
         cats = self.logic.get_categories()
@@ -240,69 +215,80 @@ class TagAllWindow(WPFWindow):
             return
 
         selected_views = [v for v in self.ListViews.ItemsSource if v.IsChecked]
-        
+
         if not selected_views:
             forms.alert("Please select at least one target view.")
             return
-            
+
         # Options
         use_leader = self.ChkLeader.IsChecked
         skip_dupes = self.ChkSkipDuplicates.IsChecked
-        
-        # Run
+        dry_run    = bool(self.ChkDryRun.IsChecked)
+
         self.PanelProgress.Visibility = System.Windows.Visibility.Visible
         count_tagged = 0
         count_skipped = 0
         count_failed  = 0
         total_views   = len(selected_views)
 
+        def _do_views(write):
+            """Inner loop — write=False for dry run, write=True for real run."""
+            ct = cs = cf = 0
+            for v_idx, view_item in enumerate(selected_views):
+                view = view_item.Element
+                try:
+                    self.TxtStatus.Text = "View {}/{}: {}".format(v_idx + 1, total_views, view.Name[:40])
+                    pct = int((v_idx / float(total_views)) * 100)
+                    self.ProgressBar.Value = pct
+                    import System.Windows.Forms as WinForms
+                    WinForms.Application.DoEvents()
+                except Exception:
+                    pass
+
+                existing_tags = set()
+                if skip_dupes:
+                    existing_tags = self.logic.get_existing_tagged_ids(view)
+
+                for assignment in self.assignments:
+                    bic      = self.logic.safe_get_builtincategory(assignment.BicName)
+                    elements = self.logic.get_elements_in_view(view, bic)
+
+                    if write and not assignment.TagSymbol.IsActive:
+                        assignment.TagSymbol.Activate()
+                        self.doc.Regenerate()
+
+                    for elem in elements:
+                        eid = self.logic.get_id_value(elem.Id)
+                        if skip_dupes and eid in existing_tags:
+                            cs += 1
+                            continue
+                        loc = self.logic.get_element_center(elem)
+                        if not loc:
+                            cs += 1
+                            continue
+                        if not write:
+                            ct += 1
+                            existing_tags.add(eid)
+                            continue
+                        try:
+                            tag = DB.IndependentTag.Create(
+                                self.doc, view.Id, DB.Reference(elem),
+                                use_leader, DB.TagMode.TM_ADDBY_CATEGORY,
+                                DB.TagOrientation.Horizontal, loc
+                            )
+                            tag.ChangeTypeId(assignment.TagSymbol.Id)
+                            ct += 1
+                            existing_tags.add(eid)
+                        except Exception:
+                            cf += 1
+            return ct, cs, cf
+
         try:
-             with revit.Transaction("Batch Tag"):
-                 for v_idx, view_item in enumerate(selected_views):
-                     view = view_item.Element
-
-                     # Real per-view progress
-                     try:
-                         self.TxtStatus.Text = "View {}/{}: {}".format(v_idx + 1, total_views, view.Name[:40])
-                         pct = int((v_idx / float(total_views)) * 100)
-                         self.ProgressBar.Value = pct
-                         import System.Windows.Forms as WinForms
-                         WinForms.Application.DoEvents()
-                     except Exception:
-                         pass
-                     
-                     existing_tags = set()
-                     if skip_dupes:
-                         existing_tags = self.logic.get_existing_tagged_ids(view)
-
-                     for assignment in self.assignments:
-                         bic      = self.logic.safe_get_builtincategory(assignment.BicName)
-                         elements = self.logic.get_elements_in_view(view, bic)
-                         
-                         if not assignment.TagSymbol.IsActive:
-                             assignment.TagSymbol.Activate()
-                             self.doc.Regenerate()
-                             
-                         for elem in elements:
-                             eid = self.logic.get_id_value(elem.Id)
-                             if skip_dupes and eid in existing_tags:
-                                 count_skipped += 1
-                                 continue
-                             loc = self.logic.get_element_center(elem)
-                             if not loc:
-                                 count_skipped += 1
-                                 continue
-                             try:
-                                 tag = DB.IndependentTag.Create(
-                                     self.doc, view.Id, DB.Reference(elem),
-                                     use_leader, DB.TagMode.TM_ADDBY_CATEGORY,
-                                     DB.TagOrientation.Horizontal, loc
-                                 )
-                                 tag.ChangeTypeId(assignment.TagSymbol.Id)
-                                 count_tagged += 1
-                                 existing_tags.add(eid)
-                             except Exception:
-                                 count_failed += 1
+            if dry_run:
+                count_tagged, count_skipped, count_failed = _do_views(False)
+            else:
+                with revit.Transaction("Batch Tag"):
+                    count_tagged, count_skipped, count_failed = _do_views(True)
         except Exception as e:
             forms.alert("Error during tagging: " + str(e))
 
@@ -312,6 +298,10 @@ class TagAllWindow(WPFWindow):
         except Exception:
             pass
 
-        forms.alert("Done!\nTagged: {}\nSkipped: {}\nFailed: {}".format(
-            count_tagged, count_skipped, count_failed))
-        self.Close()
+        prefix = "DRY RUN — " if dry_run else ""
+        forms.alert("{}Done!\nWould tag: {}\nSkipped: {}\nFailed: {}".format(
+            prefix, count_tagged, count_skipped, count_failed))
+        if not dry_run:
+            self.Close()
+
+

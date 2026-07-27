@@ -1,7 +1,6 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 import sys, os
-from pyrevit import DB
-
+from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -131,31 +130,49 @@ class AlignLogic:
             return [], "Critical Error in logic: " + str(e)
 
     def calculate_aligned_offset(self, ref_offset, ref_vp, target_vp, alignment_mode, align_vertical):
-        """Calculate offset based on alignment mode."""
-        if alignment_mode == 'Same as Reference':
-            return ref_offset
-        
+        """
+        Calculate the new LabelOffset for target_vp.
+
+        LabelOffset is relative to each viewport's own box center, so offsets
+        from different viewports cannot be compared directly.  We convert to
+        absolute sheet coordinates first, then back to the target's local space.
+
+        Modes
+        -----
+        Same as Reference  → title at the exact same absolute XY on the sheet
+        Left               → title center at the left edge of target viewport
+        Center             → title center at the center of target viewport
+        Right              → title center at the right edge of target viewport
+
+        align_vertical     → also match the absolute Y position from the reference
+        """
         try:
-            ref_outline = ref_vp.GetBoxOutline()
-            target_outline = target_vp.GetBoxOutline()
-            
-            ref_width = ref_outline.MaximumPoint.X - ref_outline.MinimumPoint.X
-            target_width = target_outline.MaximumPoint.X - target_outline.MinimumPoint.X
-            
-            half_ref = ref_width / 2.0
-            half_target = target_width / 2.0
-            
-            if alignment_mode == 'Left':
-                x_offset = ref_offset.X - half_ref + half_target
-            elif alignment_mode == 'Right':
-                x_offset = ref_offset.X + half_ref - half_target
+            ref_center    = ref_vp.GetBoxCenter()
+            target_center = target_vp.GetBoxCenter()
+            target_ol     = target_vp.GetBoxOutline()
+            half_w        = (target_ol.MaximumPoint.X - target_ol.MinimumPoint.X) / 2.0
+
+            # Absolute sheet position of the reference title
+            ref_abs_x = ref_center.X + ref_offset.X
+            ref_abs_y = ref_center.Y + ref_offset.Y
+
+            if alignment_mode == 'Same as Reference':
+                # Convert absolute ref position back to target-local offset
+                new_x = ref_abs_x - target_center.X
+            elif alignment_mode == 'Left':
+                new_x = -half_w
             elif alignment_mode == 'Center':
-                x_offset = ref_offset.X
+                new_x = 0.0
+            elif alignment_mode == 'Right':
+                new_x = half_w
             else:
-                x_offset = ref_offset.X
-            
-            y_offset = ref_offset.Y if align_vertical else target_vp.LabelOffset.Y
-            
-            return DB.XYZ(x_offset, y_offset, ref_offset.Z)
+                new_x = target_vp.LabelOffset.X  # no change
+
+            if align_vertical:
+                new_y = ref_abs_y - target_center.Y
+            else:
+                new_y = target_vp.LabelOffset.Y  # keep current Y
+
+            return DB.XYZ(new_x, new_y, ref_offset.Z)
         except Exception:
             return ref_offset

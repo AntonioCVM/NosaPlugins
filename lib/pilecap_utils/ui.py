@@ -2,15 +2,20 @@
 """
 User Interface utilities for pilecap creation.
 """
-from pyrevit import revit, DB, forms
+from pyrevit import revit, forms
+from Autodesk.Revit import DB
 try:
     from nosa_utils.unit_conversion import feet_to_mm
     from . import data_retrieval
 except ImportError:
     pass
 
-doc = revit.doc
-uidoc = revit.uidoc
+def _doc():
+    return revit.doc
+
+
+def _uidoc():
+    return revit.uidoc
 
 def get_user_input(config_manager_instance=None):
     """
@@ -43,7 +48,7 @@ def get_user_input(config_manager_instance=None):
         pile_type_id = pile_dict.get(pile_type_name)
         if not pile_type_id: return None
         
-        pile_family_symbol = doc.GetElement(DB.ElementId(pile_type_id))
+        pile_family_symbol = _doc().GetElement(DB.ElementId(pile_type_id))
         if not pile_family_symbol: return None
         
         print("Obteniendo tamano del pilote...")
@@ -170,7 +175,7 @@ def get_user_input(config_manager_instance=None):
 def get_level_for_placement():
     """Selecciona nivel."""
     try:
-        levels = DB.FilteredElementCollector(doc).OfClass(DB.Level).ToElements()
+        levels = DB.FilteredElementCollector(_doc()).OfClass(DB.Level).ToElements()
         if not levels: return None
         
         levels_list = sorted(list(levels), key=lambda l: l.Elevation)
@@ -193,7 +198,7 @@ def get_level_for_placement():
 def get_user_location():
     """Selecciona punto."""
     try:
-        return uidoc.Selection.PickPoint("Selecciona el punto central del pilecap:")
+        return _uidoc().Selection.PickPoint("Selecciona el punto central del pilecap:")
     except Exception:
         return None
 

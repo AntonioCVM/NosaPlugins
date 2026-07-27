@@ -2,7 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Drawing Index Generator v2.0" Height="680" Width="1080"
         WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource BgColor}" FontFamily="Century Gothic"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>

@@ -3,7 +3,7 @@
         Title="NOSA Dashboard" Height="620" Width="940"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}"
-        FontFamily="Century Gothic"
+        FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
@@ -86,6 +86,14 @@
                 <Button Name="BtnPlugins"     Content="Plugins"
                         Style="{DynamicResource NavButton}" Click="Nav_Click"/>
                 <Button Name="BtnAbout"       Content="About"
+                        Style="{DynamicResource NavButton}" Click="Nav_Click"/>
+                <Button Name="BtnUsage"       Content="Quick Launch"
+                        Style="{DynamicResource NavButton}" Click="Nav_Click"/>
+                <Button Name="BtnProtocol"    Content="Protocol"
+                        Style="{DynamicResource NavButton}" Click="Nav_Click"/>
+                <Button Name="BtnStart"       Content="Get Started"
+                        Style="{DynamicResource NavButton}" Click="Nav_Click"/>
+                <Button Name="BtnErrors"      Content="Error Log"
                         Style="{DynamicResource NavButton}" Click="Nav_Click"/>
             </StackPanel>
 
@@ -235,6 +243,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="140"/>
                                             <ColumnDefinition Width="1*"/>
+                                            <ColumnDefinition Width="52"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding Panel}"
                                                    Foreground="{DynamicResource AccentColor}"
@@ -242,6 +251,10 @@
                                         <TextBlock Grid.Column="1" Text="{Binding Name}"
                                                    Foreground="{DynamicResource TextColor}"
                                                    FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Version}"
+                                                   Foreground="{DynamicResource TextColor}"
+                                                   FontSize="10" Opacity="0.45" VerticalAlignment="Center"
+                                                   HorizontalAlignment="Right"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -335,6 +348,464 @@
                                        Margin="0,0,0,6"/>
                         </Border>
                     </WrapPanel>
+                </StackPanel>
+
+                <!-- ── QUICK LAUNCH / USAGE ── -->
+                <StackPanel Name="PanelUsage" Visibility="Collapsed">
+                    <TextBlock Text="Quick Launch" FontSize="20" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Most-used plugins, tracked automatically on each launch."
+                               FontSize="11" Opacity="0.55" Margin="0,0,0,20"/>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="TOP PLUGINS" FontSize="10"
+                                   FontWeight="Bold" Opacity="0.5" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="Refresh" FontSize="10" Padding="10,4"
+                                Click="RefreshUsage_Click" Background="Transparent"
+                                BorderBrush="{DynamicResource AccentColor}" BorderThickness="1"
+                                Foreground="{DynamicResource AccentColor}" Cursor="Hand"/>
+                    </Grid>
+
+                    <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="4" Padding="0">
+                        <ListView Name="ListUsage" BorderThickness="0" Background="Transparent"
+                                  SelectionMode="Single" FontSize="12">
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Rank"   Width="48"
+                                                    DisplayMemberBinding="{Binding Rank}"/>
+                                    <GridViewColumn Header="Plugin" Width="260"
+                                                    DisplayMemberBinding="{Binding Name}"/>
+                                    <GridViewColumn Header="Launches" Width="80"
+                                                    DisplayMemberBinding="{Binding Count}"/>
+                                </GridView>
+                            </ListView.View>
+                        </ListView>
+                    </Border>
+
+                    <TextBlock Name="TxtUsageTip" Margin="0,16,0,0" FontSize="11"
+                               Opacity="0.55" TextWrapping="Wrap"
+                               Text="Usage is recorded each time a NOSA plugin is launched. Add &quot;UsageTracker.record(key)&quot; to any script.py to enable tracking for that plugin."/>
+
+                    <Button Content="Reset All Usage Counts" Margin="0,16,0,0"
+                            HorizontalAlignment="Left" Padding="12,6" FontSize="11"
+                            Background="Transparent" BorderThickness="1"
+                            BorderBrush="#CC3333" Foreground="#CC3333" Cursor="Hand"
+                            Click="ResetUsage_Click"/>
+                </StackPanel>
+
+                <!-- ── PROTOCOL ── -->
+                <StackPanel Name="PanelProtocol" Visibility="Collapsed">
+                    <TextBlock Text="Drawing Protocol" FontSize="20" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}" Margin="0,0,0,4"/>
+                    <TextBlock Text="NOSA File Naming Protocol v2.2 — field definitions and issue stages."
+                               FontSize="11" Opacity="0.55" Margin="0,0,0,20"/>
+
+                    <!-- Format example -->
+                    <Border Background="{DynamicResource AccentColor}" CornerRadius="6"
+                            Padding="18,12" Margin="0,0,0,20">
+                        <StackPanel>
+                            <TextBlock Text="NOSA Number Format" FontSize="11" FontWeight="Bold"
+                                       Foreground="White" Opacity="0.8" Margin="0,0,0,6"/>
+                            <TextBlock Text="{}{F1}  NOSA  {F3}  {F4}  {F5}  {F6}  {F7}  {F8}"
+                                       FontSize="16" FontWeight="Bold" Foreground="White"
+                                       FontFamily="Consolas,Courier New"/>
+                            <TextBlock Text="Example:  12345  NOSA  GA  000  D  S  2200  P01"
+                                       FontSize="12" Foreground="White" Opacity="0.75"
+                                       FontFamily="Consolas,Courier New" Margin="0,6,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Field table -->
+                    <TextBlock Text="FIELD DEFINITIONS" FontSize="10" FontWeight="Bold"
+                               Opacity="0.5" Margin="0,0,0,10"/>
+                    <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="4" Margin="0,0,0,20">
+                        <StackPanel>
+                            <!-- Header row -->
+                            <Grid Background="{DynamicResource AccentColor}" Margin="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Field" FontSize="11" FontWeight="Bold"
+                                           Foreground="White" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Name" FontSize="11" FontWeight="Bold"
+                                           Foreground="White" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="Format" FontSize="11" FontWeight="Bold"
+                                           Foreground="White" Padding="0,7"/>
+                                <TextBlock Grid.Column="3" Text="Description" FontSize="11" FontWeight="Bold"
+                                           Foreground="White" Padding="0,7"/>
+                            </Grid>
+                            <!-- F1 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F1" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Project No." FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="NNNNN" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3" Text="5-digit project number assigned by NOSA (e.g. 12345)"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F2 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid Background="#06000000">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F2" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Originator" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="NOSA" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3" Text="Fixed value — always NOSA (Gibraltar)"
+                                           FontSize="11" Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F3 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F3" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Function" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="XX" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="2-char functional type: GA General arrangement · SC Section · DT Details · RC RC details · EL Elevation · PV Plan view · RP Reports · AM Analytical model · CL Calculations"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F4 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid Background="#06000000">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F4" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Spatial" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="XXX" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="3-char spatial/level code: 000 Ground · 001–004 Levels · FND Foundation · RF1 Roof · BA1/BA2 Basement · MZ1 Mezzanine · ZZZ Multiple"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F5 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F5" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Form" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="X" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="1-char document form: D Drawing · G Graph · I Image · L List · M Model · T Textual · V Video"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F6 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid Background="#06000000">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F6" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Discipline" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="X" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="1-char discipline code: S Structural · C Civil · G Ground engineering · B Building surveying · H Health and safety · D Demolition · P Project management"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F7 -->
+                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F7" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Document No." FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="NNNN" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="4-digit sequential document number within the package (this also becomes SheetNumber in Revit). Range hints: GA 2200 · SC/EL 3000 · DT 4000 · RC 4500 · RP 5000"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                            </Border>
+                            <!-- F8 -->
+                            <Grid Background="#06000000">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="48"/>
+                                    <ColumnDefinition Width="90"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="F8" FontWeight="Bold" FontSize="12"
+                                           Foreground="{DynamicResource AccentColor}" Padding="10,7"/>
+                                <TextBlock Grid.Column="1" Text="Revision" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7"/>
+                                <TextBlock Grid.Column="2" Text="XXX" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.65" Padding="0,7"
+                                           FontFamily="Consolas,Courier New"/>
+                                <TextBlock Grid.Column="3"
+                                           Text="Current revision stage: P01–P05 Preliminary · C01–C05 Construction · I01–I03 Issued for information · PC01–PC03 Planning consent"
+                                           FontSize="11" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Padding="0,7,10,7"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Issue process -->
+                    <TextBlock Text="ISSUE PROCESS" FontSize="10" FontWeight="Bold"
+                               Opacity="0.5" Margin="0,0,0,10"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Border Background="#1976D2" CornerRadius="4" Padding="14,10" Margin="0,0,10,0">
+                            <StackPanel>
+                                <TextBlock Text="PRELIMINARY" FontSize="10" FontWeight="Bold"
+                                           Foreground="White"/>
+                                <TextBlock Text="P01 → P05" FontSize="11" Foreground="White" Opacity="0.85"/>
+                                <TextBlock Text="Design development" FontSize="10"
+                                           Foreground="White" Opacity="0.7" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="→" FontSize="18" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,10,0"/>
+                        <Border Background="#388E3C" CornerRadius="4" Padding="14,10" Margin="0,0,10,0">
+                            <StackPanel>
+                                <TextBlock Text="CONSTRUCTION" FontSize="10" FontWeight="Bold"
+                                           Foreground="White"/>
+                                <TextBlock Text="C01 → C05" FontSize="11" Foreground="White" Opacity="0.85"/>
+                                <TextBlock Text="For construction" FontSize="10"
+                                           Foreground="White" Opacity="0.7" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="→" FontSize="18" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,10,0"/>
+                        <Border Background="#7B1FA2" CornerRadius="4" Padding="14,10" Margin="0,0,10,0">
+                            <StackPanel>
+                                <TextBlock Text="INFO / CONSENT" FontSize="10" FontWeight="Bold"
+                                           Foreground="White"/>
+                                <TextBlock Text="I01–I03 / PC01–PC03" FontSize="11"
+                                           Foreground="White" Opacity="0.85"/>
+                                <TextBlock Text="Issued for information / Planning" FontSize="10"
+                                           Foreground="White" Opacity="0.7" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- IssueGate tip -->
+                    <Border Background="#FFF8F0" BorderBrush="#FF5F00" BorderThickness="1"
+                            CornerRadius="4" Padding="14,10" Margin="0,12,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="▶" Foreground="#FF5F00" FontSize="14"
+                                       VerticalAlignment="Center" Margin="0,0,10,0"/>
+                            <TextBlock TextWrapping="Wrap"
+                                       Text="Use Issue Gate (Documentation → Issue pulldown) to validate all sheets against this protocol before each export. The gate runs Protocol, Revision, Titleblock and Duplicate checks and chains directly to Export Sheets Pro."
+                                       FontSize="11" Foreground="#333333"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ── GET STARTED ── -->
+                <StackPanel Name="PanelStart" Visibility="Collapsed">
+                    <TextBlock Text="Get Started" FontSize="20" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Three key workflows to get the most from NOSA tools."
+                               FontSize="11" Opacity="0.55" Margin="0,0,0,24"/>
+
+                    <!-- Issue Workflow -->
+                    <Border Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="6" Padding="20,16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Border Background="{DynamicResource AccentColor}" Width="6"
+                                        CornerRadius="3" Margin="0,0,12,0"/>
+                                <TextBlock Text="Issue Workflow" FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextColor}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Documentation → Issue pulldown"
+                                       FontSize="11" Opacity="0.55" Margin="0,0,0,12"/>
+                            <WrapPanel>
+                                <Border Background="#FFF0E8" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="Issue Gate" FontSize="11"
+                                               Foreground="{DynamicResource AccentColor}"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#FFF0E8" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="Sheet Hub" FontSize="11"
+                                               Foreground="{DynamicResource AccentColor}"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#FFF0E8" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="Revision Tracker" FontSize="11"
+                                               Foreground="{DynamicResource AccentColor}"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#FFF0E8" CornerRadius="3" Padding="8,4" Margin="0,0,0,6">
+                                    <TextBlock Text="Export Sheets Pro" FontSize="11"
+                                               Foreground="{DynamicResource AccentColor}"/></Border>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Foundations Workflow -->
+                    <Border Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="6" Padding="20,16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Border Background="#1976D2" Width="6" CornerRadius="3" Margin="0,0,12,0"/>
+                                <TextBlock Text="Foundations Workflow" FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextColor}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Foundations panel" FontSize="11" Opacity="0.55" Margin="0,0,0,12"/>
+                            <WrapPanel>
+                                <Border Background="#E8F0FF" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="PileMaster" FontSize="11" Foreground="#1565C0"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#E8F0FF" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="Add Pile to Pilecap" FontSize="11" Foreground="#1565C0"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#E8F0FF" CornerRadius="3" Padding="8,4" Margin="0,0,0,6">
+                                    <TextBlock Text="Pile Survey Export" FontSize="11" Foreground="#1565C0"/></Border>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Model QA Workflow -->
+                    <Border Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="6" Padding="20,16" Margin="0,0,0,14">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Border Background="#388E3C" Width="6" CornerRadius="3" Margin="0,0,12,0"/>
+                                <TextBlock Text="Model QA Workflow" FontSize="14" FontWeight="Bold"
+                                           Foreground="{DynamicResource TextColor}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <TextBlock Text="Structures → Coordination / QA pulldowns"
+                                       FontSize="11" Opacity="0.55" Margin="0,0,0,12"/>
+                            <WrapPanel>
+                                <Border Background="#E8F5E9" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="Model Health Hub" FontSize="11" Foreground="#2E7D32"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#E8F5E9" CornerRadius="3" Padding="8,4" Margin="0,0,6,6">
+                                    <TextBlock Text="Health Score" FontSize="11" Foreground="#2E7D32"/></Border>
+                                <TextBlock Text="→" VerticalAlignment="Center" Margin="0,0,6,6" Opacity="0.4"/>
+                                <Border Background="#E8F5E9" CornerRadius="3" Padding="8,4" Margin="0,0,0,6">
+                                    <TextBlock Text="Quantification QA" FontSize="11" Foreground="#2E7D32"/></Border>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#F8F8F8" BorderBrush="{DynamicResource BorderColor}"
+                            BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,4,0,0">
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.65"
+                                   Foreground="{DynamicResource TextColor}"
+                                   Text="All plugins record usage automatically — check Quick Launch to see your most-used tools. Use the Protocol tab for the NOSA drawing naming standard and revision stages."/>
+                    </Border>
+                </StackPanel>
+
+                <!-- ── ERROR LOG ── -->
+                <StackPanel Name="PanelErrors" Visibility="Collapsed">
+                    <TextBlock Text="Error Log" FontSize="20" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}" Margin="0,0,0,4"/>
+                    <TextBlock Text="Errors reported by NOSA plugins via telemetry. If a plugin fails silently, look here first."
+                               FontSize="11" Opacity="0.55" Margin="0,0,0,14"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Name="TxtErrorCount" Text="" FontSize="10"
+                                   Opacity="0.5" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="1" Content="Refresh" FontSize="10" Padding="10,4"
+                                Margin="8,0,0,0" Click="RefreshErrors_Click" Background="Transparent"
+                                BorderBrush="{DynamicResource AccentColor}" BorderThickness="1"
+                                Foreground="{DynamicResource AccentColor}" Cursor="Hand"/>
+                        <Button Grid.Column="2" Content="Open Folder" FontSize="10" Padding="10,4"
+                                Margin="8,0,0,0" Click="OpenLogFolder_Click" Background="Transparent"
+                                BorderBrush="{DynamicResource AccentColor}" BorderThickness="1"
+                                Foreground="{DynamicResource AccentColor}" Cursor="Hand"/>
+                        <Button Grid.Column="3" Content="Clear Log" FontSize="10" Padding="10,4"
+                                Margin="8,0,0,0" Click="ClearErrors_Click" Background="Transparent"
+                                BorderBrush="#CC3333" BorderThickness="1"
+                                Foreground="#CC3333" Cursor="Hand"/>
+                    </Grid>
+
+                    <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            CornerRadius="4">
+                        <TextBox Name="TxtErrorLog" IsReadOnly="True" BorderThickness="0"
+                                 Background="Transparent" FontFamily="Consolas,Courier New"
+                                 FontSize="10" Padding="10" TextWrapping="NoWrap"
+                                 Foreground="{DynamicResource TextColor}"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 MinHeight="320" MaxHeight="420"/>
+                    </Border>
                 </StackPanel>
 
             </StackPanel>

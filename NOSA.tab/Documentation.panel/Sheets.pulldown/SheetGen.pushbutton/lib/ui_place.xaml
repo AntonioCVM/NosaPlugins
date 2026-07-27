@@ -1,0 +1,246 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOSA — Sheet Gen · Place Views" Height="620" Width="860"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionBtn">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding"    Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="TabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Name="bd"
+                                BorderThickness="0,0,0,3" BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="FieldLabel">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin"     Value="0,0,6,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Tab bar -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Name="BtnTabPlace"    Content="Place Views"  Style="{StaticResource TabBtn}"
+                        Tag="Selected" Click="Tab_Click"/>
+                <Button Name="BtnTabLegend"   Content="Legends"      Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+                <Button Name="BtnTabPh"       Content="Placeholders" Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+            </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="1" Margin="12,10,12,4">
+
+            <!-- ── PLACE VIEWS ── -->
+            <Grid Name="TabPlace" Visibility="Visible">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+                <DataGrid Grid.Column="0" Name="GridViews" Margin="0,0,10,0"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                          GridLinesVisibility="Horizontal" FontSize="11"
+                          AlternatingRowBackground="#06000000">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Unplaced view" Binding="{Binding ViewName}" Width="*"/>
+                        <DataGridTextColumn Header="Type"          Binding="{Binding ViewKind}" Width="120"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel Grid.Column="1">
+                    <RadioButton Name="RbSheetPerView" Content="One new sheet per view"
+                                 IsChecked="True" GroupName="PlaceMode"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbGridOnSheet" Content="Grid on an existing sheet"
+                                 GroupName="PlaceMode" Margin="0,2,0,10"
+                                 Foreground="{DynamicResource TextColor}"/>
+
+                    <TextBlock Text="Title block (new sheets)" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <ComboBox Name="CmbTb" FontSize="11" Margin="0,0,0,8"/>
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Number:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtNumPrefix" Text="S-" Width="70" FontSize="11" Padding="3,2"
+                                 BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text=" start" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtNumStart" Text="1" Width="44" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text=" pad" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtNumPad" Text="3" Width="34" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                    </WrapPanel>
+                    <CheckBox Name="ChkNameFromView" Content="Sheet name = view name"
+                              IsChecked="True" FontSize="11" Margin="0,0,0,12"
+                              Foreground="{DynamicResource TextColor}"/>
+
+                    <TextBlock Text="Target sheet (grid mode)" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <ComboBox Name="CmbTargetSheet" FontSize="11" Margin="0,0,0,8"/>
+                    <WrapPanel Margin="0,0,0,16">
+                        <TextBlock Text="Columns:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtGridCols" Text="2" Width="40" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text="  Margin (mm):" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtGridMargin" Text="20" Width="44" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                    </WrapPanel>
+                    <Button Content="PLACE SELECTED VIEWS" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="Place_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── LEGENDS ── -->
+            <Grid Name="TabLegend" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+                <DataGrid Grid.Column="0" Name="GridLegendSheets" Margin="0,0,10,0"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                          GridLinesVisibility="Horizontal" FontSize="11"
+                          AlternatingRowBackground="#06000000">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Sheet" Binding="{Binding Label}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Legend" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <ComboBox Name="CmbLegend" FontSize="11" Margin="0,0,0,10"/>
+                    <WrapPanel Margin="0,0,0,16">
+                        <TextBlock Text="Position from bottom-left — U:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtLegU" Text="30" Width="44" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text=" mm   V:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtLegV" Text="30" Width="44" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text=" mm" Style="{StaticResource FieldLabel}"/>
+                    </WrapPanel>
+                    <Button Content="PLACE LEGEND ON SELECTED SHEETS" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="PlaceLegend_Click"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── PLACEHOLDERS ── -->
+            <Grid Name="TabPh" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+                <DataGrid Grid.Column="0" Name="GridPh" Margin="0,0,10,0"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          SelectionMode="Extended" Background="Transparent"
+                          BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                          GridLinesVisibility="Horizontal" FontSize="11"
+                          AlternatingRowBackground="#06000000">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Placeholder number" Binding="{Binding Number}" Width="180"/>
+                        <DataGridTextColumn Header="Name"               Binding="{Binding PhName}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Create placeholders" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <WrapPanel Margin="0,0,0,6">
+                        <TextBlock Text="Number:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtPhPrefix" Text="S-" Width="70" FontSize="11" Padding="3,2"
+                                 BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text=" start" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtPhStart" Text="1" Width="44" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                        <TextBlock Text=" pad" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtPhPad" Text="3" Width="34" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,0,0,6">
+                        <TextBlock Text="Count:" Style="{StaticResource FieldLabel}"/>
+                        <TextBox Name="TxtPhCount" Text="5" Width="44" FontSize="11" Padding="3,2"
+                                 TextAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
+                    </WrapPanel>
+                    <TextBlock Text="Name" Style="{StaticResource FieldLabel}"/>
+                    <TextBox Name="TxtPhName" Text="PLACEHOLDER" FontSize="11" Padding="3,2"
+                             Margin="0,2,0,10" BorderBrush="{DynamicResource BorderColor}"/>
+                    <Button Content="CREATE PLACEHOLDERS" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="CreatePh_Click" Margin="0,0,0,16"/>
+
+                    <TextBlock Text="Convert selected to real sheets" Style="{StaticResource FieldLabel}"
+                               FontWeight="SemiBold" Margin="0,0,0,3"/>
+                    <ComboBox Name="CmbPhTb" FontSize="11" Margin="0,0,0,8"/>
+                    <Button Content="CONVERT SELECTED" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="ConvertPh_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <TextBlock Name="TxtStatus" FontSize="11"
+                       Foreground="{DynamicResource TextColor}" Opacity="0.7"/>
+        </Border>
+
+        <Grid Name="LoadingPanel" Grid.Row="1" Visibility="Collapsed" Background="#CCFAFAFA"
+              Panel.ZIndex="100">
+            <Border Background="White" CornerRadius="6" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"/>
+                    <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                 IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}" Margin="0,10,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

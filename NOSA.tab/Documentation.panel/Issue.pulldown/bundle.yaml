@@ -1,0 +1,7 @@
+layout:
+  - IssueGate
+  - DrawingProtocolChecker
+  - RevisionTracker
+  - RevisionPackageDiff
+  - SheetIssueManager
+  - ExportSheets
