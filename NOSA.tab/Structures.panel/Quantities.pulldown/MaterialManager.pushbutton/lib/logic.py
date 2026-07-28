@@ -325,37 +325,61 @@ def collect_element_materials_from_selection(doc, element_ids):
     return result
 
 
-def _assign_material_any_param(el, material_id):
+def _assign_material_any_param(el, material_id, reason_log=None):
     """
     Try STRUCTURAL_MATERIAL_PARAM, then MATERIAL_ID_PARAM, then — for nested/
     generic family instances that expose their material through a family-
     defined parameter with no fixed BuiltInParameter at all (common for
     components nested inside a host family) — any writable ElementId-storage
     parameter whose name mentions "material". Returns True if assigned.
+
+    If reason_log (a list) is passed, appends a short human-readable reason
+    when no writable parameter could be found — e.g. many family materials
+    are TYPE parameters, which read as IsReadOnly=True on the instance and
+    can only be changed by editing the family/type, not the placed instance.
     """
+    readonly_names = []
+
     p = el.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
-    if p and not p.IsReadOnly:
-        p.Set(material_id)
-        return True
+    if p:
+        if not p.IsReadOnly:
+            p.Set(material_id)
+            return True
+        readonly_names.append(u'Structural Material')
 
     p2 = el.get_Parameter(DB.BuiltInParameter.MATERIAL_ID_PARAM)
-    if p2 and not p2.IsReadOnly:
-        p2.Set(material_id)
-        return True
+    if p2:
+        if not p2.IsReadOnly:
+            p2.Set(material_id)
+            return True
+        readonly_names.append(u'Material')
 
+    checked = 0
     try:
         for param in el.Parameters:
             try:
                 if (param.StorageType == DB.StorageType.ElementId
-                        and not param.IsReadOnly
                         and param.Definition
                         and 'material' in param.Definition.Name.lower()):
-                    param.Set(material_id)
-                    return True
+                    checked += 1
+                    if not param.IsReadOnly:
+                        param.Set(material_id)
+                        return True
+                    readonly_names.append(param.Definition.Name)
             except Exception:
                 continue
     except Exception:
         pass
+
+    if reason_log is not None:
+        if readonly_names:
+            reason_log.append(
+                u'read-only material parameter(s): {} — likely a Type '
+                u'parameter in this family, only editable via Edit Type/'
+                u'Edit Family, not from the placed instance'.format(
+                    u', '.join(readonly_names)))
+        elif checked == 0:
+            reason_log.append(u'no ElementId-typed "material" parameter found on this element')
 
     return False
 
@@ -376,13 +400,17 @@ def _nested_subcomponent_ids(el):
     return ids
 
 
-def assign_material_to_elements(doc, element_ids, material_id):
+def assign_material_to_elements(doc, element_ids, material_id, diagnostics=None):
     """
     Assign material_id to each element_id — see _assign_material_any_param()
     for the fallback chain. Also recurses into nested sub-components (for
     family instances that host their own nested families) so a material
     assigned to the host reaches nested components too, not just the host's
     own parameters. Returns (ok_count, failed_count).
+
+    If diagnostics (a list) is passed, appends one line per failed element
+    explaining why (e.g. every material parameter found was read-only),
+    so a "Failed" result is actionable instead of a dead end.
     """
     ok = failed = 0
     with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material") as t:
@@ -392,27 +420,50 @@ def assign_material_to_elements(doc, element_ids, material_id):
                 el = doc.GetElement(eid)
                 if el is None:
                     failed += 1
+                    if diagnostics is not None:
+                        diagnostics.append(u'{}: element not found'.format(get_id_value(eid)))
                     continue
-                host_ok = _assign_material_any_param(el, material_id)
+
+                host_reasons = [] if diagnostics is not None else None
+                host_ok = _assign_material_any_param(el, material_id, host_reasons)
 
                 nested_ok = nested_failed = 0
+                nested_reasons = []
                 for sub_id in _nested_subcomponent_ids(el):
                     try:
                         sub_el = doc.GetElement(sub_id)
-                        if sub_el is not None and _assign_material_any_param(sub_el, material_id):
+                        sub_reasons = [] if diagnostics is not None else None
+                        if sub_el is not None and _assign_material_any_param(sub_el, material_id, sub_reasons):
                             nested_ok += 1
                         else:
                             nested_failed += 1
-                    except Exception:
+                            if sub_reasons:
+                                nested_reasons.extend(sub_reasons)
+                    except Exception as ex:
                         nested_failed += 1
+                        if diagnostics is not None:
+                            nested_reasons.append(u'{}'.format(ex))
 
                 if host_ok or nested_ok:
                     ok += 1
                     failed += nested_failed
+                    if nested_failed and diagnostics is not None:
+                        diagnostics.append(
+                            u'{} ({}): host OK, {} nested sub-component(s) failed — {}'.format(
+                                get_id_value(eid), _cat_name(el), nested_failed,
+                                u'; '.join(nested_reasons[:2]) or u'unknown reason'))
                 else:
                     failed += 1
-            except Exception:
+                    if diagnostics is not None:
+                        reasons = list(host_reasons or [])
+                        reasons.extend(nested_reasons)
+                        why = u'; '.join(reasons) if reasons else u'no writable material parameter found'
+                        diagnostics.append(u'{} ({}): {}'.format(
+                            get_id_value(eid), _cat_name(el), why))
+            except Exception as ex:
                 failed += 1
+                if diagnostics is not None:
+                    diagnostics.append(u'{}: {}'.format(get_id_value(eid), ex))
         t.Commit()
     return ok, failed
 

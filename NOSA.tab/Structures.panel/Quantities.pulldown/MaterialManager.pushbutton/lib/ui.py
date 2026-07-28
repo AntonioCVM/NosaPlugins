@@ -356,14 +356,20 @@ class MaterialManagerWindow(NOSAWindow):
 
         ids = [r.Id for r in selected]
         self.SetLoading(True, "Assigning material...")
+        diagnostics = []
         try:
-            ok, failed = _logic.assign_material_to_elements(self.doc, ids, mat_item.Id)
+            ok, failed = _logic.assign_material_to_elements(
+                self.doc, ids, mat_item.Id, diagnostics=diagnostics)
         except Exception as e:
             self.SetLoading(False)
             forms.alert("Assignment failed: {}".format(e))
             return
         self.SetLoading(False)
-        forms.alert("Assigned: {}  |  Failed: {}".format(ok, failed), title="Assign Material")
+        msg = u"Assigned: {}  |  Failed: {}".format(ok, failed)
+        if diagnostics:
+            msg += u"\n\nDetails ({} of {}):\n{}".format(
+                min(5, len(diagnostics)), len(diagnostics), u"\n".join(diagnostics[:5]))
+        forms.alert(msg, title="Assign Material")
         self.ScanElements_Click(None, None)
 
     # ── elements export ───────────────────────────────────────────────────────
