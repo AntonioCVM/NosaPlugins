@@ -7,10 +7,20 @@ from System.Collections.Generic import List
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, get_element_type_name
 
 
 # ── material asset helpers ────────────────────────────────────────────────────
+
+def _safe_name(el):
+    """
+    getattr(..., default) form of `.Name` — bare `el.Name` raises
+    AttributeError on this Revit/pyRevit build for at least ElementType and
+    Material (confirmed live); getattr() catches that internally and falls
+    back, regardless of the underlying cause.
+    """
+    return getattr(el, 'Name', None) or u'—'
+
 
 def _mat_class(mat):
     try:
@@ -57,7 +67,7 @@ def collect_materials(doc):
             cnt = use_counts.get(mid, 0)
             result.append({
                 'id':        mat.Id,
-                'name':      mat.Name or u'—',
+                'name':      _safe_name(mat),
                 'class':     _mat_class(mat),
                 'category':  _mat_category(mat),
                 'use_count': cnt,
@@ -127,7 +137,7 @@ def export_csv(rows, path):
 def get_all_materials(doc):
     """Returns sorted list of (ElementId, name) tuples for all materials in doc."""
     mats = DB.FilteredElementCollector(doc).OfClass(DB.Material).ToElements()
-    pairs = [(m.Id, m.Name or u'—') for m in mats]
+    pairs = [(m.Id, _safe_name(m)) for m in mats]
     pairs.sort(key=lambda x: x[1].lower())
     return pairs
 
@@ -170,7 +180,7 @@ def _level_name(doc, el):
 
 def _cat_name(el):
     try:
-        return el.Category.Name if el.Category else u'—'
+        return _safe_name(el.Category) if el.Category else u'—'
     except Exception:
         return u'—'
 
@@ -184,7 +194,7 @@ def _get_structural_material(doc, el):
             if mat_id and mat_id != DB.ElementId.InvalidElementId:
                 mat = doc.GetElement(mat_id)
                 if mat:
-                    return mat_id, mat.Name
+                    return mat_id, _safe_name(mat)
     except Exception:
         pass
     try:
@@ -192,7 +202,7 @@ def _get_structural_material(doc, el):
         if ids:
             mat = doc.GetElement(ids[0])
             if mat:
-                return ids[0], mat.Name
+                return ids[0], _safe_name(mat)
     except Exception:
         pass
     return None, None
@@ -243,8 +253,14 @@ def collect_element_materials(doc, diagnostics=None):
         stats['collected'] = len(els)
         for el in els:
             try:
-                el_type   = doc.GetElement(el.GetTypeId())
-                type_name = el_type.Name if el_type else u'—'
+                # el_type.Name (bare property access) raises AttributeError
+                # under this Revit/pyRevit CPython build — confirmed live,
+                # 100% of elements across every category failed on it.
+                # get_element_type_name() reads BuiltInParameter.SYMBOL_NAME_PARAM
+                # instead, the same safe pattern already used elsewhere in
+                # this codebase, and doesn't hit whatever pythonnet property
+                # resolution issue this is.
+                type_name = get_element_type_name(el) or u'—'
                 mat_id, mat_name = _get_structural_material(doc, el)
                 is_missing = mat_id is None
                 prop_id = prop_name = None
@@ -285,9 +301,7 @@ def collect_element_materials_from_selection(doc, element_ids):
             el = doc.GetElement(eid)
             if el is None:
                 continue
-            el_type_id = el.GetTypeId()
-            el_type    = doc.GetElement(el_type_id) if el_type_id else None
-            type_name  = el_type.Name if el_type else u'—'
+            type_name  = get_element_type_name(el) or u'—'
             mat_id, mat_name = _get_structural_material(doc, el)
             is_missing = mat_id is None
             prop_id = prop_name = None
