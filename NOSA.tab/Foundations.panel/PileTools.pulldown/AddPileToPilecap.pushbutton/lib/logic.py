@@ -980,6 +980,19 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
     except Exception:
         pile_instance = doc.Create.NewFamilyInstance(
             insertion_point, pile_symbol, level, DB.Structure.StructuralType.Footing)
+
+    # Elevation-derived parameters (Elevation at Top, bounding box) are not
+    # guaranteed accurate until the document regenerates after element
+    # creation — reading them beforehand can silently return a stale/
+    # default value that "looks" valid (HasValue=True) but doesn't reflect
+    # where the pile actually is, making the embedment adjustment below
+    # compute against the wrong baseline. Regenerate first so every
+    # detection method below reads the pile's true as-created position.
+    try:
+        doc.Regenerate()
+    except Exception:
+        pass
+
     current_top_z = None
     try:
         param_top = pile_instance.get_Parameter(DB.BuiltInParameter.STRUCTURAL_ELEVATION_AT_TOP)
@@ -998,7 +1011,6 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
             pass
     if current_top_z is None:
         try:
-            doc.Regenerate()
             pile_bbox = pile_instance.get_BoundingBox(None)
             if pile_bbox:
                 current_top_z = pile_bbox.Max.Z
