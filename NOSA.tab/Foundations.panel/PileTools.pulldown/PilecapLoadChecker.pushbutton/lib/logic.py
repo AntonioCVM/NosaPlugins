@@ -8,6 +8,7 @@ import json
 import os
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import geometry as _geometry
 _FT_TO_MM = 304.8
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'pilecap_rules.json')
 
@@ -118,28 +119,29 @@ def _element_phase_id(el):
     return None
 
 
-def _piles_on_pilecap(doc, pilecap):
-    """Find piles spatially grouped with this pilecap."""
+def _piles_on_pilecap(pilecap, foundations):
+    """
+    Find piles spatially grouped with this pilecap, filtering a pre-collected
+    foundations list by bounding-box proximity — avoids re-running a
+    FilteredElementCollector over the whole category once per pilecap
+    (previously O(N_pilecaps x N_foundations) collector creations).
+    """
     try:
         bb = pilecap.get_BoundingBox(None)
         if not bb:
             return []
         margin = _ft(500)
-        outline = DB.Outline(
-            DB.XYZ(bb.Min.X - margin, bb.Min.Y - margin, bb.Min.Z - 5),
-            DB.XYZ(bb.Max.X + margin, bb.Max.Y + margin, bb.Max.Z + 5),
-        )
-        bbf   = DB.BoundingBoxIntersectsFilter(outline)
-        piles = list(
-            DB.FilteredElementCollector(doc)
-              .OfCategory(DB.BuiltInCategory.OST_StructuralFoundation)
-              .WherePasses(bbf)
-              .WhereElementIsNotElementType()
-              .ToElements()
-        )
-        return [p for p in piles
-                if get_id_value(p.Id) != get_id_value(pilecap.Id)
-                and isinstance(p.Location, DB.LocationPoint)]
+        cap_id = get_id_value(pilecap.Id)
+        result = []
+        for p in foundations:
+            if get_id_value(p.Id) == cap_id:
+                continue
+            if not isinstance(p.Location, DB.LocationPoint):
+                continue
+            pbb = p.get_BoundingBox(None)
+            if pbb and _geometry.bboxes_overlap(bb, pbb, margin):
+                result.append(p)
+        return result
     except Exception:
         return []
 
@@ -207,8 +209,12 @@ def _load_semaphore(N_kN, capacity_kN, pile_count):
 
 # ── geometric checks ──────────────────────────────────────────────────────────
 
-def _check_single_element(doc, el, rules):
-    """Run all geometric rule checks on one element; return list of issue dicts."""
+def _check_single_element(el, rules, piles):
+    """
+    Run all geometric rule checks on one element; return list of issue dicts.
+    piles: pre-computed list from _piles_on_pilecap (may be empty for
+    strips/walls where no nearby piles were found).
+    """
     issues = []
     dims = _bbox_dims(el)
     if not dims:
@@ -234,7 +240,6 @@ def _check_single_element(doc, el, rules):
                 'severity': 'Medium',
             })
 
-    piles = _piles_on_pilecap(doc, el)
     if not piles:
         return issues
 
@@ -310,14 +315,20 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
 
     results = []
 
-    # Isolated pilecaps (LocationPoint, not pile-like)
-    if 'caps' in selected_bics:
+    # Foundations collected once and shared between 'caps' and 'strips'
+    # (previously each branch ran its own identical collector over the
+    # whole category — same list, queried twice).
+    foundations = []
+    if selected_bics & {'caps', 'strips', 'walls'}:
         foundations = list(
             DB.FilteredElementCollector(doc)
               .OfCategory(DB.BuiltInCategory.OST_StructuralFoundation)
               .WhereElementIsNotElementType()
               .ToElements()
         )
+
+    # Isolated pilecaps (LocationPoint, not pile-like)
+    if 'caps' in selected_bics:
         for el in foundations:
             try:
                 if phase_id is not None and _element_phase_id(el) == phase_id:
@@ -331,8 +342,8 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
                         continue
                     if plan_size < 200:
                         continue
-                issues = _check_single_element(doc, el, rules)
-                piles  = _piles_on_pilecap(doc, el)
+                piles  = _piles_on_pilecap(el, foundations)
+                issues = _check_single_element(el, rules, piles)
                 try:
                     cap_name = getattr(el, 'Name', str(el.Id))
                 except Exception:
@@ -359,19 +370,14 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
 
     # Strip foundations (LocationCurve)
     if 'strips' in selected_bics:
-        foundations = list(
-            DB.FilteredElementCollector(doc)
-              .OfCategory(DB.BuiltInCategory.OST_StructuralFoundation)
-              .WhereElementIsNotElementType()
-              .ToElements()
-        )
         for el in foundations:
             try:
                 if phase_id is not None and _element_phase_id(el) == phase_id:
                     continue
                 if not isinstance(el.Location, DB.LocationCurve):
                     continue
-                issues = _check_single_element(doc, el, rules)
+                piles  = _piles_on_pilecap(el, foundations)
+                issues = _check_single_element(el, rules, piles)
                 try:
                     el_name = getattr(el, 'Name', str(el.Id))
                 except Exception:
@@ -397,7 +403,8 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
             try:
                 if phase_id is not None and _element_phase_id(el) == phase_id:
                     continue
-                issues = _check_single_element(doc, el, rules)
+                piles  = _piles_on_pilecap(el, foundations)
+                issues = _check_single_element(el, rules, piles)
                 try:
                     el_name = getattr(el, 'Name', str(el.Id))
                 except Exception:
