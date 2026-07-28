@@ -209,25 +209,38 @@ def _propose_material(type_name, mat_list):
     return None, None
 
 
-def collect_element_materials(doc):
+def collect_element_materials(doc, diagnostics=None):
     """
     Scan structural elements for material assignments.
     Returns list of dicts sorted by (category, level, type_name):
       { 'id', 'category', 'level', 'type_name',
         'material_id', 'material_name', 'is_missing',
         'proposed_id', 'proposed_name' }
+
+    diagnostics: optional dict — if given, filled in-place with
+      {'<BuiltInCategory name>': {'collected': N, 'rows_built': M, 'errors': [...]}}
+      so callers can tell "the collector found nothing" apart from
+      "the collector found elements but every row build failed" when the
+      scan comes back empty.
     """
     mat_list = get_all_materials(doc)
     result = []
 
     for bic in _struct_bics():
+        bic_label = str(bic).rsplit('.', 1)[-1]
+        stats = {'collected': 0, 'rows_built': 0, 'errors': []}
+        if diagnostics is not None:
+            diagnostics[bic_label] = stats
         try:
             els = DB.FilteredElementCollector(doc)\
                     .OfCategory(bic)\
                     .WhereElementIsNotElementType()\
                     .ToElements()
-        except Exception:
+        except Exception as e:
+            stats['errors'].append(u'collector: {}'.format(e))
             continue
+        els = list(els)
+        stats['collected'] = len(els)
         for el in els:
             try:
                 el_type   = doc.GetElement(el.GetTypeId())
@@ -248,8 +261,10 @@ def collect_element_materials(doc):
                     'proposed_id':   prop_id,
                     'proposed_name': prop_name or u'—',
                 })
-            except Exception:
-                pass
+                stats['rows_built'] += 1
+            except Exception as e:
+                if len(stats['errors']) < 3:
+                    stats['errors'].append(str(e))
 
     result.sort(key=lambda r: (r['category'], r['level'], r['type_name']))
     return result

@@ -74,6 +74,7 @@ class MaterialManagerWindow(NOSAWindow):
 
         # ── Elements tab state ────────────────────────────────────────────────
         self._all_el_rows = []
+        self._last_scan_diagnostics = {}
         self._el_rows     = ObservableCollection[ElementRow]()
         self.GridElements.ItemsSource = self._el_rows
 
@@ -251,8 +252,9 @@ class MaterialManagerWindow(NOSAWindow):
                 return
         else:
             self.SetLoading(True, "Scanning structural elements...")
+            self._last_scan_diagnostics = {}
             try:
-                raw = _logic.collect_element_materials(self.doc)
+                raw = _logic.collect_element_materials(self.doc, diagnostics=self._last_scan_diagnostics)
             except Exception as e:
                 self.SetLoading(False)
                 forms.alert("Error scanning elements: {}".format(e))
@@ -284,14 +286,16 @@ class MaterialManagerWindow(NOSAWindow):
                     title="Scan Complete — 0 elements"
                 )
             else:
+                diag_lines = []
+                for label, stats in sorted(self._last_scan_diagnostics.items()):
+                    line = u"  • {}: {} found".format(label, stats['collected'])
+                    if stats['collected'] and not stats['rows_built']:
+                        line += u" (0 processed — {})".format(
+                            stats['errors'][0] if stats['errors'] else u'unknown error')
+                    diag_lines.append(line)
                 forms.alert(
                     u"No structural elements found in the active document.\n\n"
-                    u"The scan covers:\n"
-                    u"  • Structural Framing\n"
-                    u"  • Structural Columns\n"
-                    u"  • Walls\n"
-                    u"  • Floors\n"
-                    u"  • Structural Foundations\n\n"
+                    u"Category breakdown:\n" + u"\n".join(diag_lines) + u"\n\n"
                     u"If your elements are a different category (Generic "
                     u"Models, in-place families, etc.), select them in Revit, "
                     u"tick “Use current selection” and scan again.",
