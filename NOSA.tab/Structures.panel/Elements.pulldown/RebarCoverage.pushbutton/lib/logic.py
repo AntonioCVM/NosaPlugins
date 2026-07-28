@@ -48,18 +48,15 @@ def _level_name(doc, el):
     return 'No Level'
 
 
-def _has_rebar(doc, el):
-    """Return True if element has at least one rebar bar hosted to it."""
-    try:
-        eid = el.Id
-        # Use GetDependentElements to find rebar
-        dep = el.GetDependentElements(
-            DB.ElementCategoryFilter(DB.BuiltInCategory.OST_Rebar)
-        )
-        return len(list(dep)) > 0
-    except Exception:
-        pass
-    # Fallback: FilteredElementCollector with host filter
+def _build_rebar_host_index(doc):
+    """
+    One-time OST_Rebar scan building a set of host element ids — used only
+    as a fallback when GetDependentElements fails for a given element,
+    instead of re-running this same whole-category collector once per
+    element checked (previously O(N_structural_elements) collector scans
+    in the worst case where the primary path keeps failing).
+    """
+    host_ids = set()
     try:
         rebars = DB.FilteredElementCollector(doc)\
             .OfCategory(DB.BuiltInCategory.OST_Rebar)\
@@ -67,13 +64,33 @@ def _has_rebar(doc, el):
             .ToElements()
         for r in rebars:
             try:
-                if hasattr(r, 'GetHostId') and r.GetHostId() == el.Id:
-                    return True
+                if hasattr(r, 'GetHostId'):
+                    host_ids.add(get_id_value(r.GetHostId()))
             except Exception:
                 pass
     except Exception:
         pass
-    return False
+    return host_ids
+
+
+def _has_rebar(doc, el, index_cache):
+    """
+    Return True if element has at least one rebar bar hosted to it.
+    index_cache: a dict reused across calls within one check_rebar_coverage()
+    run — the OST_Rebar fallback index is built at most once (lazily, on
+    first need), on the fallback path only, instead of re-scanning the whole
+    category once per element checked.
+    """
+    try:
+        dep = el.GetDependentElements(
+            DB.ElementCategoryFilter(DB.BuiltInCategory.OST_Rebar)
+        )
+        return len(list(dep)) > 0
+    except Exception:
+        pass
+    if 'index' not in index_cache:
+        index_cache['index'] = _build_rebar_host_index(doc)
+    return get_id_value(el.Id) in index_cache['index']
 
 
 def check_rebar_coverage(doc, selected_cats=None):
@@ -84,6 +101,7 @@ def check_rebar_coverage(doc, selected_cats=None):
     """
     with_rebar    = []
     without_rebar = []
+    index_cache   = {}  # lazy OST_Rebar fallback index, built at most once
 
     for cat_name, bic in _structural_bics():
         if selected_cats and cat_name not in selected_cats:
@@ -97,7 +115,7 @@ def check_rebar_coverage(doc, selected_cats=None):
                     'category': cat_name,
                     'level':    level,
                 }
-                if _has_rebar(doc, el):
+                if _has_rebar(doc, el, index_cache):
                     with_rebar.append(entry)
                 else:
                     without_rebar.append(entry)
