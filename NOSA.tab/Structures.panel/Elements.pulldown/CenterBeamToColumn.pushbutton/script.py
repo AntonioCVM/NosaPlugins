@@ -16,7 +16,6 @@ __version__ = "3.1"
 
 from Autodesk.Revit import DB
 from pyrevit import revit, forms, script
-import math
 import sys
 import json
 import os
@@ -91,14 +90,10 @@ def get_beam_endpoints(beam):
     return None, None
 
 def get_element_center(element):
-    """Get center point of any element."""
-    location = element.Location
-    if isinstance(location, LocationPoint):
-        return location.Point
-    elif isinstance(location, LocationCurve):
-        curve = location.Curve
-        return curve.Evaluate(0.5, True)
-    return None
+    """Get center point of any element (shared helper — also covers a
+    bounding-box fallback for elements with neither LocationPoint nor
+    LocationCurve, which the previous local copy here didn't handle)."""
+    return geometry.get_element_center(element)
 
 def get_column_center(column):
     """Get the center point of a column."""
@@ -106,18 +101,11 @@ def get_column_center(column):
 
 def calculate_distance_2d(point1, point2):
     """Calculate 2D distance between two points (ignoring Z)."""
-    return math.sqrt(
-        (point1.X - point2.X) ** 2 +
-        (point1.Y - point2.Y) ** 2
-    )
+    return geometry.calculate_distance_2d(point1, point2)
 
 def calculate_distance_3d(point1, point2):
     """Calculate 3D distance between two points."""
-    return math.sqrt(
-        (point1.X - point2.X) ** 2 +
-        (point1.Y - point2.Y) ** 2 +
-        (point1.Z - point2.Z) ** 2
-    )
+    return geometry.calculate_distance_3d(point1, point2)
 
 def find_closest_column(point, columns):
     """Find the closest column to a point."""

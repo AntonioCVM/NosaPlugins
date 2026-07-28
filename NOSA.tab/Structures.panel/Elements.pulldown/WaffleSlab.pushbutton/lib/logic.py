@@ -3,7 +3,6 @@ import os
 import sys
 import json
 import imp
-import math
 import traceback
 
 from Autodesk.Revit import DB
@@ -16,6 +15,8 @@ _ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                          '..', '..', '..', '..', '..', 'lib'))
 if _ext_lib not in sys.path:
     sys.path.insert(0, _ext_lib)
+
+from nosa_utils import geometry
 
 MM_TO_FEET = 1.0 / 304.8
 FEET_TO_MM = 304.8
@@ -84,10 +85,7 @@ def validar_parametros_multinormativa(intereje, ancho_nervio, canto, espesor_los
 
 
 def calculate_distance_2d(point1, point2):
-    return math.sqrt(
-        (point1.X - point2.X) ** 2 +
-        (point1.Y - point2.Y) ** 2
-    )
+    return geometry.calculate_distance_2d(point1, point2)
 
 
 def _curve_samples_xy(curve):
@@ -145,13 +143,7 @@ def point_in_polygon_xy(x, y, poly):
 
 
 def get_element_center(element):
-    location = element.Location
-    if isinstance(location, DB.LocationPoint):
-        return location.Point
-    elif isinstance(location, DB.LocationCurve):
-        curve = location.Curve
-        return curve.Evaluate(0.5, True)
-    return None
+    return geometry.get_element_center(element)
 
 
 def _get_element_name(element):
