@@ -1,7 +1,7 @@
 {
-  "default_losa": 50, 
   "default_canto": 250, 
-  "default_intereje": 800, 
-  "default_ancho_nervio": 200, 
-  "radio_macizado_factor": 1.5
+  "default_intereje": 750, 
+  "default_losa": 50, 
+  "radio_macizado_factor": 1.5, 
+  "default_ancho_nervio": 150
 }
