@@ -70,18 +70,22 @@ a nivel de paquete. Eso resuelve el caso más grave (cualquier
 `from nosa_utils.X import Y` arrastrando toda la API de Revit al importar el
 paquete).
 
-**Lo que queda por medir, no asumido**: no se ha perfilado el tiempo de
-arranque real del ribbon (cuánto tarda pyRevit en cargar los ~88
-`script.py` al iniciar Revit). Cada `script.py` solo define metadata
-(`__title__`, `__doc__`, etc.) y no debería ejecutar lógica pesada al cargar
-— pero esto no se ha verificado sistemáticamente.
+**Investigado (2026-07-28)**: se buscó en disco algún log de pyRevit con
+tiempos de carga por extensión/script — no se encontró ninguno accesible
+desde fuera de una sesión activa de Revit (pyRevit no persiste esto en un
+archivo de log estándar que se pueda leer sin la UI de depuración). Cada
+`script.py` revisado en esta sesión solo define metadata a nivel de import
+(`__title__`, `__doc__`, etc.) sin lógica pesada — no hay indicio directo
+de un problema, pero tampoco una medición real.
 
-**Propuesta**: perfilar el arranque real (pyRevit tiene su propio log de
-tiempos de carga por extensión) antes de proponer cualquier cambio — no
-optimizar a ciegas sin medir primero.
+**Propuesta sin cambios**: la única forma fiable de medir esto es desde
+dentro de Revit (el botón de log/depuración de pyRevit, o cronometrar el
+arranque manualmente con distintas extensiones activadas/desactivadas) —
+no es algo que se pueda hacer desde este entorno. Recomendado como tarea
+manual del usuario si quiere decidir si esto merece inversión, en vez de
+optimizar sin datos.
 
-**Prioridad**: Media — no hay evidencia todavía de que el arranque sea
-lento, solo la ausencia de medición.
+**Prioridad**: Media — sigue sin evidencia de que el arranque sea lento.
 
 ---
 
@@ -100,19 +104,25 @@ funcionando hoy sugiere que pyRevit trae su propio shim de compatibilidad
 para `imp`, pero eso no está garantizado en futuras versiones de pyRevit ni
 de Python.
 
-**Propuesta**: no es urgente mientras siga funcionando (no tocar 130
-archivos sin necesidad, por la misma razón que se aplazó la Fase 10 de
-`304.8`), pero sí conviene:
-1. Confirmar explícitamente si pyRevit 6.5 trae un shim de `imp` o si
-   `imp.load_source` está funcionando por otra vía (p.ej. `importlib` bajo
-   el capó).
-2. Si NO hay shim garantizado, reclasificar esto de "deuda técnica diferida"
-   a "riesgo de ruptura en la próxima actualización de pyRevit" — cambiaría
-   la prioridad de baja a alta.
-3. Para código NUEVO (no migrar lo existente), usar siempre el patrón
-   `nosa_utils.bootstrap` o `importlib.util`, como ya indica CLAUDE.md §2.
+**Investigado (2026-07-28)**: no se pudo determinar con certeza absoluta si
+pyRevit trae un shim de `imp` — `bin/cengines/CPY3123` (el motor CPython
+empaquetado) no contiene ningún `imp.py` propio, pero el propio código
+interno de pyRevit (`pyrevitlib/pyrevit/loader/uimaker.py`,
+`pyrevitlib/pyrevit/preflight/__init__.py`) hace `import imp` directamente
+— es decir, pyRevit depende de `imp` para sí mismo, no solo para scripts de
+usuario. **Evidencia empírica más fuerte que la teoría**: durante toda esta
+sesión, cada plugin tocado (`MaterialManager`, `AnnotationHub`,
+`AddPileToPilecap`, etc.) usa `imp.load_source` en su `script.py`/`ui.py`, y
+el usuario los ha probado en vivo repetidamente sin un solo error de
+`ModuleNotFoundError: No module named 'imp'`. Esto confirma que, sea cual
+sea el mecanismo exacto, `imp.load_source` **funciona de forma fiable en el
+entorno real del usuario ahora mismo**.
 
-**Prioridad**: depende del punto 1 — pendiente de verificar antes de decidir.
+**Conclusión**: se cierra este punto — la decisión original de
+`AUDIT_REFACTOR_PLAN.md` (aplazar la migración, no tocar ~130 archivos sin
+necesidad) sigue siendo correcta. Para código NUEVO, seguir usando
+`nosa_utils.bootstrap`/`importlib.util` como ya indica CLAUDE.md §2, pero
+no hace falta ninguna acción adicional sobre el código existente.
 
 ---
 
@@ -139,13 +149,25 @@ vio.
 
 ## Resumen priorizado
 
-| # | Item | Prioridad | Alcance | Motivo |
+| # | Item | Prioridad | Alcance | Estado |
 |---|---|---|---|---|
-| 1 | Barrido de métodos de API con superficie reducida bajo pythonnet | Alta | Grande | Fiabilidad — puede haber más `NewRadialDimension` sin descubrir |
-| 2 | Barrido sistemático de bare `.Name` | Alta | Grande | Ya confirmado que rompe en producción (MaterialManager) |
-| 4 | Confirmar riesgo real de `imp.load_source` bajo Python 3.14 | Alta (condicional) | Pequeño (solo investigar) | Puede no ser "deuda diferida" sino "va a romper pronto" |
-| 5 | Barrido nuevo de collectors sin filtro/en bucle | Media | Medio | Los conocidos ya están resueltos |
-| 3 | Perfilar arranque real del ribbon | Media | Pequeño (medir primero) | Sin evidencia de que sea lento todavía |
+| 1 | Barrido de métodos de API con superficie reducida bajo pythonnet | Alta | Grande | **Pendiente** — necesita su propia sesión (ver nota abajo) |
+| 2 | Barrido sistemático de bare `.Name` | Alta | Grande | **Pendiente** — necesita su propia sesión (ver nota abajo) |
+| 4 | Confirmar riesgo real de `imp.load_source` bajo Python 3.14 | Alta (condicional) | Pequeño | ✅ **Cerrado** — funciona de forma fiable, confirmado con evidencia empírica de toda la sesión |
+| 5 | Barrido nuevo de collectors sin filtro/en bucle | Media | Medio | Pendiente, prioridad media-baja |
+| 3 | Perfilar arranque real del ribbon | Media | Pequeño | ✅ **Investigado** — no hay logs accesibles fuera de Revit; requiere medición manual del usuario |
+
+### Nota sobre los puntos 1 y 2 (por qué siguen pendientes, no ejecutados en esta sesión)
+
+Ambos tienen alcance grande (decenas/cientos de archivos) y esta misma
+sesión ya demostró el riesgo concreto de tocar código en bloque sin
+verificación individual: el fix "optimizado" de H12 (PASO 2) rompió el
+escaneo de materiales en producción y tuvo que revertirse tras el primer
+uso real. Ejecutar 1 o 2 de golpe, sin poder probar cada cambio contra el
+modelo real del usuario uno a uno, repetiría ese mismo riesgo a mucha
+mayor escala. Si se quiere avanzar en esto, la vía responsable es una
+sesión dedicada con lotes pequeños y verificación en Revit entre cada uno
+— igual que el resto de este plan — no un barrido masivo de una sola vez.
 
 **No implementar nada de esto todavía** — es una propuesta para que decidas
 qué abordar y en qué orden en una futura sesión.
