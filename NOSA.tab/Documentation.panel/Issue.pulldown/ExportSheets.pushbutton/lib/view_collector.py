@@ -100,7 +100,7 @@ class ViewCollector:
                     continue
             
             # Add view-specific properties
-            params["View Name"] = view.Name or ""
+            params["View Name"] = getattr(view, 'Name', None) or ""
             params["View Type"] = ViewCollector.get_view_type_name(view)
             params["View Number"] = getattr(view, 'ViewNumber', '') or ""
             params["Discipline"] = ViewCollector.get_view_discipline_name(view)

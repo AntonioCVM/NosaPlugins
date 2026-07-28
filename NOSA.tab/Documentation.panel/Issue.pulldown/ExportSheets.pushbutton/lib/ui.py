@@ -188,7 +188,8 @@ class ExportSheetsProForm(NOSAWindow):
                 p_info = self.doc.ProjectInformation
                 
                 # Built-in properties
-                if p_info.Name: self.project_params['Project Name'] = p_info.Name
+                _pi_name = getattr(p_info, 'Name', None)
+                if _pi_name: self.project_params['Project Name'] = _pi_name
                 if hasattr(p_info, 'Number') and p_info.Number: self.project_params['Project Number'] = p_info.Number
                 if hasattr(p_info, 'Status') and p_info.Status: self.project_params['Project Status'] = p_info.Status
                 if hasattr(p_info, 'ClientName') and p_info.ClientName: self.project_params['Client Name'] = p_info.ClientName

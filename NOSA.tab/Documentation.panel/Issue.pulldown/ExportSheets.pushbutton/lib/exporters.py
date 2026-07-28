@@ -94,10 +94,10 @@ class ExportManager:
                         return False, "Export cancelled"
                     
                     try:
-                        element_name = element.Name if self.is_views else (element.SheetNumber if hasattr(element, 'SheetNumber') else str(element.Id))
-                        
+                        element_name = (getattr(element, 'Name', None) or str(element.Id)) if self.is_views else (element.SheetNumber if hasattr(element, 'SheetNumber') else str(element.Id))
+
                         if progress_callback:
-                            title = "{} [{}]".format(element_name, element.Name) if hasattr(element, 'SheetNumber') else element_name
+                            title = "{} [{}]".format(element_name, getattr(element, 'Name', '')) if hasattr(element, 'SheetNumber') else element_name
                             progress_callback("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
                             progress_callback("PROCESSING {}/{} : **{}**".format(global_idx + 1, total_elements, title))
                     
@@ -182,7 +182,7 @@ class ExportManager:
                             gc.collect()
                     
                     except Exception as e:
-                        element_name = element.Name if self.is_views else (element.SheetNumber if hasattr(element, 'SheetNumber') else str(element.Id))
+                        element_name = (getattr(element, 'Name', None) or str(element.Id)) if self.is_views else (element.SheetNumber if hasattr(element, 'SheetNumber') else str(element.Id))
                         if progress_callback:
                             progress_callback("✗ Error in {}: {}".format(element_name, str(e)))
                         self.results['failed'] += 1
