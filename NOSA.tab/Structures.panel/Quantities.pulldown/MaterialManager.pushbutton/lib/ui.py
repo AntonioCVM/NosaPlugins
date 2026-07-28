@@ -365,21 +365,33 @@ class MaterialManagerWindow(NOSAWindow):
             forms.alert("Assignment failed: {}".format(e))
             return
         self.SetLoading(False)
-        msg = u"Assigned: {}  |  Failed: {}".format(ok, failed)
-        if diagnostics:
-            msg += u"\n\nDetails ({} of {}):\n{}".format(
-                min(5, len(diagnostics)), len(diagnostics), u"\n".join(diagnostics[:5]))
-        forms.alert(msg, title="Assign Material")
+
+        n_readonly = len(readonly_type_ids)
+        other_failed = failed - n_readonly
+
+        # When every failure is the expected "Material is a Type parameter"
+        # case, skip the alarming standalone "Failed: N" alert — it reads as
+        # an error when it's actually just a normal Revit modelling choice
+        # (the family author put Material on the Type, not the instance)
+        # that the Type-level prompt below handles in one step.
+        if other_failed > 0 or n_readonly == 0:
+            msg = u"Assigned: {}  |  Failed: {}".format(ok, failed)
+            if diagnostics:
+                msg += u"\n\nDetails ({} of {}):\n{}".format(
+                    min(5, len(diagnostics)), len(diagnostics), u"\n".join(diagnostics[:5]))
+            forms.alert(msg, title="Assign Material")
 
         if readonly_type_ids:
             n = len(readonly_type_ids)
             if forms.alert(
-                u"{} element(s) have Material as a Type parameter — it can't be "
-                u"changed on the individual instance.\n\n"
+                u"Assigned: {} instance(s).\n\n"
+                u"{} element(s) have Material fixed at the Type level in "
+                u"their family (a modelling choice by whoever built that "
+                u"family, not a fault) — it can't be changed per-instance.\n\n"
                 u"Assign '{}' to the TYPE instead?\n\n"
                 u"WARNING: this changes the material for EVERY instance of "
                 u"that type in the whole project, not just the {} selected "
-                u"here.".format(n, mat_item.Name, n),
+                u"here.".format(ok, n, mat_item.Name, n),
                 title=u"Assign at Type Level?", yes=True, no=True
             ):
                 type_diag = []

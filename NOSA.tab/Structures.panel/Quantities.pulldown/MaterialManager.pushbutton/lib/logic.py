@@ -373,11 +373,15 @@ def _assign_material_any_param(el, material_id, reason_log=None):
 
     if reason_log is not None:
         if readonly_names:
+            unique_names = []
+            for n in readonly_names:
+                if n not in unique_names:
+                    unique_names.append(n)
             reason_log.append(
                 u'read-only material parameter(s): {} — likely a Type '
                 u'parameter in this family, only editable via Edit Type/'
                 u'Edit Family, not from the placed instance'.format(
-                    u', '.join(readonly_names)))
+                    u', '.join(unique_names)))
         elif checked == 0:
             reason_log.append(u'no ElementId-typed "material" parameter found on this element')
 
