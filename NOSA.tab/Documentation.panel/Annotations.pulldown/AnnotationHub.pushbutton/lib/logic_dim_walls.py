@@ -109,48 +109,57 @@ class DimensionLogic:
         
         solids = self.get_solids_with_views_options(wall, view)
         if not solids: return None
-        
+
         geo = self.get_wall_curve_data(wall)
-        
+
         # Determine "Outside" vector if possible, or just Start/End
         # For a single wall, Start/End is clear.
         # For joined walls, we want the "free" ends or the intersection points?
         # User image shows dimensions processing the *entire* length of the wall chain segments?
         # No, image shows individual wall dimensions but placed clearly.
-        
+
         # Let's verify we are getting the END faces.
-        
+
         candidates = []
-        
-        # Vector for projecting candidates along the wall
+
+        # Vector for projecting candidates along the wall (used for sorting
+        # start-vs-end only — NOT for the alignment test below).
         if geo['is_arc']:
             axis = (geo['end_pt'] - geo['start_pt']).Normalize()
+            # An arc wall's end-cap face normal follows the arc's LOCAL
+            # tangent at that specific end, not the overall chord — using
+            # one fixed chord axis for both ends under-detects end faces on
+            # walls with a large sweep angle (the two tangents diverge
+            # further from the chord as the sweep grows).
+            start_tangent = geo['curve'].ComputeDerivatives(0.0, True).BasisX.Normalize()
+            end_tangent   = geo['curve'].ComputeDerivatives(1.0, True).BasisX.Normalize()
         else:
             axis = geo['tangent']
-            
+            start_tangent = end_tangent = axis
+
         ref_pt = geo['start_pt']
+        wall_span = (geo['end_pt'] - geo['start_pt']).DotProduct(axis)
 
         for solid in solids:
             for face in solid.Faces:
                 # We want vertical faces
                 normal = face.ComputeNormal(DB.UV(0.5,0.5))
                 if abs(normal.Z) > 0.1: continue
-                
-                # We want faces acting as "Ends". 
-                # For straight wall: Normal is parallel to Tangent.
-                # For arc wall: Normal is parallel to Chord (approx).
-                
-                # Check alignment with axis
-                dot = normal.DotProduct(axis)
+
+                if not face.Reference:
+                    continue
+
+                centroid = face.Evaluate(DB.UV(0.5,0.5))
+                proj = (centroid - ref_pt).DotProduct(axis)
+
+                # Check alignment against the LOCAL tangent for whichever
+                # end this candidate is closer to.
+                local_axis = start_tangent if proj < wall_span * 0.5 else end_tangent
+                dot = normal.DotProduct(local_axis)
                 if abs(dot) < 0.7: continue # Ignore side faces
-                
-                # It's an end face.
-                # Project centroid to sort
-                if face.Reference:
-                    centroid = face.Evaluate(DB.UV(0.5,0.5))
-                    proj = (centroid - ref_pt).DotProduct(axis)
-                    candidates.append((proj, face.Reference))
-        
+
+                candidates.append((proj, face.Reference))
+
         if len(candidates) < 2: return None
         
         candidates.sort(key=lambda x: x[0])
@@ -352,22 +361,27 @@ class DimensionLogic:
         arc_len_dim = None
         attempt_errors = []
 
-        # Attempt A: Arc geometry + the curved face's own Reference (the same
-        # reference the radius dimension uses) — a single Reference, not a
-        # ReferenceArray. This is the pattern several Revit API references
-        # describe for arc-length specifically (the curved face itself
-        # supplies what is being measured; the Arc supplies where the
-        # dimension is drawn).
+        # Attempt A: Arc geometry + the curved face's own Reference, wrapped
+        # in a ReferenceArray. Document.Create.NewDimension's 3-argument
+        # curve+refs overloads take a ReferenceArray in every documented
+        # form (Line+ReferenceArray is the same shape) — passing a bare
+        # Reference instead (tried previously) doesn't match that overload
+        # at all, which is consistent with pythonnet reporting the mismatch
+        # against the nearest same-arity overload it found ("expected Line,
+        # got Arc") rather than the real problem (Reference vs
+        # ReferenceArray).
         if curve_ref is not None and dim_arc_geom is not None:
             try:
-                arc_len_dim = self.doc.Create.NewDimension(view, dim_arc_geom, curve_ref)
+                arc_ref_array = DB.ReferenceArray()
+                arc_ref_array.Append(curve_ref)
+                arc_len_dim = self.doc.Create.NewDimension(view, dim_arc_geom, arc_ref_array)
                 if dim_type:
                     try:
                         arc_len_dim.DimensionType = dim_type
                     except Exception:
                         pass
             except Exception as e:
-                attempt_errors.append(u'Arc+Reference: {}'.format(e))
+                attempt_errors.append(u'Arc+ReferenceArray: {}'.format(e))
                 arc_len_dim = None
 
         # Attempt B (fallback): Line + ReferenceArray of the two end faces —
