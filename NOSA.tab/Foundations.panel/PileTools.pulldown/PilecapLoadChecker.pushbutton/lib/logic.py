@@ -9,7 +9,8 @@ import os
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import geometry as _geometry
-_FT_TO_MM = 304.8
+from nosa_utils import unit_conversion as _uc10
+_FT_TO_MM = _uc10.FT_TO_MM
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'pilecap_rules.json')
 
 _DEFAULT_RULES = {

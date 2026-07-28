@@ -8,8 +8,9 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
-_MM_TO_FT = 1.0 / 304.8
+_MM_TO_FT = _uc10.MM_TO_FT
 _FOOTING_XY_TOL_FT = 300.0 * _MM_TO_FT   # footing within 300 mm of column base = existing
 
 

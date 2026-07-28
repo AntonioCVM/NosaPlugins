@@ -17,9 +17,10 @@ if _ext_lib not in sys.path:
     sys.path.insert(0, _ext_lib)
 
 from nosa_utils import geometry
+from nosa_utils import unit_conversion as _uc10
 
-MM_TO_FEET = 1.0 / 304.8
-FEET_TO_MM = 304.8
+MM_TO_FEET = _uc10.MM_TO_FT
+FEET_TO_MM = _uc10.FT_TO_MM
 
 CONFIG_PATH = os.path.join(_PLUGIN_DIR, 'config.json')
 

@@ -1,8 +1,9 @@
 ﻿# -*- coding: utf-8 -*-
 """Create Pile Cap Logic — regular grid + irregular shapes (L, T, Plus, Z, U)."""
 from Autodesk.Revit import DB
+from nosa_utils import unit_conversion as _uc10
 
-_MM_TO_FT = 1.0 / 304.8
+_MM_TO_FT = _uc10.MM_TO_FT
 
 
 # ── Standard rectangular helpers ──────────────────────────────────────────────

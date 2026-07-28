@@ -8,8 +8,9 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
-_FT_TO_M = 0.3048
+_FT_TO_M = _uc10.FT_TO_M
 
 
 def _type_name(el_type):

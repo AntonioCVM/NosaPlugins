@@ -8,8 +8,9 @@ load status, and provides Excel/CSV export.
 import math, io, csv
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
-FT2MM  = 304.8
-FT2M   = 0.3048
+from nosa_utils import unit_conversion as _uc10
+FT2MM  = _uc10.FT_TO_MM
+FT2M   = _uc10.FT_TO_M
 
 _PILE_KEYWORDS = [
     'pile', 'pilote', 'pila', 'pilon',

@@ -9,11 +9,12 @@ import math, io, csv
 from collections import defaultdict
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 # ── unit conversions ───────────────────────────────────────────────────────────
 FT3_M3  = 0.0283168
 FT2_M2  = 0.0929030
-FT_M    = 0.3048
-FT2MM   = 304.8
+FT_M    = _uc10.FT_TO_M
+FT2MM   = _uc10.FT_TO_MM
 STEEL_DENSITY_KG_M3 = 7850.0
 
 # ── structural categories ──────────────────────────────────────────────────────

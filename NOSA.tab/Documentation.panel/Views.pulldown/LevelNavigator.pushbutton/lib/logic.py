@@ -6,8 +6,9 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value, element_id_from_int
+from nosa_utils import unit_conversion as _uc10
 
-_FT_TO_M = 0.3048
+_FT_TO_M = _uc10.FT_TO_M
 
 
 def get_levels_with_views(doc):

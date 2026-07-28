@@ -5,7 +5,8 @@ column marks and grid bubbles to structural views based on configurable rules.
 """
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
-_FT_TO_MM = 304.8
+from nosa_utils import unit_conversion as _uc10
+_FT_TO_MM = _uc10.FT_TO_MM
 
 
 

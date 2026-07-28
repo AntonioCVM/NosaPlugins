@@ -8,9 +8,10 @@ Module 3: Floor/slab corners  → corner dims to nearest H/V grid
 """
 from Autodesk.Revit import DB
 from pyrevit import revit
+from nosa_utils import unit_conversion as _uc10
 # ── constants ──────────────────────────────────────────────────────────────────
 FT2MM      = 304.8          # feet → mm
-MM2FT      = 1.0 / 304.8   # mm  → feet
+MM2FT      = _uc10.MM_TO_FT   # mm  → feet
 
 DEFAULT_OFFSET_PAPER_MM = 8.0            # element-to-dimension-line distance on paper
 _FALLBACK_OFFSET_FT     = 2000.0 * MM2FT  # 2 m model units if view scale unreadable

@@ -8,9 +8,10 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 
-_FT_TO_MM = 304.8
+_FT_TO_MM = _uc10.FT_TO_MM
 
 # BS 8666 shape codes mapped to letters A-E meaning
 # Shape code: (description, dims_needed)

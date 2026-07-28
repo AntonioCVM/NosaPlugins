@@ -13,7 +13,8 @@ Returns a list of result dicts with status:
 import io, csv, math
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
-FT2M = 0.3048
+from nosa_utils import unit_conversion as _uc10
+FT2M = _uc10.FT_TO_M
 LENGTH_TOL_M = 0.10   # ±100 mm tolerance on length comparison
 
 # ── Revit helpers ──────────────────────────────────────────────────────────────

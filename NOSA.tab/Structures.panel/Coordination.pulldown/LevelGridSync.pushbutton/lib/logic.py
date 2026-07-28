@@ -2,8 +2,9 @@
 """Level & Grid Sync — compare host model vs. linked model."""
 import sys, os
 from Autodesk.Revit import DB
+from nosa_utils import unit_conversion as _uc10
 _TOL_DEFAULT_MM = 1.0  # default elevation tolerance in mm
-_MM_PER_FOOT    = 304.8
+_MM_PER_FOOT    = _uc10.FT_TO_MM
 
 
 def _ft_to_mm(ft):

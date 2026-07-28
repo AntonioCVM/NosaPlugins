@@ -12,9 +12,10 @@ import math
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from System import Int64
+from nosa_utils import unit_conversion as _uc10
 
-FT2MM = 304.8
-MM2FT = 1.0 / 304.8
+FT2MM = _uc10.FT_TO_MM
+MM2FT = _uc10.MM_TO_FT
 
 # ── EC2 EXPOSURE CLASS → min cover c_min,dur (mm) ─────────────────────────────
 # EC2 Table 4.4N (structural class S4 default)

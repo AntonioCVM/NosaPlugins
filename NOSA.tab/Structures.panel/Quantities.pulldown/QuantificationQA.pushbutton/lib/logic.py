@@ -7,6 +7,7 @@ Detects missing materials, volume outliers, zero-volume elements.
 import math
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 # ─────────────────────────────────────────────────
 # Category lists
 # ─────────────────────────────────────────────────
@@ -37,7 +38,7 @@ STEEL_DENSITY_KGM3  = 7850.0
 REBAR_DENSITY_KGM3  = 7850.0
 _FT3_TO_M3          = 0.0283168
 _FT2_TO_M2          = 0.0929030
-_FT_TO_M            = 0.3048
+_FT_TO_M            = _uc10.FT_TO_M
 
 
 # ─────────────────────────────────────────────────
