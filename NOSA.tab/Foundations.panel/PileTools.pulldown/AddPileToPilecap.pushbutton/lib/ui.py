@@ -5,6 +5,7 @@ import os
 import sys
 
 from Autodesk.Revit.UI.Selection import ObjectType
+from Autodesk.Revit.UI import IExternalEventHandler, ExternalEvent
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from pyrevit import forms, revit
 
@@ -39,6 +40,54 @@ _CAP_STROKE = Color.FromRgb(140, 140, 140)
 _PILE_COL   = Color.FromRgb(255, 95, 0)
 
 
+class _CreatePilesEventHandler(IExternalEventHandler):
+    """
+    Runs the actual pile-creation transactions via Revit's ExternalEvent
+    mechanism instead of directly inside the WPF button-click callback.
+
+    Root cause (confirmed via the persistent NOSA log, not guessed): even
+    with doc=self.doc passed explicitly, revit.Transaction(...).Start()
+    itself kept raising "Starting a transaction from an external
+    application running outside of API context is not allowed" —
+    regardless of which Document was targeted. That means the call was
+    genuinely happening outside a context Revit considers valid for
+    starting a transaction at that point in this tool's flow (the one
+    tool in this extension that runs uidoc.Selection.PickObject, via
+    Hide/Show, from inside an already-open modal window — for both slab
+    selection and Manual mode).
+
+    ExternalEvent.Raise() schedules Execute() to run on Revit's own next
+    idle cycle, inside a context Revit itself created and considers valid
+    — this is the Autodesk-documented fix for exactly this class of error,
+    and doesn't depend on figuring out the precise mechanism by which the
+    context became invalid.
+    """
+
+    def __init__(self, window):
+        self.window = window
+        self.pending = None
+
+    def Execute(self, uiapp):
+        window = self.window
+        ctx = self.pending
+        self.pending = None
+        if ctx is None:
+            return
+        try:
+            window._do_create_piles_and_group(ctx)
+        except Exception as ex:
+            _logger.critical(u'CreatePilesEventHandler.Execute: unhandled '
+                              u'exception', exception=ex)
+            try:
+                window.SetLoading(False)
+                forms.alert(u'Unexpected error:\n{}'.format(ex), title=u'NOSA — Error')
+            except Exception:
+                pass
+
+    def GetName(self):
+        return u'NOSA_AddPileToPilecap_CreatePiles'
+
+
 class AddPileToPilecapWindow(NOSAWindow):
 
     def __init__(self, doc, uidoc, output):
@@ -47,6 +96,9 @@ class AddPileToPilecapWindow(NOSAWindow):
         self.doc = doc
         self.uidoc = uidoc
         self.output = output
+
+        self._create_handler = _CreatePilesEventHandler(self)
+        self._create_event = ExternalEvent.Create(self._create_handler)
 
         self._slab = None
         self._level = None
@@ -531,55 +583,51 @@ class AddPileToPilecapWindow(NOSAWindow):
             slab_bottom_z = bbox.Min.Z
 
         pile_top_z = slab_bottom_z + embedment_ft
-        pile_height_ft = _logic.get_pile_height(pile_symbol)
 
+        # All the transactional work runs later, inside
+        # _do_create_piles_and_group(), via ExternalEvent.Raise() — see
+        # _CreatePilesEventHandler's docstring for why (revit.Transaction
+        # kept failing with "outside of API context" even with an explicit
+        # doc= passed, which pinned the cause to context validity, not
+        # document identity).
+        ctx = {
+            'grid_points':         grid_points,
+            'pile_symbol':         pile_symbol,
+            'slab':                slab,
+            'pile_top_z':          pile_top_z,
+            'span_rotation_angle': span_rotation_angle,
+            'spacing_mm':          spacing_mm,
+            'pile_name':           pile_name,
+            'embedment_mm':        embedment_mm,
+        }
+        self._create_handler.pending = ctx
+        self.SetLoading(True, u'Creating piles...')
+        _logger.debug(u'Create_Click: raising ExternalEvent for pile creation')
+        self._create_event.Raise()
+
+    def _do_create_piles_and_group(self, ctx):
+        """
+        Runs inside _CreatePilesEventHandler.Execute(), scheduled via
+        ExternalEvent.Raise() from Create_Click — see that handler's
+        docstring for why this can't run directly in the button-click
+        callback on this Revit/pyRevit build.
+        """
         from nosa_utils.progress import nosa_progress
 
-        # Diagnostic snapshot right before the transaction that has been
-        # failing with "Starting a transaction from an external application
-        # running outside of API context is not allowed" — this tool is the
-        # only one in the extension that does uidoc.Selection.PickObject
-        # (Hide/Show) from inside an already-open modal window (both for
-        # slab selection and Manual mode), which is a plausible way to leave
-        # Revit's tracked active document out of sync with self.doc. Logged
-        # to the persistent NOSA log file so the next failure is diagnosable
-        # without guessing again.
-        try:
-            active_doc = revit.doc
-            same_doc = (active_doc is not None and self.doc is not None
-                        and active_doc.Equals(self.doc))
-            _logger.debug(
-                u'Create_Click: pre-transaction snapshot — self.doc.Title={}, '
-                u'self.doc.IsModifiable={}, revit.doc.Title={}, '
-                u'self.doc == revit.doc: {}'.format(
-                    getattr(self.doc, 'Title', '?'),
-                    getattr(self.doc, 'IsModifiable', '?'),
-                    getattr(active_doc, 'Title', '?'),
-                    same_doc))
-        except Exception as ex:
-            _logger.warning(u'Create_Click: pre-transaction snapshot failed', exception=ex)
+        grid_points         = ctx['grid_points']
+        pile_symbol         = ctx['pile_symbol']
+        slab                = ctx['slab']
+        pile_top_z          = ctx['pile_top_z']
+        span_rotation_angle = ctx['span_rotation_angle']
+        spacing_mm          = ctx['spacing_mm']
+        pile_name           = ctx['pile_name']
+        embedment_mm        = ctx['embedment_mm']
 
         pile_ids = []
         creation_error = None
         try:
-            _logger.debug(u'Create_Click: opening "Create Piles" transaction')
+            _logger.debug(u'_do_create_piles_and_group: opening "Create Piles" transaction')
             with revit.Transaction(u'Create Piles', doc=self.doc):
-                # Activating the symbol here (inside the same transaction as
-                # the actual pile creation, right after the last modal
-                # dialog) rather than in its own earlier transaction —
-                # opening a transaction, then a confirm dialog, then another
-                # transaction reproduced "Starting a transaction from an
-                # external application running outside of API context is
-                # not allowed" on this pyRevit/Revit build; every other
-                # working transaction call in this codebase has at most one
-                # dialog before its transaction, never a transaction-dialog-
-                # transaction sequence. Also now passes doc=self.doc
-                # explicitly — without it, revit.Transaction() defaults to
-                # pyRevit's own globally-tracked "current document," which
-                # can differ from this window's self.doc if anything (e.g.
-                # the Hide/PickObject/Show sequence used for slab selection
-                # or Manual mode) caused Revit's active document tracking to
-                # diverge during this window's lifetime.
                 if not pile_symbol.IsActive:
                     pile_symbol.Activate()
                 with nosa_progress(len(grid_points), u'Creating piles',
@@ -593,16 +641,12 @@ class AddPileToPilecapWindow(NOSAWindow):
                             pile_ids.append(inst.Id)
                         except Exception as ex:
                             self.LogLine(u'Warning: pile at {} failed: {}'.format(pt, ex))
-            _logger.info(u'Create_Click: "Create Piles" transaction committed, '
-                         u'{} piles placed'.format(len(pile_ids)))
+            _logger.info(u'_do_create_piles_and_group: "Create Piles" transaction '
+                         u'committed, {} piles placed'.format(len(pile_ids)))
         except Exception as ex:
-            # Anything escaping here (e.g. from the Transaction/progress
-            # context managers themselves, not the per-pile try/except
-            # above) would previously fail silently — Create_Click is a raw
-            # WPF event handler, not covered by launch_nosa_window's
-            # protection around the initial ShowDialog() call.
             creation_error = ex
-            _logger.error(u'Create_Click: "Create Piles" transaction failed', exception=ex)
+            _logger.error(u'_do_create_piles_and_group: "Create Piles" transaction failed',
+                          exception=ex)
         finally:
             self.SetLoading(False)
 
@@ -618,14 +662,14 @@ class AddPileToPilecapWindow(NOSAWindow):
 
         self.LogLine(u'{} piles created.'.format(len(pile_ids)))
 
-        _logger.debug(u'Create_Click: opening "Unjoin Piles from Slab" transaction')
+        _logger.debug(u'_do_create_piles_and_group: opening "Unjoin Piles from Slab" transaction')
         with revit.Transaction(u'Unjoin Piles from Slab', doc=self.doc):
             n_unjoin = _logic.unjoin_piles_from_slab(self.doc, pile_ids, slab)
         self.LogLine(u'{} piles unjoined from slab.'.format(n_unjoin))
 
         next_num = _logic.find_next_core_number(self.doc)
         group_name = u'Core {}'.format(next_num)
-        _logger.debug(u'Create_Click: opening "Create Group" transaction')
+        _logger.debug(u'_do_create_piles_and_group: opening "Create Group" transaction')
         with revit.Transaction(u"Create Group '{}'".format(group_name), doc=self.doc):
             try:
                 _logic.create_core_group(self.doc, slab.Id, pile_ids, group_name)
