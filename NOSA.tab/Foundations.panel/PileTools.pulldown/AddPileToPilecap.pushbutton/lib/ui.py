@@ -480,10 +480,6 @@ class AddPileToPilecapWindow(NOSAWindow):
             forms.alert(u'Invalid pile type.')
             return
 
-        if not pile_symbol.IsActive:
-            with revit.Transaction(u'Activate Pile Symbol'):
-                pile_symbol.Activate()
-
         pattern = self._current_pattern()
         embedment_ft = unit_conversion.mm_to_feet(embedment_mm)
 
@@ -530,6 +526,18 @@ class AddPileToPilecapWindow(NOSAWindow):
         creation_error = None
         try:
             with revit.Transaction(u'Create Piles'):
+                # Activating the symbol here (inside the same transaction as
+                # the actual pile creation, right after the last modal
+                # dialog) rather than in its own earlier transaction —
+                # opening a transaction, then a confirm dialog, then another
+                # transaction reproduced "Starting a transaction from an
+                # external application running outside of API context is
+                # not allowed" on this pyRevit/Revit build; every other
+                # working transaction call in this codebase has at most one
+                # dialog before its transaction, never a transaction-dialog-
+                # transaction sequence.
+                if not pile_symbol.IsActive:
+                    pile_symbol.Activate()
                 with nosa_progress(len(grid_points), u'Creating piles',
                                    step=10, window=self) as pb:
                     for i, pt in enumerate(grid_points):
