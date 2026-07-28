@@ -325,10 +325,64 @@ def collect_element_materials_from_selection(doc, element_ids):
     return result
 
 
+def _assign_material_any_param(el, material_id):
+    """
+    Try STRUCTURAL_MATERIAL_PARAM, then MATERIAL_ID_PARAM, then — for nested/
+    generic family instances that expose their material through a family-
+    defined parameter with no fixed BuiltInParameter at all (common for
+    components nested inside a host family) — any writable ElementId-storage
+    parameter whose name mentions "material". Returns True if assigned.
+    """
+    p = el.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
+    if p and not p.IsReadOnly:
+        p.Set(material_id)
+        return True
+
+    p2 = el.get_Parameter(DB.BuiltInParameter.MATERIAL_ID_PARAM)
+    if p2 and not p2.IsReadOnly:
+        p2.Set(material_id)
+        return True
+
+    try:
+        for param in el.Parameters:
+            try:
+                if (param.StorageType == DB.StorageType.ElementId
+                        and not param.IsReadOnly
+                        and param.Definition
+                        and 'material' in param.Definition.Name.lower()):
+                    param.Set(material_id)
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    return False
+
+
+def _nested_subcomponent_ids(el):
+    """FamilyInstances can host their own nested FamilyInstances (e.g. a
+    connection plate family with bolt/plate sub-families nested inside it).
+    Selecting the HOST doesn't reach those nested instances' own material
+    parameters — this recurses into them so assigning a material to the host
+    also reaches everything nested inside it."""
+    ids = []
+    try:
+        sub_ids = el.GetSubComponentIds()
+    except Exception:
+        return ids
+    for sid in sub_ids:
+        ids.append(sid)
+    return ids
+
+
 def assign_material_to_elements(doc, element_ids, material_id):
     """
-    Assign material_id to each element_id via STRUCTURAL_MATERIAL_PARAM,
-    falling back to MATERIAL_ID_PARAM. Returns (ok_count, failed_count).
+    Assign material_id to each element_id — see _assign_material_any_param()
+    for the fallback chain. Also recurses into nested sub-components (for
+    family instances that host their own nested families) so a material
+    assigned to the host reaches nested components too, not just the host's
+    own parameters. Returns (ok_count, failed_count).
     """
     ok = failed = 0
     with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material") as t:
@@ -339,18 +393,22 @@ def assign_material_to_elements(doc, element_ids, material_id):
                 if el is None:
                     failed += 1
                     continue
-                assigned = False
-                p = el.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
-                if p and not p.IsReadOnly:
-                    p.Set(material_id)
-                    assigned = True
-                if not assigned:
-                    p2 = el.get_Parameter(DB.BuiltInParameter.MATERIAL_ID_PARAM)
-                    if p2 and not p2.IsReadOnly:
-                        p2.Set(material_id)
-                        assigned = True
-                if assigned:
+                host_ok = _assign_material_any_param(el, material_id)
+
+                nested_ok = nested_failed = 0
+                for sub_id in _nested_subcomponent_ids(el):
+                    try:
+                        sub_el = doc.GetElement(sub_id)
+                        if sub_el is not None and _assign_material_any_param(sub_el, material_id):
+                            nested_ok += 1
+                        else:
+                            nested_failed += 1
+                    except Exception:
+                        nested_failed += 1
+
+                if host_ok or nested_ok:
                     ok += 1
+                    failed += nested_failed
                 else:
                     failed += 1
             except Exception:
