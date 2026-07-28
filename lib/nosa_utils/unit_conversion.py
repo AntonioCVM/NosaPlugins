@@ -12,6 +12,8 @@ from Autodesk.Revit.DB import UnitUtils, UnitTypeId
 
 MM_TO_FT = 1.0 / 304.8
 FT_TO_MM = 304.8
+FT_TO_M  = 0.3048
+M_TO_FT  = 1.0 / 0.3048
 
 # =============================================================================
 # CONVERSION FUNCTIONS
@@ -87,28 +89,28 @@ def internal_to_mm(internal_value):
 
 def meters_to_feet(m_value):
     """
-    Convert meters to feet.
-    
+    Convert meters to feet (exact: 1 ft = 0.3048 m by definition).
+
     Args:
         m_value (float): Value in meters
-        
+
     Returns:
         float: Value in feet
     """
-    return m_value * 3.28084
+    return m_value * M_TO_FT
 
 
 def feet_to_meters(ft_value):
     """
-    Convert feet to meters.
-    
+    Convert feet to meters (exact: 1 ft = 0.3048 m by definition).
+
     Args:
         ft_value (float): Value in feet
-        
+
     Returns:
         float: Value in meters
     """
-    return ft_value / 3.28084
+    return ft_value * FT_TO_M
 
 
 # =============================================================================
