@@ -1,9 +1,9 @@
 {
   "priority": [
     "Floors", 
-    "Foundations", 
     "Framing", 
     "Columns", 
-    "Walls"
+    "Walls", 
+    "Foundations"
   ]
 }
