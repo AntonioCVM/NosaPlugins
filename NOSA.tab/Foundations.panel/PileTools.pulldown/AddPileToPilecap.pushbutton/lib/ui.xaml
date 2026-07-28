@@ -87,9 +87,27 @@
                     <TextBlock Name="TxtSlabInfo" Text="No slab selected"
                                FontSize="10" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Distribution" FontSize="11" Margin="0,0,0,4"/>
-                    <ComboBox Name="CboDistribution" IsEnabled="False"
-                              SelectionChanged="Preview_Changed" Margin="0,0,0,14"/>
+                    <TextBlock Text="Pile distribution (editable)" FontSize="11" Margin="0,0,0,4"/>
+                    <Grid Margin="0,0,0,4">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Piles U" FontSize="10" Opacity="0.7"/>
+                            <TextBox Name="TxtPilesU" Style="{DynamicResource FieldBox}"
+                                     IsEnabled="False" TextChanged="Preview_Changed"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Piles V" FontSize="10" Opacity="0.7"/>
+                            <TextBox Name="TxtPilesV" Style="{DynamicResource FieldBox}"
+                                     IsEnabled="False" TextChanged="Preview_Changed"/>
+                        </StackPanel>
+                    </Grid>
+                    <Button Name="BtnSuggestDistribution" Content="Suggest optimal distribution"
+                            Style="{DynamicResource SecondaryButton}"
+                            Click="SuggestDistribution_Click" IsEnabled="False" Margin="0,4,0,14"/>
 
                     <Button Name="BtnCreate" Content="CREATE PILES &amp; GROUP"
                             Style="{DynamicResource ActionButton}"

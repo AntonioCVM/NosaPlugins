@@ -50,7 +50,6 @@ class AddPileToPilecapWindow(NOSAWindow):
         self._layout = None
         self._face_inf = None
         self._slab_bottom_z = None
-        self._distribution_details = []
         self._symbol_map = {}
         self._pile_symbols = []
 
@@ -123,6 +122,54 @@ class AddPileToPilecapWindow(NOSAWindow):
     # Shared by Create_Click (real creation) and the live canvas preview, so the
     # preview always shows exactly the grid that would be built.
 
+    def _suggest_distribution(self, spacing_mm):
+        """Fill TxtPilesU/TxtPilesV with the geometrically-optimal pile count
+        for the current slab and spacing — a sensible starting point, not a
+        hard limit; both fields stay freely editable afterwards."""
+        if not self._layout:
+            return
+        spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
+        n_spaces_u, _margin_u = _logic.calculate_pile_distribution(self._layout['slab_width'], spacing_ft)
+        n_spaces_v, _margin_v = _logic.calculate_pile_distribution(self._layout['slab_height'], spacing_ft)
+        self.TxtPilesU.Text = str(n_spaces_u + 1)
+        self.TxtPilesV.Text = str(n_spaces_v + 1)
+
+    def SuggestDistribution_Click(self, sender, args):
+        spacing_mm, _embedment_mm = self._try_read_numbers()
+        if spacing_mm is None:
+            forms.alert(u'Enter a valid spacing (mm) first.')
+            return
+        self._suggest_distribution(spacing_mm)
+
+    def _try_read_pile_counts(self):
+        """Silent parse of TxtPilesU/TxtPilesV — None, None if invalid, for
+        live preview refresh."""
+        try:
+            n_u = int(float(self.TxtPilesU.Text.strip()))
+            n_v = int(float(self.TxtPilesV.Text.strip()))
+        except (ValueError, AttributeError):
+            return None, None
+        if n_u < 1 or n_v < 1:
+            return None, None
+        return n_u, n_v
+
+    def _read_pile_counts(self):
+        n_u, n_v = self._try_read_pile_counts()
+        if n_u is None:
+            forms.alert(u'Enter valid whole numbers (≥ 1) for Piles U and Piles V.')
+            return None, None
+        return n_u, n_v
+
+    def _distribution_margins(self, n_u, n_v, spacing_ft):
+        """(margin_u_ft, margin_v_ft) for n_u × n_v piles at the given spacing
+        over the current slab's bounding dimensions — used both to size the
+        min_edge tolerance for irregular slabs and to warn the user in the
+        preview if their chosen count doesn't fit well."""
+        layout = self._layout
+        margin_u = (layout['slab_width']  - (n_u - 1) * spacing_ft) / 2.0
+        margin_v = (layout['slab_height'] - (n_v - 1) * spacing_ft) / 2.0
+        return margin_u, margin_v
+
     def _compute_grid_points(self):
         """
         Returns a list of pile XYZ points for the current slab/pattern/spacing/
@@ -134,17 +181,16 @@ class AddPileToPilecapWindow(NOSAWindow):
         spacing_mm, _embedment_mm = self._try_read_numbers()
         if spacing_mm is None:
             return None
-        idx = self.CboDistribution.SelectedIndex
-        if idx < 0 or idx >= len(self._distribution_details):
+        n_piles_u, n_piles_v = self._try_read_pile_counts()
+        if n_piles_u is None:
             return None
 
         pattern = self._current_pattern()
         if pattern == 'manual':
             return None
 
-        n_spaces_u, n_spaces_v, edge_margin_u, edge_margin_v = self._distribution_details[idx]
-        n_piles_u = n_spaces_u + 1
-        n_piles_v = n_spaces_v + 1
+        n_spaces_u = n_piles_u - 1
+        n_spaces_v = n_piles_v - 1
 
         layout = self._layout
         span_dir = layout['span_dir']
@@ -156,6 +202,7 @@ class AddPileToPilecapWindow(NOSAWindow):
 
         spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
         slab_boundary = _logic.extract_face_boundary_points(self._face_inf)
+        edge_margin_u, edge_margin_v = self._distribution_margins(n_piles_u, n_piles_v, spacing_ft)
         min_edge = max(50 / 304.8, spacing_ft * 0.10,
                        min(edge_margin_u, edge_margin_v, spacing_ft * 0.15))
 
@@ -185,8 +232,18 @@ class AddPileToPilecapWindow(NOSAWindow):
 
     def _project_uv(self, pt, layout):
         vec = pt - layout['slab_center']
-        u = vec.X * layout['span_dir'].X + vec.Y * layout['span_dir'].Y
-        v = vec.X * layout['perp_dir'].X + vec.Y * layout['perp_dir'].Y
+        return self._project_uv_delta(vec.X, vec.Y, layout)
+
+    def _project_uv_xy(self, x, y, layout):
+        """Same projection as _project_uv, but from a raw world (x, y) tuple
+        (as returned by _logic.extract_face_boundary_points) instead of an
+        XYZ point."""
+        center = layout['slab_center']
+        return self._project_uv_delta(x - center.X, y - center.Y, layout)
+
+    def _project_uv_delta(self, dx, dy, layout):
+        u = dx * layout['span_dir'].X + dy * layout['span_dir'].Y
+        v = dx * layout['perp_dir'].X + dy * layout['perp_dir'].Y
         return u, v
 
     def Preview_Changed(self, sender, args):
@@ -205,7 +262,13 @@ class AddPileToPilecapWindow(NOSAWindow):
             return
 
         layout = self._layout
-        verts_uv = [self._project_uv(v, layout) for v in layout['vertices']]
+        # extract_face_boundary_points() walks the OUTER edge loop only, in
+        # sequential order — unlike layout['vertices'] (get_face_vertices),
+        # which concatenates every edge loop (incl. any inner ones) with no
+        # guaranteed relative order, producing a self-intersecting shape if
+        # drawn directly as a polygon.
+        boundary = _logic.extract_face_boundary_points(self._face_inf)
+        verts_uv = [self._project_uv_xy(x, y, layout) for x, y in boundary]
 
         pattern = self._current_pattern()
         if pattern == 'manual':
@@ -213,10 +276,18 @@ class AddPileToPilecapWindow(NOSAWindow):
             self.TxtPreviewInfo.Text = u'Manual mode — positions are picked interactively on Create.'
         else:
             grid_points = self._compute_grid_points() or []
-            self.TxtPreviewInfo.Text = (
-                u'{} piles'.format(len(grid_points)) if grid_points
-                else u'No valid pile positions for the current settings.'
-            )
+            info = (u'{} piles'.format(len(grid_points)) if grid_points
+                    else u'No valid pile positions for the current settings.')
+            n_u, n_v = self._try_read_pile_counts()
+            spacing_mm, _emb = self._try_read_numbers()
+            if n_u is not None and spacing_mm is not None:
+                spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
+                margin_u, margin_v = self._distribution_margins(n_u, n_v, spacing_ft)
+                info += u'  —  edge margin U: {:.0f} mm, V: {:.0f} mm'.format(
+                    unit_conversion.feet_to_mm(margin_u), unit_conversion.feet_to_mm(margin_v))
+                if margin_u < 0 or margin_v < 0:
+                    info += u'  ⚠ piles would fall outside the slab — reduce Piles U/V.'
+            self.TxtPreviewInfo.Text = info
 
         piles_uv = [self._project_uv(p, layout) for p in grid_points]
 
@@ -312,30 +383,21 @@ class AddPileToPilecapWindow(NOSAWindow):
             forms.alert(u'Could not extract slab layout.')
             return
 
-        spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
-        n_spaces_u, margin_u = _logic.calculate_pile_distribution(layout['slab_width'], spacing_ft)
-        n_spaces_v, margin_v = _logic.calculate_pile_distribution(layout['slab_height'], spacing_ft)
-        options = _logic.generate_distribution_options(
-            layout['slab_width'], layout['slab_height'], spacing_ft, n_spaces_u, n_spaces_v)
-
         self._slab = slab
         self._level = level
         self._layout = layout
         self._face_inf = face_inf
         self._slab_bottom_z = layout['slab_z']
-        self._distribution_details = options
 
         self.TxtSlabInfo.Text = u'Slab {} — {:.1f} × {:.1f} ft'.format(
             get_id_value(slab.Id), layout['slab_width'], layout['slab_height'])
 
-        self.CboDistribution.Items.Clear()
-        for i, (nu, nv, mu, mv, total) in enumerate(options):
-            self.CboDistribution.Items.Add(
-                u'{} × {} = {} piles'.format(nu + 1, nv + 1, total))
-        self.CboDistribution.SelectedIndex = 0
-        self.CboDistribution.IsEnabled = True
+        self.TxtPilesU.IsEnabled = True
+        self.TxtPilesV.IsEnabled = True
+        self.BtnSuggestDistribution.IsEnabled = True
         self.BtnCreate.IsEnabled = True
-        self.LogLine(u'Slab selected — choose distribution and create.')
+        self._suggest_distribution(spacing_mm)
+        self.LogLine(u'Slab selected — adjust distribution and create.')
         self._refresh_preview()
 
         _logic.save_last_config(
@@ -366,10 +428,10 @@ class AddPileToPilecapWindow(NOSAWindow):
         pattern = self._current_pattern()
         embedment_ft = unit_conversion.mm_to_feet(embedment_mm)
 
-        idx = self.CboDistribution.SelectedIndex
-        if idx < 0 or idx >= len(self._distribution_details):
-            forms.alert(u'Select a pile distribution.')
-            return
+        if pattern != 'manual':
+            n_u, n_v = self._read_pile_counts()
+            if n_u is None:
+                return
 
         layout = self._layout
         span_rotation_angle = layout['span_rotation_angle']
