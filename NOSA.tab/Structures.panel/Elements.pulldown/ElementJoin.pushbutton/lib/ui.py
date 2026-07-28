@@ -206,7 +206,7 @@ class ElementJoinWindow(NOSAWindow):
         op = ('unjoin' if self.RbManualUnjoin.IsChecked == True else
               'swap'   if self.RbManualSwap.IsChecked   == True else 'join')
         try:
-            with revit.Transaction("SmartJoin — Manual"):
+            with revit.Transaction(u"NOSA — Element Join — Manual"):
                 if op == 'join':
                     ok, msg = _logic.join_ordered(self.doc, self._picked_a, self._picked_b)
                 elif op == 'unjoin':

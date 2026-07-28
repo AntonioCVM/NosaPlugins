@@ -220,7 +220,7 @@ def batch_join_by_proximity(doc, elements, operation='join', tolerance_mm=50):
     op_func = _op_funcs.get(operation, join_elements)
 
     try:
-        with DB.Transaction(doc, u"NOSA — SmartJoin — {}".format(operation.capitalize())) as t:
+        with DB.Transaction(doc, u"NOSA — Element Join — {}".format(operation.capitalize())) as t:
             t.Start()
             for i in range(n):
                 for j in range(i + 1, n):
@@ -278,7 +278,7 @@ def batch_join_ordered(doc, elements, priority_list, tolerance_mm=50, fix_existi
     n = len(elements)
 
     try:
-        with DB.Transaction(doc, u"NOSA — SmartJoin — Priority Join") as t:
+        with DB.Transaction(doc, u"NOSA — Element Join — Priority Join") as t:
             t.Start()
             for i in range(n):
                 for j in range(i + 1, n):
