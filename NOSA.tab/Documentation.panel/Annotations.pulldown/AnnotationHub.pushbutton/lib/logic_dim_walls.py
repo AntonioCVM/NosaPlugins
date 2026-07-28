@@ -1,7 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 from Autodesk.Revit import DB
 from pyrevit import revit
-import math
 
 class DimensionLogic:
     def __init__(self, doc):
@@ -187,98 +186,85 @@ class DimensionLogic:
         except Exception:
             return None
 
-    def create_arc_dimensions(self, wall, view, dim_type, offset_mm):
+    def create_arc_dimensions(self, wall, view, dim_type, offset_mm, log_fn=None):
         """Create Radius and Arc Length dimensions for curved wall."""
+        def _log(msg):
+            if log_fn:
+                try:
+                    log_fn(msg)
+                except Exception:
+                    pass
+
         geo = self.get_wall_curve_data(wall)
         if not geo['is_arc']: return []
-        
+
         created = []
         offset = self.mm_to_internal(offset_mm)
-        
+
         curve_ref = None
-        
-        # 0. Try to get Curve Reference directly from LocationCurve (sometimes works)
-        # Usually LocationCurve doesn't have a reference unless we get it from an Instance Geometry
-        
-        # 1. Try finding a Curved Face (Cylindrical)
-        # This is the most reliable way for Radial Dimensions on Walls
+
+        # Find a Curved Face (Cylindrical) — most reliable way to get a
+        # radial dimension reference on a curved wall.
+        opts = DB.Options()
+        opts.ComputeReferences = True
+        opts.View = view
+        opts.IncludeNonVisibleObjects = True
+
+        geom = wall.get_Geometry(opts)
+        if geom:
+            for obj in geom:
+                if isinstance(obj, DB.Solid):
+                    for f in obj.Faces:
+                        if isinstance(f, DB.CylindricalFace):
+                            if f.Reference:
+                                curve_ref = f.Reference
+                                break
+                    if curve_ref: break
         if not curve_ref:
-            opts = DB.Options()
-            opts.ComputeReferences = True
-            opts.View = view
-            opts.IncludeNonVisibleObjects = True
-            
-            geom = wall.get_Geometry(opts)
-            if geom:
-                for obj in geom:
-                    if isinstance(obj, DB.Solid):
-                        for f in obj.Faces:
-                            # Check if cylindrical
-                            if isinstance(f, DB.CylindricalFace):
-                                if f.Reference:
-                                    curve_ref = f.Reference
-                                    break
-                        if curve_ref: break
-        
-        # 2. RADIUS DIMENSION
+            _log(u'Wall {}: no cylindrical face reference found in this view '
+                 u'(radius dimension skipped).'.format(wall.Id))
+
+        # RADIUS DIMENSION
+        mid_vec = (geo['mid_pt'] - geo['center']).Normalize()
         if curve_ref:
             try:
-                # Origin for the dimension text/leader
-                mid_vec = (geo['mid_pt'] - geo['center']).Normalize()
                 origin = geo['mid_pt'] + mid_vec * offset
-                
                 dim_rad = self.doc.Create.NewRadialDimension(view, curve_ref, origin)
                 if dim_type: dim_rad.DimensionType = dim_type
                 created.append(dim_rad)
             except Exception as e:
-                pass
-                # print("Radius dim failed: " + str(e))
+                _log(u'Wall {}: radius dimension failed — {}'.format(wall.Id, e))
 
-        # 3. ARC LENGTH DIMENSION
-        # Needs Arc Ref (to the curve being measured) + 2 Perpendicular Refs (Limits)
-        # Using the same curve_ref (Wall Face) works for the "Arc" input of NewDimension usually?
-        # Actually NewDimension for Arc Length expects the *Dimension Line* arc geometry as input.
-        
-        try:
-            refs = self.get_wall_references(wall, view) # Get vertical end faces
-            if refs and len(refs) >= 2:
+        # ARC LENGTH DIMENSION — needs the two end-face references plus the
+        # offset arc geometry (same center, radius + offset).
+        refs = self.get_wall_references(wall, view)
+        if not refs or len(refs) < 2:
+            _log(u'Wall {}: could not find two end-face references for the '
+                 u'arc-length dimension (skipped).'.format(wall.Id))
+        else:
+            try:
                 ref_array = DB.ReferenceArray()
-                ref_array.Append(refs[0]) # Start Face
-                ref_array.Append(refs[1]) # End Face
-                
-                # If we have a curve reference (face), add it too?
-                # Some API docs suggest adding the arc reference to the array for Arc Length?
-                # or is it implied by the dimension type?
-                
-                # Let's try to find an Arc Length dimension type if the current one is Linear
-                # But we can't switch types easily. Assuming user selected a proper type or Linear works.
-                
-                # Geometry: Arc concentric to wall
+                ref_array.Append(refs[0])
+                ref_array.Append(refs[1])
+
+                # Build the offset arc from 3 points actually on it (start,
+                # end, mid — all in the wall's own sweep direction) instead
+                # of reconstructing start/end angles with atan2 + a fixed
+                # BasisX/BasisY frame, which silently produces the arc going
+                # the wrong way around whenever the sweep crosses the 0°/360°
+                # boundary in world coordinates.
                 new_radius = geo['radius'] + offset
                 v_start = (geo['start_pt'] - geo['center']).Normalize()
-                v_end = (geo['end_pt'] - geo['center']).Normalize()
-                
-                # Angles calculation handling periodicity
-                # Simplification: Create bound arc through 3 points? or by center/radius
-                # DB.Arc.Create(plane, radius, startParam, endParam)
-                
-                # Let's use simple 3-point construction if possible or Plane-based
-                # We assume wall is on XY plane (ViewPlan)
-                
-                angle_start = math.atan2(v_start.Y, v_start.X)
-                angle_end = math.atan2(v_end.Y, v_end.X)
-                
-                # DB.Arc.Create(center, radius, startAngle, endAngle, xAxis, yAxis)
-                dim_arc_geom = DB.Arc.Create(geo['center'], new_radius, angle_start, angle_end, DB.XYZ.BasisX, DB.XYZ.BasisY)
+                v_end   = (geo['end_pt']   - geo['center']).Normalize()
 
+                p_start = geo['center'] + v_start * new_radius
+                p_end   = geo['center'] + v_end   * new_radius
+                p_mid   = geo['center'] + mid_vec  * new_radius
+
+                dim_arc_geom = DB.Arc.Create(p_start, p_end, p_mid)
                 dim_arc_len = self.doc.Create.NewDimension(view, dim_arc_geom, ref_array, dim_type)
-                
-                # Check if it was created as Linear or ArcLength?
-                # If created, it's good.
                 created.append(dim_arc_len)
+            except Exception as e:
+                _log(u'Wall {}: arc-length dimension failed — {}'.format(wall.Id, e))
 
-        except Exception as e:
-            # print("Arc Length dim failed: " + str(e))
-            pass
-            
         return created

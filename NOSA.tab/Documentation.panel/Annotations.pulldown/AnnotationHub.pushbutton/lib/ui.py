@@ -128,8 +128,9 @@ class AnnotationHubWindow(NOSAWindow):
         except Exception:
             pass
 
-        created = 0
-        failed  = 0
+        created  = 0
+        failed   = 0
+        diag_log = []
         with revit.Transaction(u'NOSA — Dimension Walls'):
             for view in selected:
                 walls = self._dw_logic.get_valid_walls_in_view(view)
@@ -137,7 +138,8 @@ class AnnotationHubWindow(NOSAWindow):
                     geo    = self._dw_logic.get_wall_curve_data(wall)
                     is_arc = geo['is_arc']
                     if is_arc and do_curved:
-                        res = self._dw_logic.create_arc_dimensions(wall, view, dim_type, offset_mm)
+                        res = self._dw_logic.create_arc_dimensions(
+                            wall, view, dim_type, offset_mm, log_fn=diag_log.append)
                         if res:
                             created += len(res)
                         else:
@@ -150,7 +152,11 @@ class AnnotationHubWindow(NOSAWindow):
                             failed += 1
 
         self.DW_OverlayProgress.Visibility = System.Windows.Visibility.Collapsed
-        forms.alert(u'Created {} dimensions.\n(Failed/skipped: {})'.format(created, failed))
+        msg = u'Created {} dimensions.\n(Failed/skipped: {})'.format(created, failed)
+        if diag_log:
+            msg += u'\n\nDetails ({} of {}):\n{}'.format(
+                min(5, len(diag_log)), len(diag_log), u'\n'.join(diag_log[:5]))
+        forms.alert(msg)
 
     # ──────────────────────────────────────────────────────────────────
     # GA AUTO-DIMENSION helpers
