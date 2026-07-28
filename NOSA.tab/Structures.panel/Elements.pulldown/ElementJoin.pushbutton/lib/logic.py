@@ -10,6 +10,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import geometry as _geometry
 _FT_TO_MM = 304.8
 
 # Default priority: index 0 = highest (cuts everyone below it).
@@ -190,15 +191,7 @@ def _bboxes_within_tolerance(el1, el2, tolerance_ft):
     try:
         bb1 = el1.get_BoundingBox(None)
         bb2 = el2.get_BoundingBox(None)
-        if bb1 is None or bb2 is None:
-            return False
-        def overlaps_1d(a_min, a_max, b_min, b_max, tol):
-            return a_min - tol <= b_max and b_min - tol <= a_max
-        return (
-            overlaps_1d(bb1.Min.X, bb1.Max.X, bb2.Min.X, bb2.Max.X, tolerance_ft) and
-            overlaps_1d(bb1.Min.Y, bb1.Max.Y, bb2.Min.Y, bb2.Max.Y, tolerance_ft) and
-            overlaps_1d(bb1.Min.Z, bb1.Max.Z, bb2.Min.Z, bb2.Max.Z, tolerance_ft)
-        )
+        return _geometry.bboxes_overlap(bb1, bb2, tolerance_ft)
     except Exception:
         return False
 

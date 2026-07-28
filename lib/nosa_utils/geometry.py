@@ -139,6 +139,33 @@ def get_solid_from_element(element, options=None):
 # GEOMETRIC CALCULATIONS
 # =============================================================================
 
+def bboxes_overlap(bbox1, bbox2, tolerance_ft=0.0):
+    """
+    Check if two Revit BoundingBoxXYZ overlap in all three axes, with an
+    optional tolerance margin (in feet) applied on each side — 0.0 gives a
+    strict overlap test (ClashReport's use case), a positive value gives a
+    proximity test (ElementJoin's "within N mm" use case).
+
+    Args:
+        bbox1, bbox2 (BoundingBoxXYZ): the two boxes to compare
+        tolerance_ft (float): margin added to each box's extents (feet)
+
+    Returns:
+        bool: True if the (possibly expanded) boxes overlap on every axis
+    """
+    if not bbox1 or not bbox2:
+        return False
+
+    def _overlaps_1d(a_min, a_max, b_min, b_max, tol):
+        return a_min - tol <= b_max and b_min - tol <= a_max
+
+    return (
+        _overlaps_1d(bbox1.Min.X, bbox1.Max.X, bbox2.Min.X, bbox2.Max.X, tolerance_ft) and
+        _overlaps_1d(bbox1.Min.Y, bbox1.Max.Y, bbox2.Min.Y, bbox2.Max.Y, tolerance_ft) and
+        _overlaps_1d(bbox1.Min.Z, bbox1.Max.Z, bbox2.Min.Z, bbox2.Max.Z, tolerance_ft)
+    )
+
+
 def calculate_distance_2d(point1, point2):
     """
     Calculate 2D distance (XY plane only) between two points.

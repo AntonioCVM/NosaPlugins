@@ -8,6 +8,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value as _get_id_value
 from nosa_utils import solids as _solids
+from nosa_utils import geometry as _geometry
 
 
 def _log_debug(msg, exc=None):
@@ -52,13 +53,7 @@ class ClashLogic:
 
     def bounding_boxes_intersect(self, bbox1, bbox2):
         """Check if two bounding boxes intersect."""
-        if not bbox1 or not bbox2:
-            return False
-        
-        # Check if boxes overlap in all three dimensions
-        return (bbox1.Min.X <= bbox2.Max.X and bbox1.Max.X >= bbox2.Min.X and
-                bbox1.Min.Y <= bbox2.Max.Y and bbox1.Max.Y >= bbox2.Min.Y and
-                bbox1.Min.Z <= bbox2.Max.Z and bbox1.Max.Z >= bbox2.Min.Z)
+        return _geometry.bboxes_overlap(bbox1, bbox2)
 
     def solids_intersect(self, solid1, solid2):
         """Check if two solids intersect using Boolean operation."""
