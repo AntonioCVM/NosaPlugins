@@ -293,7 +293,23 @@ class DimensionLogic:
                 return None
 
     def create_arc_dimensions(self, wall, view, dim_type, offset_mm, log_fn=None):
-        """Create Radius and Arc Length dimensions for curved wall."""
+        """
+        Create Radius (text callout), Angular and Arc Length annotations for
+        a curved wall, matching the reference drafting convention: a radius
+        value, an angle at the arc centre, and an arc-length dimension.
+
+        Previous rounds tried referencing the wall's own solid geometry
+        (a CylindricalFace) for the arc-length dimension — this consistently
+        either raised an overload-mismatch error or (when it didn't raise)
+        gave no visual confirmation of success. This round sidesteps that
+        entirely: it creates its OWN auxiliary DetailCurve geometry (2 radius
+        lines + 1 offset arc) in the view, and references THOSE — elements
+        we fully control, with no ambiguity about face type or reference
+        kind. NewRadialDimension is confirmed unavailable on this Revit API
+        build (checked via hasattr across 3 rounds) with no equivalent
+        overload found, so the radius is shown as a plain TextNote instead
+        of a native radial dimension.
+        """
         def _log(msg):
             if log_fn:
                 try:
@@ -306,108 +322,76 @@ class DimensionLogic:
 
         created = []
         offset = self.mm_to_internal(offset_mm)
-
-        curve_ref = None
-
-        # Find a Curved Face (Cylindrical) — most reliable way to get a
-        # radial dimension reference on a curved wall.
-        opts = DB.Options()
-        opts.ComputeReferences = True
-        opts.View = view
-        opts.IncludeNonVisibleObjects = True
-
-        geom = wall.get_Geometry(opts)
-        if geom:
-            for obj in geom:
-                if isinstance(obj, DB.Solid):
-                    for f in obj.Faces:
-                        if isinstance(f, DB.CylindricalFace):
-                            if f.Reference:
-                                curve_ref = f.Reference
-                                break
-                    if curve_ref: break
-        if not curve_ref:
-            _log(u'Wall {}: no cylindrical face reference found in this view '
-                 u'(radius dimension skipped).'.format(wall.Id))
-
-        # RADIUS DIMENSION
-        mid_vec = (geo['mid_pt'] - geo['center']).Normalize()
-        if curve_ref and not hasattr(self.doc.Create, 'NewRadialDimension'):
-            _log(u'Wall {}: NewRadialDimension is not available on this Revit '
-                 u'API build — radius dimension skipped (arc-length is '
-                 u'unaffected).'.format(wall.Id))
-        elif curve_ref:
-            try:
-                origin = geo['mid_pt'] + mid_vec * offset
-                dim_rad = self.doc.Create.NewRadialDimension(view, curve_ref, origin)
-                if dim_type: dim_rad.DimensionType = dim_type
-                created.append(dim_rad)
-            except Exception as e:
-                _log(u'Wall {}: radius dimension failed — {}'.format(wall.Id, e))
-
-        # ARC LENGTH DIMENSION.
-        # The offset arc/chord geometry is shared by both attempts below.
+        center = geo['center']
+        mid_vec = (geo['mid_pt'] - center).Normalize()
         new_radius = geo['radius'] + offset
-        v_start = (geo['start_pt'] - geo['center']).Normalize()
-        v_end   = (geo['end_pt']   - geo['center']).Normalize()
-        p_start = geo['center'] + v_start * new_radius
-        p_end   = geo['center'] + v_end   * new_radius
-        dim_arc_geom = None
+        v_start = (geo['start_pt'] - center).Normalize()
+        v_end   = (geo['end_pt']   - center).Normalize()
+        p_start = center + v_start * new_radius
+        p_end   = center + v_end   * new_radius
+        p_mid   = center + mid_vec * new_radius
+
         try:
-            dim_arc_geom = DB.Arc.Create(p_start, p_end, geo['center'] + mid_vec * new_radius)
-        except Exception:
-            pass
+            line_start = DB.Line.CreateBound(center, p_start)
+            line_end   = DB.Line.CreateBound(center, p_end)
+            arc_curve  = DB.Arc.Create(p_start, p_end, p_mid)
+        except Exception as e:
+            _log(u'Wall {}: could not build auxiliary radius/arc geometry — {}'.format(wall.Id, e))
+            return created
 
-        arc_len_dim = None
-        attempt_errors = []
+        try:
+            dc_start = self.doc.Create.NewDetailCurve(view, line_start)
+            dc_end   = self.doc.Create.NewDetailCurve(view, line_end)
+            dc_arc   = self.doc.Create.NewDetailCurve(view, arc_curve)
+        except Exception as e:
+            _log(u'Wall {}: could not create auxiliary detail curves — {}'.format(wall.Id, e))
+            return created
 
-        # Attempt A: Arc geometry + the curved face's own Reference, wrapped
-        # in a ReferenceArray. Document.Create.NewDimension's 3-argument
-        # curve+refs overloads take a ReferenceArray in every documented
-        # form (Line+ReferenceArray is the same shape) — passing a bare
-        # Reference instead (tried previously) doesn't match that overload
-        # at all, which is consistent with pythonnet reporting the mismatch
-        # against the nearest same-arity overload it found ("expected Line,
-        # got Arc") rather than the real problem (Reference vs
-        # ReferenceArray).
-        if curve_ref is not None and dim_arc_geom is not None:
-            try:
-                arc_ref_array = DB.ReferenceArray()
-                arc_ref_array.Append(curve_ref)
-                arc_len_dim = self.doc.Create.NewDimension(view, dim_arc_geom, arc_ref_array)
-                if dim_type:
-                    try:
-                        arc_len_dim.DimensionType = dim_type
-                    except Exception:
-                        pass
-            except Exception as e:
-                attempt_errors.append(u'Arc+ReferenceArray: {}'.format(e))
-                arc_len_dim = None
-
-        # Attempt B (fallback): Line + ReferenceArray of the two end faces —
-        # confirmed NOT to raise, but not confirmed to produce a genuine
-        # arc-length reading either (no reference to the curved face at
-        # all) — kept only as a last resort so *something* gets created
-        # rather than nothing.
-        if arc_len_dim is None:
-            refs = self.get_wall_references(wall, view)
-            if not refs or len(refs) < 2:
-                attempt_errors.append(u'no end-face references found')
-            else:
+        # ANGULAR DIMENSION — angle between the 2 radius lines, at the arc centre.
+        try:
+            ang_dim = self.doc.Create.NewAngularDimension(
+                view, arc_curve, DB.Reference(dc_start), DB.Reference(dc_end))
+            if dim_type:
                 try:
-                    ref_array = DB.ReferenceArray()
-                    ref_array.Append(refs[0])
-                    ref_array.Append(refs[1])
-                    dim_line = DB.Line.CreateBound(p_start, p_end)
-                    arc_len_dim = self.doc.Create.NewDimension(view, dim_line, ref_array, dim_type)
-                except Exception as e:
-                    attempt_errors.append(u'Line+ReferenceArray: {}'.format(e))
-                    arc_len_dim = None
+                    ang_dim.DimensionType = dim_type
+                except Exception:
+                    pass
+            created.append(ang_dim)
+        except Exception as e:
+            _log(u'Wall {}: angular dimension failed — {}'.format(wall.Id, e))
 
-        if arc_len_dim is not None:
+        # ARC LENGTH DIMENSION — referencing our own auxiliary arc curve
+        # (not the wall's solid geometry), which is guaranteed to be a
+        # clean, referenceable Arc with no face-type ambiguity.
+        try:
+            arc_ref_array = DB.ReferenceArray()
+            arc_ref_array.Append(DB.Reference(dc_arc))
+            arc_len_dim = self.doc.Create.NewDimension(view, arc_curve, arc_ref_array)
+            if dim_type:
+                try:
+                    arc_len_dim.DimensionType = dim_type
+                except Exception:
+                    pass
             created.append(arc_len_dim)
-        else:
-            _log(u'Wall {}: arc-length dimension failed — {}'.format(
-                wall.Id, u'; '.join(attempt_errors) if attempt_errors else u'unknown'))
+        except Exception as e:
+            _log(u'Wall {}: arc-length dimension failed — {}'.format(wall.Id, e))
+
+        # RADIUS — NewRadialDimension is confirmed unavailable on this Revit
+        # API build (checked via hasattr in 3 separate rounds, never found).
+        # Shown as a plain text callout instead of a native dimension.
+        try:
+            radius_mm = geo['radius'] * 304.8
+            text_pt = center + mid_vec * (new_radius * 0.5)
+            text_type_id = DB.FilteredElementCollector(self.doc) \
+                .OfClass(DB.TextNoteType).FirstElementId()
+            if text_type_id and text_type_id != DB.ElementId.InvalidElementId:
+                note = DB.TextNote.Create(
+                    self.doc, view.Id, text_pt,
+                    u'R {:.0f}'.format(radius_mm), text_type_id)
+                created.append(note)
+            else:
+                _log(u'Wall {}: no TextNoteType found — radius callout skipped.'.format(wall.Id))
+        except Exception as e:
+            _log(u'Wall {}: radius text callout failed — {}'.format(wall.Id, e))
 
         return created
