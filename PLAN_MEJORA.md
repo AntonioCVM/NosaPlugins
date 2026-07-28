@@ -165,11 +165,16 @@ Estos no estaban en las Fases 1-8 originales porque no existían o no se habían
 
 ## Nivel 4 — Cosmético / limpieza final
 
-### Fase 15 — Borrar código muerto confirmado
-- **Qué**: eliminar las funciones/archivos de AUDITORIA §2.1 (`export_csv` en BulkParameterEditor, `_instance_count` en FamilyAudit, `collect_concrete_quantities`/`aggregate_by_level_category` v1 en QuantificationQA, `logger` sin usar en RevisionTracker, `get_available_categories` import en RebarCoverage, `get_tag_types_for_category`/`get_spot_elevation_types`/`batch_spot_elevations` en AnnotationBatch, `diagnose_tags_in_project` en TagAll, `lib/_demo_ec_levels.py` completo en QRCode, el `sys.path` muerto en CreatePilecapType, y el bloque inalcanzable con `NameError` latente en `point_in_face` de AddPileToPilecap).
-- **Riesgo**: bajo — por definición, código no referenciado.
-- **Verificación**: cada pushbutton tocado sigue abriendo y funcionando igual (smoke test).
-- **Commit sugerido**: `chore: remove confirmed dead code` (se puede agrupar en 1-2 commits)
+### Fase 15 — ✅ EJECUTADA PARCIALMENTE (commit `2792d0f`) — Borrar código muerto confirmado
+- Cada elemento se re-verificó con grep de todo el árbol (incluyendo `.nobutton` que otros pushbuttons cargan dinámicamente) antes de borrar:
+  - `export_csv` (sucesor de BulkParameterEditor: `ParameterHub/lib/logic_bulk_param_editor.py`) — borrado, junto al import `csv` que quedaba sin uso.
+  - `collect_concrete_quantities`/`aggregate_by_level_category` v1 en `QuantificationQA` — borrados; confirmado que `ui.py` solo llama a las versiones `_v2`.
+  - `get_available_categories` import muerto en `RebarCoverage/lib/ui.py` — borrado (la función sigue en `logic.py`, solo el re-export sin uso desapareció).
+  - `get_tag_types_for_category` en `AnnotationBatch.nobutton` — borrado. **`get_spot_elevation_types`/`batch_spot_elevations` NO se tocaron**: `AnnotationSuite.pushbutton` los carga dinámicamente y los sigue usando — la auditoría original se equivocaba al listarlos como muertos.
+  - `diagnose_tags_in_project` en `TagAll` — borrado (no-op ya deshabilitado explícitamente en un commit anterior).
+  - `sys.path` muerto en `CreatePilecapType/lib/logic.py` — borrado (el archivo no importa nada de `nosa_utils`), junto al import `sys, os` que quedaba sin uso.
+- **No hizo falta tocar nada** (ya resueltos por refactors previos): `_instance_count` en FamilyAudit (ya no existe con ese nombre — el índice actual es `_build_instance_index`), `logger` sin usar en RevisionTracker (no existe ningún `logger`/`import logging` en ese plugin). `lib/_demo_ec_levels.py` en QRCode **no existe** con ese nombre (solo hay imágenes `_demo_ec_*.png`) — nada que borrar.
+- **Aplazado deliberadamente**: el bloque inalcanzable en `point_in_face` de `AddPileToPilecap` — ese plugin está bajo investigación activa de un bug de transacciones en vivo; tocar el mismo archivo ahora mezclaría una limpieza cosmética con una investigación de bug real, dificultando aislar causas si algo regresiona. Se retomará cuando ese bug esté cerrado.
 
 ### Fase 16 — Limpieza de nombres y archivos sueltos
 - **Qué**: unificar casing de icono (`Icon.png` → `icon.png`), corregir `WaffleSlab/script.py:2` (`\\n` → `\n`), renombrar `NOSA.pushbutton` (si se decide), quitar `MEJORAS_APLICADAS.md` del bundle de `CreatePilecapType` (mover a documentación interna del repo si tiene valor histórico, o borrar).
