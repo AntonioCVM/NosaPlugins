@@ -328,7 +328,7 @@ def collect_rebar_quantities(doc, selected_levels=None):
             diam_mm = 0.0
             p_diam = el.get_Parameter(DB.BuiltInParameter.REBAR_BAR_DIAMETER)
             if p_diam:
-                diam_mm = round(p_diam.AsDouble() * 304.8, 1)
+                diam_mm = round(p_diam.AsDouble() * _uc10.FT_TO_MM, 1)
             length_m = 0.0
             p_len = el.get_Parameter(DB.BuiltInParameter.CURVE_ELEM_LENGTH)
             if p_len:

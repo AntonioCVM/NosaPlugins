@@ -11,6 +11,7 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 _logic = imp.load_source('viewmanager_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
@@ -33,7 +34,7 @@ _NO_TEMPLATE = u'(no template)'
 class LevelItem(object):
     def __init__(self, lid, name, elev_ft):
         self.IsChecked = False
-        self.Label     = u'{}  ({:+.2f} m)'.format(name, elev_ft * 0.3048)
+        self.Label     = u'{}  ({:+.2f} m)'.format(name, elev_ft * _uc10.FT_TO_M)
         self.LevelId   = lid
 
 

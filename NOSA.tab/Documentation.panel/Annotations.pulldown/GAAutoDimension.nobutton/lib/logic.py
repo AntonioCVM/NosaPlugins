@@ -10,7 +10,7 @@ from Autodesk.Revit import DB
 from pyrevit import revit
 from nosa_utils import unit_conversion as _uc10
 # ── constants ──────────────────────────────────────────────────────────────────
-FT2MM      = 304.8          # feet → mm
+FT2MM      = _uc10.FT_TO_MM  # feet → mm
 MM2FT      = _uc10.MM_TO_FT   # mm  → feet
 
 DEFAULT_OFFSET_PAPER_MM = 8.0            # element-to-dimension-line distance on paper

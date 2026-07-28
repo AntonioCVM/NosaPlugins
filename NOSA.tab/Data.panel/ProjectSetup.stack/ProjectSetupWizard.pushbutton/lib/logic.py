@@ -6,6 +6,7 @@ levels, title block sheets, project parameters.
 """
 from Autodesk.Revit import DB
 from pyrevit import revit
+from nosa_utils import unit_conversion as _uc10
 _NOSA_WORKSETS = [
     'NOSA_Structure',
     'NOSA_Architecture',
@@ -24,7 +25,7 @@ _DEFAULT_LEVELS = [
 
 
 def _ft(mm):
-    return mm / 304.8
+    return mm * _uc10.MM_TO_FT
 
 
 def set_project_info(doc, info):

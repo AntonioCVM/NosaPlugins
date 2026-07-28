@@ -8,6 +8,7 @@ from Autodesk.Revit import DB
 from config import Config
 from nosa_utils.logging import Logger
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 logger = Logger()
 
@@ -46,11 +47,11 @@ class Utils:
     
     @staticmethod
     def mm_to_feet(mm):
-        return mm / 304.8
-    
+        return mm * _uc10.MM_TO_FT
+
     @staticmethod
     def feet_to_mm(feet):
-        return feet * 304.8
+        return feet * _uc10.FT_TO_MM
     
     @staticmethod
     def sanitize_filename(filename):

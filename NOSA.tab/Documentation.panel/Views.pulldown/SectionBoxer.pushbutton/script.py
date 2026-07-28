@@ -11,6 +11,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import launch_nosa_window
+from nosa_utils import unit_conversion as _uc10
 
 from Autodesk.Revit import DB
 from pyrevit import revit, forms
@@ -28,7 +29,7 @@ def _get_offset_ft():
         )
         if val is None:
             return None
-        return float(val) / 304.8
+        return float(val) * _uc10.MM_TO_FT
     except Exception:
         return None
 

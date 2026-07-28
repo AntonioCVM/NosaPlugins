@@ -9,7 +9,7 @@ from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
 FT2M  = _uc10.FT_TO_M
-FT2KN = 0.3048 * 4.44822   # ft·lbf → kN  (1 lbf = 4.44822 N)
+FT2KN = FT2M * 4.44822   # ft·lbf → kN  (1 lbf = 4.44822 N)
 FTLB2KNM = FT2KN * FT2M    # ft·lbf → kN·m
 
 

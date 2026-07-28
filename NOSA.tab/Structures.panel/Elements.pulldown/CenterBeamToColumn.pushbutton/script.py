@@ -27,6 +27,7 @@ if lib_path not in sys.path:
     sys.path.append(lib_path)
 from nosa_utils import ui_helpers, geometry
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 from Autodesk.Revit.DB import (
     BuiltInCategory, FamilyInstance, LocationCurve, Line, LocationPoint, XYZ,
@@ -76,10 +77,10 @@ MIN_BEAM_LENGTH_FT = 0.328
 # =============================================================================
 
 def mm_to_ft(mm):
-    return mm / 304.8
+    return mm * _uc10.MM_TO_FT
 
 def ft_to_mm(ft):
-    return ft * 304.8
+    return ft * _uc10.FT_TO_MM
 
 def get_beam_endpoints(beam):
     """Get start and end points of a beam."""

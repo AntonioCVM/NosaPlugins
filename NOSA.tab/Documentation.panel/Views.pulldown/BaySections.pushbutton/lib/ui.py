@@ -10,6 +10,7 @@ import imp
 _logic = imp.load_source('baysections_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils import unit_conversion as _uc10
 from Autodesk.Revit import DB
 from System.Collections.ObjectModel import ObservableCollection
 
@@ -77,7 +78,7 @@ class BaySectionsWindow(NOSAWindow):
             depth_mm = float(self.TxtDepthOffset.Text or u'3000')
         except Exception:
             depth_mm = 3000.0
-        depth_ft = depth_mm / 304.8
+        depth_ft = depth_mm * _uc10.MM_TO_FT
 
         prefix = self.TxtPrefix.Text or u'S'
 

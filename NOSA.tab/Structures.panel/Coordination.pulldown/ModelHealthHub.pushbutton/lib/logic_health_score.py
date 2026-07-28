@@ -12,6 +12,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 _HISTORY_FILE = os.path.join(
     os.path.dirname(__file__), '..', '..', '..', '..', '..', 'NOSA_Configs', '_healthscore_history.json'
@@ -33,7 +34,7 @@ def _collect(doc, bic):
 
 
 def _mm_to_ft(mm):
-    return mm / 304.8
+    return mm * _uc10.MM_TO_FT
 
 
 # ─────────────────────────────────────────────────
@@ -193,7 +194,7 @@ def check_level_offsets(doc, max_offset_mm=3000.0):
                             'id': get_id_value(el.Id),
                             'name': getattr(el, 'Name', str(el.Id)),
                             'category': el.Category.Name if el.Category else 'Unknown',
-                            'offset_mm': round(p.AsDouble() * 304.8, 0),
+                            'offset_mm': round(p.AsDouble() * _uc10.FT_TO_MM, 0),
                         })
                         break
             except Exception:

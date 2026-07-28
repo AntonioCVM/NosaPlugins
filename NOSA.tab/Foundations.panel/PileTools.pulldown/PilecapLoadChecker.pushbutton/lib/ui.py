@@ -15,6 +15,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils import unit_conversion as _uc10
 _logic = imp.load_source('pilechk_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -197,7 +198,7 @@ class PilecapLoadCheckerWindow(NOSAWindow):
                 for erow in self._edit_rows:
                     try:
                         val_mm = float(erow.Value)
-                        val_ft = val_mm / 304.8
+                        val_ft = val_mm * _uc10.MM_TO_FT
                         bip_or_name = erow._bip_or_name
                         if isinstance(bip_or_name, DB.BuiltInParameter):
                             p = el.get_Parameter(bip_or_name)

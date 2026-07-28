@@ -21,6 +21,7 @@ def _ensure_extension_lib():
 
 _ensure_extension_lib()
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils import unit_conversion as _uc10
 
 class ViewportItem(object):
     def __init__(self, data):
@@ -93,8 +94,8 @@ class AlignTitlesWindow(NOSAWindow):
                     self.ref_view = None
                     return
 
-                ox = round(self.ref_offset.X * 304.8, 1)
-                oy = round(self.ref_offset.Y * 304.8, 1)
+                ox = round(self.ref_offset.X * _uc10.FT_TO_MM, 1)
+                oy = round(self.ref_offset.Y * _uc10.FT_TO_MM, 1)
                 offset_note = u"  Offset: ({} mm, {} mm)".format(ox, oy)
                 if ox == 0.0 and oy == 0.0:
                     offset_note += u"  ⚠ default — drag the title first!"

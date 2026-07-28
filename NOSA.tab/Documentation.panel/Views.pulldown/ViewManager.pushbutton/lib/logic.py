@@ -8,6 +8,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 
 # ── Create plan views from levels ──────────────────────────────────────────────
@@ -357,7 +358,7 @@ def create_3d_per_level(doc, name_pattern=u'{level} - 3D'):
         t.Start()
         for i, (lid, lname, elev) in enumerate(levels):
             try:
-                top = levels[i + 1][2] if i + 1 < len(levels) else elev + 4.0 / 0.3048
+                top = levels[i + 1][2] if i + 1 < len(levels) else elev + 4.0 * _uc10.M_TO_FT
                 view = DB.View3D.CreateIsometric(doc, vft.Id)
                 base = (name_pattern or u'{level} - 3D').replace(u'{level}', lname)
                 try:

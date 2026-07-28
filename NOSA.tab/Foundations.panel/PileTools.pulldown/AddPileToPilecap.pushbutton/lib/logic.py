@@ -15,6 +15,7 @@ if _lib not in sys.path:
 
 from nosa_utils import geometry, config_manager
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 # Configuration
 PILE_FAMILY_NAMES = ["Pile Square piling", "Pile-Steel Pipe Circular"]
@@ -701,7 +702,7 @@ def calculate_pile_distribution(dimension, spacing):
             margin = test_margin
     
     # Absolute minimum margin (5% spacing or 50mm, whichever is larger)
-    min_margin_abs = max(spacing * 0.05, 50 / 304.8)  # 50mm in feet
+    min_margin_abs = max(spacing * 0.05, 50 * _uc10.MM_TO_FT)  # 50mm in feet
     while margin < min_margin_abs and n_spaces > 1:
         n_spaces -= 1
         margin = (dimension - n_spaces * spacing) / 2.0
@@ -713,7 +714,7 @@ def generate_distribution_options(dim_u, dim_v, spacing, n_opt_u, n_opt_v):
     Returns list of (n_u, n_v, margin_u, margin_v, description) tuples.
     """
     options = []
-    min_margin = max(spacing * 0.05, 50 / 304.8)  # Minimum 50mm
+    min_margin = max(spacing * 0.05, 50 * _uc10.MM_TO_FT)  # Minimum 50mm
     
     # Generate variations: -1, 0, +1 in each direction
     for delta_u in [-1, 0, 1]:

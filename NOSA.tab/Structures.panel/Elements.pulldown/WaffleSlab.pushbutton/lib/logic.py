@@ -702,8 +702,8 @@ def show_preview(doc, params, boundary, PreviewWindowClass):
     for c in boundary:
         p0 = c.GetEndPoint(0)
         p1 = c.GetEndPoint(1)
-        pts_m.append((p0.X * 304.8 / 1000.0, p0.Y * 304.8 / 1000.0))
-        pts_m.append((p1.X * 304.8 / 1000.0, p1.Y * 304.8 / 1000.0))
+        pts_m.append((p0.X * _uc10.FT_TO_M, p0.Y * _uc10.FT_TO_M))
+        pts_m.append((p1.X * _uc10.FT_TO_M, p1.Y * _uc10.FT_TO_M))
     min_x = min(p[0] for p in pts_m)
     max_x = max(p[0] for p in pts_m)
     min_y = min(p[1] for p in pts_m)
@@ -717,8 +717,8 @@ def show_preview(doc, params, boundary, PreviewWindowClass):
                 .WhereElementIsNotElementType().ToElements():
             if hasattr(col.Location, 'Point'):
                 pt = col.Location.Point
-                cx_m = pt.X * 304.8 / 1000.0
-                cy_m = pt.Y * 304.8 / 1000.0
+                cx_m = pt.X * _uc10.FT_TO_M
+                cy_m = pt.Y * _uc10.FT_TO_M
                 if min_x - 1 <= cx_m <= max_x + 1 and min_y - 1 <= cy_m <= max_y + 1:
                     col_locs.append((cx_m, cy_m))
     except Exception:

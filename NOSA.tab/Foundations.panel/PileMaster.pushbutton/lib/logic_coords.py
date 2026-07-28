@@ -10,6 +10,7 @@ from System.Collections.Generic import List as _CsList
 # ---------------------------------------------------------------------------
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import unit_conversion as _uc10
 
 
 def _eid_val(eid):
@@ -190,7 +191,7 @@ class CoordinateLogic:
                     value_internal_feet, DB.DisplayUnitType.DUT_MILLIMETERS
                 )
             except Exception:
-                return value_internal_feet * 304.8
+                return value_internal_feet * _uc10.FT_TO_MM
 
     def _coord_mm_display(self, internal_feet_ord):
         """Formatted mm string with thousands separators and 3 decimals."""

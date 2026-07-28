@@ -10,10 +10,11 @@ import os
 import tempfile
 
 from Autodesk.Revit import DB
+from nosa_utils import unit_conversion as _uc10
 _VERSION = 'v11'
 
 _QR_SIZE_MM = 24.0
-_QR_SIZE_FT = _QR_SIZE_MM / 304.8
+_QR_SIZE_FT = _QR_SIZE_MM * _uc10.MM_TO_FT
 
 # Module-level debug buffer populated by _get_unique_titleblock_families.
 _loop_debug = []

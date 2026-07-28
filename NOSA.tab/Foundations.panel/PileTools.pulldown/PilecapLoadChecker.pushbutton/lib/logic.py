@@ -23,8 +23,8 @@ _DEFAULT_RULES = {
 }
 
 # ── Analytical load constants ─────────────────────────────────────────────────
-_FT2KN    = 0.3048 * 4.44822   # ft·lbf → kN
-_FTLB2KNM = _FT2KN * 0.3048    # ft·lbf → kN·m
+_FT2KN    = _uc10.FT_TO_M * 4.44822   # ft·lbf → kN
+_FTLB2KNM = _FT2KN * _uc10.FT_TO_M    # ft·lbf → kN·m
 
 
 def load_rules():
