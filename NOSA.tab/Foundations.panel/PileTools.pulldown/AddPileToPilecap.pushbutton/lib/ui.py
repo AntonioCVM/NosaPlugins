@@ -203,16 +203,17 @@ class AddPileToPilecapWindow(NOSAWindow):
     def _compute_grid_points(self):
         """
         Returns a list of pile XYZ points for the current slab/pattern/spacing/
-        clearance, or None if inputs are incomplete/invalid, or the pattern
-        is 'manual' (picked interactively — nothing to precompute).
+        clearance/Piles U×V, or None if inputs are incomplete/invalid, or the
+        pattern is 'manual' (picked interactively — nothing to precompute).
 
-        For a true rectangular slab (exactly 4 boundary vertices), pile count
-        comes from the editable Piles U/V fields. For anything else (L/T/U
-        shapes, splayed corners, ...) the count is automatic — driven by
-        spacing + edge clearance and validated against the real footprint —
-        because generate_rectangular_grid does not check whether a point
-        actually falls inside the slab, and Piles U×V has no well-defined
-        meaning on an irregular outline anyway.
+        Piles U/V are always the user's requested grid density — but every
+        candidate point is validated against the REAL slab footprint
+        (point_inside_check: inside the boundary AND at least `clearance`
+        from its edge) before being accepted, so an L/T/U-shaped or otherwise
+        non-rectangular cap simply gets fewer piles than requested wherever
+        the raw N×M grid would fall in a notch or off the edge, instead of
+        either placing them outside the slab (the original bug) or silently
+        ignoring Piles U/V altogether for non-quad shapes.
         """
         if not self._slab or not self._layout:
             return None
@@ -221,6 +222,9 @@ class AddPileToPilecapWindow(NOSAWindow):
             return None
         clearance_mm = self._try_read_clearance()
         if clearance_mm is None:
+            return None
+        n_piles_u, n_piles_v = self._try_read_pile_counts()
+        if n_piles_u is None:
             return None
 
         pattern = self._current_pattern()
@@ -238,21 +242,8 @@ class AddPileToPilecapWindow(NOSAWindow):
         spacing_ft    = unit_conversion.mm_to_feet(spacing_mm)
         clearance_ft  = unit_conversion.mm_to_feet(clearance_mm)
         slab_boundary = _logic.extract_face_boundary_points(self._face_inf)
-        is_rect = len(slab_boundary) == 4
 
         try:
-            if is_rect:
-                n_piles_u, n_piles_v = self._try_read_pile_counts()
-                if n_piles_u is None:
-                    return None
-                grid_points = _logic.generate_rectangular_grid(
-                    slab_center, span_dir, perp_dir, slab_z, spacing_ft,
-                    n_piles_u, n_piles_v, n_piles_u - 1, n_piles_v - 1)
-            else:
-                grid_points, _rejected = _logic.generate_irregular_grid(
-                    slab_center, span_dir, perp_dir, slab_z, spacing_ft,
-                    slab_width, slab_height, slab_boundary, self._face_inf, clearance_ft)
-
             if pattern == 'triangular':
                 grid_points = _logic.generate_triangular_grid(
                     slab_center, span_dir, perp_dir, slab_z, spacing_ft,
@@ -261,6 +252,15 @@ class AddPileToPilecapWindow(NOSAWindow):
                 grid_points = _logic.generate_hexagonal_grid(
                     slab_center, span_dir, perp_dir, slab_z, spacing_ft,
                     slab_width, slab_height, slab_boundary, self._face_inf, clearance_ft)
+            else:
+                raw_points = _logic.generate_rectangular_grid(
+                    slab_center, span_dir, perp_dir, slab_z, spacing_ft,
+                    n_piles_u, n_piles_v, n_piles_u - 1, n_piles_v - 1)
+                grid_points = [
+                    pt for pt in raw_points
+                    if _logic.point_inside_check(
+                        pt.X, pt.Y, slab_z, slab_boundary, self._face_inf, clearance_ft)
+                ]
         except Exception:
             return None
 
@@ -283,7 +283,15 @@ class AddPileToPilecapWindow(NOSAWindow):
         return u, v
 
     def Preview_Changed(self, sender, args):
-        self._refresh_preview()
+        # Defensive: this is a raw WPF event handler, not covered by
+        # launch_nosa_window's protective try/except around ShowDialog() —
+        # an unhandled exception here can surface as a blank/AzureAD-branded
+        # window instead of the usual forms.alert (same class of issue
+        # documented in nosa_utils.base_window.launch_nosa_window).
+        try:
+            self._refresh_preview()
+        except Exception:
+            pass
 
     def _refresh_preview(self):
         try:
@@ -306,34 +314,32 @@ class AddPileToPilecapWindow(NOSAWindow):
         boundary = _logic.extract_face_boundary_points(self._face_inf)
         verts_uv = [self._project_uv_xy(x, y, layout) for x, y in boundary]
 
-        # _draw_preview only reaches here once a slab is selected (see the
-        # early-return above), so it's safe to set these unconditionally —
-        # Piles U/V and "Suggest" only make sense for a true 4-vertex
-        # rectangular slab.
         is_rect = len(boundary) == 4
-        self.TxtPilesU.IsEnabled = is_rect
-        self.TxtPilesV.IsEnabled = is_rect
-        self.BtnSuggestDistribution.IsEnabled = is_rect
 
         pattern = self._current_pattern()
         if pattern == 'manual':
             grid_points = []
             self.TxtPreviewInfo.Text = u'Manual mode — positions are picked interactively on Create.'
         else:
+            n_u, n_v = self._try_read_pile_counts()
+            requested = (n_u * n_v) if n_u else None
             grid_points = self._compute_grid_points() or []
-            info = (u'{} piles'.format(len(grid_points)) if grid_points
-                    else u'No valid pile positions for the current settings — '
+            if grid_points:
+                info = u'{} piles'.format(len(grid_points))
+                if requested and len(grid_points) < requested:
+                    info += u' (of {} requested — {} fell outside the slab or ' \
+                            u'inside its clearance margin and were skipped)'.format(
+                                requested, requested - len(grid_points))
+            else:
+                info = (u'No valid pile positions for the current settings — '
                          u'try a smaller spacing or edge clearance.')
             if is_rect:
-                n_u, n_v = self._try_read_pile_counts()
                 spacing_mm, _emb = self._try_read_numbers()
                 if n_u is not None and spacing_mm is not None:
                     spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
                     margin_u, margin_v = self._distribution_margins(n_u, n_v, spacing_ft)
                     info += u'  —  edge margin U: {:.0f} mm, V: {:.0f} mm'.format(
                         unit_conversion.feet_to_mm(margin_u), unit_conversion.feet_to_mm(margin_v))
-                    if margin_u < 0 or margin_v < 0:
-                        info += u'  ⚠ piles would fall outside the slab — reduce Piles U/V.'
             else:
                 info += u'  —  pile count is automatic for this shape (spacing + edge clearance)'
             self.TxtPreviewInfo.Text = info
@@ -444,9 +450,12 @@ class AddPileToPilecapWindow(NOSAWindow):
             get_id_value(slab.Id), layout['slab_width'], layout['slab_height'])
 
         self.BtnCreate.IsEnabled = True
+        self.TxtPilesU.IsEnabled = True
+        self.TxtPilesV.IsEnabled = True
+        self.BtnSuggestDistribution.IsEnabled = True
         self._suggest_distribution(spacing_mm)
         self.LogLine(u'Slab selected — adjust distribution and create.')
-        self._refresh_preview()  # also sets TxtPilesU/V + Suggest IsEnabled based on slab shape
+        self._refresh_preview()
 
         clearance_mm = self._try_read_clearance()
         _logic.save_last_config(
@@ -478,10 +487,11 @@ class AddPileToPilecapWindow(NOSAWindow):
         pattern = self._current_pattern()
         embedment_ft = unit_conversion.mm_to_feet(embedment_mm)
 
-        if pattern != 'manual' and self._try_read_clearance() is None:
-            forms.alert(u'Enter a valid edge clearance (mm) between {} and {}.'.format(
-                _logic.MIN_CLEARANCE_MM, _logic.MAX_CLEARANCE_MM))
-            return
+        if pattern != 'manual':
+            if self._read_clearance() is None:
+                return
+            if self._read_pile_counts()[0] is None:
+                return
 
         layout = self._layout
         span_rotation_angle = layout['span_rotation_angle']

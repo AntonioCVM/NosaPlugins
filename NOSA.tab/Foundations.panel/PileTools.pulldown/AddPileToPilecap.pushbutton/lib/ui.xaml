@@ -71,15 +71,15 @@
 
                     <TextBlock Text="Spacing (mm)" FontSize="11" Margin="0,0,0,4"/>
                     <TextBox Name="TxtSpacing" Style="{DynamicResource FieldBox}"
-                             TextChanged="Preview_Changed" Margin="0,0,0,10"/>
+                             LostFocus="Preview_Changed" Margin="0,0,0,10"/>
 
                     <TextBlock Text="Embedment (mm)" FontSize="11" Margin="0,0,0,4"/>
                     <TextBox Name="TxtEmbedment" Style="{DynamicResource FieldBox}"
-                             TextChanged="Preview_Changed" Margin="0,0,0,10"/>
+                             LostFocus="Preview_Changed" Margin="0,0,0,10"/>
 
                     <TextBlock Text="Edge clearance (mm)" FontSize="11" Margin="0,0,0,4"/>
                     <TextBox Name="TxtClearance" Style="{DynamicResource FieldBox}"
-                             TextChanged="Preview_Changed" Margin="0,0,0,10"
+                             LostFocus="Preview_Changed" Margin="0,0,0,10"
                              ToolTip="Minimum distance from a pile centre to the slab edge. Drives the automatic pile count on non-rectangular caps, and the 'Suggest optimal distribution' button on rectangular ones."/>
 
                     <TextBlock Text="Pile type" FontSize="11" Margin="0,0,0,4"/>
@@ -92,9 +92,9 @@
                     <TextBlock Name="TxtSlabInfo" Text="No slab selected"
                                FontSize="10" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Pile distribution — rectangular caps only" FontSize="11" Margin="0,0,0,4"
+                    <TextBlock Text="Pile distribution (editable)" FontSize="11" Margin="0,0,0,4"
                                TextWrapping="Wrap"
-                               ToolTip="Non-rectangular caps (L/T/U-shaped, splayed corners, etc.) size the pile grid automatically from spacing + edge clearance instead — see the preview panel."/>
+                               ToolTip="Requested grid — any pile that would fall outside the slab or inside its edge clearance is automatically skipped (see the piles-created count in the preview)."/>
                     <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -104,12 +104,12 @@
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Piles U" FontSize="10" Opacity="0.7"/>
                             <TextBox Name="TxtPilesU" Style="{DynamicResource FieldBox}"
-                                     IsEnabled="False" TextChanged="Preview_Changed"/>
+                                     IsEnabled="False" LostFocus="Preview_Changed"/>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
                             <TextBlock Text="Piles V" FontSize="10" Opacity="0.7"/>
                             <TextBox Name="TxtPilesV" Style="{DynamicResource FieldBox}"
-                                     IsEnabled="False" TextChanged="Preview_Changed"/>
+                                     IsEnabled="False" LostFocus="Preview_Changed"/>
                         </StackPanel>
                     </Grid>
                     <Button Name="BtnSuggestDistribution" Content="Suggest optimal distribution"
