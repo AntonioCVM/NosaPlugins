@@ -131,6 +131,10 @@
                             <CheckBox Name="DW_ChkCurved" Content="Curved walls (radius + arc length)"
                                       IsChecked="True" Foreground="{DynamicResource TextColor}"
                                       Margin="0,2"/>
+                            <CheckBox Name="DW_ChkGrids" Content="Include nearby gridlines (straight walls)"
+                                      IsChecked="False" Foreground="{DynamicResource TextColor}"
+                                      Margin="0,2"
+                                      ToolTip="Experimental — inserts any grid crossing the wall's length into the dimension chain instead of just wall-face to wall-face. Falls back to the plain wall-to-wall dimension if the grid-extended chain can't be created."/>
                             <Border Background="#FFF9F0" BorderBrush="{DynamicResource BorderColor}"
                                     BorderThickness="1" Padding="10" CornerRadius="4" Margin="0,14,0,0">
                                 <StackPanel>

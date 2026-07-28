@@ -164,27 +164,124 @@ class DimensionLogic:
     # CREATE DIMENSIONS
     # =========================================================================
 
-    def create_linear_dimension(self, wall, view, dim_type, offset_mm):
-        """Create standard linear dimension for straight wall."""
+    def find_crossing_grids(self, wall, view):
+        """
+        Grids whose direction is roughly perpendicular to the wall's own
+        direction (i.e. grids that cross the wall along its length, the
+        usual structural set-out reference) and whose line crosses near the
+        wall's span. Returns [(position_ft, Reference), ...] sorted by
+        position along the wall's tangent, position=0 at the wall start.
+        Only straight (Line) grids are considered — arc grids are rare and
+        the perpendicular test below doesn't apply to them cleanly.
+        """
+        geo = self.get_wall_curve_data(wall)
+        tangent = geo['tangent'] if not geo['is_arc'] else (geo['end_pt'] - geo['start_pt']).Normalize()
+        start_pt = geo['start_pt']
+        wall_len = geo['start_pt'].DistanceTo(geo['end_pt'])
+
+        results = []
+        try:
+            grids = DB.FilteredElementCollector(self.doc, view.Id).OfClass(DB.Grid).ToElements()
+        except Exception:
+            return results
+
+        for g in grids:
+            try:
+                gcurve = g.Curve
+                if not isinstance(gcurve, DB.Line):
+                    continue
+                g0 = gcurve.GetEndPoint(0)
+                g1 = gcurve.GetEndPoint(1)
+                gdir = (g1 - g0).Normalize()
+
+                # Must cross the wall, not run alongside it.
+                if abs(gdir.DotProduct(tangent)) > 0.2:
+                    continue
+
+                # 2D line-line intersection (wall axis vs grid axis), plan only.
+                denom = tangent.X * gdir.Y - tangent.Y * gdir.X
+                if abs(denom) < 1e-9:
+                    continue
+                dx = g0.X - start_pt.X
+                dy = g0.Y - start_pt.Y
+                t = (dx * gdir.Y - dy * gdir.X) / denom
+
+                # Keep grids crossing near the wall's own span, with some
+                # allowance either side for set-out grids just past the ends.
+                if t < -wall_len * 0.5 or t > wall_len * 1.5:
+                    continue
+
+                results.append((t, DB.Reference(g)))
+            except Exception:
+                continue
+
+        results.sort(key=lambda x: x[0])
+        return results
+
+    def create_linear_dimension(self, wall, view, dim_type, offset_mm, include_grids=False):
+        """Create standard linear dimension for straight wall. When
+        include_grids is True, any grid crossing the wall's length gets
+        inserted into the dimension chain alongside the wall's own end
+        faces (and the dimension line is extended to cover them) — default
+        stays False so existing wall-to-wall behaviour is unaffected unless
+        explicitly opted into."""
         geo = self.get_wall_curve_data(wall)
         if geo['is_arc']: return None # Wrong method
-        
+
         refs = self.get_wall_references(wall, view)
         if not refs: return None
-        
-        ref_array = DB.ReferenceArray()
-        ref_array.Append(refs[0])
-        ref_array.Append(refs[1])
-        
+
         offset = self.mm_to_internal(offset_mm)
-        pt1 = geo['start_pt'] + geo['perp'] * offset
-        pt2 = geo['end_pt'] + geo['perp'] * offset
+        wall_len = geo['start_pt'].DistanceTo(geo['end_pt'])
+
+        if not include_grids:
+            ref_array = DB.ReferenceArray()
+            ref_array.Append(refs[0])
+            ref_array.Append(refs[1])
+            pt1 = geo['start_pt'] + geo['perp'] * offset
+            pt2 = geo['end_pt'] + geo['perp'] * offset
+            line = DB.Line.CreateBound(pt1, pt2)
+            try:
+                return self.doc.Create.NewDimension(view, line, ref_array, dim_type)
+            except Exception:
+                return None
+
+        grid_hits = self.find_crossing_grids(wall, view)
+        ref_array = DB.ReferenceArray()
+        min_t, max_t = 0.0, wall_len
+        for t, r in grid_hits:
+            if t < 0:
+                ref_array.Append(r)
+                min_t = min(min_t, t)
+        ref_array.Append(refs[0])
+        for t, r in grid_hits:
+            if 0 <= t <= wall_len:
+                ref_array.Append(r)
+        ref_array.Append(refs[1])
+        for t, r in grid_hits:
+            if t > wall_len:
+                ref_array.Append(r)
+                max_t = max(max_t, t)
+
+        pt1 = geo['start_pt'] + geo['tangent'] * min_t + geo['perp'] * offset
+        pt2 = geo['start_pt'] + geo['tangent'] * max_t + geo['perp'] * offset
         line = DB.Line.CreateBound(pt1, pt2)
-        
+
         try:
             return self.doc.Create.NewDimension(view, line, ref_array, dim_type)
         except Exception:
-            return None
+            # Fall back to the plain wall-to-wall dimension rather than
+            # producing nothing if the grid-extended chain is rejected.
+            try:
+                ref_array2 = DB.ReferenceArray()
+                ref_array2.Append(refs[0])
+                ref_array2.Append(refs[1])
+                pt1b = geo['start_pt'] + geo['perp'] * offset
+                pt2b = geo['end_pt'] + geo['perp'] * offset
+                return self.doc.Create.NewDimension(
+                    view, DB.Line.CreateBound(pt1b, pt2b), ref_array2, dim_type)
+            except Exception:
+                return None
 
     def create_arc_dimensions(self, wall, view, dim_type, offset_mm, log_fn=None):
         """Create Radius and Arc Length dimensions for curved wall."""
@@ -239,37 +336,64 @@ class DimensionLogic:
             except Exception as e:
                 _log(u'Wall {}: radius dimension failed — {}'.format(wall.Id, e))
 
-        # ARC LENGTH DIMENSION — needs the two end-face references plus the
-        # offset arc geometry (same center, radius + offset).
-        refs = self.get_wall_references(wall, view)
-        if not refs or len(refs) < 2:
-            _log(u'Wall {}: could not find two end-face references for the '
-                 u'arc-length dimension (skipped).'.format(wall.Id))
-        else:
+        # ARC LENGTH DIMENSION.
+        # The offset arc/chord geometry is shared by both attempts below.
+        new_radius = geo['radius'] + offset
+        v_start = (geo['start_pt'] - geo['center']).Normalize()
+        v_end   = (geo['end_pt']   - geo['center']).Normalize()
+        p_start = geo['center'] + v_start * new_radius
+        p_end   = geo['center'] + v_end   * new_radius
+        dim_arc_geom = None
+        try:
+            dim_arc_geom = DB.Arc.Create(p_start, p_end, geo['center'] + mid_vec * new_radius)
+        except Exception:
+            pass
+
+        arc_len_dim = None
+        attempt_errors = []
+
+        # Attempt A: Arc geometry + the curved face's own Reference (the same
+        # reference the radius dimension uses) — a single Reference, not a
+        # ReferenceArray. This is the pattern several Revit API references
+        # describe for arc-length specifically (the curved face itself
+        # supplies what is being measured; the Arc supplies where the
+        # dimension is drawn).
+        if curve_ref is not None and dim_arc_geom is not None:
             try:
-                ref_array = DB.ReferenceArray()
-                ref_array.Append(refs[0])
-                ref_array.Append(refs[1])
-
-                # NewDimension(view, <geometry>, ReferenceArray, DimensionType)
-                # requires <geometry> to be a Line even for an arc-length
-                # dimension (confirmed live: passing the offset Arc itself
-                # raises "expected Line, got Arc") — the actual arc-length
-                # measurement comes from the DimensionType's ArcLength style
-                # plus the two end-face references, not from the geometry
-                # parameter. The chord between the (radius-offset) start/end
-                # points is enough to define the dimension line's plane/side.
-                new_radius = geo['radius'] + offset
-                v_start = (geo['start_pt'] - geo['center']).Normalize()
-                v_end   = (geo['end_pt']   - geo['center']).Normalize()
-
-                p_start = geo['center'] + v_start * new_radius
-                p_end   = geo['center'] + v_end   * new_radius
-
-                dim_line = DB.Line.CreateBound(p_start, p_end)
-                dim_arc_len = self.doc.Create.NewDimension(view, dim_line, ref_array, dim_type)
-                created.append(dim_arc_len)
+                arc_len_dim = self.doc.Create.NewDimension(view, dim_arc_geom, curve_ref)
+                if dim_type:
+                    try:
+                        arc_len_dim.DimensionType = dim_type
+                    except Exception:
+                        pass
             except Exception as e:
-                _log(u'Wall {}: arc-length dimension failed — {}'.format(wall.Id, e))
+                attempt_errors.append(u'Arc+Reference: {}'.format(e))
+                arc_len_dim = None
+
+        # Attempt B (fallback): Line + ReferenceArray of the two end faces —
+        # confirmed NOT to raise, but not confirmed to produce a genuine
+        # arc-length reading either (no reference to the curved face at
+        # all) — kept only as a last resort so *something* gets created
+        # rather than nothing.
+        if arc_len_dim is None:
+            refs = self.get_wall_references(wall, view)
+            if not refs or len(refs) < 2:
+                attempt_errors.append(u'no end-face references found')
+            else:
+                try:
+                    ref_array = DB.ReferenceArray()
+                    ref_array.Append(refs[0])
+                    ref_array.Append(refs[1])
+                    dim_line = DB.Line.CreateBound(p_start, p_end)
+                    arc_len_dim = self.doc.Create.NewDimension(view, dim_line, ref_array, dim_type)
+                except Exception as e:
+                    attempt_errors.append(u'Line+ReferenceArray: {}'.format(e))
+                    arc_len_dim = None
+
+        if arc_len_dim is not None:
+            created.append(arc_len_dim)
+        else:
+            _log(u'Wall {}: arc-length dimension failed — {}'.format(
+                wall.Id, u'; '.join(attempt_errors) if attempt_errors else u'unknown'))
 
         return created

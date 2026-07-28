@@ -113,8 +113,9 @@ class AnnotationHubWindow(NOSAWindow):
             forms.alert(u'Please select at least one view.')
             return
 
-        do_straight = bool(self.DW_ChkStraight.IsChecked)
-        do_curved   = bool(self.DW_ChkCurved.IsChecked)
+        do_straight  = bool(self.DW_ChkStraight.IsChecked)
+        do_curved    = bool(self.DW_ChkCurved.IsChecked)
+        include_grids = bool(self.DW_ChkGrids.IsChecked)
         if not do_straight and not do_curved:
             forms.alert(u'Please select at least one wall type (straight or curved).')
             return
@@ -145,7 +146,8 @@ class AnnotationHubWindow(NOSAWindow):
                         else:
                             failed += 1
                     elif not is_arc and do_straight:
-                        dim = self._dw_logic.create_linear_dimension(wall, view, dim_type, offset_mm)
+                        dim = self._dw_logic.create_linear_dimension(
+                            wall, view, dim_type, offset_mm, include_grids=include_grids)
                         if dim:
                             created += 1
                         else:
