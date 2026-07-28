@@ -21,6 +21,9 @@ if _lib not in sys.path:
 from nosa_utils import unit_conversion, ui_helpers
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.logging import Logger
+
+_logger = Logger(level='DEBUG')
 
 _logic = imp.load_source('addpiletopilecap_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
@@ -466,6 +469,15 @@ class AddPileToPilecapWindow(NOSAWindow):
         )
 
     def Create_Click(self, sender, args):
+        _logger.info(u'Create_Click: start')
+        try:
+            self._create_piles_and_group()
+        except Exception as ex:
+            _logger.critical(u'Create_Click: unhandled exception escaped '
+                              u'_create_piles_and_group', exception=ex)
+            forms.alert(u'Unexpected error:\n{}'.format(ex), title=u'NOSA — Error')
+
+    def _create_piles_and_group(self):
         if not self._slab or not self._layout:
             forms.alert(u'Select a foundation slab first.')
             return
@@ -522,10 +534,36 @@ class AddPileToPilecapWindow(NOSAWindow):
         pile_height_ft = _logic.get_pile_height(pile_symbol)
 
         from nosa_utils.progress import nosa_progress
+
+        # Diagnostic snapshot right before the transaction that has been
+        # failing with "Starting a transaction from an external application
+        # running outside of API context is not allowed" — this tool is the
+        # only one in the extension that does uidoc.Selection.PickObject
+        # (Hide/Show) from inside an already-open modal window (both for
+        # slab selection and Manual mode), which is a plausible way to leave
+        # Revit's tracked active document out of sync with self.doc. Logged
+        # to the persistent NOSA log file so the next failure is diagnosable
+        # without guessing again.
+        try:
+            active_doc = revit.doc
+            same_doc = (active_doc is not None and self.doc is not None
+                        and active_doc.Equals(self.doc))
+            _logger.debug(
+                u'Create_Click: pre-transaction snapshot — self.doc.Title={}, '
+                u'self.doc.IsModifiable={}, revit.doc.Title={}, '
+                u'self.doc == revit.doc: {}'.format(
+                    getattr(self.doc, 'Title', '?'),
+                    getattr(self.doc, 'IsModifiable', '?'),
+                    getattr(active_doc, 'Title', '?'),
+                    same_doc))
+        except Exception as ex:
+            _logger.warning(u'Create_Click: pre-transaction snapshot failed', exception=ex)
+
         pile_ids = []
         creation_error = None
         try:
-            with revit.Transaction(u'Create Piles'):
+            _logger.debug(u'Create_Click: opening "Create Piles" transaction')
+            with revit.Transaction(u'Create Piles', doc=self.doc):
                 # Activating the symbol here (inside the same transaction as
                 # the actual pile creation, right after the last modal
                 # dialog) rather than in its own earlier transaction —
@@ -535,7 +573,13 @@ class AddPileToPilecapWindow(NOSAWindow):
                 # not allowed" on this pyRevit/Revit build; every other
                 # working transaction call in this codebase has at most one
                 # dialog before its transaction, never a transaction-dialog-
-                # transaction sequence.
+                # transaction sequence. Also now passes doc=self.doc
+                # explicitly — without it, revit.Transaction() defaults to
+                # pyRevit's own globally-tracked "current document," which
+                # can differ from this window's self.doc if anything (e.g.
+                # the Hide/PickObject/Show sequence used for slab selection
+                # or Manual mode) caused Revit's active document tracking to
+                # diverge during this window's lifetime.
                 if not pile_symbol.IsActive:
                     pile_symbol.Activate()
                 with nosa_progress(len(grid_points), u'Creating piles',
@@ -549,6 +593,8 @@ class AddPileToPilecapWindow(NOSAWindow):
                             pile_ids.append(inst.Id)
                         except Exception as ex:
                             self.LogLine(u'Warning: pile at {} failed: {}'.format(pt, ex))
+            _logger.info(u'Create_Click: "Create Piles" transaction committed, '
+                         u'{} piles placed'.format(len(pile_ids)))
         except Exception as ex:
             # Anything escaping here (e.g. from the Transaction/progress
             # context managers themselves, not the per-pile try/except
@@ -556,6 +602,7 @@ class AddPileToPilecapWindow(NOSAWindow):
             # WPF event handler, not covered by launch_nosa_window's
             # protection around the initial ShowDialog() call.
             creation_error = ex
+            _logger.error(u'Create_Click: "Create Piles" transaction failed', exception=ex)
         finally:
             self.SetLoading(False)
 
@@ -571,13 +618,15 @@ class AddPileToPilecapWindow(NOSAWindow):
 
         self.LogLine(u'{} piles created.'.format(len(pile_ids)))
 
-        with revit.Transaction(u'Unjoin Piles from Slab'):
+        _logger.debug(u'Create_Click: opening "Unjoin Piles from Slab" transaction')
+        with revit.Transaction(u'Unjoin Piles from Slab', doc=self.doc):
             n_unjoin = _logic.unjoin_piles_from_slab(self.doc, pile_ids, slab)
         self.LogLine(u'{} piles unjoined from slab.'.format(n_unjoin))
 
         next_num = _logic.find_next_core_number(self.doc)
         group_name = u'Core {}'.format(next_num)
-        with revit.Transaction(u"Create Group '{}'".format(group_name)):
+        _logger.debug(u'Create_Click: opening "Create Group" transaction')
+        with revit.Transaction(u"Create Group '{}'".format(group_name), doc=self.doc):
             try:
                 _logic.create_core_group(self.doc, slab.Id, pile_ids, group_name)
                 self.LogLine(u'Created group: {}'.format(group_name))
