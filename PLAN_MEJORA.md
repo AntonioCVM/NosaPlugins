@@ -6,6 +6,16 @@ No ejecutar todavía — esto es la planificación. Antes de dar cada fase por t
 
 ---
 
+## ⚠ Hallazgo sistémico nuevo — bare `.Name` roto bajo pyRevit 6.5/CPython (2026-07-28)
+
+MaterialManager reveló, con datos reales (diagnóstico de categorías), que `el_type.Name` (acceso directo a la propiedad, sin `BuiltInParameter`) lanza `AttributeError` en el entorno del usuario (Revit 2026, pyRevit 6.5.0.26173, motor CPython/pythonnet — no IronPython). Se confirmó también en `DimensionWalls` que `Document.Create.NewRadialDimension` no se resuelve como atributo en el mismo entorno. Ambos son síntomas de que **algunas propiedades/métodos de la API de Revit no se resuelven igual bajo pythonnet que bajo IronPython** en esta combinación concreta de versiones — justo el tipo de riesgo multi-runtime que ya preocupaba de antemano.
+
+**Alcance sin acotar todavía**: un grep de `.Name` en todo `NOSA.tab` da 143 archivos / ~499 apariciones — una cota superior muy ruidosa (incluye nombres de controles WPF, variables Python, etc., no solo llamadas a la API de Revit), no una lista de bugs confirmados. **No se ha hecho un barrido general** — solo se corrigieron los sitios concretos de MaterialManager donde se confirmó el fallo en vivo.
+
+**Recomendación para una sesión futura**: auditar sistemáticamente los usos de `.Name` sobre objetos de la API de Revit (`Element`, `ElementType`, `Category`, `Material`, etc.) en los ~88 plugins, priorizando por uso, y sustituir por `nosa_utils.revit_helpers.get_element_type_name()` / `getattr(el, 'Name', None)` donde corresponda. Dado que esto podría explicar fallos silenciosos aún no reportados en otras herramientas, tiene prioridad alta pero alcance grande — candidato a su propia fase dedicada, no a un fix rápido.
+
+---
+
 ## Hallazgos de pruebas en vivo — 2026-07-28 (fuera de la numeración de fases, ejecutados igualmente)
 
 Tras el Checkpoint A, el usuario probó en Revit y reportó 2 cosas que no estaban en la auditoría original (ambas ya resueltas):
