@@ -1,2 +1,11 @@
 {
-  "output_folder": 
+  "format_pdf": true, 
+  "output_folder": "", 
+  "format_dwg": false, 
+  "naming_profile": null, 
+  "dark_mode": false, 
+  "format_dxf": false, 
+  "active_tab": "BtnTabSheets", 
+  "is_exporting_views": false, 
+  "search_text": ""
+}
