@@ -6,6 +6,17 @@ No ejecutar todavía — esto es la planificación. Antes de dar cada fase por t
 
 ---
 
+## ESTADO — 2026-07-28 (qué queda pendiente)
+
+Todas las Fases 1–9, 11, 12, 14, 15 están **ejecutadas**. Solo quedan 2 puntos:
+
+| Fase | Estado | Qué falta |
+|---|---|---|
+| **Fase 10** — unificar `304.8`/`0.3048` → `nosa_utils.unit_conversion` | ✅ **EJECUTADA (commits `2f759f7`, `d1e3731`, `840aee0`)** | 47 archivos tenían la constante duplicada (todas correctas, sin bug) — todas sustituidas por `nosa_utils.unit_conversion`, verificadas con `py_compile`. De paso se corrigió una imprecisión real en `feet_to_meters`/`meters_to_feet` (usaban `3.28084` redondeado en vez del exacto `0.3048`). Grep confirma 0 ocurrencias restantes. |
+| **Fase 13** — migrar `AddPileToPilecap`/`CreatePilecapType` a `pilecap_utils` real | ⏸ **Aplazada — decisión explícita del usuario, confirmada de nuevo el 2026-07-28** | No ejecutar: es el punto de mayor riesgo del plan y toca una herramienta recién estabilizada tras muchas rondas de fixes esta misma sesión. |
+
+---
+
 ## ⚠ Hallazgo sistémico nuevo — bare `.Name` roto bajo pyRevit 6.5/CPython (2026-07-28)
 
 MaterialManager reveló, con datos reales (diagnóstico de categorías), que `el_type.Name` (acceso directo a la propiedad, sin `BuiltInParameter`) lanza `AttributeError` en el entorno del usuario (Revit 2026, pyRevit 6.5.0.26173, motor CPython/pythonnet — no IronPython). Se confirmó también en `DimensionWalls` que `Document.Create.NewRadialDimension` no se resuelve como atributo en el mismo entorno. Ambos son síntomas de que **algunas propiedades/métodos de la API de Revit no se resuelven igual bajo pythonnet que bajo IronPython** en esta combinación concreta de versiones — justo el tipo de riesgo multi-runtime que ya preocupaba de antemano.
