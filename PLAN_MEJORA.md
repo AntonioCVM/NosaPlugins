@@ -149,11 +149,9 @@ Estos no estaban en las Fases 1-8 originales porque no existían o no se habían
 - **Verificación**: crear un encepado con los mismos parámetros antes/después de la migración produce geometría idéntica (mismas coordenadas de pilotes, mismo espesor de losa, mismo offset).
 - **Commit sugerido**: `refactor: CreatePilecapType now uses shared pilecap_utils instead of duplicated logic`
 
-### Fase 14 — Migrar ventanas restantes a `NOSAWindow`
-- **Qué**: `PileMaster`, `DimensionWalls`, `TagAll`, `ExportSheets`, `AlignViewTitles`, `CopyViewTemplates`, `QRCode` (Documentation panel, orden recomendado: los más pequeños primero — `AlignViewTitles`, `CopyViewTemplates` — dejando `ExportSheets` y `PileMaster`, los más grandes, para el final).
-- **Riesgo**: medio por herramienta — cada una es su propia sub-fase y commit; el mayor riesgo es romper persistencia de config existente si el `plugin_key` no coincide con el nombre de archivo de config actual de la herramienta.
-- **Verificación**: dark mode funciona, tamaño de ventana se recuerda entre sesiones, resto de funcionalidad sin regresión (checklist específico por herramienta en `PLAN_PRUEBAS.md`).
-- **Commit sugerido**: `refactor: migrate <Tool> to NOSAWindow` (uno por herramienta)
+### Fase 14 — ✅ NO HIZO FALTA — Migrar ventanas restantes a `NOSAWindow`
+- **Qué cambió al revisar el código real**: `PileMaster`, `TagAll`, `ExportSheets`, `AlignViewTitles` y `QRCode` **ya heredan de `NOSAWindow`** (verificado leyendo cada `lib/ui.py`). `DimensionWalls` ya no es una ventana independiente — su lógica vive dentro de `AnnotationHub` (también `NOSAWindow`), y el `DimensionWalls.nobutton`/`CopyViewTemplates.nobutton` que quedan son carpetas ocultas absorbidas por hubs, no ventanas activas.
+- Confirmado además con un grep de todo `NOSA.tab`: **0 archivos** usan `WPFWindow` directamente fuera de `base_window.py` — todas las ventanas del árbol ya pasan por `NOSAWindow`. Sin cambios necesarios.
 
 ---
 
