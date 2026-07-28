@@ -230,13 +230,33 @@ class MaterialManagerWindow(NOSAWindow):
     # ── elements scan ─────────────────────────────────────────────────────────
 
     def ScanElements_Click(self, sender, args):
-        self.SetLoading(True, "Scanning structural elements...")
-        try:
-            raw = _logic.collect_element_materials(self.doc)
-        except Exception as e:
-            self.SetLoading(False)
-            forms.alert("Error scanning elements: {}".format(e))
-            return
+        use_selection = self.ChkUseSelection.IsChecked == True
+
+        if use_selection:
+            sel_ids = list(revit.uidoc.Selection.GetElementIds())
+            if not sel_ids:
+                forms.alert(
+                    u"No elements selected in Revit.\n\n"
+                    u"Select the elements you want to assign a material to "
+                    u"first, then click SCAN ELEMENTS again.",
+                    title="Nothing selected"
+                )
+                return
+            self.SetLoading(True, "Scanning selected elements...")
+            try:
+                raw = _logic.collect_element_materials_from_selection(self.doc, sel_ids)
+            except Exception as e:
+                self.SetLoading(False)
+                forms.alert("Error scanning selection: {}".format(e))
+                return
+        else:
+            self.SetLoading(True, "Scanning structural elements...")
+            try:
+                raw = _logic.collect_element_materials(self.doc)
+            except Exception as e:
+                self.SetLoading(False)
+                forms.alert("Error scanning elements: {}".format(e))
+                return
 
         self._all_el_rows = [ElementRow(r) for r in raw]
 
@@ -256,18 +276,27 @@ class MaterialManagerWindow(NOSAWindow):
         self.BtnExportElements.IsEnabled = True
 
         if not self._all_el_rows:
-            forms.alert(
-                u"No structural elements found in the active document.\n\n"
-                u"The scan covers:\n"
-                u"  • Structural Framing\n"
-                u"  • Structural Columns\n"
-                u"  • Walls\n"
-                u"  • Floors\n"
-                u"  • Structural Foundations\n\n"
-                u"Make sure you have the correct document active and that "
-                u"it contains elements in these categories.",
-                title="Scan Complete — 0 elements"
-            )
+            if use_selection:
+                forms.alert(
+                    u"None of the selected elements could be read (they may "
+                    u"have been deleted, or belong to a linked model — "
+                    u"selection scan only reads the active document).",
+                    title="Scan Complete — 0 elements"
+                )
+            else:
+                forms.alert(
+                    u"No structural elements found in the active document.\n\n"
+                    u"The scan covers:\n"
+                    u"  • Structural Framing\n"
+                    u"  • Structural Columns\n"
+                    u"  • Walls\n"
+                    u"  • Floors\n"
+                    u"  • Structural Foundations\n\n"
+                    u"If your elements are a different category (Generic "
+                    u"Models, in-place families, etc.), select them in Revit, "
+                    u"tick “Use current selection” and scan again.",
+                    title="Scan Complete — 0 elements"
+                )
         else:
             self.TxtMatCount.Text = u"{} elements scanned".format(len(self._all_el_rows))
 

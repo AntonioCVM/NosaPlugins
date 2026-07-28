@@ -255,6 +255,47 @@ def collect_element_materials(doc):
     return result
 
 
+def collect_element_materials_from_selection(doc, element_ids):
+    """
+    Same row shape as collect_element_materials(), but built from an explicit
+    list of ElementIds instead of the fixed structural-category scan — lets
+    the user work on whatever they've selected in Revit, regardless of
+    category (Generic Models, in-place families, categories not covered by
+    _struct_bics(), etc.).
+    """
+    mat_list = get_all_materials(doc)
+    result = []
+    for eid in element_ids:
+        try:
+            el = doc.GetElement(eid)
+            if el is None:
+                continue
+            el_type_id = el.GetTypeId()
+            el_type    = doc.GetElement(el_type_id) if el_type_id else None
+            type_name  = el_type.Name if el_type else u'—'
+            mat_id, mat_name = _get_structural_material(doc, el)
+            is_missing = mat_id is None
+            prop_id = prop_name = None
+            if is_missing:
+                prop_id, prop_name = _propose_material(type_name, mat_list)
+            result.append({
+                'id':            el.Id,
+                'category':      _cat_name(el),
+                'level':         _level_name(doc, el),
+                'type_name':     type_name,
+                'material_id':   mat_id,
+                'material_name': mat_name or u'—',
+                'is_missing':    is_missing,
+                'proposed_id':   prop_id,
+                'proposed_name': prop_name or u'—',
+            })
+        except Exception:
+            pass
+
+    result.sort(key=lambda r: (r['category'], r['level'], r['type_name']))
+    return result
+
+
 def assign_material_to_elements(doc, element_ids, material_id):
     """
     Assign material_id to each element_id via STRUCTURAL_MATERIAL_PARAM,
