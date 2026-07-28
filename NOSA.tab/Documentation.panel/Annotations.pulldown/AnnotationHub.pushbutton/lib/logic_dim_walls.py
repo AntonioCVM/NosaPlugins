@@ -294,21 +294,30 @@ class DimensionLogic:
 
     def create_arc_dimensions(self, wall, view, dim_type, offset_mm, log_fn=None):
         """
-        Create Radius (text callout), Angular and Arc Length annotations for
-        a curved wall, matching the reference drafting convention: a radius
-        value, an angle at the arc centre, and an arc-length dimension.
+        Curved-wall radius/angle/arc-length annotation — PARKED, intentionally
+        a no-op.
 
-        Previous rounds tried referencing the wall's own solid geometry
-        (a CylindricalFace) for the arc-length dimension — this consistently
-        either raised an overload-mismatch error or (when it didn't raise)
-        gave no visual confirmation of success. This round sidesteps that
-        entirely: it creates its OWN auxiliary DetailCurve geometry (2 radius
-        lines + 1 offset arc) in the view, and references THOSE — elements
-        we fully control, with no ambiguity about face type or reference
-        kind. NewRadialDimension is confirmed unavailable on this Revit API
-        build (checked via hasattr across 3 rounds) with no equivalent
-        overload found, so the radius is shown as a plain TextNote instead
-        of a native radial dimension.
+        Four substantially different approaches were tried across this many
+        rounds, live-tested against the user's real project each time:
+          1. NewRadialDimension + Arc/ReferenceArray on the wall's own
+             CylindricalFace reference — NewRadialDimension confirmed absent
+             from this Revit API build (checked via hasattr, never found).
+          2. NewDimension(view, Arc, Reference) on the wall's own
+             CylindricalFace — raised an overload-mismatch error.
+          3. NewDimension(view, Arc, ReferenceArray) on the wall's own
+             CylindricalFace — no error, but produced nothing visible.
+          4. Auxiliary DetailCurves created by this tool itself (2 radius
+             lines + 1 offset arc) referenced by NewAngularDimension and
+             NewDimension — the auxiliary lines/text were created
+             successfully, but both dimension calls still failed, leaving
+             only stray annotation lines with no actual dimension: reported
+             back as "erroneous, confusing" by the user.
+
+        Per explicit instruction: if it can't be made to work, create
+        nothing rather than leave misleading partial artifacts. This method
+        now does exactly that for curved walls — no DetailCurves, no
+        TextNote, no dimension attempt — logging why once per wall so the
+        result dialog stays informative instead of silently skipping.
         """
         def _log(msg):
             if log_fn:
@@ -320,78 +329,8 @@ class DimensionLogic:
         geo = self.get_wall_curve_data(wall)
         if not geo['is_arc']: return []
 
-        created = []
-        offset = self.mm_to_internal(offset_mm)
-        center = geo['center']
-        mid_vec = (geo['mid_pt'] - center).Normalize()
-        new_radius = geo['radius'] + offset
-        v_start = (geo['start_pt'] - center).Normalize()
-        v_end   = (geo['end_pt']   - center).Normalize()
-        p_start = center + v_start * new_radius
-        p_end   = center + v_end   * new_radius
-        p_mid   = center + mid_vec * new_radius
-
-        try:
-            line_start = DB.Line.CreateBound(center, p_start)
-            line_end   = DB.Line.CreateBound(center, p_end)
-            arc_curve  = DB.Arc.Create(p_start, p_end, p_mid)
-        except Exception as e:
-            _log(u'Wall {}: could not build auxiliary radius/arc geometry — {}'.format(wall.Id, e))
-            return created
-
-        try:
-            dc_start = self.doc.Create.NewDetailCurve(view, line_start)
-            dc_end   = self.doc.Create.NewDetailCurve(view, line_end)
-            dc_arc   = self.doc.Create.NewDetailCurve(view, arc_curve)
-        except Exception as e:
-            _log(u'Wall {}: could not create auxiliary detail curves — {}'.format(wall.Id, e))
-            return created
-
-        # ANGULAR DIMENSION — angle between the 2 radius lines, at the arc centre.
-        try:
-            ang_dim = self.doc.Create.NewAngularDimension(
-                view, arc_curve, DB.Reference(dc_start), DB.Reference(dc_end))
-            if dim_type:
-                try:
-                    ang_dim.DimensionType = dim_type
-                except Exception:
-                    pass
-            created.append(ang_dim)
-        except Exception as e:
-            _log(u'Wall {}: angular dimension failed — {}'.format(wall.Id, e))
-
-        # ARC LENGTH DIMENSION — referencing our own auxiliary arc curve
-        # (not the wall's solid geometry), which is guaranteed to be a
-        # clean, referenceable Arc with no face-type ambiguity.
-        try:
-            arc_ref_array = DB.ReferenceArray()
-            arc_ref_array.Append(DB.Reference(dc_arc))
-            arc_len_dim = self.doc.Create.NewDimension(view, arc_curve, arc_ref_array)
-            if dim_type:
-                try:
-                    arc_len_dim.DimensionType = dim_type
-                except Exception:
-                    pass
-            created.append(arc_len_dim)
-        except Exception as e:
-            _log(u'Wall {}: arc-length dimension failed — {}'.format(wall.Id, e))
-
-        # RADIUS — NewRadialDimension is confirmed unavailable on this Revit
-        # API build (checked via hasattr in 3 separate rounds, never found).
-        # Shown as a plain text callout instead of a native dimension.
-        try:
-            radius_mm = geo['radius'] * 304.8
-            text_pt = center + mid_vec * (new_radius * 0.5)
-            text_type_id = DB.FilteredElementCollector(self.doc) \
-                .OfClass(DB.TextNoteType).FirstElementId()
-            if text_type_id and text_type_id != DB.ElementId.InvalidElementId:
-                note = DB.TextNote.Create(
-                    self.doc, view.Id, text_pt,
-                    u'R {:.0f}'.format(radius_mm), text_type_id)
-                created.append(note)
-            else:
-                _log(u'Wall {}: no TextNoteType found — radius callout skipped.'.format(wall.Id))
-        except Exception as e:
-            _log(u'Wall {}: radius text callout failed — {}'.format(wall.Id, e))
-
-        return created
+        _log(u'Wall {}: curved-wall dimensioning (radius/angle/arc-length) is '
+             u'parked — not supported on this Revit API build after 4 '
+             u'different approaches tried across separate live tests; '
+             u'creating nothing rather than a partial/confusing result.'.format(wall.Id))
+        return []

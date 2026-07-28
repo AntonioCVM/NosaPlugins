@@ -128,9 +128,10 @@
                                        Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
                             <CheckBox Name="DW_ChkStraight" Content="Straight walls" IsChecked="True"
                                       Foreground="{DynamicResource TextColor}" Margin="0,2"/>
-                            <CheckBox Name="DW_ChkCurved" Content="Curved walls (radius + arc length)"
-                                      IsChecked="True" Foreground="{DynamicResource TextColor}"
-                                      Margin="0,2"/>
+                            <CheckBox Name="DW_ChkCurved" Content="Curved walls (not supported — parked)"
+                                      IsChecked="False" IsEnabled="False" Foreground="{DynamicResource TextColor}"
+                                      Margin="0,2"
+                                      ToolTip="Radius, angle, and arc-length dimensioning on curved walls is not achievable on this Revit API build after 4 different approaches tried and live-tested — disabled rather than create confusing partial results."/>
                             <CheckBox Name="DW_ChkGrids" Content="Include nearby gridlines (straight walls)"
                                       IsChecked="False" Foreground="{DynamicResource TextColor}"
                                       Margin="0,2"
