@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import io
 import os
 import datetime
 import traceback
@@ -66,9 +67,13 @@ class Logger:
         if self.echo_to_console:
             print(log_line)
         
-        # Write to file
+        # Write to file — explicit utf-8: the default 'a' mode opens with
+        # the platform's locale encoding (ascii/cp1252 on some Windows
+        # sessions), which raises UnicodeEncodeError on any non-ASCII
+        # character (e.g. an em-dash "—" in a log message) and silently
+        # drops that log entry.
         try:
-            with open(self.log_file, 'a') as f:
+            with io.open(self.log_file, 'a', encoding='utf-8') as f:
                 f.write(log_line)
         except (OSError, IOError) as ex:
             sys.stderr.write("nosa_utils.logging: could not append log: {}\n".format(ex))
@@ -119,7 +124,7 @@ class Logger:
             output_path = self.log_file.replace('.txt', '_export.txt')
         
         try:
-            with open(output_path, 'w') as f:
+            with io.open(output_path, 'w', encoding='utf-8') as f:
                 f.write("="*80 + "\n")
                 f.write("NOSA EXTENSION - LOG DE SESIÓN\n")
                 f.write("="*80 + "\n")
