@@ -358,7 +358,7 @@ class MaterialManagerWindow(NOSAWindow):
         self.SetLoading(True, "Assigning material...")
         diagnostics = []
         try:
-            ok, failed = _logic.assign_material_to_elements(
+            ok, failed, readonly_type_ids = _logic.assign_material_to_elements(
                 self.doc, ids, mat_item.Id, diagnostics=diagnostics)
         except Exception as e:
             self.SetLoading(False)
@@ -370,6 +370,34 @@ class MaterialManagerWindow(NOSAWindow):
             msg += u"\n\nDetails ({} of {}):\n{}".format(
                 min(5, len(diagnostics)), len(diagnostics), u"\n".join(diagnostics[:5]))
         forms.alert(msg, title="Assign Material")
+
+        if readonly_type_ids:
+            n = len(readonly_type_ids)
+            if forms.alert(
+                u"{} element(s) have Material as a Type parameter — it can't be "
+                u"changed on the individual instance.\n\n"
+                u"Assign '{}' to the TYPE instead?\n\n"
+                u"WARNING: this changes the material for EVERY instance of "
+                u"that type in the whole project, not just the {} selected "
+                u"here.".format(n, mat_item.Name, n),
+                title=u"Assign at Type Level?", yes=True, no=True
+            ):
+                type_diag = []
+                self.SetLoading(True, "Assigning material to type(s)...")
+                try:
+                    tok, tfailed = _logic.assign_material_to_types(
+                        self.doc, readonly_type_ids, mat_item.Id, diagnostics=type_diag)
+                except Exception as e:
+                    self.SetLoading(False)
+                    forms.alert("Type assignment failed: {}".format(e))
+                    return
+                self.SetLoading(False)
+                tmsg = u"Type(s) assigned: {}  |  Failed: {}".format(tok, tfailed)
+                if type_diag:
+                    tmsg += u"\n\nDetails ({} of {}):\n{}".format(
+                        min(5, len(type_diag)), len(type_diag), u"\n".join(type_diag[:5]))
+                forms.alert(tmsg, title="Assign Material (Type)")
+
         self.ScanElements_Click(None, None)
 
     # ── elements export ───────────────────────────────────────────────────────

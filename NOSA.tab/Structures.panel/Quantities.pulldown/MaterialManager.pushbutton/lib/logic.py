@@ -406,13 +406,19 @@ def assign_material_to_elements(doc, element_ids, material_id, diagnostics=None)
     for the fallback chain. Also recurses into nested sub-components (for
     family instances that host their own nested families) so a material
     assigned to the host reaches nested components too, not just the host's
-    own parameters. Returns (ok_count, failed_count).
+    own parameters. Returns (ok_count, failed_count, readonly_type_eids).
 
     If diagnostics (a list) is passed, appends one line per failed element
     explaining why (e.g. every material parameter found was read-only),
     so a "Failed" result is actionable instead of a dead end.
+
+    readonly_type_eids is the subset of element_ids that failed specifically
+    because every material parameter found was read-only (almost always a
+    Type parameter) — the caller can offer assign_material_to_types() for
+    exactly these, rather than for every kind of failure.
     """
     ok = failed = 0
+    readonly_type_eids = []
     with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material") as t:
         t.Start()
         for eid in element_ids:
@@ -454,12 +460,64 @@ def assign_material_to_elements(doc, element_ids, material_id, diagnostics=None)
                                 u'; '.join(nested_reasons[:2]) or u'unknown reason'))
                 else:
                     failed += 1
+                    reasons = list(host_reasons or [])
+                    reasons.extend(nested_reasons)
+                    if reasons and all(u'read-only' in r for r in reasons):
+                        readonly_type_eids.append(eid)
                     if diagnostics is not None:
-                        reasons = list(host_reasons or [])
-                        reasons.extend(nested_reasons)
                         why = u'; '.join(reasons) if reasons else u'no writable material parameter found'
                         diagnostics.append(u'{} ({}): {}'.format(
                             get_id_value(eid), _cat_name(el), why))
+            except Exception as ex:
+                failed += 1
+                if diagnostics is not None:
+                    diagnostics.append(u'{}: {}'.format(get_id_value(eid), ex))
+        t.Commit()
+    return ok, failed, readonly_type_eids
+
+
+def assign_material_to_types(doc, element_ids, material_id, diagnostics=None):
+    """
+    Assign material_id at the TYPE level for the ElementTypes of the given
+    element_ids — for elements whose material is a Type parameter (read-only
+    on the instance, confirmed via assign_material_to_elements' diagnostics).
+
+    This changes the material for EVERY instance of that Type in the whole
+    project, not just the ones selected — callers must get explicit user
+    confirmation before calling this. Returns (ok_count, failed_count) where
+    counts are per unique Type touched, not per input element.
+    """
+    ok = failed = 0
+    seen_type_ids = set()
+    with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material (Type)") as t:
+        t.Start()
+        for eid in element_ids:
+            try:
+                el = doc.GetElement(eid)
+                if el is None:
+                    continue
+                type_id = el.GetTypeId()
+                if type_id is None or type_id == DB.ElementId.InvalidElementId:
+                    continue
+                key = get_id_value(type_id)
+                if key in seen_type_ids:
+                    continue
+                seen_type_ids.add(key)
+
+                type_el = doc.GetElement(type_id)
+                if type_el is None:
+                    failed += 1
+                    continue
+
+                reason_log = [] if diagnostics is not None else None
+                if _assign_material_any_param(type_el, material_id, reason_log):
+                    ok += 1
+                else:
+                    failed += 1
+                    if diagnostics is not None:
+                        why = u'; '.join(reason_log) if reason_log else u'no writable material parameter found'
+                        diagnostics.append(u'Type {} ({}): {}'.format(
+                            key, _safe_name(type_el), why))
             except Exception as ex:
                 failed += 1
                 if diagnostics is not None:
