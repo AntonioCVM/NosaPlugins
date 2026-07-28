@@ -73,18 +73,6 @@ def get_spot_elevation_types(doc):
     return [t for t in types if t.StyleType == DB.SpotDimensionStyleType.SpotElevation]
 
 
-def get_tag_types_for_category(doc, bic):
-    """Return all tag types for a given category."""
-    tags = []
-    for sym in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol).ToElements():
-        try:
-            if sym.Category and sym.Category.Id == DB.Category.GetCategory(doc, bic).Id:
-                tags.append(sym)
-        except Exception:
-            pass
-    return tags
-
-
 # ─────────────────────────────────────────────────
 # Batch annotation actions
 # ─────────────────────────────────────────────────

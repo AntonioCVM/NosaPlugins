@@ -1,7 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 """Bulk Parameter Editor — one parameter across filtered instances."""
 import sys, os
-import csv as _csv_mod
 from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -142,11 +141,3 @@ set_param_from_string = pe.set_param_from_string
 
 def apply_batch(doc, tuples):
     return pe.apply_param_batch(doc, tuples, u'NOSA — Bulk Parameter Edit')
-
-
-def export_csv(path, header, rows):
-    with open(path, 'wb' if sys.version_info.major < 3 else 'w') as f:
-        w = _csv_mod.writer(f)
-        w.writerow(header)
-        for r in rows:
-            w.writerow(r)

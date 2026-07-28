@@ -1,10 +1,6 @@
 ﻿# -*- coding: utf-8 -*-
 """Create Pile Cap Logic — regular grid + irregular shapes (L, T, Plus, Z, U)."""
-import sys, os
 from Autodesk.Revit import DB
-_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
-if _lib not in sys.path:
-    sys.path.insert(0, _lib)
 
 _MM_TO_FT = 1.0 / 304.8
 

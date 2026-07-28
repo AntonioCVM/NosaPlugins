@@ -180,35 +180,6 @@ def _element_is_steel(doc, el):
 # Concrete quantities
 # ─────────────────────────────────────────────────
 
-def collect_concrete_quantities(doc, selected_cats=None, selected_levels=None):
-    """
-    Returns list of dicts per element:
-      {id, name, category, level, volume_m3, area_m2, has_material}
-    """
-    rows = []
-    for cat_name, bic in _concrete_bics():
-        if selected_cats and cat_name not in selected_cats:
-            continue
-        for el in _collect(doc, bic):
-            try:
-                level = _level_name(doc, el)
-                if selected_levels and level not in selected_levels:
-                    continue
-                rows.append({
-                    'id':           get_id_value(el.Id),
-                    'name':         getattr(el, 'Name', str(el.Id)),
-                    'category':     cat_name,
-                    'level':        level,
-                    'volume_m3':    round(_volume_m3(el), 4),
-                    'area_m2':      round(_area_m2(el), 3),
-                    'has_material': _has_material(el),
-                    'material_name': '',
-                })
-            except Exception:
-                pass
-    return rows
-
-
 def collect_concrete_quantities_v2(doc, selected_cats=None, selected_levels=None,
                                     excluded_families=None, exclude_existing_phase=False,
                                     exclude_piles=False):
@@ -295,24 +266,6 @@ def collect_steel_quantities(doc, excluded_families=None, exclude_existing_phase
 # ─────────────────────────────────────────────────
 # Aggregation helpers
 # ─────────────────────────────────────────────────
-
-def aggregate_by_level_category(rows):
-    """Group rows into {(category, level): {volume, area, count}}."""
-    agg = {}
-    for r in rows:
-        key = (r['category'], r['level'])
-        if key not in agg:
-            agg[key] = {'category': r['category'], 'level': r['level'],
-                        'volume_m3': 0.0, 'area_m2': 0.0, 'count': 0}
-        agg[key]['volume_m3'] += r['volume_m3']
-        agg[key]['area_m2']   += r['area_m2']
-        agg[key]['count']     += 1
-    result = sorted(agg.values(), key=lambda x: (x['level'], x['category']))
-    for row in result:
-        row['volume_m3'] = round(row['volume_m3'], 3)
-        row['area_m2']   = round(row['area_m2'], 2)
-    return result
-
 
 def aggregate_concrete_v2(rows):
     """Group by (category, material, level), returns volume and area totals."""

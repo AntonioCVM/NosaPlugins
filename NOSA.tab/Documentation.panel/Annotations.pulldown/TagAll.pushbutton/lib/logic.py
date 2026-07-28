@@ -78,11 +78,6 @@ class TagLogic:
                 })
         return sorted(result, key=lambda x: (x['discipline'], x['name']))
 
-    def diagnose_tags_in_project(self):
-        """Diagnose what tag families are available in the project."""
-        # DIAGNOSIS DISABLED FOR PRODUCTION PERFORMANCE
-        pass
-
     def get_tag_family_symbols(self, category_bic_name):
         """Get all FamilySymbols for tags of the given category + Multi-Category Tags."""
         

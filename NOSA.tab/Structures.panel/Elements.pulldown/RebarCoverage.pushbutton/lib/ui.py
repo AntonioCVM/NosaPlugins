@@ -11,7 +11,6 @@ if _lib not in sys.path: sys.path.insert(0, _lib)
 
 _logic = imp.load_source('rebarcov_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 check_rebar_coverage     = _logic.check_rebar_coverage
-get_available_categories = _logic.get_available_categories
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.logging import Logger
