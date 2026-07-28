@@ -6,6 +6,15 @@ No ejecutar todavía — esto es la planificación. Antes de dar cada fase por t
 
 ---
 
+## Hallazgos de pruebas en vivo — 2026-07-28 (fuera de la numeración de fases, ejecutados igualmente)
+
+Tras el Checkpoint A, el usuario probó en Revit y reportó 2 cosas que no estaban en la auditoría original (ambas ya resueltas):
+
+- **MaterialManager — "no encuentra elementos" (commit `e6b6fb6`)**: el escaneo de la pestaña Elements solo cubría 5 categorías fijas (Framing/Columns/Walls/Floors/Foundation) sin ninguna vía alternativa. El usuario confirmó que sus elementos objetivo incluían categorías fuera de esa lista (Generic Models / familias in-place). Se revisó todo el código del escaneo, filtros y binding del grid — sin bug estático encontrado en la ruta de las 5 categorías — y se añadió un modo "Use current selection (any category)" como vía alternativa, sin quitar el escaneo por categoría existente.
+- **AddPileToPilecap — sin vista previa (commit `dd50373`)**: se añadió un Canvas de previsualización igual al de CreatePilecapType (contorno de losa + puntos de pilotes a escala), actualizado en vivo según patrón/spacing/embedment/distribución. Se extrajo `_compute_grid_points()` para que la previsualización y la creación real usen exactamente el mismo cálculo — el modo "Manual" (picking interactivo) no tiene previsualización estática posible, se indica así en el panel.
+
+---
+
 ## RECONCILIACIÓN 2026-07-27 — este plan se ejecutó sobre el disco real, no sobre el worktree de auditoría
 
 El disco real (`main`) tenía una reorganización grande sin commitear (`AUDIT_REFACTOR_PLAN.md`, Piling→Foundations, ~88 plugins) que cambió las rutas de casi todos los archivos citados abajo. Cada Fase de Nivel 1 se re-verificó contra las rutas nuevas antes de tocar nada — ver `AUDITORIA.md` §0-BIS para el detalle completo de la reconciliación. Resumen de lo ejecutado en esta sesión:
@@ -93,21 +102,15 @@ Estos no estaban en las Fases 1-8 originales porque no existían o no se habían
 ### Fase 6 — ✅ COMPLETA (ver RECONCILIACIÓN arriba) — Corregir docstrings de RevisionTracker y PilecapLoadChecker
 - RevisionTracker no necesitó cambio (ya gestiona `DB.Revision` real). PilecapLoadChecker corregido en el commit `14f2b79`.
 
-### Fase 7 — Unificar nombre público/interno de ElementJoin ("SmartJoin")
-- **Qué**: elegir un solo nombre (recomendado: quedarse con "SmartJoin" ya que así se llama en config/transacciones/clase, y renombrar solo el título visible si hace falta, o al revés) y aplicarlo consistentemente en `Structures.panel/Elements.pulldown/ElementJoin.pushbutton/`.
-- **Riesgo**: bajo si solo se tocan strings/nombres de archivo de config (`_smartjoin.json`) — **cuidado**: si se renombra el archivo de config, los usuarios existentes pierden su configuración guardada salvo que se migre el archivo antiguo.
-- **Verificación**: abrir el plugin, comprobar que título de ventana/config/transacciones usan el mismo nombre.
-- **Commit sugerido**: `refactor: unify ElementJoin/SmartJoin naming`
+### Fase 7 — ✅ EJECUTADA (commit `2e19333`) — Unificar nombre público/interno de ElementJoin ("SmartJoin")
+- Se mantuvo "SmartJoin" en los identificadores internos (config `_smartjoin.json`, `plugin_key='smartjoin_pro'`, comentario de docstring) — cero riesgo de pérdida de configuración de usuarios existentes. Se alinearon a "Element Join" los 4 sitios visibles: `Title` de la ventana, cabecera `TextBlock` dentro de la ventana, y 3 nombres de transacción (2 en `logic.py` + 1 en `ui.py`, esta última además corregida para llevar el prefijo "NOSA — " que le faltaba).
 
 ---
 
 ## Nivel 3 — Arquitectura y duplicación
 
-### Fase 8 — Consolidar `get_id_value` en Structures.panel
-- **Qué**: sustituir las 7 reimplementaciones idénticas (`ConnectionChecker`, `HealthScore`, `WarningsTriage`, `ElementJoin`, `RebarCoverage`, `QuantificationQA`, `RevisionTracker`) por `from nosa_utils.revit_helpers import get_id_value`.
-- **Riesgo**: muy bajo — la función es idéntica byte a byte según la auditoría.
-- **Verificación**: smoke test de los 7 pushbuttons (abren y ejecutan sin error de import).
-- **Commit sugerido**: `refactor: use shared get_id_value from nosa_utils instead of 7 local copies`
+### Fase 8 — ✅ NO HIZO FALTA — Consolidar `get_id_value`
+- Reconciliación confirmó 7/7 ya usan `from nosa_utils.revit_helpers import get_id_value`; verificado además con un grep de todo el árbol (no solo Structures.panel): 0 reimplementaciones locales, 0 usos de `.IntegerValue` fuera de `revit_helpers.py` (que es la implementación canónica). Sin cambios necesarios.
 
 ### Fase 9 — Consolidar helpers de proximidad/geometría
 - **Qué**: mover la lógica repetida de `ClashReport` (intersección de sólidos), `ConnectionChecker` (proximidad de extremos), `ElementJoin` (tolerancia bbox), `CenterBeamToColumn`/`WaffleSlab` (centro + distancia 2D) a funciones nuevas o ya existentes en `lib/nosa_utils/geometry.py`, y hacer que los 5 pushbuttons las llamen.
@@ -115,11 +118,10 @@ Estos no estaban en las Fases 1-8 originales porque no existían o no se habían
 - **Verificación**: cada pushbutton reproduce exactamente los mismos resultados que antes de la refactorización sobre el mismo modelo de prueba (comparar output antes/después).
 - **Commit sugerido**: `refactor: extract shared proximity/geometry helpers to nosa_utils.geometry` (uno por sub-fase)
 
-### Fase 10 — Unificar conversión mm↔ft
-- **Qué**: sustituir el literal `304.8`/`0.3048` por `nosa_utils.unit_conversion.mm_to_feet/feet_to_mm` en los ~10 archivos listados en AUDITORIA §MEDIO, empezando por `WaffleSlab/script.py:35-36` (que además corrige una pérdida de precisión real).
-- **Riesgo**: bajo, pero amplio en superficie (muchos archivos) — hacerlo archivo por archivo o agrupado por panel, cada grupo en su commit.
-- **Verificación**: valores dimensionales (spacing, cutoff, thickness, etc.) idénticos antes/después en cada herramienta tocada.
-- **Commit sugerido**: `refactor: replace hardcoded 304.8 conversions with nosa_utils.unit_conversion`
+### Fase 10 — ⏸ APLAZADA (alcance real 4× mayor de lo estimado) — Unificar conversión mm↔ft
+- **Qué cambió al re-escanear todo el árbol** (no solo los ~10 archivos originales): **43 archivos** en los 5 paneles definen su propia constante `304.8`/`0.3048` (`FT2MM`, `_FT_TO_MM`, `MM_TO_FEET`, etc.) en vez de importar `nosa_utils.unit_conversion`. Todas las constantes encontradas son **matemáticamente correctas** — a diferencia de lo que decía la auditoría original, `WaffleSlab/lib/logic.py:20` ya usa `1.0 / 304.8` exacto (la versión redondeada `0.00328084` que motivó ese hallazgo ya no existe, corregida en el refactor previo). Es decir: **no hay ningún bug detrás de esta fase, solo duplicación de una constante correcta en 43 sitios.**
+- **Decisión**: dado que (a) no corrige ningún bug real, (b) tocar 43 archivos en una sola sesión no encaja con "cada fase pequeña y verificable", y (c) el riesgo de introducir una errata al tocar tantos sitios a la vez supera el beneficio cosmético — **la aplazo a Nivel 4 (cosmético)**, dividida por panel en sub-fases futuras si se decide abordarla, en vez de ejecutarla ahora dentro de Nivel 3.
+- **Commit sugerido** (si se retoma): `refactor: replace hardcoded 304.8 conversions with nosa_utils.unit_conversion` (uno por panel/sub-fase)
 
 ### Fase 11 — Unificar persistencia de configuración
 - **Qué**: migrar `AddPileToPilecap` y `ExportScheduleToExcel` (los únicos usuarios de `ConfigManager`/`ConfigHelper`) al patrón `NOSAWindow.SaveConfig/LoadConfig`, o como mínimo apuntar `ConfigManager.DEFAULT_CONFIG_DIR` a la misma carpeta que usa `NOSAWindow` (`%APPDATA%/pyRevit/Extensions/NOSA.extension/NOSA_Configs/`).
@@ -127,11 +129,9 @@ Estos no estaban en las Fases 1-8 originales porque no existían o no se habían
 - **Verificación**: guardar una preferencia, cerrar Revit, reabrir, comprobar que se recupera desde la carpeta correcta.
 - **Commit sugerido**: `fix: unify config persistence path for AddPileToPilecap/ExportScheduleToExcel`
 
-### Fase 12 — Dejar de importar todo de forma eager en `__init__.py`
-- **Qué**: en `lib/nosa_utils/__init__.py` y `lib/pilecap_utils/__init__.py`, quitar los `from . import X` a nivel de paquete; cada consumidor importa explícitamente el submódulo concreto que necesita (`from nosa_utils.theme import ThemeManager`, que ya es como se usa hoy en la práctica).
-- **Riesgo**: medio — hay que comprobar que ningún archivo dependía del import implícito vía `nosa_utils.geometry.xxx` tras solo hacer `import nosa_utils`.
-- **Verificación**: smoke test de una muestra representativa de pushbuttons de cada panel (los que más usan `nosa_utils`).
-- **Commit sugerido**: `refactor: make nosa_utils/pilecap_utils __init__.py lazy instead of eager-importing Revit API`
+### Fase 12 — ✅ EJECUTADA (commit `529400c`) — Dejar de importar todo de forma eager en `__init__.py`
+- Antes de tocar nada, se verificó con grep en todo `NOSA.tab`: **0 archivos** hacen `import nosa_utils`/`import pilecap_utils` a secas seguido de acceso por atributo (`nosa_utils.geometry.foo()`) — todo el árbol ya usa `from nosa_utils.X import Y` explícito, así que nada dependía del import eager. Se vació `lib/nosa_utils/__init__.py` (pasó de ~20 imports eager a solo docstring/versión) y `lib/pilecap_utils/__init__.py` (de 5 a 0).
+- Nota: no se usó `__getattr__` a nivel de módulo (PEP 562) porque IronPython 2.7 no lo soporta y el código debe funcionar en ambos runtimes — se optó por la solución más simple y más compatible: no importar nada en `__init__.py`.
 
 ### Fase 13 — Migrar creación de pilotes/encepados a `pilecap_utils` de verdad
 - **Qué**: (depende de la Fase 4) hacer que `AddPileToPilecap` y `CreatePilecapType` llamen a `pilecap_utils.creation`/`data_retrieval`/`geometry`/`validation` en vez de reimplementar la lógica.
