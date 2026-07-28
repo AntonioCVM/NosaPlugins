@@ -28,20 +28,31 @@ común (no solo `.Name`, ver §2) puede fallar igual, en silencio o con un
 mensaje de error confuso, sin que se haya detectado todavía porque no se ha
 probado en vivo.
 
-**Propuesta**: un barrido dedicado (no en esta sesión) que:
-1. Liste todas las llamadas a métodos de `doc.Create`/`uidoc.Selection`/etc.
-   poco comunes en los ~88 plugins (grep de `doc.Create.New` da una lista
-   acotada y manejable).
-2. Verifique cada uno con `hasattr()` en un script de diagnóstico rápido
-   contra el modelo real del usuario, sin necesidad de ejecutar cada plugin
-   uno a uno.
-3. Documente los que fallen como limitaciones confirmadas del entorno (como
-   ya se hizo con `NewRadialDimension`), con alternativas conocidas cuando
-   existan (p. ej. geometría auxiliar propia, como se hizo en `DimensionWalls`
-   esta sesión).
+**Inventario ejecutado esta sesión (2026-07-28, solo lectura, sin arreglos)**:
+grep de `doc.Create.New*`/`app.Create.New*` en todo `NOSA.tab` — 25 sitios de
+llamada en 9 archivos:
 
-**Prioridad**: Alta (afecta fiabilidad, no solo rendimiento) pero alcance
-grande — candidato a su propia sesión dedicada.
+| Método | Archivos | Riesgo |
+|---|---|---|
+| `NewFamilyInstance` | 3 | Común — estable |
+| `NewGroup` | 3 | Común — estable |
+| `NewDimension` | 5 | Común — estable |
+| `NewCategorySet` / `NewInstanceBinding` (`app.Create`) | 2 | Común — estable |
+| `NewFloor` (overload antiguo con `CurveArray`) | 1 (`CreatePilecapType.pushbutton/lib/logic.py:117`) | **Sospechoso** — overload heredado pre-2022, superado en versiones modernas de la API; mismo patrón de riesgo que `NewRadialDimension` |
+| `NewRadialDimension` | 1 (`DimensionWalls.nobutton/lib/logic.py:230`) | **Confirmado roto** en este entorno — pero es código muerto (`.nobutton`, la ruta activa es `AnnotationHub`, ya aparcada esta sesión) |
+
+No se encontró ningún otro creador "exótico" (`NewAngularDimension` fuera de
+lo ya tocado, `NewWall`, `NewDetailCurve` fuera de lo ya tocado, etc.) en
+ningún otro sitio del árbol.
+
+**Propuesta restante**: verificar en vivo el overload antiguo de `NewFloor`
+en `CreatePilecapType` (el único candidato "sospechoso" que queda activo) —
+pequeño, acotado, no requiere un barrido de 88 plugins. El resto de la lista
+original (barrido completo + `hasattr()` automatizado) ya no hace falta: el
+inventario real es mucho más pequeño (9 archivos, no 88) y ya está hecho.
+
+**Prioridad**: Media — el único candidato activo (`NewFloor` en
+CreatePilecapType) es una prueba puntual, no una sesión dedicada.
 
 ---
 
