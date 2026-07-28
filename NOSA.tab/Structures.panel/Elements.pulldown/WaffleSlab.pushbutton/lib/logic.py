@@ -599,6 +599,17 @@ class ForjadoReticularReal:
             t2.Start()
             try:
                 self.losa_compresion = self.crear_losa_compresion(boundary_curves, nivel, elev_base)
+                if self.losa_compresion and self.forjado_principal:
+                    try:
+                        DB.JoinGeometryUtils.JoinGeometry(
+                            self.doc, self.forjado_principal, self.losa_compresion)
+                    except Exception as e:
+                        # Cosmetic only — both floors still exist and work
+                        # independently even if the seam between them stays
+                        # visible.
+                        self.output.print_md(
+                            "⚠ Could not join main slab and compression slab "
+                            "(both created, seam may remain visible): {}".format(str(e)))
                 t2.Commit()
             except Exception as e:
                 t2.RollBack()
