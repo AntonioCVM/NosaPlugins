@@ -77,6 +77,11 @@
                     <TextBox Name="TxtEmbedment" Style="{DynamicResource FieldBox}"
                              TextChanged="Preview_Changed" Margin="0,0,0,10"/>
 
+                    <TextBlock Text="Edge clearance (mm)" FontSize="11" Margin="0,0,0,4"/>
+                    <TextBox Name="TxtClearance" Style="{DynamicResource FieldBox}"
+                             TextChanged="Preview_Changed" Margin="0,0,0,10"
+                             ToolTip="Minimum distance from a pile centre to the slab edge. Drives the automatic pile count on non-rectangular caps, and the 'Suggest optimal distribution' button on rectangular ones."/>
+
                     <TextBlock Text="Pile type" FontSize="11" Margin="0,0,0,4"/>
                     <ComboBox Name="CboPileType" Margin="0,0,0,12"/>
 
@@ -87,7 +92,9 @@
                     <TextBlock Name="TxtSlabInfo" Text="No slab selected"
                                FontSize="10" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Pile distribution (editable)" FontSize="11" Margin="0,0,0,4"/>
+                    <TextBlock Text="Pile distribution — rectangular caps only" FontSize="11" Margin="0,0,0,4"
+                               TextWrapping="Wrap"
+                               ToolTip="Non-rectangular caps (L/T/U-shaped, splayed corners, etc.) size the pile grid automatically from spacing + edge clearance instead — see the preview panel."/>
                     <Grid Margin="0,0,0,4">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>

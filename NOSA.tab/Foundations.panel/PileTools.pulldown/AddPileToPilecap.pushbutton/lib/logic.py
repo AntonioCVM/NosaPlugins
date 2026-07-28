@@ -25,6 +25,9 @@ MAX_SPACING_MM = 10000
 DEFAULT_EMBEDMENT_MM = 75
 MIN_EMBEDMENT_MM = 0
 MAX_EMBEDMENT_MM = 3000
+DEFAULT_CLEARANCE_MM = 150
+MIN_CLEARANCE_MM = 0
+MAX_CLEARANCE_MM = 2000
 
 # Geometry cache for performance
 _geometry_cache = {}
@@ -35,20 +38,24 @@ _geometry_cache = {}
 
 config = config_manager.ConfigManager("add_pile_to_pilecap")
 
-def save_last_config(spacing_mm, pile_type_name, embedment_mm):
+def save_last_config(spacing_mm, pile_type_name, embedment_mm, clearance_mm=None):
     """Save last used configuration."""
-    config.update({
+    data = {
         "last_spacing_mm": spacing_mm,
         "last_pile_type": pile_type_name,
         "last_embedment_mm": embedment_mm
-    })
+    }
+    if clearance_mm is not None:
+        data["last_clearance_mm"] = clearance_mm
+    config.update(data)
 
 def load_last_config():
     """Load last used configuration."""
     return {
         "spacing_mm": config.get("last_spacing_mm", DEFAULT_SPACING_MM),
         "pile_type": config.get("last_pile_type", None),
-        "embedment_mm": config.get("last_embedment_mm", DEFAULT_EMBEDMENT_MM)
+        "embedment_mm": config.get("last_embedment_mm", DEFAULT_EMBEDMENT_MM),
+        "clearance_mm": config.get("last_clearance_mm", DEFAULT_CLEARANCE_MM)
     }
 def generate_triangular_grid(slab_center, span_dir, perp_dir, slab_z,
                                spacing_ft, slab_width, slab_height,

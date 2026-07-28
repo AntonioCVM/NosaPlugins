@@ -58,8 +58,9 @@ class AddPileToPilecapWindow(NOSAWindow):
         self.CboPattern.SelectedIndex = 0
 
         last = _logic.load_last_config()
-        self.TxtSpacing.Text   = str(last['spacing_mm'])
-        self.TxtEmbedment.Text = str(last['embedment_mm'])
+        self.TxtSpacing.Text    = str(last['spacing_mm'])
+        self.TxtEmbedment.Text  = str(last['embedment_mm'])
+        self.TxtClearance.Text  = str(last['clearance_mm'])
 
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
@@ -118,21 +119,49 @@ class AddPileToPilecapWindow(NOSAWindow):
             return None, None
         return spacing, embedment
 
+    def _try_read_clearance(self):
+        """Silent parse of TxtClearance — None if invalid, for live preview."""
+        try:
+            clearance = float(self.TxtClearance.Text.strip())
+        except (ValueError, AttributeError):
+            return None
+        if not (_logic.MIN_CLEARANCE_MM <= clearance <= _logic.MAX_CLEARANCE_MM):
+            return None
+        return clearance
+
+    def _read_clearance(self):
+        clearance = self._try_read_clearance()
+        if clearance is None:
+            forms.alert(u'Enter a valid edge clearance (mm) between {} and {}.'.format(
+                _logic.MIN_CLEARANCE_MM, _logic.MAX_CLEARANCE_MM))
+        return clearance
+
     # ── Preview ────────────────────────────────────────────────────────────────
     # Shared by Create_Click (real creation) and the live canvas preview, so the
     # preview always shows exactly the grid that would be built.
 
     def _suggest_distribution(self, spacing_mm):
-        """Fill TxtPilesU/TxtPilesV with the geometrically-optimal pile count
-        for the current slab and spacing — a sensible starting point, not a
-        hard limit; both fields stay freely editable afterwards."""
+        """Fill TxtPilesU/TxtPilesV with the pile count that fits inside the
+        slab while keeping at least the requested edge clearance on each
+        side — a sensible starting point, not a hard limit; both fields
+        stay freely editable afterwards. Only meaningful for a simple
+        rectangular slab; irregular shapes size their own grid from spacing
+        + clearance directly (see _compute_grid_points)."""
         if not self._layout:
             return
-        spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
-        n_spaces_u, _margin_u = _logic.calculate_pile_distribution(self._layout['slab_width'], spacing_ft)
-        n_spaces_v, _margin_v = _logic.calculate_pile_distribution(self._layout['slab_height'], spacing_ft)
-        self.TxtPilesU.Text = str(n_spaces_u + 1)
-        self.TxtPilesV.Text = str(n_spaces_v + 1)
+        clearance_mm = self._try_read_clearance()
+        if clearance_mm is None:
+            clearance_mm = _logic.DEFAULT_CLEARANCE_MM
+        spacing_ft    = unit_conversion.mm_to_feet(spacing_mm)
+        clearance_ft  = unit_conversion.mm_to_feet(clearance_mm)
+
+        def _n_piles_for(dimension_ft):
+            # Largest n_spaces such that the resulting margin is still >= clearance.
+            n_spaces = max(1, int((dimension_ft - 2 * clearance_ft) / spacing_ft))
+            return n_spaces + 1
+
+        self.TxtPilesU.Text = str(_n_piles_for(self._layout['slab_width']))
+        self.TxtPilesV.Text = str(_n_piles_for(self._layout['slab_height']))
 
     def SuggestDistribution_Click(self, sender, args):
         spacing_mm, _embedment_mm = self._try_read_numbers()
@@ -140,6 +169,7 @@ class AddPileToPilecapWindow(NOSAWindow):
             forms.alert(u'Enter a valid spacing (mm) first.')
             return
         self._suggest_distribution(spacing_mm)
+        self._refresh_preview()
 
     def _try_read_pile_counts(self):
         """Silent parse of TxtPilesU/TxtPilesV — None, None if invalid, for
@@ -173,58 +203,64 @@ class AddPileToPilecapWindow(NOSAWindow):
     def _compute_grid_points(self):
         """
         Returns a list of pile XYZ points for the current slab/pattern/spacing/
-        distribution, or None if inputs are incomplete/invalid, or the pattern
+        clearance, or None if inputs are incomplete/invalid, or the pattern
         is 'manual' (picked interactively — nothing to precompute).
+
+        For a true rectangular slab (exactly 4 boundary vertices), pile count
+        comes from the editable Piles U/V fields. For anything else (L/T/U
+        shapes, splayed corners, ...) the count is automatic — driven by
+        spacing + edge clearance and validated against the real footprint —
+        because generate_rectangular_grid does not check whether a point
+        actually falls inside the slab, and Piles U×V has no well-defined
+        meaning on an irregular outline anyway.
         """
         if not self._slab or not self._layout:
             return None
         spacing_mm, _embedment_mm = self._try_read_numbers()
         if spacing_mm is None:
             return None
-        n_piles_u, n_piles_v = self._try_read_pile_counts()
-        if n_piles_u is None:
+        clearance_mm = self._try_read_clearance()
+        if clearance_mm is None:
             return None
 
         pattern = self._current_pattern()
         if pattern == 'manual':
             return None
 
-        n_spaces_u = n_piles_u - 1
-        n_spaces_v = n_piles_v - 1
-
         layout = self._layout
-        span_dir = layout['span_dir']
-        perp_dir = layout['perp_dir']
+        span_dir    = layout['span_dir']
+        perp_dir    = layout['perp_dir']
         slab_center = layout['slab_center']
-        slab_z = layout['slab_z']
-        slab_width = layout['slab_width']
+        slab_z      = layout['slab_z']
+        slab_width  = layout['slab_width']
         slab_height = layout['slab_height']
 
-        spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
+        spacing_ft    = unit_conversion.mm_to_feet(spacing_mm)
+        clearance_ft  = unit_conversion.mm_to_feet(clearance_mm)
         slab_boundary = _logic.extract_face_boundary_points(self._face_inf)
-        edge_margin_u, edge_margin_v = self._distribution_margins(n_piles_u, n_piles_v, spacing_ft)
-        min_edge = max(50 / 304.8, spacing_ft * 0.10,
-                       min(edge_margin_u, edge_margin_v, spacing_ft * 0.15))
+        is_rect = len(slab_boundary) == 4
 
-        is_rect = len(slab_boundary) <= 6
         try:
             if is_rect:
+                n_piles_u, n_piles_v = self._try_read_pile_counts()
+                if n_piles_u is None:
+                    return None
                 grid_points = _logic.generate_rectangular_grid(
                     slab_center, span_dir, perp_dir, slab_z, spacing_ft,
-                    n_piles_u, n_piles_v, n_spaces_u, n_spaces_v)
+                    n_piles_u, n_piles_v, n_piles_u - 1, n_piles_v - 1)
             else:
                 grid_points, _rejected = _logic.generate_irregular_grid(
                     slab_center, span_dir, perp_dir, slab_z, spacing_ft,
-                    slab_width, slab_height, slab_boundary, self._face_inf, min_edge)
+                    slab_width, slab_height, slab_boundary, self._face_inf, clearance_ft)
 
             if pattern == 'triangular':
                 grid_points = _logic.generate_triangular_grid(
                     slab_center, span_dir, perp_dir, slab_z, spacing_ft,
-                    slab_width, slab_height, slab_boundary, self._face_inf, min_edge)
+                    slab_width, slab_height, slab_boundary, self._face_inf, clearance_ft)
             elif pattern == 'hexagonal':
                 grid_points = _logic.generate_hexagonal_grid(
                     slab_center, span_dir, perp_dir, slab_z, spacing_ft,
-                    slab_width, slab_height, slab_boundary, self._face_inf, min_edge)
+                    slab_width, slab_height, slab_boundary, self._face_inf, clearance_ft)
         except Exception:
             return None
 
@@ -270,6 +306,15 @@ class AddPileToPilecapWindow(NOSAWindow):
         boundary = _logic.extract_face_boundary_points(self._face_inf)
         verts_uv = [self._project_uv_xy(x, y, layout) for x, y in boundary]
 
+        # _draw_preview only reaches here once a slab is selected (see the
+        # early-return above), so it's safe to set these unconditionally —
+        # Piles U/V and "Suggest" only make sense for a true 4-vertex
+        # rectangular slab.
+        is_rect = len(boundary) == 4
+        self.TxtPilesU.IsEnabled = is_rect
+        self.TxtPilesV.IsEnabled = is_rect
+        self.BtnSuggestDistribution.IsEnabled = is_rect
+
         pattern = self._current_pattern()
         if pattern == 'manual':
             grid_points = []
@@ -277,16 +322,20 @@ class AddPileToPilecapWindow(NOSAWindow):
         else:
             grid_points = self._compute_grid_points() or []
             info = (u'{} piles'.format(len(grid_points)) if grid_points
-                    else u'No valid pile positions for the current settings.')
-            n_u, n_v = self._try_read_pile_counts()
-            spacing_mm, _emb = self._try_read_numbers()
-            if n_u is not None and spacing_mm is not None:
-                spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
-                margin_u, margin_v = self._distribution_margins(n_u, n_v, spacing_ft)
-                info += u'  —  edge margin U: {:.0f} mm, V: {:.0f} mm'.format(
-                    unit_conversion.feet_to_mm(margin_u), unit_conversion.feet_to_mm(margin_v))
-                if margin_u < 0 or margin_v < 0:
-                    info += u'  ⚠ piles would fall outside the slab — reduce Piles U/V.'
+                    else u'No valid pile positions for the current settings — '
+                         u'try a smaller spacing or edge clearance.')
+            if is_rect:
+                n_u, n_v = self._try_read_pile_counts()
+                spacing_mm, _emb = self._try_read_numbers()
+                if n_u is not None and spacing_mm is not None:
+                    spacing_ft = unit_conversion.mm_to_feet(spacing_mm)
+                    margin_u, margin_v = self._distribution_margins(n_u, n_v, spacing_ft)
+                    info += u'  —  edge margin U: {:.0f} mm, V: {:.0f} mm'.format(
+                        unit_conversion.feet_to_mm(margin_u), unit_conversion.feet_to_mm(margin_v))
+                    if margin_u < 0 or margin_v < 0:
+                        info += u'  ⚠ piles would fall outside the slab — reduce Piles U/V.'
+            else:
+                info += u'  —  pile count is automatic for this shape (spacing + edge clearance)'
             self.TxtPreviewInfo.Text = info
 
         piles_uv = [self._project_uv(p, layout) for p in grid_points]
@@ -336,6 +385,8 @@ class AddPileToPilecapWindow(NOSAWindow):
     def SelectSlab_Click(self, sender, args):
         spacing_mm, embedment_mm = self._read_numbers()
         if spacing_mm is None:
+            return
+        if self._read_clearance() is None:
             return
         if self.CboPileType.SelectedIndex < 0:
             forms.alert(u'Select a pile type first.')
@@ -392,18 +443,17 @@ class AddPileToPilecapWindow(NOSAWindow):
         self.TxtSlabInfo.Text = u'Slab {} — {:.1f} × {:.1f} ft'.format(
             get_id_value(slab.Id), layout['slab_width'], layout['slab_height'])
 
-        self.TxtPilesU.IsEnabled = True
-        self.TxtPilesV.IsEnabled = True
-        self.BtnSuggestDistribution.IsEnabled = True
         self.BtnCreate.IsEnabled = True
         self._suggest_distribution(spacing_mm)
         self.LogLine(u'Slab selected — adjust distribution and create.')
-        self._refresh_preview()
+        self._refresh_preview()  # also sets TxtPilesU/V + Suggest IsEnabled based on slab shape
 
+        clearance_mm = self._try_read_clearance()
         _logic.save_last_config(
             spacing_mm,
             str(self.CboPileType.SelectedItem),
             embedment_mm,
+            clearance_mm,
         )
 
     def Create_Click(self, sender, args):
@@ -428,10 +478,10 @@ class AddPileToPilecapWindow(NOSAWindow):
         pattern = self._current_pattern()
         embedment_ft = unit_conversion.mm_to_feet(embedment_mm)
 
-        if pattern != 'manual':
-            n_u, n_v = self._read_pile_counts()
-            if n_u is None:
-                return
+        if pattern != 'manual' and self._try_read_clearance() is None:
+            forms.alert(u'Enter a valid edge clearance (mm) between {} and {}.'.format(
+                _logic.MIN_CLEARANCE_MM, _logic.MAX_CLEARANCE_MM))
+            return
 
         layout = self._layout
         span_rotation_angle = layout['span_rotation_angle']
@@ -502,7 +552,7 @@ class AddPileToPilecapWindow(NOSAWindow):
             except Exception as ex:
                 self.LogLine(u'Warning: could not create group: {}'.format(ex))
 
-        _logic.save_last_config(spacing_mm, pile_name, embedment_mm)
+        _logic.save_last_config(spacing_mm, pile_name, embedment_mm, self._try_read_clearance())
         forms.alert(
             u'{} piles created and grouped as "{}".'.format(len(pile_ids), group_name),
             title=u'Success',
