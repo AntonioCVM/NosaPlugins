@@ -527,6 +527,7 @@ class AddPileToPilecapWindow(NOSAWindow):
 
         from nosa_utils.progress import nosa_progress
         pile_ids = []
+        creation_error = None
         try:
             with revit.Transaction(u'Create Piles'):
                 with nosa_progress(len(grid_points), u'Creating piles',
@@ -540,11 +541,24 @@ class AddPileToPilecapWindow(NOSAWindow):
                             pile_ids.append(inst.Id)
                         except Exception as ex:
                             self.LogLine(u'Warning: pile at {} failed: {}'.format(pt, ex))
+        except Exception as ex:
+            # Anything escaping here (e.g. from the Transaction/progress
+            # context managers themselves, not the per-pile try/except
+            # above) would previously fail silently — Create_Click is a raw
+            # WPF event handler, not covered by launch_nosa_window's
+            # protection around the initial ShowDialog() call.
+            creation_error = ex
         finally:
             self.SetLoading(False)
 
+        if creation_error is not None:
+            forms.alert(u'Pile creation stopped unexpectedly:\n{}'.format(creation_error),
+                        title=u'NOSA — Error')
+            return
+
         if not pile_ids:
-            forms.alert(u'No piles were created.')
+            forms.alert(u'No piles were created. Check the Log panel for the '
+                        u'per-position failure reasons.')
             return
 
         self.LogLine(u'{} piles created.'.format(len(pile_ids)))
