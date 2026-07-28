@@ -4,6 +4,7 @@ ConnectionChecker Logic — verify End Join and Analytical connections
 for structural beams and columns.
 """
 from Autodesk.Revit import DB
+from System.Collections.Generic import List
 from nosa_utils.revit_helpers import get_id_value
 
 
@@ -85,6 +86,18 @@ def check_beam_joins(doc):
     """
     issues = []
     beams = _collect(doc, DB.BuiltInCategory.OST_StructuralFraming)
+
+    # Restrict the per-endpoint spatial query to plausibly-adjacent
+    # structural categories instead of the whole model — previously ran
+    # unfiltered (every category) twice per beam, which also meant any
+    # nearby annotation/tag/dimension would count as a false "join".
+    adjacency_cats = List[DB.BuiltInCategory]([
+        DB.BuiltInCategory.OST_StructuralColumns,
+        DB.BuiltInCategory.OST_StructuralFraming,
+        DB.BuiltInCategory.OST_StructuralFoundation,
+    ])
+    cat_filter = DB.ElementMulticategoryFilter(adjacency_cats)
+
     for el in beams:
         try:
             curve = el.Location.Curve
@@ -98,6 +111,7 @@ def check_beam_joins(doc):
                 bbf = DB.BoundingBoxIntersectsFilter(outline)
                 nearby = list(
                     DB.FilteredElementCollector(doc)
+                      .WherePasses(cat_filter)
                       .WherePasses(bbf)
                       .WhereElementIsNotElementType()
                       .ToElements()
