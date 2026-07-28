@@ -141,6 +141,33 @@ def _create_cap_slab_polygon(doc, pts_mm, cx, cy, cz, cap_type_id, level_id):
         return doc.Create.NewFloor(arr, cap_type, level, True)
 
 
+def _group_pilecap_elements(doc, element_ids, group_name):
+    """
+    Group the cap slab + piles just created so the whole pilecap can be
+    copy/pasted around the project as one unit, and rename the resulting
+    GroupType to describe what kind of pilecap it is.
+    Must be called inside the same transaction the elements were created in.
+    Returns the Group, or None if grouping failed (never blocks the
+    pilecap's own creation — grouping is a convenience, not a requirement).
+    """
+    ids = [eid for eid in element_ids if eid]
+    if len(ids) < 2:
+        return None
+    try:
+        from System.Collections.Generic import List as _L
+        id_list = _L[DB.ElementId]()
+        for eid in ids:
+            id_list.Add(eid)
+        group = doc.Create.NewGroup(id_list)
+        try:
+            group.GroupType.Name = group_name
+        except Exception:
+            pass
+        return group
+    except Exception:
+        return None
+
+
 def _create_pile(doc, cx, cy, cz, pile_type_id, level_id):
     level  = doc.GetElement(level_id)
     symbol = doc.GetElement(pile_type_id)
@@ -175,9 +202,11 @@ def create_pilecap(doc, config, center_pt):
 
     with DB.Transaction(doc, "NOSA — Create Pile Cap") as t:
         t.Start()
+        new_ids = []
         try:
-            _create_cap_slab_rect(doc, cx, cy, cz, width_mm, height_mm,
-                                  cap_type_id, level_id)
+            slab = _create_cap_slab_rect(doc, cx, cy, cz, width_mm, height_mm,
+                                         cap_type_id, level_id)
+            new_ids.append(slab.Id)
             created += 1
         except Exception as e:
             errors.append("Cap slab: {}".format(e))
@@ -188,11 +217,15 @@ def create_pilecap(doc, config, center_pt):
                 x_off = (col_idx * spacing_mm - (n_h - 1) * spacing_mm / 2.0) * _MM_TO_FT
                 y_off = (row_idx * spacing_mm - (n_v - 1) * spacing_mm / 2.0) * _MM_TO_FT
                 try:
-                    _create_pile(doc, cx + x_off, cy + y_off, pile_z,
-                                 pile_type_id, level_id)
+                    pile = _create_pile(doc, cx + x_off, cy + y_off, pile_z,
+                                        pile_type_id, level_id)
+                    new_ids.append(pile.Id)
                     created += 1
                 except Exception as e:
                     errors.append("Pile [{},{}]: {}".format(col_idx, row_idx, e))
+
+        group_name = u"Pilecap {}x{} — {:.0f}x{:.0f}mm".format(n_h, n_v, width_mm, height_mm)
+        _group_pilecap_elements(doc, new_ids, group_name)
         t.Commit()
 
     return created, errors
@@ -555,23 +588,29 @@ def create_pilecap_irregular(doc, config, center_pt):
 
     with DB.Transaction(doc, u"NOSA — Create {} Pile Cap".format(shape_key)) as t:
         t.Start()
+        new_ids = []
         try:
-            _create_cap_slab_polygon(doc, poly_mm, cx_ft, cy_ft, cz_ft,
-                                     cap_type_id, level_id)
+            slab = _create_cap_slab_polygon(doc, poly_mm, cx_ft, cy_ft, cz_ft,
+                                            cap_type_id, level_id)
+            new_ids.append(slab.Id)
             created += 1
         except Exception as e:
             errors.append(u"Cap slab: {}".format(e))
 
         for i, (dx, dy) in enumerate(offsets):
             try:
-                _create_pile(doc,
-                             cx_ft + dx * _MM_TO_FT,
-                             cy_ft + dy * _MM_TO_FT,
-                             pile_z, pile_type_id, level_id)
+                pile = _create_pile(doc,
+                                    cx_ft + dx * _MM_TO_FT,
+                                    cy_ft + dy * _MM_TO_FT,
+                                    pile_z, pile_type_id, level_id)
+                new_ids.append(pile.Id)
                 created += 1
             except Exception as e:
                 errors.append(u"Pile {}: {}".format(i, e))
 
+        shape_label = IRREGULAR_SHAPES.get(shape_key, {}).get('label', shape_key)
+        group_name  = u"Pilecap {} — {}p".format(shape_label, len(offsets))
+        _group_pilecap_elements(doc, new_ids, group_name)
         t.Commit()
 
     return created, errors
