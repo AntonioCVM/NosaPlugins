@@ -306,7 +306,7 @@ def get_levels(doc):
     levels = sorted(
         DB.FilteredElementCollector(doc).OfClass(DB.Level).ToElements(),
         key=lambda lv: lv.Elevation)
-    return [(lv.Name, get_id_value(lv.Id)) for lv in levels]
+    return [(getattr(lv, 'Name', None) or str(lv.Id), get_id_value(lv.Id)) for lv in levels]
 
 
 # ── export ────────────────────────────────────────────────────────────────────

@@ -21,7 +21,8 @@ class SheetLogic:
         for z in zone_names:
             # Simple fuzzy match
             for sb in scope_boxes:
-                if z.lower() in sb.Name.lower():
+                sb_name = getattr(sb, 'Name', None) or u''
+                if z.lower() in sb_name.lower():
                     mapping[z] = sb
                     break
         return mapping

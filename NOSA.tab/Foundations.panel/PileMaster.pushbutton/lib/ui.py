@@ -296,7 +296,7 @@ class PileMasterWindow(NOSAWindow):
         self.scope_box_items = ObservableCollection[object]()
         
         for sb in sbs:
-            self.scope_box_items.Add(ScopeBoxItem(sb, sb.Name))
+            self.scope_box_items.Add(ScopeBoxItem(sb, getattr(sb, 'Name', None) or str(sb.Id)))
             
         self.lbScopeBoxes.ItemsSource = self.scope_box_items
     
