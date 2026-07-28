@@ -67,13 +67,15 @@
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="20,0,20,10">
                     <TextBlock Text="Arrangement pattern" FontSize="11" Margin="0,0,0,4"/>
-                    <ComboBox Name="CboPattern" Margin="0,0,0,12"/>
+                    <ComboBox Name="CboPattern" SelectionChanged="Preview_Changed" Margin="0,0,0,12"/>
 
                     <TextBlock Text="Spacing (mm)" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtSpacing" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                    <TextBox Name="TxtSpacing" Style="{DynamicResource FieldBox}"
+                             TextChanged="Preview_Changed" Margin="0,0,0,10"/>
 
                     <TextBlock Text="Embedment (mm)" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtEmbedment" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                    <TextBox Name="TxtEmbedment" Style="{DynamicResource FieldBox}"
+                             TextChanged="Preview_Changed" Margin="0,0,0,10"/>
 
                     <TextBlock Text="Pile type" FontSize="11" Margin="0,0,0,4"/>
                     <ComboBox Name="CboPileType" Margin="0,0,0,12"/>
@@ -86,7 +88,8 @@
                                FontSize="10" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,10"/>
 
                     <TextBlock Text="Distribution" FontSize="11" Margin="0,0,0,4"/>
-                    <ComboBox Name="CboDistribution" IsEnabled="False" Margin="0,0,0,14"/>
+                    <ComboBox Name="CboDistribution" IsEnabled="False"
+                              SelectionChanged="Preview_Changed" Margin="0,0,0,14"/>
 
                     <Button Name="BtnCreate" Content="CREATE PILES &amp; GROUP"
                             Style="{DynamicResource ActionButton}"
@@ -103,16 +106,33 @@
         <Grid Grid.Column="1" Margin="20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="260"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <TextBlock Grid.Row="0" Text="Log" FontWeight="Bold" FontSize="13"
+
+            <TextBlock Grid.Row="0" Text="Preview" FontWeight="Bold" FontSize="13"
                        Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
-            <TextBox Grid.Row="1" Name="TxtLog" IsReadOnly="True"
+            <Border Grid.Row="1" Background="{DynamicResource PanelColor}"
+                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                    CornerRadius="4" Margin="0,0,0,14">
+                <Grid>
+                    <Canvas Name="PileCanvas" Width="360" Height="220"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    <TextBlock Name="TxtPreviewInfo" Text="Select a foundation slab to preview piles."
+                               FontSize="10" Opacity="0.6" TextWrapping="Wrap"
+                               HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="8,0,8,6"/>
+                </Grid>
+            </Border>
+
+            <TextBlock Grid.Row="2" Text="Log" FontWeight="Bold" FontSize="13"
+                       Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+            <TextBox Grid.Row="3" Name="TxtLog" IsReadOnly="True"
                      FontFamily="Consolas" FontSize="11"
                      VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
                      Background="Transparent" BorderBrush="{DynamicResource BorderColor}" Padding="8"/>
 
-            <Grid Grid.Row="1" Name="LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA">
+            <Grid Grid.Row="3" Name="LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA">
                 <Border Background="White" CornerRadius="6" Padding="24,16"
                         HorizontalAlignment="Center" VerticalAlignment="Center"
                         BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
