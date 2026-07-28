@@ -226,7 +226,11 @@ class DimensionLogic:
 
         # RADIUS DIMENSION
         mid_vec = (geo['mid_pt'] - geo['center']).Normalize()
-        if curve_ref:
+        if curve_ref and not hasattr(self.doc.Create, 'NewRadialDimension'):
+            _log(u'Wall {}: NewRadialDimension is not available on this Revit '
+                 u'API build — radius dimension skipped (arc-length is '
+                 u'unaffected).'.format(wall.Id))
+        elif curve_ref:
             try:
                 origin = geo['mid_pt'] + mid_vec * offset
                 dim_rad = self.doc.Create.NewRadialDimension(view, curve_ref, origin)
@@ -247,22 +251,23 @@ class DimensionLogic:
                 ref_array.Append(refs[0])
                 ref_array.Append(refs[1])
 
-                # Build the offset arc from 3 points actually on it (start,
-                # end, mid — all in the wall's own sweep direction) instead
-                # of reconstructing start/end angles with atan2 + a fixed
-                # BasisX/BasisY frame, which silently produces the arc going
-                # the wrong way around whenever the sweep crosses the 0°/360°
-                # boundary in world coordinates.
+                # NewDimension(view, <geometry>, ReferenceArray, DimensionType)
+                # requires <geometry> to be a Line even for an arc-length
+                # dimension (confirmed live: passing the offset Arc itself
+                # raises "expected Line, got Arc") — the actual arc-length
+                # measurement comes from the DimensionType's ArcLength style
+                # plus the two end-face references, not from the geometry
+                # parameter. The chord between the (radius-offset) start/end
+                # points is enough to define the dimension line's plane/side.
                 new_radius = geo['radius'] + offset
                 v_start = (geo['start_pt'] - geo['center']).Normalize()
                 v_end   = (geo['end_pt']   - geo['center']).Normalize()
 
                 p_start = geo['center'] + v_start * new_radius
                 p_end   = geo['center'] + v_end   * new_radius
-                p_mid   = geo['center'] + mid_vec  * new_radius
 
-                dim_arc_geom = DB.Arc.Create(p_start, p_end, p_mid)
-                dim_arc_len = self.doc.Create.NewDimension(view, dim_arc_geom, ref_array, dim_type)
+                dim_line = DB.Line.CreateBound(p_start, p_end)
+                dim_arc_len = self.doc.Create.NewDimension(view, dim_line, ref_array, dim_type)
                 created.append(dim_arc_len)
             except Exception as e:
                 _log(u'Wall {}: arc-length dimension failed — {}'.format(wall.Id, e))
