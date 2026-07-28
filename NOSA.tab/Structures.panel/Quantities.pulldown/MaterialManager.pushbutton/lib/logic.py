@@ -43,17 +43,16 @@ def collect_materials(doc):
     """
     use_counts = {}
 
-    for el in DB.FilteredElementCollector(doc).WhereElementIsNotElementType().ToElements():
+    # Materials can be used by any category (instances or types), so this
+    # can't be narrowed with a category filter the way most other collectors
+    # in this codebase are — but iterating one unfiltered collector (which
+    # already returns both instances AND types together) covers the exact
+    # same elements as the previous two separate
+    # WhereElementIsNotElementType()/WhereElementIsElementType() passes, in
+    # a single pass instead of two.
+    for el in DB.FilteredElementCollector(doc):
         try:
             for mid in el.GetMaterialIds(False):
-                key = get_id_value(mid)
-                use_counts[key] = use_counts.get(key, 0) + 1
-        except Exception:
-            pass
-
-    for t in DB.FilteredElementCollector(doc).WhereElementIsElementType().ToElements():
-        try:
-            for mid in t.GetMaterialIds(False):
                 key = get_id_value(mid)
                 use_counts[key] = use_counts.get(key, 0) + 1
         except Exception:
