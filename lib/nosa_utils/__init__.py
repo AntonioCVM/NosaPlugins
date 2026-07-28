@@ -1,58 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 NOSA Utils — shared utility library for the NOSA pyRevit Extension.
+
+Submodules are imported directly by consumers (e.g. `from nosa_utils.theme
+import ThemeManager`), never via this package's __init__ — so it does not
+import them here. Several submodules touch the Revit API or pyrevit.forms
+at module level, and eagerly importing all of them on every
+`from nosa_utils.X import Y` would pull that in as a side effect regardless
+of which submodule was actually needed.
 """
 
 __version__ = "2.0.0"
 __author__  = "A. Viñas"
-
-# Core infrastructure (Bloque 1)
-from . import bootstrap
-from . import compat
-from . import collectors
-from . import transactions
-from . import telemetry
-from . import progress
-
-# Revit API helpers
-from . import revit_helpers
-
-# Config / state
-from . import config_manager
-from . import export_io
-
-# UI
-from . import base_window
-from . import theme
-
-# Shared domain helpers
-from . import sheet_protocol
-from . import param_element_ops
-from . import text_utils
-from . import unit_conversion
-from . import geometry
-
-# Logging / usage
-from . import logging        # legacy name kept for compatibility
-from . import usage
-
-# Misc
-from . import ui_helpers
-from . import loader         # kept for backward compat (wraps bootstrap)
-
-__all__ = [
-    # Bloque 1 infrastructure
-    'bootstrap', 'compat', 'collectors', 'transactions', 'telemetry', 'progress',
-    # Revit
-    'revit_helpers',
-    # Config
-    'config_manager', 'export_io',
-    # UI
-    'base_window', 'theme',
-    # Domain
-    'sheet_protocol', 'param_element_ops', 'text_utils', 'unit_conversion', 'geometry',
-    # Logging
-    'logging', 'usage',
-    # Misc
-    'ui_helpers', 'loader',
-]
