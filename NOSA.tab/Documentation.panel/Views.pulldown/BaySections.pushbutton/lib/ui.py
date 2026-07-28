@@ -85,6 +85,11 @@ class BaySectionsWindow(NOSAWindow):
         self.SetLoading(True, u'Generating sections...')
         created = 0
         errors  = 0
+        # Computed once — the model's own extents don't depend on which
+        # grid pair is being sectioned, so scanning the whole document
+        # again inside the grids_a x grids_b loop below would repeat the
+        # same document-wide scan once per pair for an identical result.
+        model_extents = _logic._get_model_extents(self.doc)
         try:
             with DB.Transaction(self.doc, u'NOSA — Bay Sections') as t:
                 t.Start()
@@ -95,7 +100,8 @@ class BaySectionsWindow(NOSAWindow):
                         views = _logic.create_bay_sections(
                             self.doc,
                             row_a._grid_id, row_b._grid_id,
-                            vt_id, depth_ft, depth_ft / 2.0, prefix)
+                            vt_id, depth_ft, depth_ft / 2.0, prefix,
+                            model_extents=model_extents)
                         created += len(views)
                 t.Commit()
         except Exception as e:

@@ -155,17 +155,25 @@ def create_section_view(doc, view_type_id, origin, look_dir, up_dir,
 
 def create_bay_sections(doc, grid_a_id, grid_b_id, section_type_id,
                         depth_offset_ft=10.0, height_offset_ft=5.0,
-                        view_name_prefix=u'S'):
+                        view_name_prefix=u'S', model_extents=None):
     """
     Create longitudinal and transverse sections between two grids.
     Returns list of created view Ids.
+
+    model_extents: pre-computed (min_x, max_x, min_y, max_y, min_z, max_z)
+    tuple from _get_model_extents(doc) — the model's own extents don't
+    depend on which grid pair is selected, so callers looping over many
+    grid pairs should compute this once and pass it in, instead of
+    re-scanning the whole document on every call.
     """
     grid_a = doc.GetElement(grid_a_id)
     grid_b = doc.GetElement(grid_b_id)
     if grid_a is None or grid_b is None:
         return []
 
-    min_x, max_x, min_y, max_y, min_z, max_z = _get_model_extents(doc)
+    if model_extents is None:
+        model_extents = _get_model_extents(doc)
+    min_x, max_x, min_y, max_y, min_z, max_z = model_extents
     model_height = max_z - min_z + height_offset_ft
     model_width  = math.sqrt((max_x - min_x)**2 + (max_y - min_y)**2) + depth_offset_ft * 2
 

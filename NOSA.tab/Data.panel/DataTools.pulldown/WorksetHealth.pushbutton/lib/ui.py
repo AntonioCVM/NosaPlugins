@@ -90,9 +90,7 @@ class WorksetHealthWindow(NOSAWindow):
             self.TxtStatus.Text = u'Source and target worksets must differ.'
             return
 
-        els = []
-        for sid in source_ids:
-            els.extend(_logic.get_elements_on_workset(self.doc, sid))
+        els = _logic.get_elements_on_worksets(self.doc, source_ids)
 
         if not els:
             self.TxtStatus.Text = u'No elements on selected workset(s).'

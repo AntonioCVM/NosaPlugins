@@ -68,14 +68,24 @@ def get_workset_stats(doc):
     return sorted(result, key=lambda r: r['name'].lower())
 
 
-def get_elements_on_workset(doc, workset_id_int):
-    ws_filter = DB.ElementWorksetFilter(DB.WorksetId(workset_id_int), False)
-    return list(
-        DB.FilteredElementCollector(doc)
-        .WherePasses(ws_filter)
-        .WhereElementIsNotElementType()
-        .ToElements()
-    )
+def get_elements_on_worksets(doc, workset_id_ints):
+    """
+    Elements on any of the given worksets, in a single document-wide scan —
+    used when the caller wants several source worksets at once, instead of
+    calling get_elements_on_workset() once per workset (each of which scans
+    the whole document independently for a single ElementWorksetFilter).
+    """
+    wanted = set(workset_id_ints)
+    result = []
+    all_els = DB.FilteredElementCollector(doc).WhereElementIsNotElementType().ToElements()
+    for el in all_els:
+        try:
+            ws_id = el.WorksetId
+            if ws_id is not None and get_id_value(ws_id) in wanted:
+                result.append(el)
+        except Exception:
+            pass
+    return result
 
 
 def move_elements_to_workset(doc, element_ids, target_workset_id):
