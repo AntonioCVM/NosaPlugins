@@ -1,9 +1,10 @@
 # Plan de optimización — NOSA.extension
 
-Propuesta de mejoras adicionales no cubiertas por `PLAN_MEJORA.md` (que ya se
-ejecutó por completo salvo Fase 10 y 13, aplazadas por decisión). Este
-documento es **solo una propuesta priorizada — nada de esto se ha
-implementado todavía.**
+Propuesta de mejoras adicionales no cubiertas por `PLAN_MEJORA.md` (ejecutado
+por completo salvo Fase 13, aplazada por decisión — Fase 10 también
+ejecutada). **Estado 2026-07-29: 4 de 5 puntos cerrados o investigados y
+ejecutados** (ver tabla al final). Solo queda el resto del barrido de bare
+`.Name` en los plugins de menor uso (punto 2).
 
 Contexto confirmado esta sesión (relevante para todo lo que sigue): el
 entorno real del usuario es **pyRevit 6.5.0.26173+1406 sobre motor
@@ -67,9 +68,31 @@ pendiente identificado en toda la auditoría: bajo este build concreto,
 controles WPF y variables Python, no solo API de Revit), pero incluso
 acotada a una fracción real, es un riesgo transversal a decenas de plugins.
 
-**Prioridad**: Alta. **Alcance**: grande — necesita su propia sesión,
-priorizando por plugins más usados primero (ver `NOSA_Configs/_usage.json`
-para datos reales de uso).
+**Ejecutado (2026-07-29) — barrido priorizado por uso real**: en vez del
+barrido completo de 143 archivos (alto riesgo, ver el aviso de la Fase 9/H12
+más abajo), se auditaron los 8 plugins con más uso real según
+`NOSA_Configs/_usage.json`: **ExportSheets** (75 lanzamientos combinados —
+encontrado y corregido el hallazgo más grave: un `.Name` roto en el bucle de
+exportación por elemento abortaba la exportación completa de esa vista/hoja,
+y el propio manejador de errores volvía a leer `.Name` sin proteger,
+arriesgando un segundo fallo sin capturar), **PileMaster** (41, 3 sitios sin
+ninguna protección), **MaterialManager** (ya corregido en rondas
+anteriores), **AddPileToPilecap** (24, incluyendo el bucle de búsqueda de
+elevación por nombre que usa el propio cálculo de embedment arreglado esta
+sesión), **CreatePilecapType**, **ProjectSetupWizard**, **AnnotationHub**
+(el más relevante: el wrapper `_ViewItem` sin proteger podía romper la
+inicialización completa de la ventana), **QRCode**. **ViewManager** ya
+estaba limpio (todo protegido con `try/except`). Todos corregidos con el
+patrón `getattr(obj, 'Name', None) or <valor por defecto>` ya validado en
+`MaterialManager`.
+
+**Pendiente**: el resto de los ~143 archivos (los de menor uso) — se aplica
+el mismo aviso que en el punto 1: un barrido masivo sin verificación en vivo
+repite el riesgo que ya se vio con H12 esta sesión.
+
+**Prioridad**: Media (bajó de Alta — los plugins de mayor impacto real ya
+están corregidos). **Alcance**: pequeño-medio por lote restante, mismo
+patrón, priorizar por `_usage.json` si se retoma.
 
 ---
 
@@ -146,15 +169,24 @@ categoría, o repetido dentro de un bucle) — el `PASO 2` de esta sesión se
 limitó a los hallazgos ya identificados en `AUDITORIA.md`, no a un barrido
 nuevo completo.
 
-**Propuesta**: un grep dirigido (`FilteredElementCollector\(doc\)\s*\)?\s*\.`
-sin `.OfCategory`/`.OfClass` inmediatamente después, dentro de un archivo
-que también tenga un bucle `for` que lo contenga) daría una lista candidata
-rápida para una futura sesión, sin necesidad de repetir el trabajo manual de
-esta.
+**Ejecutado (2026-07-29)**: barrido dirigido de los ~98 sitios de
+`FilteredElementCollector` en todo el árbol buscando collectors sin filtro
+de categoría/clase recreados dentro de un bucle. La inmensa mayoría ya
+filtra de inmediato o varía el filtro por iteración (no cacheable) — se
+encontraron **2 casos genuinos**, ambos corregidos:
+- **BaySections**: `create_bay_sections()` recalculaba los extremos del
+  modelo (escaneo completo sin filtro) una vez por cada par de grids en un
+  bucle anidado grids_a × grids_b, pese a que los extremos no dependen del
+  par seleccionado. Ahora se calculan una vez fuera del bucle.
+- **WorksetHealth**: `get_elements_on_workset()` repetía un escaneo completo
+  del documento por cada workset origen seleccionado. Sustituido por
+  `get_elements_on_worksets()` (plural), que sigue el mismo patrón de
+  una-sola-pasada-y-clasificar que ya usaba `get_workset_stats()` en el
+  mismo archivo.
 
-**Prioridad**: Media-baja — los 7 hallazgos conocidos y más probables ya
-están resueltos; esto es para encontrar los que la auditoría original no
-vio.
+**Prioridad**: Cerrado — no quedan más candidatos genuinos en el árbol
+actual (los ~96 restantes son falsos positivos: ya filtrados o con filtro
+legítimamente variable por iteración).
 
 ---
 
@@ -162,23 +194,20 @@ vio.
 
 | # | Item | Prioridad | Alcance | Estado |
 |---|---|---|---|---|
-| 1 | Barrido de métodos de API con superficie reducida bajo pythonnet | Alta | Grande | **Pendiente** — necesita su propia sesión (ver nota abajo) |
-| 2 | Barrido sistemático de bare `.Name` | Alta | Grande | **Pendiente** — necesita su propia sesión (ver nota abajo) |
-| 4 | Confirmar riesgo real de `imp.load_source` bajo Python 3.14 | Alta (condicional) | Pequeño | ✅ **Cerrado** — funciona de forma fiable, confirmado con evidencia empírica de toda la sesión |
-| 5 | Barrido nuevo de collectors sin filtro/en bucle | Media | Medio | Pendiente, prioridad media-baja |
+| 1 | Barrido de métodos de API con superficie reducida bajo pythonnet | Media | Pequeño | ✅ **Inventario completo** — solo 9 archivos/25 sitios, no 88 plugins. Un único candidato activo (`NewFloor` legado en CreatePilecapType) queda como prueba puntual |
+| 2 | Barrido sistemático de bare `.Name` | Media | Pequeño-medio restante | ✅ **8 plugins de mayor uso corregidos** (ExportSheets, PileMaster, AddPileToPilecap, CreatePilecapType, ProjectSetupWizard, AnnotationHub, QRCode; MaterialManager y ViewManager ya estaban bien) — queda el resto de ~143 archivos, de uso mucho menor |
 | 3 | Perfilar arranque real del ribbon | Media | Pequeño | ✅ **Investigado** — no hay logs accesibles fuera de Revit; requiere medición manual del usuario |
+| 4 | Confirmar riesgo real de `imp.load_source` bajo Python 3.14 | Alta (condicional) | Pequeño | ✅ **Cerrado** — funciona de forma fiable, confirmado con evidencia empírica de toda la sesión |
+| 5 | Barrido nuevo de collectors sin filtro/en bucle | Media | Medio | ✅ **Cerrado** — 2 casos genuinos encontrados y corregidos (BaySections, WorksetHealth), resto son falsos positivos |
 
-### Nota sobre los puntos 1 y 2 (por qué siguen pendientes, no ejecutados en esta sesión)
+### Qué queda realmente pendiente
 
-Ambos tienen alcance grande (decenas/cientos de archivos) y esta misma
-sesión ya demostró el riesgo concreto de tocar código en bloque sin
-verificación individual: el fix "optimizado" de H12 (PASO 2) rompió el
-escaneo de materiales en producción y tuvo que revertirse tras el primer
-uso real. Ejecutar 1 o 2 de golpe, sin poder probar cada cambio contra el
-modelo real del usuario uno a uno, repetiría ese mismo riesgo a mucha
-mayor escala. Si se quiere avanzar en esto, la vía responsable es una
-sesión dedicada con lotes pequeños y verificación en Revit entre cada uno
-— igual que el resto de este plan — no un barrido masivo de una sola vez.
-
-**No implementar nada de esto todavía** — es una propuesta para que decidas
-qué abordar y en qué orden en una futura sesión.
+Solo el resto del barrido de bare `.Name` (punto 2) — los plugins de menor
+uso real, no auditados esta sesión por volumen. Si se retoma, seguir
+priorizando por `NOSA_Configs/_usage.json` y aplicar el mismo patrón
+(`getattr(obj, 'Name', None) or <fallback>`) en lotes pequeños con
+`py_compile` + prueba en Revit entre cada uno — el fix "optimizado" de H12
+(PASO 2) que rompió el escaneo de materiales en producción y tuvo que
+revertirse es la prueba concreta, dentro de esta misma sesión, de por qué
+un barrido masivo sin verificación individual es un riesgo real, no
+hipotético.
