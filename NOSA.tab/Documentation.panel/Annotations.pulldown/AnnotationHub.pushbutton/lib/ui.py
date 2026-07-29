@@ -24,7 +24,7 @@ DimensionLogic = _dw_logic.DimensionLogic
 class _ViewItem(object):
     def __init__(self, element):
         self.Element   = element
-        self.Name      = element.Name
+        self.Name      = getattr(element, 'Name', None) or u'—'
         self.IsChecked = False
 
 
@@ -166,7 +166,7 @@ class AnnotationHubWindow(NOSAWindow):
 
     def _ga_init(self):
         self._ga_view = self.doc.ActiveView
-        self.GA_TxtViewName.Text  = u'View: {}'.format(self._ga_view.Name)
+        self.GA_TxtViewName.Text  = u'View: {}'.format(getattr(self._ga_view, 'Name', None) or u'—')
         grids = _ga_logic.get_grids(self.doc)
         self.GA_TxtGridCount.Text = u'{} H-grids + {} V-grids'.format(
             len(grids['h']), len(grids['v']))
@@ -244,7 +244,7 @@ class AnnotationHubWindow(NOSAWindow):
         if not forms.alert(
             u'Automatic dimensions will be created on view:\n«{}»\n\n'
             u'Active modules: {}\n\nContinue?'.format(
-                self._ga_view.Name, u', '.join(mods)),
+                getattr(self._ga_view, 'Name', None) or u'—', u', '.join(mods)),
             yes=True, no=True
         ):
             return

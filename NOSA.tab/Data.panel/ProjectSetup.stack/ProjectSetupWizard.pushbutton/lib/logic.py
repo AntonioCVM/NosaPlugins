@@ -95,7 +95,7 @@ def create_standard_levels(doc):
     created = 0
     with revit.Transaction('NOSA Setup — Create Levels'):
         for name, elev_mm in _DEFAULT_LEVELS:
-            already = any(lv.Name == name for lv in existing)
+            already = any(getattr(lv, 'Name', None) == name for lv in existing)
             if already:
                 continue
             try:

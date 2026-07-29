@@ -26,7 +26,7 @@ _PILE_INCLUDE_KEYS = (
 
 
 def _type_label(ft):
-    fam_name  = ft.Family.Name if (hasattr(ft, 'Family') and ft.Family) else u''
+    fam_name  = (getattr(ft.Family, 'Name', None) or u'') if (hasattr(ft, 'Family') and ft.Family) else u''
     sym_param = ft.get_Parameter(DB.BuiltInParameter.SYMBOL_NAME_PARAM)
     return fam_name, (sym_param.AsString() if sym_param else u'')
 

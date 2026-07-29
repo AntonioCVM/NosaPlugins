@@ -447,7 +447,7 @@ def run(doc, qr_data, mode='png'):
             return [('(none)', 'error',
                      u'No titleblock families found.  [{}]'.format(diag))]
         for fam in families:
-            name = fam.Name if fam.Name else u'(unnamed)'
+            name = getattr(fam, 'Name', None) or u'(unnamed)'
             if not _is_qr_family(name):
                 results.append((name, 'skip', u'Name does not contain "QR" — skipped'))
                 continue
