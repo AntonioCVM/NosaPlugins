@@ -609,7 +609,7 @@ def get_type_name(symbol):
     return param.AsString() if param else "<No Type>"
 
 def get_family_name(symbol):
-    return symbol.Family.Name if symbol.Family else "<No Family>"
+    return (getattr(symbol.Family, 'Name', None) or "<No Family>") if symbol.Family else "<No Family>"
 
 def symbol_sort_key(symbol):
     """Sort pile symbols with preferred families first, then by size."""
@@ -641,12 +641,15 @@ def get_slab_elevations(slab_element):
     # If not found, try searching by name
     if top_z is None or bottom_z is None:
         for param in slab_element.Parameters:
-            name = param.Definition.Name.lower()
-            if param.HasValue and param.StorageType == DB.StorageType.Double:
-                if 'elevation at top' in name or 'elevacion superior' in name:
-                    top_z = param.AsDouble()
-                elif 'elevation at bottom' in name or 'elevacion inferior' in name:
-                    bottom_z = param.AsDouble()
+            try:
+                name = (getattr(param.Definition, 'Name', None) or u'').lower()
+                if param.HasValue and param.StorageType == DB.StorageType.Double:
+                    if 'elevation at top' in name or 'elevacion superior' in name:
+                        top_z = param.AsDouble()
+                    elif 'elevation at bottom' in name or 'elevacion inferior' in name:
+                        bottom_z = param.AsDouble()
+            except Exception:
+                continue
     
     return top_z, bottom_z
 def get_face_vertices(face):
@@ -1134,7 +1137,7 @@ def find_next_core_number(doc):
     pattern = re.compile(r'^Core (\d+)$', re.IGNORECASE)
     max_num = 0
     for g in all_groups:
-        name = g.Name if hasattr(g, 'Name') else g.GroupType.Name
+        name = getattr(g, 'Name', None) or getattr(g.GroupType, 'Name', None) or u''
         m = pattern.match(name)
         if m:
             num = int(m.group(1))

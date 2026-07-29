@@ -474,7 +474,7 @@ class AddPileToPilecapWindow(NOSAWindow):
         if not level:
             from Autodesk.Revit import DB
             levels = list(DB.FilteredElementCollector(self.doc).OfClass(DB.Level))
-            names = [n.Name for n in levels]
+            names = [getattr(n, 'Name', None) or str(n.Id) for n in levels]
             pick = forms.SelectFromList.show(names, title=u'Select level for piles')
             if pick is None:
                 return
