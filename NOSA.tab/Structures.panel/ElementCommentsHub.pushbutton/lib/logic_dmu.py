@@ -145,8 +145,8 @@ class ElementCommentUpdater(DB.IUpdater):
                     continue
 
                 prefix = _elc_logic.default_prefix_for(cat_key, fam_name, type_name)
-                n = _elc_logic.next_free_number(doc, prefix)
-                p.Set(u'{}{}'.format(prefix, n))
+                num_part = _elc_logic.next_code_for_new_type(doc, prefix, type_name)
+                p.Set(u'{}{}'.format(prefix, num_part))
             except Exception:
                 pass
 

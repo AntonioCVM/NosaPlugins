@@ -123,17 +123,17 @@ class ElementCommentsHubWindow(NOSAWindow):
             len(self._rows), sum(r.Count for r in self._rows))
 
     def _refresh_preview(self):
-        """Simulate apply_comments' sequential counter so the grid shows
-        what each row's Comments value will become, before applying."""
-        seq = {}
+        """Uses the exact same compute_group_values() that Apply calls,
+        so the preview can never disagree with what actually gets written."""
         only_empty = bool(self.ChkOnlyEmpty.IsChecked)
-        for row in sorted(self._rows, key=lambda r: (r.Key[0], r.Key[1], r.Key[2])):
+        config_map = {row.Key: (row.Prefix or u'', row.Suffix or u'') for row in self._rows}
+        values = _logic.compute_group_values(self._groups, config_map, only_empty=only_empty)
+        for row in self._rows:
+            val = values.get(row.Key, u'')
             if only_empty and row.Current:
                 row.Preview = u'(kept: {})'.format(row.Current)
-                continue
-            prefix = row.Prefix or u''
-            seq[prefix] = seq.get(prefix, 0) + 1
-            row.Preview = u'{}{}{}'.format(prefix, seq[prefix], row.Suffix or u'')
+            else:
+                row.Preview = val
         self.GridGroups.Items.Refresh()
 
     def Groups_CellEdit(self, sender, args):

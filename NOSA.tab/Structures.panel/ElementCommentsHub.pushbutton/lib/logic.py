@@ -225,23 +225,22 @@ class TypeCommentsLogic(object):
         """
         groups: {key: ElementGroup} from group_by_type.
         config_map: {key: (prefix, suffix)} — one entry per group row.
-        Each group gets ONE Comments value shared by every element in it;
-        different groups (= different Types) always get different values
-        within the same prefix's sequence.
+        Each group gets ONE Comments value shared by every element in it.
+        Values are computed by compute_group_values — the same function
+        the manual-grid preview uses — so what's shown before Apply is
+        exactly what gets written.
         Returns (elements_written, groups_written).
         """
-        seq = defaultdict(int)
+        values = compute_group_values(groups, config_map, only_empty=only_empty)
         written = 0
         groups_written = 0
         with revit.Transaction(u'NOSA — Element Comments'):
-            for key in sorted(groups.keys(), key=lambda k: (k[0], k[1], k[2])):
-                grp = groups[key]
+            for key, grp in groups.items():
                 if only_empty and grp.current_comment:
                     continue
-                prefix, suffix = config_map.get(key, (u'', u''))
-                prefix = prefix or u''
-                seq[prefix] += 1
-                value = u'{}{}{}'.format(prefix, seq[prefix], suffix or u'')
+                value = values.get(key, u'')
+                if not value:
+                    continue
                 any_ok = False
                 for el in grp.elements:
                     try:
@@ -297,7 +296,6 @@ def next_free_number(doc, prefix):
     """Highest existing Comments value under this prefix (across the whole
     model, any category) + 1. Keeps sequences unique per prefix so two
     Types under the same code family never collide."""
-    import re
     pat = re.compile(u'^' + re.escape(prefix or u'') + u'(\\d+)$')
     best = 0
     for bic in _BIC_BY_KEY.values():
@@ -314,3 +312,85 @@ def next_free_number(doc, prefix):
             except Exception:
                 continue
     return best + 1
+
+
+def _type_size_code(type_name):
+    """
+    First number found in a Type name (e.g. '300x300mm' -> '300',
+    '450mm dia' -> '450'). Used so a Comments code hints at real size
+    instead of an arbitrary sequence position — two Types that only
+    differ by dimension (e.g. two square columns) get visibly different,
+    recognisable codes rather than an opaque incrementing digit.
+    """
+    if not type_name:
+        return u''
+    m = re.search(r'\d+', type_name)
+    return m.group(0) if m else u''
+
+
+def compute_group_values(groups, config_map, only_empty=False):
+    """
+    Deterministic {key: value} for every group — shared by the manual
+    grid's live preview and the actual Apply so they can never disagree.
+
+    Each group's numeric part is its own Type's size digits when
+    available (self-explanatory codes). A collision — two different
+    Types under the same prefix extracting the same digits, or a Type
+    name with no digits at all — always falls back to the next free
+    sequential number under that prefix, so two different Types can
+    NEVER end up with the identical Comments value, regardless of
+    whether their default prefixes happened to look similar.
+    """
+    values = {}
+    seq = defaultdict(int)
+    used = defaultdict(set)
+    for key in sorted(groups.keys(), key=lambda k: (k[0], k[1], k[2])):
+        grp = groups[key]
+        if only_empty and grp.current_comment:
+            values[key] = grp.current_comment
+            continue
+        prefix, suffix = config_map.get(key, (u'', u''))
+        prefix = prefix or u''
+        suffix = suffix or u''
+        num_part = _type_size_code(grp.type_name)
+        if not num_part or num_part in used[prefix]:
+            seq[prefix] += 1
+            num_part = u'{}'.format(seq[prefix])
+            while num_part in used[prefix]:
+                seq[prefix] += 1
+                num_part = u'{}'.format(seq[prefix])
+        used[prefix].add(num_part)
+        values[key] = u'{}{}{}'.format(prefix, num_part, suffix)
+    return values
+
+
+def _comments_value_taken(doc, value):
+    """True if any element in the target categories already has exactly
+    this Comments value."""
+    if not value:
+        return False
+    for bic in _BIC_BY_KEY.values():
+        for el in (DB.FilteredElementCollector(doc)
+                   .OfCategory(bic).WhereElementIsNotElementType()):
+            try:
+                p = el.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+                if ((p.AsString() or u'').strip() if p else u'') == value:
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def next_code_for_new_type(doc, prefix, type_name):
+    """
+    Numeric part of a brand-new Type's Comments code for the automatic
+    DMU — prefers the Type's own size digits (same rule as
+    compute_group_values), falling back to the next free sequential
+    number when those digits are already used by a different Type under
+    the same prefix, or the Type name has no digits. Guarantees two
+    different Types can never end up with the same Comments value.
+    """
+    size_code = _type_size_code(type_name)
+    if size_code and not _comments_value_taken(doc, prefix + size_code):
+        return size_code
+    return u'{}'.format(next_free_number(doc, prefix))
