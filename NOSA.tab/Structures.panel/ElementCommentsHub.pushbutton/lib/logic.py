@@ -11,6 +11,7 @@ Type instead of Family alone, and always writes Comments (never Mark),
 so it can safely cover every structural category including piles and
 pilecaps without colliding with PileMaster's own Mark numbering.
 """
+import re
 from collections import defaultdict
 
 from Autodesk.Revit import DB
@@ -55,19 +56,48 @@ def _category_key_for_bic(bic_int):
     return None
 
 
+def _family_code(family_name):
+    """
+    Short, human-recognisable code derived from a family name, so families
+    that differ only in a digit (e.g. "Pile Cap-2 Pile" vs "Pile Cap-3
+    Pile") still get visibly different default prefixes: first letter of
+    the name plus any digits found in it (e.g. "Pile Cap-2 Pile" -> "P2",
+    "Pile Cap-3 Pile" -> "P3", "UC Universal Column" -> "U").
+    """
+    if not family_name:
+        return u''
+    name = family_name.strip()
+    first_letter = next((c for c in name if c.isalpha()), u'')
+    digits = u''.join(re.findall(r'\d+', name))[:2]
+    code = (first_letter.upper() + digits) if (first_letter or digits) else name[:2].upper()
+    return code[:4]
+
+
 def default_prefix_for(category_key, family_name, type_name):
-    """Deterministic default prefix — same heuristic used by the manual
-    grid and by the automatic DMU, so both agree on a brand-new Type."""
+    """
+    Deterministic default prefix — same heuristic used by the manual grid
+    and by the automatic DMU, so both agree on a brand-new Type. Always
+    incorporates the Family (not just the Category), so different families
+    within one category (e.g. two beam families, or 2-pile vs 3-pile
+    pilecaps) get visibly different default codes rather than sharing one
+    category-wide letter and only differing by an arbitrary number.
+    """
     if category_key == 'StructuralFoundation':
         text = u'{} {}'.format(family_name or u'', type_name or u'').lower()
         if any(k in text for k in _GROUND_KEYWORDS):
-            return u'GB'
-        if any(k in text for k in _CAP_KEYWORDS):
-            return u'PC'
-        if any(k in text for k in _PILE_KEYWORDS):
-            return u'P'
-        return u'F'
-    return _DEFAULT_PREFIX.get(category_key, u'X')
+            base = u'GB'
+        elif any(k in text for k in _CAP_KEYWORDS):
+            base = u'PC'
+        elif any(k in text for k in _PILE_KEYWORDS):
+            base = u'P'
+        else:
+            base = u'F'
+    else:
+        base = _DEFAULT_PREFIX.get(category_key, u'X')
+    fam_code = _family_code(family_name)
+    if fam_code and not fam_code.startswith(base) and not base.startswith(fam_code):
+        return u'{}{}'.format(base, fam_code)
+    return base
 
 
 class ElementGroup(object):

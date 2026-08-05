@@ -131,12 +131,63 @@ F6_CODES = [
     ('Z', u'Multiple disciplines'),
 ]
 
+# F7 document-number ranges, from the NOSA File Naming Protocol v2.2
+# (00000-NOSA-TN-XXX-T-X-0018-I23-File_Naming_Protocols.pdf), field 7 table:
+#   0000's Documentation      0000 Issue Sheet · 00xx text docs · 09xx spec
+#   1000's Existing/demolition 10xx Existing · 15xx Demolition · 18xx Cut&fill
+#   2000's Plans               2000 Gridlines · 21xx Site plans · 22xx GA's · 25xx RC plans
+#   3000's Sections/elevations 30xx General · 35xx RC sections
+#   4000's Details             40xx Construction · 45xx RC details
+#   5000's Schedules           5000 Cover · 50xx Quantities · 55xx RC schedules
+#   6000's 3D views            60xx Analysis models · 65xx Revit models
+#   7000's General drawings    70xx Mixed · 75xx Sketches
+#   8000's Health and safety   80xx H&S documentation
+# One base value per F3 code — the most representative range for that
+# function. RO, RS and ZZ are genuinely ambiguous in the protocol and are
+# left out on purpose so F7 stays blank rather than guessed.
 F7_HINTS = {
-    'GA': '2200', 'EL': '3000', 'SC': '3000', 'DT': '4000',
-    'RC': '4500', 'RP': '5000', 'AM': '6000', 'GM': '6500',
-    'PV': '2200', 'CL': '0001', 'SP': '0900', 'HS': '8001',
-    'IS': '0000', 'TN': '0001', 'CS': '1000',
+    'GA': '2200',   # Plans — GA's
+    'PV': '2100',   # Plans — Site plans / general plan views
+    'RC': '4500',   # Details — RC details
+    'EL': '3000',   # Sections and elevations
+    'SC': '3000',   # Sections and elevations
+    'DT': '4000',   # Details — construction details
+    'RP': '5000',   # Schedules
+    'AM': '6000',   # 3D views — structural analysis models
+    'GM': '6500',   # 3D views — Revit models
+    'CL': '0001',   # Documentation — text documents (calculations)
+    'SP': '0900',   # Documentation — project specification
+    'HS': '8001',   # Health and safety
+    'IS': '0000',   # Documentation — Issue Sheet
+    'TN': '0001',   # Documentation — text documents (technical notes)
+    'CS': '1000',   # Existing / demolition — condition survey
+    'DS': '0001',   # Documentation — text documents (design certificate)
+    'MS': '0001',   # Documentation — text documents (method statement)
+    'RA': '0001',   # Documentation — text documents (risk assessment)
+    'RI': '0001',   # Documentation — text documents (RFI)
 }
+
+# Content keywords that override the F3-based F7 range — same F3 code can
+# land in a different F7 sub-range depending on what the sheet actually
+# contains (e.g. a "sketch" is F3=DT but F7 75xx, not 40xx).
+F7_KEYWORD_HINTS = (
+    (u'sketch',        u'7500'),
+    (u'gridline',      u'2000'),
+    (u'site plan',     u'2100'),
+    (u'cover',         u'5000'),
+    (u'quantities',    u'5000'),
+    (u'existing',      u'1000'),
+    (u'demolition',    u'1500'),
+    (u'cut and fill',  u'1800'),
+)
+
+
+def _f7_keyword_hint(sheet_name):
+    low = (sheet_name or u'').lower()
+    for kw, val in F7_KEYWORD_HINTS:
+        if kw in low:
+            return val
+    return u''
 
 F8_STAGES = [
     u'P01', u'P02', u'P03', u'P04', u'P05',
@@ -432,36 +483,74 @@ def suggest_f3_from_views(doc, sheet):
 
 
 def suggest_f3_from_name(sheet_name):
-    """Infer F3 code from sheet name keywords."""
+    """
+    Infer F3 code from sheet name keywords. Returns None (never a blind
+    default) when nothing matches confidently — an unmatched sheet name
+    is not evidence it belongs to General Arrangement, so the caller
+    falls through to existing-parameter data, or leaves F3 blank for the
+    user to set manually.
+    """
     strong = suggest_f3_strong_from_name(sheet_name)
     if strong:
         return strong
     low = _normalize_sheet_name(sheet_name)
     if u'site plan' in low:
-        return u'SP'
+        # Site plans are Plan View content (F7 21xx), not Specifications —
+        # 'SP' here was a pre-existing mismatch with the real NOSA protocol.
+        return u'PV'
     if u'plan view' in low or u'plan views' in low:
         if any(kw in low for kw in (u'building', u'front', u'rear', u'general')):
             return u'GA'
     name = low.upper()
-    if any(k in name for k in (u'SECTION', u'SECT')):
+    if any(k in name for k in (u'SECTION', u'SECT', u'CROSS SECTION', u'LONGITUDINAL SECTION')):
         return u'SC'
-    if any(k in name for k in (u'ELEVATION', u'ELEV')):
+    if any(k in name for k in (u'ELEVATION', u'ELEV', u'FACADE')):
         return u'EL'
-    if any(k in name for k in (u'DETAIL',)):
+    if u'SKETCH' in name:
+        # Protocol example: "Service trench coordination sketch" -> DT / 75xx.
         return u'DT'
-    if any(k in name for k in (u'RC ', u'REINFORC', u'REBAR')):
+    if any(k in name for k in (
+            u'DETAIL', u'TYPICAL DETAIL', u'CONNECTION DETAIL', u'STANDARD DETAIL')):
+        return u'DT'
+    if any(k in name for k in (
+            u'RC ', u'REINFORC', u'REBAR', u'BAR BENDING', u'BAR SCHEDULE')):
         return u'RC'
-    if any(k in name for k in (u'PLAN', u'FLOOR')):
+    if any(k in name for k in (
+            u'PLAN', u'FLOOR', u'LAYOUT PLAN', u'FRAMING PLAN', u'SETTING OUT')):
         return u'PV'
     if any(k in name for k in (u'FOUNDATION', u'FND', u'PILE')):
         return u'GA'
-    if any(k in name for k in (u'SCHEDULE', u'LIST', u'TABLE')):
+    if any(k in name for k in (u'SCHEDULE', u'LIST', u'TABLE', u'REGISTER', u'SUMMARY')):
         return u'RP'
-    if any(k in name for k in (u'CALC', u'ANALYSIS')):
+    if any(k in name for k in (u'CALC', u'ANALYSIS', u'DESIGN CALC')):
         return u'CL'
     if any(k in name for k in (u'LAYOUT',)):
         return u'GA'
-    return u'GA'
+    if any(k in name for k in (
+            u'ANALYTICAL', u'FE MODEL', u'FINITE ELEMENT')):
+        return u'AM'
+    if any(k in name for k in (
+            u'3D MODEL', u'BIM MODEL', u'COORDINATION MODEL', u'GEOMETRICAL MODEL')):
+        return u'GM'
+    if any(k in name for k in (u'HEALTH AND SAFETY', u'HEALTH & SAFETY', u'CDM')):
+        return u'HS'
+    if any(k in name for k in (u'METHOD STATEMENT', u'METHOD OF WORK', u'CONSTRUCTION METHOD')):
+        return u'MS'
+    if any(k in name for k in (u'RISK ASSESSMENT', u'RISK REGISTER', u'HAZARD')):
+        return u'RA'
+    if any(k in name for k in (u'CONDITION SURVEY', u'EXISTING CONDITION', u'SITE SURVEY')):
+        return u'CS'
+    if any(k in name for k in (u'SPECIFICATION', u'SPEC ', u'SPEC.')):
+        return u'SP'
+    if any(k in name for k in (u'TECHNICAL NOTE', u'GENERAL NOTES', u'NOTES')):
+        return u'TN'
+    if any(k in name for k in (u'DESIGN CERTIFICATE', u'CERTIFICATE', u'COMPLIANCE')):
+        return u'DS'
+    if any(k in name for k in (u'REQUEST FOR INFORMATION', u'RFI')):
+        return u'RI'
+    # No confident match — leave F3 for the caller to resolve from other
+    # data, or blank for manual review. Never guess.
+    return None
 
 
 def parse_nosa_number(number):
@@ -647,8 +736,13 @@ def assign_f7_sequences(doc, suggestions, config):
             (s.get(u'current_fields') or {}).get(u'f7', u'')))
         if len(items) <= 1:
             continue
-        f3 = items[0].get(u'f3', u'GA')
-        base = _parse_f7_int(F7_HINTS.get(f3, u'2200')) or 2200
+        f3 = items[0].get(u'f3', u'')
+        hint = F7_HINTS.get(f3, u'') if f3 else u''
+        if not hint:
+            # No reliable F3 for this group — don't invent a document
+            # number range; leave each item's F7 as already suggested.
+            continue
+        base = _parse_f7_int(hint) or 2200
         next_num = max(existing.get(key, base - 1), base - 1)
         for sug in items:
             next_num += 1
@@ -765,8 +859,10 @@ def suggest_bulk_for_sheet(doc, sheet_dict, config, existing_numbers=None):
         if f3:
             sources[u'f3'] = u'Views on sheet'
     if not f3:
-        f3 = config.get(u'f3', u'GA')
-        sources[u'f3'] = u'Config default'
+        # Nothing matched confidently — leave blank rather than guessing;
+        # the row will show as needing review instead of a wrong F3.
+        f3 = u''
+        sources[u'f3'] = u'Unresolved — set manually'
 
     f4 = suggest_f4_from_sheet_name(name)
     if f4:
@@ -806,8 +902,17 @@ def suggest_bulk_for_sheet(doc, sheet_dict, config, existing_numbers=None):
         (u'Legacy sheet number', suggest_f7_from_legacy(current, name, f3)),
     ])
     if not f7:
-        f7 = F7_HINTS.get(f3, u'2200')
-        sources[u'f7'] = u'Functional breakdown hint'
+        kw_hint = _f7_keyword_hint(name)
+        if kw_hint:
+            f7 = kw_hint
+            sources[u'f7'] = u'Content keyword'
+        else:
+            hint = F7_HINTS.get(f3, u'') if f3 else u''
+            if hint:
+                f7 = hint
+                sources[u'f7'] = u'Functional breakdown hint'
+            else:
+                sources[u'f7'] = u'Unresolved — set manually'
 
     f8, sources[u'f8'] = _pick_with_source([
         (u'Existing NOSA number', (parsed or {}).get(u'f8')),
