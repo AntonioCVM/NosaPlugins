@@ -56,48 +56,62 @@ def _category_key_for_bic(bic_int):
     return None
 
 
-def _family_code(family_name):
+def _read_family_and_type(type_elem):
     """
-    Short, human-recognisable code derived from a family name, so families
-    that differ only in a digit (e.g. "Pile Cap-2 Pile" vs "Pile Cap-3
-    Pile") still get visibly different default prefixes: first letter of
-    the name plus any digits found in it (e.g. "Pile Cap-2 Pile" -> "P2",
-    "Pile Cap-3 Pile" -> "P3", "UC Universal Column" -> "U").
+    (family_name, type_name) for a Type element, read the reliable way —
+    BuiltInParameter first (proven in PileMaster's logic_numbering.py),
+    falling back to the direct .FamilyName/.Name properties. Shared by
+    every place in this module that needs a Type's real name, so the
+    exact-Type grouping guarantee only has one implementation to trust.
     """
-    if not family_name:
-        return u''
-    name = family_name.strip()
-    first_letter = next((c for c in name if c.isalpha()), u'')
-    digits = u''.join(re.findall(r'\d+', name))[:2]
-    code = (first_letter.upper() + digits) if (first_letter or digits) else name[:2].upper()
-    return code[:4]
+    fam_name = u''
+    try:
+        p = type_elem.get_Parameter(DB.BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)
+        if p:
+            fam_name = p.AsString() or u''
+    except Exception:
+        pass
+    if not fam_name:
+        try:
+            fam_name = type_elem.FamilyName or u''
+        except Exception:
+            fam_name = u''
+
+    type_name = u''
+    try:
+        p = type_elem.get_Parameter(DB.BuiltInParameter.SYMBOL_NAME_PARAM)
+        if p:
+            type_name = p.AsString() or u''
+    except Exception:
+        pass
+    if not type_name:
+        try:
+            type_name = type_elem.Name or u''
+        except Exception:
+            type_name = u''
+
+    return fam_name, type_name
 
 
 def default_prefix_for(category_key, family_name, type_name):
     """
     Deterministic default prefix — same heuristic used by the manual grid
-    and by the automatic DMU, so both agree on a brand-new Type. Always
-    incorporates the Family (not just the Category), so different families
-    within one category (e.g. two beam families, or 2-pile vs 3-pile
-    pilecaps) get visibly different default codes rather than sharing one
-    category-wide letter and only differing by an arbitrary number.
+    and by the automatic DMU, so both agree on a brand-new Type. One
+    plain letter per category (C/B/F/W, or GB/PC/P for foundations),
+    matching the reference convention (C1, C2, C3 / B1, B2 / PC1, PC2 /
+    GB1 / P1 / F1, F2 / W1, W2) — the sequential number is what tells
+    different Types apart, not the prefix itself.
     """
     if category_key == 'StructuralFoundation':
         text = u'{} {}'.format(family_name or u'', type_name or u'').lower()
         if any(k in text for k in _GROUND_KEYWORDS):
-            base = u'GB'
-        elif any(k in text for k in _CAP_KEYWORDS):
-            base = u'PC'
-        elif any(k in text for k in _PILE_KEYWORDS):
-            base = u'P'
-        else:
-            base = u'F'
-    else:
-        base = _DEFAULT_PREFIX.get(category_key, u'X')
-    fam_code = _family_code(family_name)
-    if fam_code and not fam_code.startswith(base) and not base.startswith(fam_code):
-        return u'{}{}'.format(base, fam_code)
-    return base
+            return u'GB'
+        if any(k in text for k in _CAP_KEYWORDS):
+            return u'PC'
+        if any(k in text for k in _PILE_KEYWORDS):
+            return u'P'
+        return u'F'
+    return _DEFAULT_PREFIX.get(category_key, u'X')
 
 
 class ElementGroup(object):
@@ -184,12 +198,8 @@ class TypeCommentsLogic(object):
             type_elem = self.doc.GetElement(type_id)
             if type_elem is None:
                 return None, None, None
-            fam_name = getattr(type_elem, 'FamilyName', None)
-            if not fam_name:
-                p = type_elem.get_Parameter(DB.BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)
-                fam_name = p.AsString() if p else u''
-            type_name = getattr(type_elem, 'Name', None) or u''
-            return cat_key, fam_name or u'', type_name
+            fam_name, type_name = _read_family_and_type(type_elem)
+            return cat_key, fam_name, type_name
         except Exception:
             return None, None, None
 
@@ -279,8 +289,7 @@ def existing_comment_for_type(doc, category_key, family_name, type_name, exclude
             type_elem = doc.GetElement(type_id)
             if type_elem is None:
                 continue
-            fam = getattr(type_elem, 'FamilyName', u'') or u''
-            tname = getattr(type_elem, 'Name', u'') or u''
+            fam, tname = _read_family_and_type(type_elem)
             if fam != family_name or tname != type_name:
                 continue
             p = el.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
@@ -314,36 +323,20 @@ def next_free_number(doc, prefix):
     return best + 1
 
 
-def _type_size_code(type_name):
-    """
-    First number found in a Type name (e.g. '300x300mm' -> '300',
-    '450mm dia' -> '450'). Used so a Comments code hints at real size
-    instead of an arbitrary sequence position — two Types that only
-    differ by dimension (e.g. two square columns) get visibly different,
-    recognisable codes rather than an opaque incrementing digit.
-    """
-    if not type_name:
-        return u''
-    m = re.search(r'\d+', type_name)
-    return m.group(0) if m else u''
-
-
 def compute_group_values(groups, config_map, only_empty=False):
     """
     Deterministic {key: value} for every group — shared by the manual
     grid's live preview and the actual Apply so they can never disagree.
 
-    Each group's numeric part is its own Type's size digits when
-    available (self-explanatory codes). A collision — two different
-    Types under the same prefix extracting the same digits, or a Type
-    name with no digits at all — always falls back to the next free
-    sequential number under that prefix, so two different Types can
-    NEVER end up with the identical Comments value, regardless of
-    whether their default prefixes happened to look similar.
+    Plain per-prefix sequential numbering (C1, C2, C3 / B1, B2 / PC1,
+    PC2 / GB1 / P1 / F1, F2 / W1, W2 — the reference convention). Each
+    group is a distinct exact Type, so every Type gets its own number;
+    the guarantee against two Types sharing a code comes from grouping
+    always being exact-Type (group_by_type), not from the numbering
+    scheme itself.
     """
     values = {}
     seq = defaultdict(int)
-    used = defaultdict(set)
     for key in sorted(groups.keys(), key=lambda k: (k[0], k[1], k[2])):
         grp = groups[key]
         if only_empty and grp.current_comment:
@@ -352,45 +345,15 @@ def compute_group_values(groups, config_map, only_empty=False):
         prefix, suffix = config_map.get(key, (u'', u''))
         prefix = prefix or u''
         suffix = suffix or u''
-        num_part = _type_size_code(grp.type_name)
-        if not num_part or num_part in used[prefix]:
-            seq[prefix] += 1
-            num_part = u'{}'.format(seq[prefix])
-            while num_part in used[prefix]:
-                seq[prefix] += 1
-                num_part = u'{}'.format(seq[prefix])
-        used[prefix].add(num_part)
-        values[key] = u'{}{}{}'.format(prefix, num_part, suffix)
+        seq[prefix] += 1
+        values[key] = u'{}{}{}'.format(prefix, seq[prefix], suffix)
     return values
 
 
-def _comments_value_taken(doc, value):
-    """True if any element in the target categories already has exactly
-    this Comments value."""
-    if not value:
-        return False
-    for bic in _BIC_BY_KEY.values():
-        for el in (DB.FilteredElementCollector(doc)
-                   .OfCategory(bic).WhereElementIsNotElementType()):
-            try:
-                p = el.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
-                if ((p.AsString() or u'').strip() if p else u'') == value:
-                    return True
-            except Exception:
-                continue
-    return False
-
-
-def next_code_for_new_type(doc, prefix, type_name):
+def next_code_for_new_type(doc, prefix):
     """
     Numeric part of a brand-new Type's Comments code for the automatic
-    DMU — prefers the Type's own size digits (same rule as
-    compute_group_values), falling back to the next free sequential
-    number when those digits are already used by a different Type under
-    the same prefix, or the Type name has no digits. Guarantees two
-    different Types can never end up with the same Comments value.
+    DMU — the next free sequential number under this prefix, matching
+    the manual grid's plain numbering convention.
     """
-    size_code = _type_size_code(type_name)
-    if size_code and not _comments_value_taken(doc, prefix + size_code):
-        return size_code
     return u'{}'.format(next_free_number(doc, prefix))
