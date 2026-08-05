@@ -252,6 +252,45 @@ def sheet_map(doc):
     return result
 
 
+def set_detail_numbers(doc, updates):
+    """
+    updates: [(view_id, new_detail_str), ...]. Writes VIEWPORT_DETAIL_NUMBER
+    on the viewport that places each view (a view not on a sheet is skipped).
+    Returns (ok, failed, errors).
+    """
+    vp_by_view = {}
+    for vp in (DB.FilteredElementCollector(doc)
+                 .OfClass(DB.Viewport).ToElements()):
+        try:
+            vp_by_view[get_id_value(vp.ViewId)] = vp
+        except Exception:
+            pass
+
+    ok = failed = 0
+    errors = []
+    with DB.Transaction(doc, u'NOSA — Set Detail Numbers') as t:
+        t.Start()
+        for vid, new_detail in updates:
+            vp = vp_by_view.get(get_id_value(vid))
+            if vp is None:
+                failed += 1
+                errors.append(u'View {}: not placed on a sheet.'.format(get_id_value(vid)))
+                continue
+            try:
+                p = vp.get_Parameter(DB.BuiltInParameter.VIEWPORT_DETAIL_NUMBER)
+                if p is None or p.IsReadOnly:
+                    failed += 1
+                    errors.append(u'View {}: detail number is read-only.'.format(get_id_value(vid)))
+                    continue
+                p.Set(new_detail or u'')
+                ok += 1
+            except Exception as ex:
+                failed += 1
+                errors.append(u'View {}: {}'.format(get_id_value(vid), ex))
+        t.Commit()
+    return ok, failed, errors
+
+
 def get_all_view_templates(doc):
     """
     Every view template in the project, any view type, labelled with its type.

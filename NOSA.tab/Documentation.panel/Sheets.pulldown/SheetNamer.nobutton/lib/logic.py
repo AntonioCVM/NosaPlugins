@@ -520,19 +520,24 @@ def _current_field_values(parsed, params, row_params, config):
     }
 
 
-def write_nosa_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=False):
+def write_nosa_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=False,
+                      allow_renumber=True):
     """Write each NOSA protocol parameter individually (sheet + title blocks)."""
     return _sp.write_nosa_protocol_fields(
-        doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=debug)
+        doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=debug,
+        allow_renumber=allow_renumber)
 
 
 def apply_nosa_to_sheet(doc, sheet, f1, f3, f4, f5, f6, f7, f8,
-                        new_number=None, new_name=None, debug=False):
-    """Write NOSA fields individually; ViewSheet.SheetNumber = F7 only."""
+                        new_number=None, new_name=None, debug=False,
+                        allow_renumber=True):
+    """Write NOSA fields individually; ViewSheet.SheetNumber = F7 only
+    (skipped entirely when allow_renumber is False)."""
     if sheet is None:
         return False, {}, []
     try:
-        results = write_nosa_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=debug)
+        results = write_nosa_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8,
+                                    debug=debug, allow_renumber=allow_renumber)
         if new_name is not None:
             sheet.Name = new_name
         critical = (u'f3', u'f4', u'f5', u'f6', u'f7')

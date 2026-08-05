@@ -586,10 +586,13 @@ NOSA_FIELD_DISPLAY_NAMES = {
 }
 
 
-def write_nosa_protocol_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=False):
+def write_nosa_protocol_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=False,
+                               allow_renumber=True):
     """
     Write each NOSA protocol field to sheet/titleblock parameters individually.
     ViewSheet.SheetNumber is set to F7 (document number) only.
+    When allow_renumber is False, F7 (and therefore SheetNumber) is left
+    untouched — used once a sheet has been issued and must keep its number.
     Returns dict fkey -> {ok, host, skipped, readonly, info}.
     """
     vals = {
@@ -599,6 +602,12 @@ def write_nosa_protocol_fields(doc, sheet, f1, f3, f4, f5, f6, f7, f8, debug=Fal
     results = {}
     for fkey in (u'f1', u'f2', u'f3', u'f4', u'f5', u'f6', u'f7', u'f8'):
         val = vals.get(fkey, u'')
+        if fkey == u'f7' and not allow_renumber:
+            results[fkey] = {
+                u'ok': False, u'host': u'', u'skipped': True,
+                u'readonly': False, u'info': u'Sheet numbering locked — not applied.',
+            }
+            continue
         if fkey == u'f8' and not val:
             results[fkey] = {
                 u'ok': True, u'host': u'', u'skipped': True,

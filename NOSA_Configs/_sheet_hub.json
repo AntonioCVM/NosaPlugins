@@ -1,12 +1,13 @@
 {
-  "f8": "P01", 
+  "f5": "D", 
+  "f4": "ZZZ", 
+  "allow_renumber": false, 
+  "win_w": 1740.0, 
+  "dark_mode": false, 
+  "win_h": 978.0, 
   "f3": "PV", 
   "f1": "22026", 
-  "dark_mode": false, 
-  "f6": "S", 
-  "win_w": 1280.0, 
-  "f4": "ZZZ", 
+  "f8": "P01", 
   "f7": "2200", 
-  "win_h": 780.0, 
-  "f5": "D"
+  "f6": "S"
 }

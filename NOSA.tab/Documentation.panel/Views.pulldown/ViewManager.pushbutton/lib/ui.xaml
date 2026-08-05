@@ -257,13 +257,11 @@
                               CanUserAddRows="False" CanUserDeleteRows="False"
                               CellEditEnding="Rename_CellEdit">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Current name" Binding="{Binding ViewName}"
-                                                Width="*" IsReadOnly="True"/>
                             <DataGridTextColumn Header="Sheet" Binding="{Binding OnSheet}"
                                                 Width="80" IsReadOnly="True"/>
                             <DataGridTextColumn Header="No." Binding="{Binding DetailNo}"
-                                                Width="44" IsReadOnly="True"/>
-                            <DataGridTextColumn Header="New name" Binding="{Binding NewName}"
+                                                Width="44"/>
+                            <DataGridTextColumn Header="Name" Binding="{Binding NewName}"
                                                 Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
@@ -291,8 +289,11 @@
                     <TextBox Name="TxtRenSuffix" FontSize="11" Padding="4,3" Margin="0,2,0,6"
                              BorderBrush="{DynamicResource BorderColor}" TextChanged="RenameRule_Changed"/>
                     <TextBlock Text="Case" Style="{StaticResource FieldLabel}"/>
-                    <ComboBox Name="CmbRenCase" FontSize="11" Margin="0,2,0,14"
+                    <ComboBox Name="CmbRenCase" FontSize="11" Margin="0,2,0,10"
                               SelectionChanged="RenameRule_Changed"/>
+                    <TextBlock Text="Tip: double-click any &quot;Name&quot; or &quot;No.&quot; cell to type directly — manual edits are kept even if you change the rule above."
+                               Style="{StaticResource FieldLabel}" TextWrapping="Wrap"
+                               Opacity="0.6" Margin="0,0,0,10"/>
                     <Button Content="APPLY TO SELECTED" Style="{StaticResource ActionBtn}"
                             HorizontalAlignment="Left" Click="Rename_Click"
                             ToolTip="Renames the highlighted rows, or all listed rows if none is highlighted"/>

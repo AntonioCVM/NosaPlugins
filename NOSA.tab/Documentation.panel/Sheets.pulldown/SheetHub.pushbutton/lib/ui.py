@@ -355,6 +355,7 @@ class SheetHubWindow(NOSAWindow):
             cfg = self.LoadConfig()
             self.ApplyTheme(cfg.get('dark_mode', False))
             self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
+            self.ChkAllowRenumber.IsChecked = cfg.get('allow_renumber', False)
             self._sn_populate_combos(cfg)
             self._sn_update_preview()
         except Exception as e:
@@ -633,13 +634,19 @@ class SheetHubWindow(NOSAWindow):
         _, sn, _ = _hub_logics()
         cfg = self._merge_namer_config(self.LoadConfig())
         existing = sn.get_existing_numbers(self.doc)
+        allow_renumber = bool(self.ChkAllowRenumber.IsChecked)
         suggestions = []
         for row in self._all_sheet_rows:
             s = self._sheet_dict_for_row(row)
             sug = sn.suggest_bulk_for_sheet(self.doc, s, cfg, existing)
             suggestions.append((row, sug))
-        sn.assign_f7_sequences(self.doc, [s for _, s in suggestions], cfg)
+        if allow_renumber:
+            sn.assign_f7_sequences(self.doc, [s for _, s in suggestions], cfg)
         for row, sug in suggestions:
+            if not allow_renumber:
+                # Numbering locked — never propose a new F7, so the grid
+                # never shows a "change" for a field Apply will skip anyway.
+                sug[u'f7'] = row._current_fields.get(u'f7', u'') or sug.get(u'f7', u'')
             row.apply_suggestion(sug)
         self._sheets_suggested = True
         review, approved, err, ok = self._sheets_refresh_status()
@@ -693,6 +700,11 @@ class SheetHubWindow(NOSAWindow):
 
     def ChangesOnly_Changed(self, sender, args):
         self._rebind_sheets_grid()
+
+    def AllowRenumber_Changed(self, sender, args):
+        cfg = self.LoadConfig()
+        cfg['allow_renumber'] = bool(self.ChkAllowRenumber.IsChecked)
+        self.SaveConfig(cfg)
 
     def SheetsRevertCurrent_Click(self, sender, args):
         row = self.SheetsGrid.SelectedItem
@@ -750,6 +762,7 @@ class SheetHubWindow(NOSAWindow):
             self.TxtSheetsStatus.Text = (
                 u'No rows ready — tick rows with edited values, then apply.')
             return
+        allow_renumber = bool(self.ChkAllowRenumber.IsChecked)
         ok = fail = warn_sheets = 0
         self.SetLoading(True, u'Applying changes to Revit…')
         try:
@@ -777,7 +790,14 @@ class SheetHubWindow(NOSAWindow):
                     try:
                         applied, results, warnings = sn.apply_nosa_to_sheet(
                             self.doc, sheet, f1, f3, f4, f5, f6, f7, f8,
-                            new_name=f9 or None, debug=True)
+                            new_name=f9 or None, debug=True,
+                            allow_renumber=allow_renumber)
+                        f7_res = (results or {}).get(u'f7') or {}
+                        if (not allow_renumber and f7_res.get(u'skipped')
+                                and _norm_val(f7) != _norm_val(row._current_fields.get(u'f7', u''))):
+                            self.LogLine(
+                                u'[Sheets]   F7 Document Number — locked, not applied '
+                                u'(tick "Allow sheet number changes" to renumber).')
                         for fkey, res in (results or {}).items():
                             disp = _sp.NOSA_FIELD_DISPLAY_NAMES.get(fkey, fkey.upper())
                             if res.get(u'ok') and res.get(u'readonly') and res.get(u'info'):
@@ -958,7 +978,8 @@ class SheetHubWindow(NOSAWindow):
             try:
                 if mode in ('number', 'both'):
                     applied, _, _ = sn.apply_nosa_to_sheet(
-                        self.doc, av, f1, f3, f4, f5, f6, f7, f8, debug=True)
+                        self.doc, av, f1, f3, f4, f5, f6, f7, f8, debug=True,
+                        allow_renumber=bool(self.ChkAllowRenumber.IsChecked))
                     if not applied:
                         fail = 1
                 if mode in ('name', 'both') and f9:
@@ -991,7 +1012,8 @@ class SheetHubWindow(NOSAWindow):
         self.SnCmbF4.Text = sug['f4']
         self.SnCmbF5.SelectedIndex = self._index_of_code(self.SnCmbF5, sug['f5'])
         self.SnCmbF6.SelectedIndex = self._index_of_code(self.SnCmbF6, sug['f6'])
-        self.SnTxtF7.Text = sug['f7']
+        if bool(self.ChkAllowRenumber.IsChecked):
+            self.SnTxtF7.Text = sug['f7']
         self.SnCmbF8.Text = sug['f8']
         self.SnTxtF9.Text = sug.get('f9', av.Name or u'')
         self._sn_update_preview()

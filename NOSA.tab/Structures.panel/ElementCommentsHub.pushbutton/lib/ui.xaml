@@ -1,0 +1,255 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOSA — Element Comments Hub" Height="640" Width="980"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+        <Style TargetType="Button" x:Key="ActionBtn">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding"    Value="14,7"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"     Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="SecBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,5"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+        </Style>
+        <Style TargetType="Button" x:Key="TabBtn">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Name="bd"
+                                BorderThickness="0,0,0,3" BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                                <Setter TargetName="bd" Property="BorderBrush"
+                                        Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="FieldLabel">
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Margin"     Value="0,0,6,0"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1"
+                Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="4" Background="{DynamicResource AccentColor}"/>
+                    <TextBlock Text="Element Comments Hub" FontSize="15" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}"
+                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                    <TextBlock Text="Same size = same Comments code, different size = different code"
+                               FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.6"
+                               VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </StackPanel>
+                <CheckBox Grid.Column="1" Name="ChkDarkMode" Content="Dark mode"
+                          Click="Theme_Toggled" VerticalAlignment="Center"
+                          Foreground="{DynamicResource TextColor}" FontSize="11"/>
+            </Grid>
+        </Border>
+
+        <!-- Tab bar -->
+        <Border Grid.Row="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+            <StackPanel Orientation="Horizontal">
+                <Button Name="BtnTabManual" Content="Assign Comments" Style="{StaticResource TabBtn}"
+                        Tag="Selected" Click="Tab_Click"/>
+                <Button Name="BtnTabAuto"   Content="Automatic"       Style="{StaticResource TabBtn}"
+                        Click="Tab_Click"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ TAB CONTENT ═══ -->
+        <Grid Grid.Row="2" Margin="12,10,12,4">
+
+            <!-- ── ASSIGN COMMENTS (manual/batch) ── -->
+            <Grid Name="TabManual" Visibility="Visible">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="260"/>
+                </Grid.ColumnDefinitions>
+
+                <DockPanel Grid.Column="0" Margin="0,0,10,0">
+                    <TextBlock DockPanel.Dock="Top" Name="TxtGroupCount" FontSize="11" Opacity="0.6"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                    <DataGrid Name="GridGroups" AutoGenerateColumns="False" IsReadOnly="False"
+                              SelectionMode="Extended" Background="Transparent"
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                              GridLinesVisibility="Horizontal" FontSize="11"
+                              AlternatingRowBackground="#06000000"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              CellEditEnding="Groups_CellEdit">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}"
+                                                Width="120" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Family"   Binding="{Binding Family}"
+                                                Width="*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Type"     Binding="{Binding Type}"
+                                                Width="*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Count"    Binding="{Binding Count}"
+                                                Width="55" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Current"  Binding="{Binding Current}"
+                                                Width="70" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Prefix"   Binding="{Binding Prefix}"
+                                                Width="60"/>
+                            <DataGridTextColumn Header="Suffix"   Binding="{Binding Suffix}"
+                                                Width="60"/>
+                            <DataGridTextColumn Header="Will become" Binding="{Binding Preview}"
+                                                Width="90" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
+
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="SCOPE" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,4"/>
+                    <RadioButton Name="RbScopeActiveView" Content="Active view"
+                                 GroupName="ScopeMode" Checked="Scope_Changed"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbScopeSelection" Content="Current selection"
+                                 GroupName="ScopeMode" Checked="Scope_Changed"
+                                 Foreground="{DynamicResource TextColor}"/>
+                    <RadioButton Name="RbScopeProject" Content="Entire project" IsChecked="True"
+                                 GroupName="ScopeMode" Checked="Scope_Changed" Margin="0,0,0,12"
+                                 Foreground="{DynamicResource TextColor}"/>
+
+                    <TextBlock Text="CATEGORIES" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,4"/>
+                    <ListView Name="ListCategories" BorderThickness="0" Background="Transparent"
+                              FontSize="11" Margin="0,0,0,10" MaxHeight="150">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                          Content="{Binding Label}" Click="CategoryCheck_Changed"
+                                          Foreground="{DynamicResource TextColor}"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <CheckBox Name="ChkOnlyEmpty" Content="Only empty (skip existing Comments)"
+                              FontSize="11" Margin="0,0,0,12" Click="OnlyEmpty_Changed"
+                              Foreground="{DynamicResource TextColor}"/>
+
+                    <Button Content="Refresh" Style="{StaticResource SecBtn}"
+                            HorizontalAlignment="Left" Click="RefreshGroups_Click" Margin="0,0,0,8"/>
+                    <Button Content="APPLY COMMENTS" Style="{StaticResource ActionBtn}"
+                            HorizontalAlignment="Left" Click="ApplyComments_Click"
+                            ToolTip="Writes the previewed Comments value to every element in each row. Double-click Prefix/Suffix cells to edit."/>
+                </StackPanel>
+            </Grid>
+
+            <!-- ── AUTOMATIC (DMU) ── -->
+            <Grid Name="TabAuto" Visibility="Collapsed">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="300"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                    <TextBlock Text="How automatic assignment works" FontWeight="Bold" FontSize="12"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.8"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"
+                               Text="When a new element is placed in a ticked category: if another element of the exact same Family + Type already carries a Comments value, that value is copied to the new one. If the Type is genuinely new, the next free number under its default prefix is created."/>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.8"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"
+                               Text="Different Types (different sizes) never share a Comments code — grouping is always the exact Family + Type, never Category or Family alone."/>
+                    <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.8"
+                               Foreground="{DynamicResource TextColor}"
+                               Text="An element that already has a Comments value is never overwritten by this updater."/>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Ellipse Name="AutoDot" Width="12" Height="12" Fill="LightGray"
+                                 VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ToggleButton Name="TglAuto" Content="ENABLE" Click="ToggleAuto_Click"
+                                      Padding="14,6" Background="{DynamicResource AccentColor}"
+                                      Foreground="White" BorderThickness="0" Cursor="Hand"/>
+                    </StackPanel>
+                    <TextBlock Name="TxtAutoStatus" TextWrapping="Wrap" FontSize="11" Opacity="0.7"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,14"/>
+                    <TextBlock Text="CATEGORIES" FontSize="10" FontWeight="Bold" Opacity="0.5" Margin="0,0,0,4"/>
+                    <ListView Name="ListAutoCategories" BorderThickness="0" Background="Transparent"
+                              FontSize="11">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                          Content="{Binding Label}" Click="AutoCategoryCheck_Changed"
+                                          Foreground="{DynamicResource TextColor}"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="3" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <TextBlock Name="TxtStatus" FontSize="11"
+                       Foreground="{DynamicResource TextColor}" Opacity="0.7"/>
+        </Border>
+
+        <Grid Name="LoadingPanel" Grid.Row="2" Visibility="Collapsed" Background="#CCFAFAFA"
+              Panel.ZIndex="100">
+            <Border Background="White" CornerRadius="6" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"/>
+                    <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                 IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}" Margin="0,10,0,0"/>
+                    <TextBlock Name="TxtLoadStatus" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

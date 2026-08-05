@@ -218,6 +218,10 @@
                         <CheckBox Name="ChkChangesOnly" Content="Changes only"
                                   VerticalAlignment="Center" Margin="0,0,8,0"
                                   Click="ChangesOnly_Changed"/>
+                        <CheckBox Name="ChkAllowRenumber" Content="Allow sheet number changes (F7)"
+                                  VerticalAlignment="Center" Margin="0,0,8,0"
+                                  Click="AllowRenumber_Changed"
+                                  ToolTip="Off by default: once a sheet has been issued its number (F7 / Sheet Number) is never changed. Other NOSA fields and the sheet name still apply normally. Tick this only when you intend to renumber issued sheets."/>
                         <Button Content="Load / Refresh" Style="{StaticResource ActionBtn}"
                                 Click="SheetsLoad_Click" Margin="4,2"/>
                         <Button Name="BtnSheetsSuggest" Content="Suggest from Protocol"

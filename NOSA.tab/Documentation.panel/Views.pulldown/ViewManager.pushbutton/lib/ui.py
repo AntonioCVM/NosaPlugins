@@ -73,6 +73,8 @@ class ViewManagerWindow(NOSAWindow):
         self._all_views = []
         self._templates = []
         self._clean_loaded = False
+        self._rename_name_pending = {}    # {view_id_int: manual new-name text}
+        self._rename_detail_pending = {}  # {view_id_int: manual detail-number text}
 
         cfg = self.LoadConfig()
         self.ChkDarkMode.IsChecked = cfg.get('dark_mode', self.dark_mode)
@@ -180,22 +182,41 @@ class ViewManagerWindow(NOSAWindow):
         }
 
     def _refresh_rename(self):
+        """Populate the grid's single 'Name' cell with the effective value —
+        the view's current name unless a rule or a manual edit changes it —
+        so the cell is always directly editable in place, the same way the
+        'No.' (detail number) cell already works."""
         mode, params = self._rename_params()
         rows = []
         for r in self._filtered_views(self.TxtRenSearch):
-            new = _vbm.compute_new_name(r['name'], mode, params)
-            rows.append(self._make_row(r, new if new != r['name'] else u''))
+            vid = get_id_value(r['id'])
+            if vid in self._rename_name_pending:
+                new = self._rename_name_pending[vid]
+            else:
+                new = _vbm.compute_new_name(r['name'], mode, params)
+            row = self._make_row(r, new)
+            if vid in self._rename_detail_pending:
+                row.DetailNo = self._rename_detail_pending[vid]
+            rows.append(row)
         self.GridRename.ItemsSource = rows
 
     def Rename_CellEdit(self, sender, args):
-        """Track direct typing into the 'New name' column."""
+        """Track direct typing into the 'Name' / 'No.' columns so manual
+        edits survive rule changes and search re-filtering."""
         try:
             row = args.Row.Item
-            if str(getattr(args.Column, 'Header', '')) != 'New name':
+            header = str(getattr(args.Column, 'Header', ''))
+            if header not in ('Name', 'No.'):
                 return
             txt = args.EditingElement.Text \
                 if hasattr(args.EditingElement, 'Text') else ''
-            row.NewName = u'{}'.format(txt)
+            vid = get_id_value(row._rec['id'])
+            if header == 'Name':
+                row.NewName = u'{}'.format(txt)
+                self._rename_name_pending[vid] = row.NewName
+            else:
+                row.DetailNo = u'{}'.format(txt)
+                self._rename_detail_pending[vid] = row.DetailNo
         except Exception:
             pass
 
@@ -372,19 +393,42 @@ class ViewManagerWindow(NOSAWindow):
         rows = list(self.GridRename.SelectedItems or [])
         if not rows:
             rows = list(self.GridRename.ItemsSource or [])
-        renames = [(r._rec['id'], r.NewName) for r in rows if r.NewName]
-        if not renames:
-            forms.alert(u'No name changes to apply — check the rename rule.')
+        renames = [(r._rec['id'], r.NewName) for r in rows
+                   if r.NewName and r.NewName != r._rec['name']]
+        detail_updates = [
+            (r._rec['id'], r.DetailNo) for r in rows
+            if get_id_value(r._rec['id']) in self._rename_detail_pending]
+        if not renames and not detail_updates:
+            forms.alert(u'No changes to apply — type into "Name" or "No." first.')
             return
-        if not forms.alert(u'Rename {} view(s)?'.format(len(renames)),
+        parts = []
+        if renames:
+            parts.append(u'{} name(s)'.format(len(renames)))
+        if detail_updates:
+            parts.append(u'{} detail number(s)'.format(len(detail_updates)))
+        if not forms.alert(u'Apply {}?'.format(u' and '.join(parts)),
                            yes=True, no=True):
             return
-        self.SetLoading(True, u'Renaming views…')
+        self.SetLoading(True, u'Applying changes…')
         try:
-            ok, failed = _vbm.rename_views(self.doc, renames)
+            ok = failed = 0
+            if renames:
+                ok, failed = _vbm.rename_views(self.doc, renames)
+            det_ok = det_failed = 0
+            det_errors = []
+            if detail_updates:
+                det_ok, det_failed, det_errors = _logic.set_detail_numbers(
+                    self.doc, detail_updates)
         finally:
             self.SetLoading(False)
-        self.TxtStatus.Text = u'Renamed: {}  ·  Failed: {}'.format(ok, failed)
+        for r in rows:
+            vid = get_id_value(r._rec['id'])
+            self._rename_name_pending.pop(vid, None)
+            self._rename_detail_pending.pop(vid, None)
+        self.TxtStatus.Text = u'Renamed: {} ok / {} failed.  Detail #: {} ok / {} failed.'.format(
+            ok, failed, det_ok, det_failed)
+        if det_errors:
+            forms.alert(u'\n'.join(det_errors[:8]), title=u'View Manager — detail number warnings')
         self._load_all()
 
     # ── templates tab ─────────────────────────────────────────────────────────
