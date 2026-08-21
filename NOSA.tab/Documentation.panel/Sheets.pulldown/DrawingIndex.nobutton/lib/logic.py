@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import io
 """
 DrawingIndex Logic — collect sheet data and build a drawing index.
@@ -13,31 +13,12 @@ if _lib not in sys.path:
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import sheet_protocol as _sp
 
-# NOSA File Naming Protocol fields — in display order
-_NOSA_PARAM_ORDER = [
-    # Core identification (NOSA protocol fields 1-8)
-    'Sheet Number',           # ViewSheet number (F7 document number only)
-    'Sheet Name',             # Description
-    'Project Number',         # Field 1
-    'Originator',             # Field 2 (NOSA)
-    'Functional Breakdown',   # Field 3 (DT, GA, SC...)
-    'Spatial Breakdown',      # Field 4 (000, FND, ZZZ...)
-    'Form',                   # Field 5 — read/write via sheet + title blocks
-    'Discipline',             # Field 6 (S, C, X...)
-    'Document Number',        # Field 7 (2200, 4000...)
-    'Current Revision',       # Field 8 (P01, I01, C01...)
-    'Current Revision Date',
-    'Current Revision Description',
-    # Standard sheet params
-    'Scale',
-    'Drawn By',
-    'Checked By',
-    'Designed By',
-    'Approved By',
-    'Sheet Issue Date',
-    'File Path',
-    'Package',
-]
+# NOSA File Naming Protocol fields — in display order.
+# Single source of truth lives in nosa_utils/sheet_protocol.py (shared with
+# Sheet Export Hub's "NOSA Protocols" column preset); 'Package' is appended
+# on top since it's specific to Drawing Index / Sheet Hub, not part of the
+# base NOSA protocol field set.
+_NOSA_PARAM_ORDER = list(_sp.NOSA_PARAM_ORDER) + ['Package']
 
 
 def get_unique_packages(doc):

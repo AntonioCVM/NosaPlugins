@@ -12,8 +12,17 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import launch_nosa_window
 
-_ui = imp.load_source('sheethub_ui',
-                      os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
+try:
+    _ui = imp.load_source('sheethub_ui',
+                          os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
+except Exception as _load_err:
+    import traceback
+    from pyrevit import forms
+    forms.alert(
+        u'Sheet Hub failed to load its module chain:\n{}\n\n{}'.format(
+            _load_err, traceback.format_exc()),
+        title=u'NOSA — Load Error')
+    raise
 
 from pyrevit import revit
 launch_nosa_window(_ui.SheetHubWindow, revit.doc, revit.uidoc)

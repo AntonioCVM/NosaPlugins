@@ -18,9 +18,15 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.logging import Logger
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_hs_logic = imp.load_source('mhh_hs_logic', os.path.join(_here, 'logic_health_score.py'))
-_wt_logic = imp.load_source('mhh_wt_logic', os.path.join(_here, 'logic_warnings_triage.py'))
-_sc_logic = imp.load_source('mhh_sc_logic', os.path.join(_here, 'logic_model_sync.py'))
+_hs_logic  = imp.load_source('mhh_hs_logic',  os.path.join(_here, 'logic_health_score.py'))
+_wt_logic  = imp.load_source('mhh_wt_logic',  os.path.join(_here, 'logic_warnings_triage.py'))
+_sc_logic  = imp.load_source('mhh_sc_logic',  os.path.join(_here, 'logic_model_sync.py'))
+_ah_logic  = imp.load_source('mhh_ah_logic',  os.path.join(_here, 'logic_analytical_health.py'))
+_cc_logic  = imp.load_source('mhh_cc_logic',  os.path.join(_here, 'logic_connection_checker.py'))
+_cv_logic  = imp.load_source('mhh_cv_logic',  os.path.join(_here, 'logic_cover_compliance.py'))
+_fl_logic  = imp.load_source('mhh_fl_logic',  os.path.join(_here, 'logic_foundation_loads.py'))
+_lgs_logic = imp.load_source('mhh_lgs_logic', os.path.join(_here, 'logic_level_grid_sync.py'))
+_pd_logic  = imp.load_source('mhh_pd_logic',  os.path.join(_here, 'logic_parameter_drift.py'))
 
 logger = Logger()
 
@@ -70,6 +76,56 @@ class SyncRow(object):
         self._raw         = d
 
 
+class _DictRow(object):
+    """Generic dict-to-attrs row, used by AH/FL tabs."""
+    def __init__(self, d):
+        for k, v in d.items():
+            setattr(self, k, v)
+
+
+class CCIssueRow(object):
+    def __init__(self, d):
+        self.Severity = d['severity']
+        self.Category = d['category']
+        self.Level    = d['level']
+        self.Name     = d['name']
+        self.Check    = d['check']
+        self.Id       = d['id']
+
+
+class CVRebarRow(object):
+    def __init__(self, rec):
+        self.Host     = rec['host']
+        self.Category = rec['category']
+        self.CoverMm  = u'{:.1f}'.format(rec['cover_mm'])
+        self.MinMm    = u'{:.0f}'.format(rec['min_mm'])
+        self.Status   = rec['status']
+        self._rec     = rec
+
+
+class LGSLinkItem(object):
+    def __init__(self, link, title):
+        self.Link  = link
+        self.Title = title
+    def __str__(self):
+        return self.Title
+
+
+class PDParamItem(object):
+    def __init__(self, name):
+        self.Name      = name
+        self.IsChecked = False
+
+
+class PDDriftRow(object):
+    def __init__(self, d):
+        self.Element   = d.get('key', u'')
+        self.Parameter = d.get('param', u'')
+        self.Change    = d.get('change', u'')
+        self.Baseline  = d.get('baseline', u'')
+        self.Current   = d.get('current', u'')
+
+
 class ModelHealthHubWindow(NOSAWindow):
 
     def __init__(self, doc):
@@ -84,6 +140,12 @@ class ModelHealthHubWindow(NOSAWindow):
         self._hs_init(cfg)
         self._wt_init()
         self._sc_init()
+        self._ah_init()
+        self._cc_init()
+        self._cv_init(cfg)
+        self._fl_init()
+        self._lgs_init()
+        self._pd_init(cfg)
 
     # ══════════════════════════════════════════════════════════════════
     # TAB 1: HEALTH SCORE
@@ -604,6 +666,686 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
             forms.alert(u'Exported to:\n{}'.format(path))
         except Exception as e:
             forms.alert(u'Export failed: {}'.format(e))
+
+    # ══════════════════════════════════════════════════════════════════
+    # TAB 4: ANALYTICAL HEALTH CHECK
+    # ══════════════════════════════════════════════════════════════════
+
+    def _ah_init(self):
+        self._ah_rows = []
+
+    def AH_Run_Click(self, sender, args):
+        Vis = System.Windows.Visibility
+        self.AH_ProgBar.Visibility  = Vis.Visible
+        self.AH_TxtStatus.Text      = u'Analysing model…'
+        self.AH_BtnRun.IsEnabled    = False
+        self.AH_BtnExport.IsEnabled = False
+        self.AH_BtnSelect.IsEnabled = False
+
+        try:
+            results = _ah_logic.run_all(self.doc)
+        except Exception as e:
+            self.AH_ProgBar.Visibility = Vis.Collapsed
+            self.AH_TxtStatus.Text     = u''
+            self.AH_BtnRun.IsEnabled   = True
+            forms.alert(u'Error:\n{}'.format(e))
+            return
+
+        self.AH_ProgBar.Visibility = Vis.Collapsed
+        self.AH_TxtStatus.Text     = u''
+        self.AH_BtnRun.IsEnabled   = True
+
+        self._ah_rows = results['all']
+        src = ObservableCollection[object]()
+        for r in self._ah_rows:
+            src.Add(_DictRow(r))
+        self.AH_GridResults.ItemsSource = src
+
+        self.AH_TxtErrors.Text   = str(results['errors'])
+        self.AH_TxtWarnings.Text = str(results['warnings_count'])
+        self.AH_TxtTotal.Text    = str(results['total'])
+
+        self.AH_TxtSummary.Text = (
+            u'{} issue(s): {} error(s), {} warning(s).'.format(
+                results['total'], results['errors'], results['warnings_count']))
+
+        if self._ah_rows:
+            self.AH_BtnExport.IsEnabled = True
+
+    def AH_GridResults_SelectionChanged(self, sender, args):
+        self.AH_BtnSelect.IsEnabled = self.AH_GridResults.SelectedItem is not None
+
+    def AH_Select_Click(self, sender, args):
+        selected = list(self.AH_GridResults.SelectedItems)
+        if not selected:
+            return
+        try:
+            from System import Int64
+            ids = List[DB.ElementId]([
+                DB.ElementId(Int64(int(r.id))) for r in selected
+                if r.id and str(r.id).lstrip('-').isdigit()
+            ])
+            if ids:
+                revit.uidoc.Selection.SetElementIds(ids)
+                self.AH_TxtSummary.Text = u'{} element(s) selected.'.format(len(ids))
+        except Exception as e:
+            forms.alert(u'Error selecting: {}'.format(e))
+
+    def AH_Export_Click(self, sender, args):
+        if not self._ah_rows:
+            return
+        path = forms.save_file(file_ext='csv')
+        if not path:
+            return
+        try:
+            keys = ['severity', 'etype', 'mark', 'level', 'id', 'issue']
+            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+                w = csv.writer(f)
+                w.writerow([u'Severity', u'Type', u'Mark', u'Level', u'ID', u'Issue'])
+                for r in self._ah_rows:
+                    w.writerow([r.get(k, '') for k in keys])
+            forms.alert(u'Exported:\n{}'.format(path))
+        except Exception as e:
+            forms.alert(u'Error exporting: {}'.format(e))
+
+    # ══════════════════════════════════════════════════════════════════
+    # TAB 5: CONNECTION CHECKER
+    # ══════════════════════════════════════════════════════════════════
+
+    def _cc_init(self):
+        self._cc_rows         = ObservableCollection[CCIssueRow]()
+        self._cc_custom_rules = []
+        self.CC_GridResults.ItemsSource = self._cc_rows
+        for cond in _cc_logic._CONDITION_OPS:
+            self.CC_CboCondition.Items.Add(cond)
+        self.CC_CboCondition.SelectedIndex = 0
+        for sev in ['High', 'Medium', 'Low']:
+            self.CC_CboSeverity.Items.Add(sev)
+        self.CC_CboSeverity.SelectedIndex = 1
+        for cat in _cc_logic._RULE_CATEGORIES:
+            self.CC_CboRuleCat.Items.Add(cat)
+        self.CC_CboRuleCat.SelectedIndex = 3  # Any
+        self._cc_custom_rules = _cc_logic.load_custom_rules()
+        self._cc_refresh_rules_list()
+
+    def _cc_refresh_rules_list(self):
+        self.CC_LstRules.Items.Clear()
+        for r in self._cc_custom_rules:
+            lbl = r.get('label') or u'{} — {} {} {}'.format(
+                r.get('category', 'Any'), r.get('param', ''),
+                r.get('condition', ''), r.get('threshold', ''))
+            self.CC_LstRules.Items.Add(u'[{}]  {}'.format(r.get('severity', 'Medium'), lbl))
+
+    def CC_NavTab_Click(self, sender, args):
+        tag = (sender.Tag or '').lower()
+        self.CC_TabResults.Visibility = System.Windows.Visibility.Collapsed
+        self.CC_TabRules.Visibility   = System.Windows.Visibility.Collapsed
+        if tag == 'rules':
+            self.CC_TabRules.Visibility = System.Windows.Visibility.Visible
+        else:
+            self.CC_TabResults.Visibility = System.Windows.Visibility.Visible
+
+    def CC_AddRule_Click(self, sender, args):
+        param = (self.CC_TxtRuleParam.Text or '').strip()
+        if not param:
+            forms.alert(u'Enter a parameter name.'); return
+        cond = str(self.CC_CboCondition.SelectedItem or 'is_empty')
+        thr  = (self.CC_TxtThreshold.Text or '').strip()
+        sev  = str(self.CC_CboSeverity.SelectedItem or 'Medium')
+        cat  = str(self.CC_CboRuleCat.SelectedItem or 'Any')
+        lbl  = (self.CC_TxtRuleLabel.Text or '').strip() or None
+        self._cc_custom_rules.append(
+            {'param': param, 'condition': cond, 'threshold': thr,
+             'severity': sev, 'category': cat, 'label': lbl})
+        self._cc_refresh_rules_list()
+
+    def CC_RemoveRule_Click(self, sender, args):
+        idx = self.CC_LstRules.SelectedIndex
+        if 0 <= idx < len(self._cc_custom_rules):
+            del self._cc_custom_rules[idx]
+            self._cc_refresh_rules_list()
+
+    def CC_SaveRules_Click(self, sender, args):
+        try:
+            _cc_logic.save_custom_rules(self._cc_custom_rules)
+            forms.alert(u'Rules saved ({} total).'.format(len(self._cc_custom_rules)))
+        except Exception as e:
+            forms.alert(u'Save failed: {}'.format(e))
+
+    def CC_ImportRules_Click(self, sender, args):
+        path = forms.pick_file(file_ext='json')
+        if not path: return
+        try:
+            import json as _json
+            with io.open(path, encoding='utf-8') as f:
+                imported = _json.load(f)
+            self._cc_custom_rules = imported
+            self._cc_refresh_rules_list()
+            forms.alert(u'Imported {} rule(s).'.format(len(imported)))
+        except Exception as e:
+            forms.alert(u'Import failed: {}'.format(e))
+
+    def CC_ExportRules_Click(self, sender, args):
+        path = forms.save_file(file_ext='json')
+        if not path: return
+        try:
+            import json as _json
+            with io.open(path, 'w', encoding='utf-8') as f:
+                _json.dump(self._cc_custom_rules, f, indent=2, ensure_ascii=False)
+            forms.alert(u'Exported to:\n{}'.format(path))
+        except Exception as e:
+            forms.alert(u'Export failed: {}'.format(e))
+
+    def _cc_active(self):
+        active = set()
+        if self.CC_ChkAnalytical.IsChecked  == True: active.add('analytical')
+        if self.CC_ChkUsage.IsChecked       == True: active.add('usage')
+        if self.CC_ChkAttachment.IsChecked  == True: active.add('attachment')
+        if self.CC_ChkJoins.IsChecked       == True: active.add('joins')
+        return active
+
+    def CC_Run_Click(self, sender, args):
+        self.SetLoading(True, 'Checking structural connections...')
+        self._cc_rows.Clear(); self.CC_BtnExport.IsEnabled = False; self.CC_BtnExport2.IsEnabled = False
+        try:
+            data = _cc_logic.run_all_checks(self.doc, self._cc_active(), self._cc_custom_rules or None)
+        except Exception as e:
+            self.SetLoading(False); forms.alert("Error: {}".format(e)); return
+        self.CC_TxtHigh.Text   = "{} High".format(data['high'])
+        self.CC_TxtMedium.Text = "{} Medium".format(data['medium'])
+        self.CC_TxtLow.Text    = "{} Low".format(data['low'])
+        for r in data['issues']:
+            self._cc_rows.Add(CCIssueRow(r))
+        self.SetLoading(False)
+        self.CC_BtnExport.IsEnabled = self.CC_BtnExport2.IsEnabled = len(data['issues']) > 0
+        if len(data['issues']) == 0:
+            forms.alert("No connection issues found in the model.\n\nAll checked elements look good.",
+                        title="Connection Checker")
+
+    def CC_Grid_SelectionChanged(self, sender, args):
+        self.CC_BtnSelect.IsEnabled = self.CC_GridResults.SelectedItem is not None
+
+    def CC_Select_Click(self, sender, args):
+        row = self.CC_GridResults.SelectedItem
+        if not row: return
+        try:
+            ids = List[DB.ElementId]([DB.ElementId(int(row.Id))])
+            revit.uidoc.Selection.SetElementIds(ids)
+            revit.uidoc.ShowElements(ids)
+        except Exception as e:
+            forms.alert("Could not select: {}".format(e))
+
+    def CC_Export_Click(self, sender, args):
+        path = forms.save_file(file_ext='csv')
+        if not path: return
+        try:
+            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+                w = csv.writer(f)
+                w.writerow(['Severity', 'Category', 'Level', 'Name', 'Check'])
+                for r in self._cc_rows:
+                    w.writerow([r.Severity, r.Category, r.Level, r.Name, r.Check])
+            forms.alert("Exported:\n{}".format(path))
+        except Exception as e:
+            forms.alert("Export failed: {}".format(e))
+
+    # ══════════════════════════════════════════════════════════════════
+    # TAB 6: COVER COMPLIANCE
+    # ══════════════════════════════════════════════════════════════════
+
+    def _cv_init(self, cfg):
+        self._cv_results = []
+        self._cv_show_fail_only = False
+
+        for cls in _cv_logic.ec2_exposure_classes():
+            self.CV_CboExposure.Items.Add(cls)
+        last_exposure = cfg.get('cv_last_exposure', u'XC3 (moderate humidity)')
+        for i in range(self.CV_CboExposure.Items.Count):
+            if self.CV_CboExposure.Items[i] == last_exposure:
+                self.CV_CboExposure.SelectedIndex = i
+                break
+        else:
+            self.CV_CboExposure.SelectedIndex = 0
+
+        min_cover = _cv_logic.min_cover_for_class(self.CV_CboExposure.SelectedItem or u'')
+        self.CV_TxtMinCover.Text = str(int(min_cover))
+        self._cv_reset_summary()
+        self.CV_TxtStatus.Text = u'Click "Run Check" to analyse rebar coverage.'
+
+    def _cv_reset_summary(self):
+        self.CV_TxtTotal.Text = u'—'
+        self.CV_TxtOk.Text    = u'—'
+        self.CV_TxtFail.Text  = u'—'
+
+    def _cv_update_summary(self):
+        total, ok, fail = _cv_logic.summarise(self._cv_results)
+        self.CV_TxtTotal.Text = str(total)
+        self.CV_TxtOk.Text    = str(ok)
+        self.CV_TxtFail.Text  = str(fail)
+
+    def _cv_refresh_grid(self):
+        data = self._cv_results
+        if self._cv_show_fail_only:
+            data = [r for r in data if r['status'] == u'FAIL']
+        self.CV_GridResults.ItemsSource = [CVRebarRow(r) for r in data]
+
+    def CV_Exposure_Changed(self, sender, args):
+        cls = self.CV_CboExposure.SelectedItem
+        if cls:
+            self.CV_TxtMinCover.Text = str(int(_cv_logic.min_cover_for_class(cls)))
+
+    def CV_MinCover_Changed(self, sender, args):
+        pass
+
+    def CV_RunCheck_Click(self, sender, args):
+        try:
+            min_cover = float(self.CV_TxtMinCover.Text.strip())
+        except (ValueError, Exception):
+            self.CV_TxtStatus.Text = u'Enter a valid minimum cover in mm.'
+            return
+
+        self.SetLoading(True, u'Checking rebar coverage…')
+        try:
+            self._cv_results = _cv_logic.analyse(self.doc, min_cover)
+        finally:
+            self.SetLoading(False)
+
+        self._cv_show_fail_only = False
+        self._cv_update_summary()
+        self._cv_refresh_grid()
+
+        total, ok, fail = _cv_logic.summarise(self._cv_results)
+        self.CV_TxtStatus.Text = u'Checked {} bars. {} OK, {} below minimum ({} mm).'.format(
+            total, ok, fail, int(min_cover))
+
+        cls = self.CV_CboExposure.SelectedItem or u''
+        cfg = self.LoadConfig()
+        cfg['cv_last_exposure'] = cls
+        self.SaveConfig(cfg)
+
+    def CV_FilterFail_Click(self, sender, args):
+        self._cv_show_fail_only = not self._cv_show_fail_only
+        self._cv_refresh_grid()
+        fail = sum(1 for r in self._cv_results if r['status'] == u'FAIL')
+        if self._cv_show_fail_only:
+            self.CV_TxtStatus.Text = u'Showing {} failing bars only.'.format(fail)
+        else:
+            self.CV_TxtStatus.Text = u'Showing all {} bars.'.format(len(self._cv_results))
+
+    def CV_ExportCsv_Click(self, sender, args):
+        if not self._cv_results:
+            self.CV_TxtStatus.Text = u'Run the check first before exporting.'
+            return
+        try:
+            path = forms.save_file(
+                file_ext=u'csv',
+                default_name=u'rebar_coverage.csv',
+                title=u'Export rebar coverage report')
+            if not path:
+                return
+            with open(path, 'wb') as f:
+                w = csv.writer(f)
+                w.writerow(['Host', 'Category', 'Cover (mm)', 'Min (mm)', 'Status'])
+                for r in self._cv_results:
+                    w.writerow([r['host'], r['category'],
+                                '{:.1f}'.format(r['cover_mm']),
+                                '{:.0f}'.format(r['min_mm']),
+                                r['status']])
+            self.CV_TxtStatus.Text = u'Exported {} records to {}'.format(
+                len(self._cv_results), os.path.basename(path))
+        except Exception as ex:
+            self.CV_TxtStatus.Text = u'Export failed: {}'.format(ex)
+
+    def CV_SelectInModel_Click(self, sender, args):
+        rows = list(self.CV_GridResults.SelectedItems or [])
+        if rows:
+            recs = [r._rec for r in rows]
+        else:
+            recs = [r for r in self._cv_results if r['status'] == u'FAIL']
+        if not recs:
+            self.CV_TxtStatus.Text = u'Nothing to select — run the check first.'
+            return
+        try:
+            ids = List[DB.ElementId]()
+            for rec in recs:
+                try:
+                    ids.Add(rec['element'].Id)
+                except Exception:
+                    pass
+            revit.uidoc.Selection.SetElementIds(ids)
+            self.CV_TxtStatus.Text = u'Selected {} bar(s) in the model{}.'.format(
+                ids.Count, u'' if rows else u' (all failing)')
+        except Exception as ex:
+            self.CV_TxtStatus.Text = u'Selection failed: {}'.format(ex)
+
+    # ══════════════════════════════════════════════════════════════════
+    # TAB 7: FOUNDATION LOAD EXTRACTOR
+    # ══════════════════════════════════════════════════════════════════
+
+    def _fl_init(self):
+        self._fl_rows = []
+
+    def FL_Run_Click(self, sender, args):
+        Vis = System.Windows.Visibility
+        self.FL_ProgBar.Visibility = Vis.Visible
+        self.FL_BtnRun.IsEnabled   = False
+
+        try:
+            rows = _fl_logic.get_foundation_loads(self.doc)
+        except Exception as e:
+            self.FL_ProgBar.Visibility = Vis.Collapsed
+            self.FL_BtnRun.IsEnabled   = True
+            forms.alert(u'Error extracting loads:\n{}'.format(e))
+            return
+
+        self.FL_ProgBar.Visibility = Vis.Collapsed
+        self.FL_BtnRun.IsEnabled   = True
+        self._fl_rows = rows
+
+        src = ObservableCollection[object]()
+        for r in rows:
+            src.Add(_DictRow(r))
+        self.FL_GridLoads.ItemsSource = src
+
+        no_data = sum(1 for r in rows if r.get('N_kN') == u'—')
+        self.FL_TxtStatus.Text = (
+            u'{} foundations found. {} with analytical reactions; {} without.'.format(
+                len(rows), len(rows) - no_data, no_data))
+        self.FL_BtnExport.IsEnabled    = bool(rows)
+        self.FL_BtnSelect.IsEnabled    = bool(rows)
+        self.FL_BtnExportPDF.IsEnabled = bool(rows)
+
+    def FL_Select_Click(self, sender, args):
+        if not self._fl_rows:
+            return
+        try:
+            from System import Int64
+            ids = List[DB.ElementId]([
+                DB.ElementId(Int64(int(r['id']))) for r in self._fl_rows
+            ])
+            revit.uidoc.Selection.SetElementIds(ids)
+            self.FL_TxtStatus.Text = u'{} element(s) selected.'.format(len(ids))
+        except Exception as e:
+            forms.alert(u'Error selecting: {}'.format(e))
+
+    def FL_Export_Click(self, sender, args):
+        if not self._fl_rows:
+            return
+        path = forms.save_file(file_ext='csv')
+        if not path:
+            return
+        try:
+            _fl_logic.export_csv(self._fl_rows, path)
+            forms.alert(u'Exported:\n{}'.format(path))
+        except Exception as e:
+            forms.alert(u'Error exporting: {}'.format(e))
+
+    def FL_ExportPDF_Click(self, sender, args):
+        if not self._fl_rows:
+            return
+        import System.Windows.Forms as WinForms
+        dlg = WinForms.SaveFileDialog()
+        dlg.Filter   = "PDF files (*.pdf)|*.pdf|HTML files (*.html)|*.html|All files (*.*)|*.*"
+        dlg.Title    = "Save foundation load report"
+        dlg.FileName = "foundation_load_report.pdf"
+        if dlg.ShowDialog() != WinForms.DialogResult.OK:
+            return
+        try:
+            proj = ''
+            try:
+                proj = self.doc.ProjectInformation.Name or ''
+            except Exception:
+                pass
+            out_path, is_pdf = _fl_logic.export_pdf_report(self._fl_rows, dlg.FileName, proj)
+            if is_pdf:
+                forms.alert(u'PDF report exported:\n{}'.format(out_path))
+            else:
+                import subprocess
+                subprocess.Popen(['start', out_path], shell=True)
+                forms.alert(
+                    u'Chrome not found — report saved as HTML:\n{}\n\n'
+                    u'Open in a browser and use File > Print to save as PDF.'.format(out_path))
+        except Exception as e:
+            forms.alert(u'PDF export error:\n{}'.format(e))
+
+    # ══════════════════════════════════════════════════════════════════
+    # TAB 8: LEVEL & GRID SYNC
+    # ══════════════════════════════════════════════════════════════════
+
+    def _lgs_init(self):
+        self._lgs_links   = []
+        self._lgs_report  = None
+        self._lgs_load_links()
+
+    def _lgs_load_links(self):
+        links = _lgs_logic.get_linked_models(self.doc)
+        self._lgs_links = links
+        items = [LGSLinkItem(lnk, title) for lnk, title in links]
+        self.LGS_CboLinks.ItemsSource   = items
+        self.LGS_CboLinks.DisplayMemberPath = 'Title'
+        if items:
+            self.LGS_CboLinks.SelectedIndex = 0
+        else:
+            self.LGS_TxtStatus.Text = u'No linked Revit models found in the project.'
+
+    def LGS_Run_Click(self, sender, args):
+        sel = self.LGS_CboLinks.SelectedItem
+        if sel is None:
+            forms.alert(u'Select a linked model first.')
+            return
+
+        try:
+            tol = float(self.LGS_TxtTolerance.Text or '1')
+        except Exception:
+            tol = 1.0
+
+        self.SetLoading(True, u'Comparing…')
+        link_doc = sel.Link.GetLinkDocument()
+        if link_doc is None:
+            self.SetLoading(False)
+            forms.alert(u'Linked model is not loaded. Load it first.')
+            return
+
+        try:
+            self._lgs_report = _lgs_logic.compare(self.doc, link_doc, tol)
+        except Exception as e:
+            self.SetLoading(False)
+            forms.alert(u'Error during comparison:\n{}'.format(e))
+            return
+
+        self.SetLoading(False)
+        self._lgs_render_report()
+
+    def _lgs_render_report(self):
+        r = self._lgs_report
+        panel = self.LGS_ResultsPanel
+        panel.Children.Clear()
+
+        if not r.has_issues:
+            ok = SWC.TextBlock()
+            ok.Text = u'✅  No discrepancies found against "{}".'.format(r.link_title)
+            ok.FontSize = 13
+            ok.FontWeight = System.Windows.FontWeights.SemiBold
+            ok.Foreground = SWM.SolidColorBrush(
+                SWM.ColorConverter.ConvertFromString('#22c55e'))
+            ok.Margin = System.Windows.Thickness(0, 8, 0, 0)
+            panel.Children.Add(ok)
+            return
+
+        self.LGS_TxtStatus.Text = u'{} issue(s) found vs. "{}"'.format(r.issue_count, r.link_title)
+
+        sections = [
+            (u'⚠ Level elevation mismatches', [
+                u'{} — host {:.1f} mm / link {:.1f} mm (Δ {:.1f} mm)'.format(n, h, l, d)
+                for n, h, l, d in r.level_elevation_mismatches
+            ]),
+            (u'Levels only in HOST model', r.levels_only_in_host),
+            (u'Levels only in LINKED model', r.levels_only_in_link),
+            (u'Grids only in HOST model', r.grids_only_in_host),
+            (u'Grids only in LINKED model', r.grids_only_in_link),
+        ]
+
+        for title, items in sections:
+            if not items:
+                continue
+            hdr = SWC.TextBlock()
+            hdr.Text = u'{} ({})'.format(title, len(items))
+            hdr.FontWeight = System.Windows.FontWeights.SemiBold
+            hdr.FontSize = 12
+            hdr.Margin = System.Windows.Thickness(0, 10, 0, 4)
+            panel.Children.Add(hdr)
+            for it in items:
+                tb = SWC.TextBlock()
+                tb.Text = u'  · ' + it
+                tb.FontSize = 11
+                tb.Opacity = 0.75
+                tb.Margin = System.Windows.Thickness(0, 1, 0, 1)
+                panel.Children.Add(tb)
+
+    # ══════════════════════════════════════════════════════════════════
+    # TAB 9: PARAMETER DRIFT MONITOR
+    # ══════════════════════════════════════════════════════════════════
+
+    def _pd_init(self, cfg):
+        self._pd_params   = ObservableCollection[object]()
+        self._pd_rows     = ObservableCollection[object]()
+        self._pd_baseline = {}
+
+        self.PD_ParamList.ItemsSource = self._pd_params
+        self.PD_DriftGrid.ItemsSource = self._pd_rows
+
+        self._pd_saved_params = cfg.get('pd_watched_params', [])
+        self._pd_baseline     = cfg.get('pd_baseline', {})
+        self._pd_load_params()
+
+        if self._pd_baseline:
+            self.PD_TxtBaselineInfo.Text = u'Baseline saved — {} elements tracked'.format(
+                len(self._pd_baseline))
+        else:
+            self.PD_TxtBaselineInfo.Text = u'No baseline saved yet.'
+
+    def _pd_load_params(self):
+        self._pd_params.Clear()
+        for name in _pd_logic.get_shared_param_names(self.doc):
+            item = PDParamItem(name)
+            item.IsChecked = name in self._pd_saved_params
+            self._pd_params.Add(item)
+        self.PD_TxtStatus.Text = u'{} shared parameters found.'.format(len(self._pd_params))
+
+    def _pd_selected_param_names(self):
+        return [p.Name for p in self._pd_params if p.IsChecked]
+
+    def PD_SaveBaseline_Click(self, sender, args):
+        names = self._pd_selected_param_names()
+        if not names:
+            forms.alert(u'Select at least one parameter to monitor.', title=u'Parameter Drift Monitor')
+            return
+        self.SetLoading(True, u'Scanning model…')
+        try:
+            self._pd_baseline = _pd_logic.snapshot_model(self.doc, names)
+        except Exception as e:
+            self.SetLoading(False)
+            forms.alert(u'Error scanning model:\n{}'.format(e), title=u'Parameter Drift Monitor')
+            return
+        self.SetLoading(False)
+        self._pd_save_cfg()
+        self.PD_TxtBaselineInfo.Text = u'Baseline saved — {} elements tracked'.format(
+            len(self._pd_baseline))
+        self.PD_TxtStatus.Text = u'Baseline saved ({} elements, {} params).'.format(
+            len(self._pd_baseline), len(names))
+        self._pd_rows.Clear()
+
+    def PD_Compare_Click(self, sender, args):
+        if not self._pd_baseline:
+            forms.alert(u'Save a baseline first.', title=u'Parameter Drift Monitor')
+            return
+        names = self._pd_selected_param_names()
+        if not names:
+            forms.alert(u'Select at least one parameter to compare.', title=u'Parameter Drift Monitor')
+            return
+        self.SetLoading(True, u'Comparing…')
+        try:
+            current = _pd_logic.snapshot_model(self.doc, names)
+            diffs   = _pd_logic.compare_snapshots(self._pd_baseline, current)
+        except Exception as e:
+            self.SetLoading(False)
+            forms.alert(u'Error comparing:\n{}'.format(e), title=u'Parameter Drift Monitor')
+            return
+        self._pd_rows.Clear()
+        for d in diffs:
+            self._pd_rows.Add(PDDriftRow(d))
+        self.SetLoading(False)
+        if diffs:
+            self.PD_TxtStatus.Text = u'{} drift{} detected.'.format(
+                len(diffs), u's' if len(diffs) != 1 else u'')
+        else:
+            self.PD_TxtStatus.Text = u'No drift detected — model matches baseline.'
+
+    def PD_ImportExcel_Click(self, sender, args):
+        path = forms.pick_file(file_ext='xlsx', title=u'Select Reference Excel')
+        if not path:
+            return
+        try:
+            self._pd_baseline = _pd_logic.import_from_excel(path)
+            self._pd_save_cfg()
+            self.PD_TxtBaselineInfo.Text = u'Excel baseline loaded — {} elements'.format(
+                len(self._pd_baseline))
+        except Exception as e:
+            forms.alert(u'Could not read Excel:\n{}'.format(e), title=u'Parameter Drift Monitor')
+
+    def PD_ExportCSV_Click(self, sender, args):
+        if not self._pd_rows:
+            return
+        path = forms.save_file(file_ext='csv', title=u'Save Drift Report')
+        if not path:
+            return
+        diffs = [{'key': r.Element, 'param': r.Parameter, 'change': r.Change,
+                  'baseline': r.Baseline, 'current': r.Current} for r in self._pd_rows]
+        try:
+            _pd_logic.export_diffs_csv(diffs, path)
+            self.PD_TxtStatus.Text = u'Exported to {}'.format(os.path.basename(path))
+        except Exception as e:
+            forms.alert(u'Export failed:\n{}'.format(e), title=u'Parameter Drift Monitor')
+
+    def PD_SelectInModel_Click(self, sender, args):
+        rows = list(self.PD_DriftGrid.SelectedItems or [])
+        if not rows:
+            rows = list(self._pd_rows)
+        keys = set(r.Element for r in rows if r.Element)
+        if not keys:
+            self.PD_TxtStatus.Text = u'No drift rows to select — run a comparison first.'
+            return
+        self.SetLoading(True, u'Resolving elements…')
+        try:
+            ids = _pd_logic.resolve_key_elements(self.doc, keys)
+        finally:
+            self.SetLoading(False)
+        if not ids:
+            self.PD_TxtStatus.Text = u'No matching elements found in the model.'
+            return
+        try:
+            net_ids = List[DB.ElementId]()
+            for i in ids:
+                net_ids.Add(i)
+            revit.uidoc.Selection.SetElementIds(net_ids)
+            self.PD_TxtStatus.Text = u'Selected {} element(s) in the model.'.format(net_ids.Count)
+        except Exception as e:
+            self.PD_TxtStatus.Text = u'Selection failed: {}'.format(e)
+
+    def PD_SelectAll_Click(self, sender, args):
+        for p in self._pd_params:
+            p.IsChecked = True
+        self.PD_ParamList.Items.Refresh()
+
+    def PD_ClearAll_Click(self, sender, args):
+        for p in self._pd_params:
+            p.IsChecked = False
+        self.PD_ParamList.Items.Refresh()
+
+    def _pd_save_cfg(self):
+        cfg = self.LoadConfig()
+        cfg['pd_watched_params'] = self._pd_selected_param_names()
+        cfg['pd_baseline']       = self._pd_baseline
+        self.SaveConfig(cfg)
 
     # ══════════════════════════════════════════════════════════════════
     # Shared

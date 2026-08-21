@@ -1,0 +1,142 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Confirm Export" Height="640" Width="660"
+        WindowStartupLocation="CenterOwner"
+        Background="#FAFAFA" FontFamily="Century Gothic" ResizeMode="NoResize">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="Accent" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="AccentHover" Color="#E65500"/>
+        <SolidColorBrush x:Key="AccentPressed" Color="#CC4C00"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#17FF5F00"/>
+        <SolidColorBrush x:Key="Border" Color="#E3E3E3"/>
+        <SolidColorBrush x:Key="Text" Color="#1F1F1F"/>
+
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="18,9"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="PrimaryButton">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="24,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentHover}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentPressed}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="MinHeight" Value="30"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#07000000"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Name="TxtTitle" Text="N items ready to export" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,4"/>
+        <TextBlock Grid.Row="1" Name="TxtSubtitle" Text="" FontSize="11" Opacity="0.65" Margin="0,0,0,16"/>
+
+        <Border Grid.Row="2" Name="WarningsBox" Padding="14,12" CornerRadius="8" Margin="0,0,0,16"
+                Background="#12FF5F00" BorderBrush="{StaticResource Accent}" BorderThickness="1" Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock Text="Before you export" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6"/>
+                <ItemsControl Name="ListWarnings">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" FontSize="11" TextWrapping="Wrap" Margin="0,2"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+        </Border>
+
+        <Border Grid.Row="3" Background="White" CornerRadius="8" BorderBrush="{StaticResource Border}" BorderThickness="1" ClipToBounds="True">
+            <DataGrid Name="GridFiles" AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                      RowBackground="Transparent" CanUserAddRows="False" HeadersVisibility="Column" RowHeaderWidth="0"
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource Border}">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="70"/>
+                    <DataGridTextColumn Header="Item" Binding="{Binding Item}" Width="*"/>
+                    <DataGridTextColumn Header="Output file" Binding="{Binding OutputFile}" Width="2*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,18,0,0">
+            <Button Content="Cancel" Margin="0,0,8,0" Click="Cancel_Click"/>
+            <Button Name="BtnExport" Content="Export" Style="{StaticResource PrimaryButton}" Click="Export_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -13,13 +13,42 @@
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
 
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
         <Style TargetType="Button" x:Key="ActionButton">
             <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground"      Value="White"/>
             <Setter Property="FontWeight"      Value="Bold"/>
-            <Setter Property="Padding"         Value="20,10"/>
+            <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="Button" x:Key="SecondaryButton">
@@ -30,6 +59,26 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="CheckBox">
@@ -48,8 +97,9 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="280" MinWidth="240" MaxWidth="360"/>
+            <ColumnDefinition Width="6"/>
+            <ColumnDefinition Width="*" MinWidth="400"/>
         </Grid.ColumnDefinitions>
 
         <!-- ════════ SIDEBAR ════════ -->
@@ -72,124 +122,130 @@
                 <StackPanel Margin="20,0,20,10">
 
                     <!-- Checks -->
-                    <TextBlock Text="Checks" FontWeight="Bold" FontSize="11"
-                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
-                    <CheckBox Name="ChkMaterial"      Content="Missing material"        IsChecked="True"/>
-                    <CheckBox Name="ChkAnalytical"    Content="Analytical disabled"     IsChecked="True"/>
-                    <CheckBox Name="ChkOrphan"        Content="Orphan foundations"      IsChecked="True"/>
-                    <CheckBox Name="ChkWarnings"      Content="Model warnings"          IsChecked="True"/>
-                    <CheckBox Name="ChkParams"        Content="Missing Mark parameter"  IsChecked="True"/>
-                    <CheckBox Name="ChkOffsets"       Content="Excessive level offsets" IsChecked="True"/>
-                    <CheckBox Name="ChkDupMarks"      Content="Duplicate Mark values"   IsChecked="True"/>
-                    <CheckBox Name="ChkNoLevel"       Content="Elements not on a level" IsChecked="True"/>
-                    <CheckBox Name="ChkUnhostedRebar" Content="Unhosted rebar"          IsChecked="True"/>
-
-                    <Separator Margin="0,14,0,10"/>
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Checks" FontWeight="Bold" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                            <CheckBox Name="ChkMaterial"      Content="Missing material"        IsChecked="True"/>
+                            <CheckBox Name="ChkAnalytical"    Content="Analytical disabled"     IsChecked="True"/>
+                            <CheckBox Name="ChkOrphan"        Content="Orphan foundations"      IsChecked="True"/>
+                            <CheckBox Name="ChkWarnings"      Content="Model warnings"          IsChecked="True"/>
+                            <CheckBox Name="ChkParams"        Content="Missing Mark parameter"  IsChecked="True"/>
+                            <CheckBox Name="ChkOffsets"       Content="Excessive level offsets" IsChecked="True"/>
+                            <CheckBox Name="ChkDupMarks"      Content="Duplicate Mark values"   IsChecked="True"/>
+                            <CheckBox Name="ChkNoLevel"       Content="Elements not on a level" IsChecked="True"/>
+                            <CheckBox Name="ChkUnhostedRebar" Content="Unhosted rebar"          IsChecked="True"/>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Weight sliders -->
-                    <TextBlock Text="Check Weights" FontWeight="Bold" FontSize="11"
-                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
-                    <TextBlock Text="Adjust importance per check (1–30 pts)." FontSize="10"
-                               Opacity="0.55" Margin="0,0,0,8"/>
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Check Weights" FontWeight="Bold" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Adjust importance per check (1–30 pts)." FontSize="10"
+                                       Opacity="0.55" Margin="0,0,0,8"/>
 
-                    <TextBlock Text="Missing material" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldMaterial"   Style="{DynamicResource WeightSlider}" Value="20"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldMaterial, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Missing material" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldMaterial"   Style="{DynamicResource WeightSlider}" Value="20"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldMaterial, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Analytical disabled" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldAnalytical" Style="{DynamicResource WeightSlider}" Value="15"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldAnalytical, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Analytical disabled" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldAnalytical" Style="{DynamicResource WeightSlider}" Value="15"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldAnalytical, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Orphan foundations" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldOrphan"     Style="{DynamicResource WeightSlider}" Value="10"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldOrphan, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Orphan foundations" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldOrphan"     Style="{DynamicResource WeightSlider}" Value="10"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldOrphan, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Model warnings" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldWarnings"   Style="{DynamicResource WeightSlider}" Value="20"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldWarnings, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Model warnings" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldWarnings"   Style="{DynamicResource WeightSlider}" Value="20"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldWarnings, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Missing Mark" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldParams"     Style="{DynamicResource WeightSlider}" Value="15"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldParams, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Missing Mark" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldParams"     Style="{DynamicResource WeightSlider}" Value="15"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldParams, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Level offsets" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldOffsets"    Style="{DynamicResource WeightSlider}" Value="10"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldOffsets, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Level offsets" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldOffsets"    Style="{DynamicResource WeightSlider}" Value="10"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldOffsets, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Duplicate marks" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldDupMarks"   Style="{DynamicResource WeightSlider}" Value="10"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldDupMarks, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Duplicate marks" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldDupMarks"   Style="{DynamicResource WeightSlider}" Value="10"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldDupMarks, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="No level" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldNoLevel"    Style="{DynamicResource WeightSlider}" Value="5"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldNoLevel, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="No level" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldNoLevel"    Style="{DynamicResource WeightSlider}" Value="5"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldNoLevel, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
 
-                    <TextBlock Text="Unhosted rebar" FontSize="10" Opacity="0.7"/>
-                    <Grid Margin="0,0,0,6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="28"/>
-                        </Grid.ColumnDefinitions>
-                        <Slider Name="SldRebar"      Style="{DynamicResource WeightSlider}" Value="5"/>
-                        <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
-                                   Text="{Binding ElementName=SldRebar, Path=Value, StringFormat={}{0:0}}"/>
-                    </Grid>
+                            <TextBlock Text="Unhosted rebar" FontSize="10" Opacity="0.7"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="28"/>
+                                </Grid.ColumnDefinitions>
+                                <Slider Name="SldRebar"      Style="{DynamicResource WeightSlider}" Value="5"/>
+                                <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0"
+                                           Text="{Binding ElementName=SldRebar, Path=Value, StringFormat={}{0:0}}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <Separator Margin="0,12,0,10"/>
                     <CheckBox Name="ChkDarkMode" Content="Dark Mode"
@@ -212,8 +268,12 @@
             </StackPanel>
         </Grid>
 
+        <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      ResizeBehavior="PreviousAndNext"/>
+
         <!-- ════════ MAIN CONTENT ════════ -->
-        <Grid Grid.Column="1" Margin="20,20,20,20">
+        <Grid Grid.Column="2" Margin="20,20,20,20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>   <!-- Score gauge -->
                 <RowDefinition Height="Auto"/>   <!-- Trend chart -->
@@ -223,9 +283,7 @@
             </Grid.RowDefinitions>
 
             <!-- Score gauge -->
-            <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
-                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                    CornerRadius="6" Padding="20,14" Margin="0,0,0,12">
+            <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="20,14" Margin="0,0,0,12">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -249,9 +307,7 @@
             </Border>
 
             <!-- Trend chart (score history) -->
-            <Border Grid.Row="1" Background="{DynamicResource PanelColor}"
-                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                    CornerRadius="6" Padding="14,10" Margin="0,0,0,10">
+            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="14,10" Margin="0,0,0,10">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -278,23 +334,25 @@
             </StackPanel>
 
             <!-- Results DataGrid -->
-            <DataGrid Name="GridResults" Grid.Row="3"
-                      AutoGenerateColumns="False" IsReadOnly="True"
-                      AlternatingRowBackground="#06000000"
-                      Background="Transparent"
-                      BorderBrush="{DynamicResource BorderColor}"
-                      GridLinesVisibility="Horizontal"
-                      SelectionMode="Single"
-                      SelectionChanged="Grid_SelectionChanged">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="Check"        Binding="{Binding Label}"    Width="200"/>
-                    <DataGridTextColumn Header="Issues"       Binding="{Binding Count}"    Width="60"/>
-                    <DataGridTextColumn Header="Severity"     Binding="{Binding Severity}" Width="80"/>
-                    <DataGridTextColumn Header="Weight"       Binding="{Binding Weight}"   Width="60"/>
-                    <DataGridTextColumn Header="Score impact" Binding="{Binding Impact}"   Width="100"/>
-                    <DataGridTextColumn Header="Detail"       Binding="{Binding Detail}"   Width="*"/>
-                </DataGrid.Columns>
-            </DataGrid>
+            <Border Grid.Row="3" Style="{DynamicResource Card}" Padding="0">
+                <DataGrid Name="GridResults"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          AlternatingRowBackground="#06000000"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          GridLinesVisibility="Horizontal"
+                          SelectionMode="Single"
+                          SelectionChanged="Grid_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Check"        Binding="{Binding Label}"    Width="200"/>
+                        <DataGridTextColumn Header="Issues"       Binding="{Binding Count}"    Width="60"/>
+                        <DataGridTextColumn Header="Severity"     Binding="{Binding Severity}" Width="80"/>
+                        <DataGridTextColumn Header="Weight"       Binding="{Binding Weight}"   Width="60"/>
+                        <DataGridTextColumn Header="Score impact" Binding="{Binding Impact}"   Width="100"/>
+                        <DataGridTextColumn Header="Detail"       Binding="{Binding Detail}"   Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
 
             <!-- Loading panel -->
             <Grid Grid.Row="3" Name="LoadingPanel" Visibility="Collapsed"

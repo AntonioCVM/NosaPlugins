@@ -2,25 +2,55 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BIM↔Calculation Model Sync v1.0" Height="640" Width="1100"
         WindowStartupLocation="CenterScreen"
-        Background="#FAFAFA" FontFamily="Century Gothic, Segoe UI"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanResizeWithGrip">
 
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
         <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
         <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
-        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
-        <Style x:Key="ActionBtn" TargetType="Button">
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
             <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground"      Value="White"/>
             <Setter Property="FontWeight"      Value="Bold"/>
-            <Setter Property="Padding"         Value="16,9"/>
+            <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="FontSize"        Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style x:Key="SecBtn" TargetType="Button">
+        <Style TargetType="Button" x:Key="SecondaryButton">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
@@ -29,6 +59,26 @@
             <Setter Property="Padding"         Value="12,8"/>
             <Setter Property="Cursor"          Value="Hand"/>
             <Setter Property="FontSize"        Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style x:Key="PillStyle" TargetType="Border">
             <Setter Property="CornerRadius"  Value="12"/>
@@ -47,41 +97,44 @@
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <Grid Grid.Row="0" Background="White">
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
             <StackPanel Margin="24,16,24,16">
                 <TextBlock Text="BIM ↔ CALCULATION SYNC CHECKER" FontSize="17" FontWeight="Bold"
                            Foreground="{DynamicResource AccentColor}"/>
                 <TextBlock Text="Compare Revit model vs. Robot / ETABS / SAP2000 / STAAD CSV export"
                            FontSize="11" Opacity="0.55"/>
             </StackPanel>
-        </Grid>
+        </Border>
 
         <!-- CSV picker -->
-        <Grid Grid.Row="1" Margin="16,12,16,0">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="10"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" BorderBrush="#E0E0E0" BorderThickness="1"
-                    CornerRadius="4" Padding="10,7" Background="White">
-                <TextBlock Name="TxtCsvPath" Text="No CSV selected — click Browse to import calculation model…"
-                           FontSize="11" Opacity="0.5" VerticalAlignment="Center"/>
-            </Border>
-            <Button Grid.Column="1" Content="Browse…"
-                    Style="{DynamicResource SecBtn}" Click="Browse_Click"/>
-            <ProgressBar Grid.Column="3" Name="ProgBar" Width="100" Height="4"
-                         IsIndeterminate="True" Foreground="{DynamicResource AccentColor}"
-                         BorderThickness="0" Visibility="Collapsed"/>
-            <Button Grid.Column="5" Name="BtnRun" Content="▶ COMPARE"
-                    Style="{DynamicResource ActionBtn}" Click="Run_Click" IsEnabled="False"/>
-        </Grid>
+        <Border Grid.Row="1" Style="{DynamicResource Card}" Margin="20,16,20,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        CornerRadius="4" Padding="10,7" Background="{DynamicResource BgColor}">
+                    <TextBlock Name="TxtCsvPath" Text="No CSV selected — click Browse to import calculation model…"
+                               FontSize="11" Opacity="0.5" VerticalAlignment="Center"/>
+                </Border>
+                <Button Grid.Column="1" Content="Browse…"
+                        Style="{DynamicResource SecondaryButton}" Click="Browse_Click"/>
+                <ProgressBar Grid.Column="3" Name="ProgBar" Width="100" Height="4"
+                             IsIndeterminate="True" Foreground="{DynamicResource AccentColor}"
+                             BorderThickness="0" Visibility="Collapsed"/>
+                <Button Grid.Column="5" Name="BtnRun" Content="▶ COMPARE"
+                        Style="{DynamicResource ActionButton}" Click="Run_Click" IsEnabled="False"/>
+            </Grid>
+        </Border>
 
         <!-- Summary pills -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="16,12,16,0">
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="20,14,20,0">
             <Border Style="{DynamicResource PillStyle}" Background="#E8F5E9">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="OK " FontSize="11" Foreground="#4CAF50" FontWeight="Bold"/>
@@ -103,52 +156,54 @@
         </StackPanel>
 
         <!-- DataGrid -->
-        <DataGrid Name="GridSync" Grid.Row="3" Margin="16,10,16,0"
-                  AutoGenerateColumns="False" IsReadOnly="True"
-                  SelectionMode="Extended" SelectionUnit="FullRow"
-                  AlternatingRowBackground="#06000000" Background="Transparent"
-                  BorderBrush="#E0E0E0" GridLinesVisibility="Horizontal" FontSize="11">
-            <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="status">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <Border CornerRadius="8" Padding="6,2" HorizontalAlignment="Center"
-                                    Background="{Binding status_color}">
-                                <TextBlock Text="{Binding status}" Foreground="White"
-                                           FontSize="10" FontWeight="Bold"/>
-                            </Border>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Mark"              Binding="{Binding mark}"        Width="90"/>
-                <DataGridTextColumn Header="Calc Section"      Binding="{Binding calc_sec}"    Width="*"/>
-                <DataGridTextColumn Header="Revit Section"     Binding="{Binding revit_sec}"   Width="*"/>
-                <DataGridTextColumn Header="Calc L (m)"        Binding="{Binding calc_len}"    Width="80">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                            <Setter Property="Margin" Value="0,0,6,0"/>
-                            <Setter Property="FontFamily" Value="Consolas"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Revit L (m)"       Binding="{Binding revit_len}"   Width="80">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="HorizontalAlignment" Value="Right"/>
-                            <Setter Property="Margin" Value="0,0,6,0"/>
-                            <Setter Property="FontFamily" Value="Consolas"/>
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                </DataGridTextColumn>
-                <DataGridTextColumn Header="Calc Level"        Binding="{Binding calc_level}"  Width="90"/>
-                <DataGridTextColumn Header="Revit Level"       Binding="{Binding revit_level}" Width="90"/>
-                <DataGridTextColumn Header="Revit ID"          Binding="{Binding revit_id}"    Width="70"/>
-            </DataGrid.Columns>
-        </DataGrid>
+        <Border Grid.Row="3" Style="{DynamicResource Card}" Padding="0" Margin="20,12,20,0">
+            <DataGrid Name="GridSync"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Extended" SelectionUnit="FullRow"
+                      AlternatingRowBackground="#06000000" Background="Transparent"
+                      BorderThickness="0" GridLinesVisibility="Horizontal" FontSize="11">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="status">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <Border CornerRadius="8" Padding="6,2" HorizontalAlignment="Center"
+                                        Background="{Binding status_color}">
+                                    <TextBlock Text="{Binding status}" Foreground="White"
+                                               FontSize="10" FontWeight="Bold"/>
+                                </Border>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Mark"              Binding="{Binding mark}"        Width="90"/>
+                    <DataGridTextColumn Header="Calc Section"      Binding="{Binding calc_sec}"    Width="*"/>
+                    <DataGridTextColumn Header="Revit Section"     Binding="{Binding revit_sec}"   Width="*"/>
+                    <DataGridTextColumn Header="Calc L (m)"        Binding="{Binding calc_len}"    Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Margin" Value="0,0,6,0"/>
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Revit L (m)"       Binding="{Binding revit_len}"   Width="80">
+                        <DataGridTextColumn.ElementStyle>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="HorizontalAlignment" Value="Right"/>
+                                <Setter Property="Margin" Value="0,0,6,0"/>
+                                <Setter Property="FontFamily" Value="Consolas"/>
+                            </Style>
+                        </DataGridTextColumn.ElementStyle>
+                    </DataGridTextColumn>
+                    <DataGridTextColumn Header="Calc Level"        Binding="{Binding calc_level}"  Width="90"/>
+                    <DataGridTextColumn Header="Revit Level"       Binding="{Binding revit_level}" Width="90"/>
+                    <DataGridTextColumn Header="Revit ID"          Binding="{Binding revit_id}"    Width="70"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
 
         <!-- Footer -->
-        <Grid Grid.Row="4" Margin="16,10,16,14">
+        <Grid Grid.Row="4" Margin="20,10,20,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -157,14 +212,16 @@
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
             <CheckBox Name="ChkDarkMode" Grid.Column="0" Content="Dark Mode"
+                      Foreground="{DynamicResource TextColor}"
                       Click="Theme_Toggled" VerticalAlignment="Center" Margin="0,0,16,0"/>
             <TextBlock Name="TxtStatus" Grid.Column="1"
                        Text="Import a CSV and click ▶ COMPARE."
+                       Foreground="{DynamicResource TextColor}"
                        FontSize="11" Opacity="0.6" VerticalAlignment="Center"/>
             <Button Grid.Column="2" Name="BtnSelect" Content="Select matched in Revit"
-                    Style="{DynamicResource SecBtn}" Click="Select_Click" IsEnabled="False"/>
+                    Style="{DynamicResource SecondaryButton}" Click="Select_Click" IsEnabled="False"/>
             <Button Grid.Column="4" Name="BtnExport" Content="Export report CSV"
-                    Style="{DynamicResource SecBtn}" Click="Export_Click" IsEnabled="False"/>
+                    Style="{DynamicResource SecondaryButton}" Click="Export_Click" IsEnabled="False"/>
         </Grid>
     </Grid>
 </Window>

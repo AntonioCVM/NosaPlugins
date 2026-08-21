@@ -12,15 +12,44 @@
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
 
-        <Style x:Key="ActionBtn" TargetType="Button">
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
             <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground"      Value="White"/>
             <Setter Property="FontWeight"      Value="Bold"/>
-            <Setter Property="Padding"         Value="20,10"/>
+            <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style x:Key="SecBtn" TargetType="Button">
+        <Style TargetType="Button" x:Key="SecondaryButton">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
@@ -28,6 +57,26 @@
             <Setter Property="FontWeight"      Value="SemiBold"/>
             <Setter Property="Padding"         Value="12,7"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
@@ -38,6 +87,56 @@
             <Setter Property="TickFrequency" Value="1"/> <Setter Property="IsSnapToTickEnabled" Value="True"/>
             <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
             <Setter Property="Height" Value="18"/>
+        </Style>
+
+        <!-- Keys introduced by the 6 absorbed Coordination tools, prefixed to avoid
+             any collision with each other or with the keys above (per the FieldBox
+             lesson from the IssueWorkflowHub merge). -->
+        <Style TargetType="Button" x:Key="CC_NavBtn">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox" x:Key="CV_FieldBox">
+            <Setter Property="Height"    Value="26"/>
+            <Setter Property="FontSize"  Value="11"/>
+            <Setter Property="Padding"   Value="4,2"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="Button" x:Key="PD_GhostButton">
+            <Setter Property="Background" Value="#F0F0F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -72,8 +171,9 @@
             <TabItem Header="Health Score">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="270"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="270" MinWidth="230" MaxWidth="340"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="360"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Sidebar -->
@@ -86,80 +186,91 @@
                         </Grid.RowDefinitions>
                         <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="16,16,16,8">
-                                <TextBlock Text="Checks" FontWeight="Bold" FontSize="11"
-                                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
-                                <CheckBox Name="HS_ChkMaterial"     Content="Missing material"        IsChecked="True"/>
-                                <CheckBox Name="HS_ChkAnalytical"   Content="Analytical disabled"     IsChecked="True"/>
-                                <CheckBox Name="HS_ChkOrphan"       Content="Orphan foundations"      IsChecked="True"/>
-                                <CheckBox Name="HS_ChkWarnings"     Content="Model warnings"          IsChecked="True"/>
-                                <CheckBox Name="HS_ChkParams"       Content="Missing Mark parameter"  IsChecked="True"/>
-                                <CheckBox Name="HS_ChkOffsets"      Content="Excessive level offsets" IsChecked="True"/>
-                                <CheckBox Name="HS_ChkDupMarks"     Content="Duplicate Mark values"   IsChecked="True"/>
-                                <CheckBox Name="HS_ChkNoLevel"      Content="Elements not on a level" IsChecked="True"/>
-                                <CheckBox Name="HS_ChkUnhostedRebar" Content="Unhosted rebar"         IsChecked="True"/>
+                                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Checks" FontWeight="Bold" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                                        <CheckBox Name="HS_ChkMaterial"     Content="Missing material"        IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkAnalytical"   Content="Analytical disabled"     IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkOrphan"       Content="Orphan foundations"      IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkWarnings"     Content="Model warnings"          IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkParams"       Content="Missing Mark parameter"  IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkOffsets"      Content="Excessive level offsets" IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkDupMarks"     Content="Duplicate Mark values"   IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkNoLevel"      Content="Elements not on a level" IsChecked="True"/>
+                                        <CheckBox Name="HS_ChkUnhostedRebar" Content="Unhosted rebar"         IsChecked="True"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <Separator Margin="0,12,0,10"/>
-                                <TextBlock Text="Check weights (1–30 pts)" FontWeight="Bold" FontSize="11"
-                                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                                <Border Style="{DynamicResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Check weights (1–30 pts)" FontWeight="Bold" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
 
-                                <TextBlock Text="Missing material" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldMaterial"   Style="{DynamicResource WeightSlider}" Value="20"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldMaterial, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Missing material" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldMaterial"   Style="{DynamicResource WeightSlider}" Value="20"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldMaterial, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Analytical disabled" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldAnalytical" Style="{DynamicResource WeightSlider}" Value="15"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldAnalytical, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Analytical disabled" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldAnalytical" Style="{DynamicResource WeightSlider}" Value="15"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldAnalytical, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Orphan foundations" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldOrphan"     Style="{DynamicResource WeightSlider}" Value="10"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldOrphan, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Orphan foundations" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldOrphan"     Style="{DynamicResource WeightSlider}" Value="10"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldOrphan, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Model warnings" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldWarnings"   Style="{DynamicResource WeightSlider}" Value="20"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldWarnings, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Model warnings" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldWarnings"   Style="{DynamicResource WeightSlider}" Value="20"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldWarnings, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Missing Mark" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldParams"     Style="{DynamicResource WeightSlider}" Value="15"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldParams, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Missing Mark" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldParams"     Style="{DynamicResource WeightSlider}" Value="15"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldParams, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Level offsets" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldOffsets"    Style="{DynamicResource WeightSlider}" Value="10"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldOffsets, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Level offsets" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldOffsets"    Style="{DynamicResource WeightSlider}" Value="10"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldOffsets, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Duplicate marks" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldDupMarks"   Style="{DynamicResource WeightSlider}" Value="10"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldDupMarks, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Duplicate marks" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldDupMarks"   Style="{DynamicResource WeightSlider}" Value="10"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldDupMarks, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="No level" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldNoLevel"    Style="{DynamicResource WeightSlider}" Value="5"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldNoLevel, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="No level" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldNoLevel"    Style="{DynamicResource WeightSlider}" Value="5"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldNoLevel, Path=Value, StringFormat={}{0:0}}"/></Grid>
 
-                                <TextBlock Text="Unhosted rebar" FontSize="10" Opacity="0.7"/>
-                                <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
-                                    <Slider Name="HS_SldRebar"      Style="{DynamicResource WeightSlider}" Value="5"/>
-                                    <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldRebar, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                        <TextBlock Text="Unhosted rebar" FontSize="10" Opacity="0.7"/>
+                                        <Grid Margin="0,0,0,5"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="26"/></Grid.ColumnDefinitions>
+                                            <Slider Name="HS_SldRebar"      Style="{DynamicResource WeightSlider}" Value="5"/>
+                                            <TextBlock Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="4,0,0,0" Text="{Binding ElementName=HS_SldRebar, Path=Value, StringFormat={}{0:0}}"/></Grid>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
 
                         <Button Grid.Row="1" Name="HS_BtnRun" Content="▶ RUN HEALTH CHECK"
-                                Style="{DynamicResource ActionBtn}" Margin="16,4,16,4" Click="HS_Run_Click"/>
+                                Style="{DynamicResource ActionButton}" Margin="16,4,16,4" Click="HS_Run_Click"/>
                         <StackPanel Grid.Row="2" Margin="16,4,16,8">
-                            <Button Name="HS_BtnExport"  Content="Export CSV"         Style="{DynamicResource SecBtn}" Margin="0,0,0,4" IsEnabled="False" Click="HS_Export_Click"/>
-                            <Button Name="HS_BtnReport"  Content="Export HTML report" Style="{DynamicResource SecBtn}" Margin="0,0,0,4" IsEnabled="False" Click="HS_Report_Click"/>
-                            <Button Name="HS_BtnHistory" Content="Score history"      Style="{DynamicResource SecBtn}" Click="HS_History_Click"/>
+                            <Button Name="HS_BtnExport"  Content="Export CSV"         Style="{DynamicResource SecondaryButton}" Margin="0,0,0,4" IsEnabled="False" Click="HS_Export_Click"/>
+                            <Button Name="HS_BtnReport"  Content="Export HTML report" Style="{DynamicResource SecondaryButton}" Margin="0,0,0,4" IsEnabled="False" Click="HS_Report_Click"/>
+                            <Button Name="HS_BtnHistory" Content="Score history"      Style="{DynamicResource SecondaryButton}" Click="HS_History_Click"/>
                         </StackPanel>
                     </Grid>
 
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  ResizeBehavior="PreviousAndNext"/>
+
                     <!-- Main -->
-                    <Grid Grid.Column="1" Margin="20">
+                    <Grid Grid.Column="2" Margin="20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -169,9 +280,7 @@
                         </Grid.RowDefinitions>
 
                         <!-- Score gauge -->
-                        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
-                                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                                CornerRadius="6" Padding="20,14" Margin="0,0,0,10">
+                        <Border Grid.Row="0" Style="{DynamicResource Card}" Padding="20,14" Margin="0,0,0,10">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
@@ -190,9 +299,7 @@
                         </Border>
 
                         <!-- Trend chart -->
-                        <Border Grid.Row="1" Background="{DynamicResource PanelColor}"
-                                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                                CornerRadius="6" Padding="14,10" Margin="0,0,0,10">
+                        <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="14,10" Margin="0,0,0,10">
                             <Grid>
                                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="80"/></Grid.RowDefinitions>
                                 <TextBlock Grid.Row="0" Text="Score history" FontSize="11" FontWeight="SemiBold"
@@ -215,25 +322,27 @@
                         </StackPanel>
 
                         <!-- Results grid -->
-                        <DataGrid Name="HS_GridResults" Grid.Row="3"
-                                  AutoGenerateColumns="False" IsReadOnly="True"
-                                  AlternatingRowBackground="#06000000" Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderColor}"
-                                  GridLinesVisibility="Horizontal" SelectionMode="Single"
-                                  SelectionChanged="HS_Grid_SelectionChanged">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Check"        Binding="{Binding Label}"    Width="200"/>
-                                <DataGridTextColumn Header="Issues"       Binding="{Binding Count}"    Width="60"/>
-                                <DataGridTextColumn Header="Severity"     Binding="{Binding Severity}" Width="80"/>
-                                <DataGridTextColumn Header="Weight"       Binding="{Binding Weight}"   Width="60"/>
-                                <DataGridTextColumn Header="Score impact" Binding="{Binding Impact}"   Width="100"/>
-                                <DataGridTextColumn Header="Detail"       Binding="{Binding Detail}"   Width="*"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <Border Grid.Row="3" Style="{DynamicResource Card}" Padding="0">
+                            <DataGrid Name="HS_GridResults"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      AlternatingRowBackground="#06000000" Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal" SelectionMode="Single"
+                                      SelectionChanged="HS_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Check"        Binding="{Binding Label}"    Width="200"/>
+                                    <DataGridTextColumn Header="Issues"       Binding="{Binding Count}"    Width="60"/>
+                                    <DataGridTextColumn Header="Severity"     Binding="{Binding Severity}" Width="80"/>
+                                    <DataGridTextColumn Header="Weight"       Binding="{Binding Weight}"   Width="60"/>
+                                    <DataGridTextColumn Header="Score impact" Binding="{Binding Impact}"   Width="100"/>
+                                    <DataGridTextColumn Header="Detail"       Binding="{Binding Detail}"   Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
 
                         <!-- Bottom actions -->
                         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-                            <Button Name="HS_BtnSelect"  Content="Select in model" Style="{DynamicResource SecBtn}" Margin="0,0,8,0" IsEnabled="False" Click="HS_Select_Click"/>
+                            <Button Name="HS_BtnSelect"  Content="Select in model" Style="{DynamicResource SecondaryButton}" Margin="0,0,8,0" IsEnabled="False" Click="HS_Select_Click"/>
                         </StackPanel>
                     </Grid>
                 </Grid>
@@ -243,8 +352,9 @@
             <TabItem Header="Warnings Triage">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="230"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="230" MinWidth="200" MaxWidth="320"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="360"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Sidebar -->
@@ -258,24 +368,32 @@
                         </Grid.RowDefinitions>
                         <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
                             <StackPanel Margin="16,16,16,8">
-                                <TextBlock Text="Show severity" FontWeight="Bold"
-                                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
-                                <CheckBox Name="WT_ChkHigh"   Content="High (critical)"   IsChecked="True"/>
-                                <CheckBox Name="WT_ChkMedium" Content="Medium"            IsChecked="True"/>
-                                <CheckBox Name="WT_ChkLow"    Content="Low (info)"        IsChecked="True"/>
-                                <Separator Margin="0,12,0,10"/>
-                                <CheckBox Name="WT_ChkShowIgnored" Content="Show ignored warnings"
-                                          IsChecked="False" Click="WT_Filter_Changed"/>
+                                <Border Style="{DynamicResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Show severity" FontWeight="Bold"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                                        <CheckBox Name="WT_ChkHigh"   Content="High (critical)"   IsChecked="True"/>
+                                        <CheckBox Name="WT_ChkMedium" Content="Medium"            IsChecked="True"/>
+                                        <CheckBox Name="WT_ChkLow"    Content="Low (info)"        IsChecked="True"/>
+                                        <Separator Margin="0,12,0,10"/>
+                                        <CheckBox Name="WT_ChkShowIgnored" Content="Show ignored warnings"
+                                                  IsChecked="False" Click="WT_Filter_Changed"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
-                        <Button Grid.Row="1" Name="WT_BtnRun"     Content="RUN TRIAGE"      Style="{DynamicResource ActionBtn}" Margin="16,4,16,4" Click="WT_Run_Click"/>
-                        <Button Grid.Row="2" Name="WT_BtnExport"  Content="Export CSV"       Style="{DynamicResource SecBtn}"    Margin="16,4,16,4" IsEnabled="False" Click="WT_Export_Click"/>
-                        <Button Grid.Row="3" Name="WT_BtnIgnore"  Content="Ignore selected"  Style="{DynamicResource SecBtn}"    Margin="16,4,16,4" IsEnabled="False" Click="WT_Ignore_Click"/>
-                        <Button Grid.Row="4" Name="WT_BtnAutoFix" Content="Auto-fix selected" Style="{DynamicResource SecBtn}"   Margin="16,4,16,16" IsEnabled="False" Click="WT_AutoFix_Click"/>
+                        <Button Grid.Row="1" Name="WT_BtnRun"     Content="RUN TRIAGE"      Style="{DynamicResource ActionButton}" Margin="16,4,16,4" Click="WT_Run_Click"/>
+                        <Button Grid.Row="2" Name="WT_BtnExport"  Content="Export CSV"       Style="{DynamicResource SecondaryButton}"    Margin="16,4,16,4" IsEnabled="False" Click="WT_Export_Click"/>
+                        <Button Grid.Row="3" Name="WT_BtnIgnore"  Content="Ignore selected"  Style="{DynamicResource SecondaryButton}"    Margin="16,4,16,4" IsEnabled="False" Click="WT_Ignore_Click"/>
+                        <Button Grid.Row="4" Name="WT_BtnAutoFix" Content="Auto-fix selected" Style="{DynamicResource SecondaryButton}"   Margin="16,4,16,16" IsEnabled="False" Click="WT_AutoFix_Click"/>
                     </Grid>
 
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  ResizeBehavior="PreviousAndNext"/>
+
                     <!-- Main -->
-                    <Grid Grid.Column="1" Margin="20">
+                    <Grid Grid.Column="2" Margin="20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -301,41 +419,41 @@
 
                         <TextBox Grid.Row="1" Name="WT_TxtSearch" Height="28" Padding="6,2"
                                  VerticalContentAlignment="Center" Margin="0,0,0,8"
+                                 BorderBrush="{DynamicResource BorderColor}"
                                  TextChanged="WT_Search_Changed"/>
 
-                        <DataGrid Grid.Row="2" Name="WT_GridResults"
-                                  AutoGenerateColumns="False" IsReadOnly="True"
-                                  AlternatingRowBackground="#06000000" Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderColor}"
-                                  GridLinesVisibility="Horizontal" SelectionMode="Single"
-                                  SelectionChanged="WT_Grid_SelectionChanged">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="#"        Binding="{Binding Index}"        Width="40"/>
-                                <DataGridTextColumn Header="Severity" Binding="{Binding Severity}"     Width="80"/>
-                                <DataGridTextColumn Header="Warning"  Binding="{Binding Description}"  Width="*"/>
-                                <DataGridTextColumn Header="Elements" Binding="{Binding ElementsStr}"  Width="180"/>
-                                <DataGridTextColumn Header="Count"    Binding="{Binding CountElements}" Width="55"/>
-                                <DataGridTextColumn Header="Action"   Binding="{Binding Action}"       Width="220"/>
-                            </DataGrid.Columns>
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Severity}" Value="High">
-                                            <Setter Property="Background" Value="#10FF0000"/>
-                                        </DataTrigger>
-                                        <DataTrigger Binding="{Binding IsIgnored}" Value="True">
-                                            <Setter Property="Opacity" Value="0.4"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-                        </DataGrid>
+                        <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="0">
+                            <DataGrid Name="WT_GridResults"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      AlternatingRowBackground="#06000000" Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal" SelectionMode="Single"
+                                      SelectionChanged="WT_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#"        Binding="{Binding Index}"        Width="40"/>
+                                    <DataGridTextColumn Header="Severity" Binding="{Binding Severity}"     Width="80"/>
+                                    <DataGridTextColumn Header="Warning"  Binding="{Binding Description}"  Width="*"/>
+                                    <DataGridTextColumn Header="Elements" Binding="{Binding ElementsStr}"  Width="180"/>
+                                    <DataGridTextColumn Header="Count"    Binding="{Binding CountElements}" Width="55"/>
+                                    <DataGridTextColumn Header="Action"   Binding="{Binding Action}"       Width="220"/>
+                                </DataGrid.Columns>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Severity}" Value="High">
+                                                <Setter Property="Background" Value="#10FF0000"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsIgnored}" Value="True">
+                                                <Setter Property="Opacity" Value="0.4"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                            </DataGrid>
+                        </Border>
 
-                        <Border Grid.Row="3" Name="WT_PanelAction"
-                                Background="{DynamicResource PanelColor}"
-                                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                                CornerRadius="4" Padding="12,8" Margin="0,8,0,0"
-                                Visibility="Collapsed">
+                        <Border Grid.Row="3" Name="WT_PanelAction" Style="{DynamicResource Card}"
+                                Margin="0,8,0,0" Visibility="Collapsed">
                             <StackPanel>
                                 <TextBlock Text="Suggested action:" FontWeight="Bold" FontSize="11"
                                            Foreground="{DynamicResource AccentColor}" Margin="0,0,0,4"/>
@@ -345,9 +463,9 @@
                         </Border>
 
                         <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-                            <Button Name="WT_BtnJumpView" Content="Jump to view" Style="{DynamicResource SecBtn}"
+                            <Button Name="WT_BtnJumpView" Content="Jump to view" Style="{DynamicResource SecondaryButton}"
                                     Margin="0,0,8,0" IsEnabled="False" Click="WT_JumpView_Click"/>
-                            <Button Name="WT_BtnSelect" Content="Select in model" Style="{DynamicResource SecBtn}"
+                            <Button Name="WT_BtnSelect" Content="Select in model" Style="{DynamicResource SecondaryButton}"
                                     IsEnabled="False" Click="WT_Select_Click"/>
                         </StackPanel>
                     </Grid>
@@ -356,7 +474,7 @@
 
             <!-- ═══ TAB 3: MODEL SYNC CHECKER ═══ -->
             <TabItem Header="BIM Sync Checker">
-                <Grid Margin="16,12,16,12">
+                <Grid Margin="20">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
@@ -370,27 +488,29 @@
                                Text="Compare Revit model vs. Robot / ETABS / SAP2000 / STAAD CSV export."/>
 
                     <!-- CSV picker -->
-                    <Grid Grid.Row="1" Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                                CornerRadius="4" Padding="10,7" Background="White">
-                            <TextBlock Name="SC_TxtCsvPath" Text="No CSV selected — click Browse…"
-                                       FontSize="11" Opacity="0.5" VerticalAlignment="Center"/>
-                        </Border>
-                        <Button Grid.Column="1" Content="Browse…" Style="{DynamicResource SecBtn}" Click="SC_Browse_Click"/>
-                        <ProgressBar Grid.Column="3" Name="SC_ProgBar" Width="100" Height="4"
-                                     IsIndeterminate="True" Foreground="{DynamicResource AccentColor}"
-                                     BorderThickness="0" Visibility="Collapsed"/>
-                        <Button Grid.Column="5" Name="SC_BtnRun" Content="▶ COMPARE"
-                                Style="{DynamicResource ActionBtn}" Click="SC_Run_Click" IsEnabled="False"/>
-                    </Grid>
+                    <Border Grid.Row="1" Style="{DynamicResource Card}" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                                    CornerRadius="4" Padding="10,7" Background="{DynamicResource BgColor}">
+                                <TextBlock Name="SC_TxtCsvPath" Text="No CSV selected — click Browse…"
+                                           FontSize="11" Opacity="0.5" VerticalAlignment="Center"/>
+                            </Border>
+                            <Button Grid.Column="1" Content="Browse…" Style="{DynamicResource SecondaryButton}" Click="SC_Browse_Click"/>
+                            <ProgressBar Grid.Column="3" Name="SC_ProgBar" Width="100" Height="4"
+                                         IsIndeterminate="True" Foreground="{DynamicResource AccentColor}"
+                                         BorderThickness="0" Visibility="Collapsed"/>
+                            <Button Grid.Column="5" Name="SC_BtnRun" Content="▶ COMPARE"
+                                    Style="{DynamicResource ActionButton}" Click="SC_Run_Click" IsEnabled="False"/>
+                        </Grid>
+                    </Border>
 
                     <!-- Summary pills -->
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
@@ -415,31 +535,33 @@
                     </StackPanel>
 
                     <!-- DataGrid -->
-                    <DataGrid Name="SC_GridSync" Grid.Row="3"
-                              AutoGenerateColumns="False" IsReadOnly="True"
-                              SelectionMode="Extended" SelectionUnit="FullRow"
-                              AlternatingRowBackground="#06000000" Background="Transparent"
-                              BorderBrush="{DynamicResource BorderColor}" GridLinesVisibility="Horizontal" FontSize="11">
-                        <DataGrid.Columns>
-                            <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="status">
-                                <DataGridTemplateColumn.CellTemplate>
-                                    <DataTemplate>
-                                        <Border CornerRadius="8" Padding="6,2" HorizontalAlignment="Center" Background="{Binding status_color}">
-                                            <TextBlock Text="{Binding status}" Foreground="White" FontSize="10" FontWeight="Bold"/>
-                                        </Border>
-                                    </DataTemplate>
-                                </DataGridTemplateColumn.CellTemplate>
-                            </DataGridTemplateColumn>
-                            <DataGridTextColumn Header="Mark"          Binding="{Binding mark}"        Width="90"/>
-                            <DataGridTextColumn Header="Calc section"  Binding="{Binding calc_sec}"    Width="*"/>
-                            <DataGridTextColumn Header="Revit section" Binding="{Binding revit_sec}"   Width="*"/>
-                            <DataGridTextColumn Header="Calc L (m)"    Binding="{Binding calc_len}"    Width="80"/>
-                            <DataGridTextColumn Header="Revit L (m)"   Binding="{Binding revit_len}"   Width="80"/>
-                            <DataGridTextColumn Header="Calc level"    Binding="{Binding calc_level}"  Width="90"/>
-                            <DataGridTextColumn Header="Revit level"   Binding="{Binding revit_level}" Width="90"/>
-                            <DataGridTextColumn Header="Revit ID"      Binding="{Binding revit_id}"    Width="70"/>
-                        </DataGrid.Columns>
-                    </DataGrid>
+                    <Border Grid.Row="3" Style="{DynamicResource Card}" Padding="0">
+                        <DataGrid Name="SC_GridSync"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectionMode="Extended" SelectionUnit="FullRow"
+                                  AlternatingRowBackground="#06000000" Background="Transparent"
+                                  BorderThickness="0" GridLinesVisibility="Horizontal" FontSize="11">
+                            <DataGrid.Columns>
+                                <DataGridTemplateColumn Header="Status" Width="90" SortMemberPath="status">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Border CornerRadius="8" Padding="6,2" HorizontalAlignment="Center" Background="{Binding status_color}">
+                                                <TextBlock Text="{Binding status}" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                                            </Border>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Mark"          Binding="{Binding mark}"        Width="90"/>
+                                <DataGridTextColumn Header="Calc section"  Binding="{Binding calc_sec}"    Width="*"/>
+                                <DataGridTextColumn Header="Revit section" Binding="{Binding revit_sec}"   Width="*"/>
+                                <DataGridTextColumn Header="Calc L (m)"    Binding="{Binding calc_len}"    Width="80"/>
+                                <DataGridTextColumn Header="Revit L (m)"   Binding="{Binding revit_len}"   Width="80"/>
+                                <DataGridTextColumn Header="Calc level"    Binding="{Binding calc_level}"  Width="90"/>
+                                <DataGridTextColumn Header="Revit level"   Binding="{Binding revit_level}" Width="90"/>
+                                <DataGridTextColumn Header="Revit ID"      Binding="{Binding revit_id}"    Width="70"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
 
                     <!-- Footer -->
                     <Grid Grid.Row="4" Margin="0,10,0,0">
@@ -453,10 +575,705 @@
                                    Text="Import a CSV and click ▶ COMPARE."
                                    FontSize="11" Opacity="0.6" VerticalAlignment="Center"/>
                         <Button Grid.Column="1" Name="SC_BtnSelect" Content="Select matched in Revit"
-                                Style="{DynamicResource SecBtn}" Click="SC_Select_Click" IsEnabled="False"/>
+                                Style="{DynamicResource SecondaryButton}" Click="SC_Select_Click" IsEnabled="False"/>
                         <Button Grid.Column="3" Name="SC_BtnExport" Content="Export report CSV"
-                                Style="{DynamicResource SecBtn}" Click="SC_Export_Click" IsEnabled="False"/>
+                                Style="{DynamicResource SecondaryButton}" Click="SC_Export_Click" IsEnabled="False"/>
                     </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 4: ANALYTICAL HEALTH CHECK ═══ -->
+            <TabItem Header="Analytical Health">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="24,16,0,16">
+                                <TextBlock Text="ANALYTICAL MODEL HEALTH CHECK" FontSize="16" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                                <TextBlock Text="Structural analytical model validation"
+                                           FontSize="11" Opacity="0.5" Margin="0,3,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                        VerticalAlignment="Center" Margin="0,0,24,0">
+                                <Button Name="AH_BtnRun" Content="▶ RUN CHECKS"
+                                        Style="{DynamicResource ActionButton}" Click="AH_Run_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,14,20,8">
+                        <Border CornerRadius="8" Background="#FFEEEE" Padding="12,5" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="ERRORS: " FontSize="11" FontWeight="Bold" Foreground="#CC0000"/>
+                                <TextBlock Name="AH_TxtErrors" Text="—" FontSize="11" FontWeight="Bold" Foreground="#CC0000"/>
+                            </StackPanel>
+                        </Border>
+                        <Border CornerRadius="8" Background="#FFF3E0" Padding="12,5" Margin="0,0,8,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="WARNINGS: " FontSize="11" FontWeight="Bold" Foreground="#E65C00"/>
+                                <TextBlock Name="AH_TxtWarnings" Text="—" FontSize="11" FontWeight="Bold" Foreground="#E65C00"/>
+                            </StackPanel>
+                        </Border>
+                        <Border CornerRadius="8" Background="#F5F5F5" Padding="12,5" Margin="0,0,16,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="TOTAL: " FontSize="11" Foreground="#555"/>
+                                <TextBlock Name="AH_TxtTotal" Text="—" FontSize="11" Foreground="#555"/>
+                            </StackPanel>
+                        </Border>
+                        <ProgressBar Name="AH_ProgBar" Width="160" Height="4" IsIndeterminate="True"
+                                     Foreground="{DynamicResource AccentColor}" BorderThickness="0"
+                                     Visibility="Collapsed" VerticalAlignment="Center"/>
+                        <TextBlock Name="AH_TxtStatus" Text="" Margin="10,0,0,0"
+                                   Foreground="{DynamicResource TextColor}" FontSize="11" Opacity="0.6"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="0" Margin="20,0,20,0">
+                        <DataGrid Name="AH_GridResults"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectionMode="Extended" SelectionUnit="FullRow"
+                                  AlternatingRowBackground="#06000000" Background="Transparent"
+                                  BorderThickness="0" GridLinesVisibility="Horizontal" FontSize="11"
+                                  SelectionChanged="AH_GridResults_SelectionChanged">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Severity"  Binding="{Binding severity}"  Width="80"/>
+                                <DataGridTextColumn Header="Type"      Binding="{Binding etype}"       Width="110"/>
+                                <DataGridTextColumn Header="Mark"      Binding="{Binding mark}"       Width="90"/>
+                                <DataGridTextColumn Header="Level"     Binding="{Binding level}"      Width="110"/>
+                                <DataGridTextColumn Header="ID"        Binding="{Binding id}"         Width="80"/>
+                                <DataGridTextColumn Header="Issue"     Binding="{Binding issue}"      Width="*"/>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding severity}" Value="ERROR">
+                                            <Setter Property="Background" Value="#12CC0000"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding severity}" Value="WARNING">
+                                            <Setter Property="Background" Value="#0AFF6600"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
+                    </Border>
+
+                    <Grid Grid.Row="3" Margin="20,14,20,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Name="AH_TxtSummary" Grid.Column="0"
+                                   Text="Click ▶ RUN CHECKS to analyse the model."
+                                   Foreground="{DynamicResource TextColor}" FontSize="11" Opacity="0.6"
+                                   VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="AH_BtnSelect" Content="Select in model"
+                                Style="{DynamicResource SecondaryButton}" Click="AH_Select_Click" IsEnabled="False"/>
+                        <Button Grid.Column="3" Name="AH_BtnExport" Content="Export CSV"
+                                Style="{DynamicResource SecondaryButton}" Click="AH_Export_Click" IsEnabled="False"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 5: CONNECTION CHECKER ═══ -->
+            <TabItem Header="Connection Checker">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="240" MinWidth="210" MaxWidth="320"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="420"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="20,20,20,12">
+                            <TextBlock Text="CONNECTION CHECK" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Text="End Join and Analytical" FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,0,20,10">
+                            <Button Content="Results" Style="{DynamicResource CC_NavBtn}" Tag="results" Click="CC_NavTab_Click"
+                                    FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,4,0"/>
+                            <Button Content="Rules" Style="{DynamicResource CC_NavBtn}" Tag="rules" Click="CC_NavTab_Click"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20,0,20,10">
+                                <Border Style="{DynamicResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Built-in checks" FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                                        <CheckBox Name="CC_ChkAnalytical"  Content="Analytical model disabled"       IsChecked="True"/>
+                                        <CheckBox Name="CC_ChkUsage"       Content="Structural usage empty"          IsChecked="True"/>
+                                        <CheckBox Name="CC_ChkAttachment"  Content="Column attachment missing"       IsChecked="True"/>
+                                        <CheckBox Name="CC_ChkJoins"       Content="Beam end no adjacent element"    IsChecked="True"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <Button Grid.Row="3" Content="RUN CHECK" Name="CC_BtnRun"
+                                Click="CC_Run_Click" Style="{DynamicResource ActionButton}" Margin="20,0,20,8"/>
+                        <Button Grid.Row="4" Content="Export CSV" Name="CC_BtnExport"
+                                Click="CC_Export_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="20,0,20,20" IsEnabled="False"/>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid Name="CC_TabResults">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                                <Border CornerRadius="12" Background="#FFEEEE" Padding="10,4" Margin="0,0,8,0">
+                                    <TextBlock Name="CC_TxtHigh"   Text="0 High"   FontSize="11" Foreground="#CC3333" FontWeight="Bold"/>
+                                </Border>
+                                <Border CornerRadius="12" Background="#FFF3E0" Padding="10,4" Margin="0,0,8,0">
+                                    <TextBlock Name="CC_TxtMedium" Text="0 Medium" FontSize="11" Foreground="#E65C00" FontWeight="Bold"/>
+                                </Border>
+                                <Border CornerRadius="12" Background="#F0F0F0" Padding="10,4">
+                                    <TextBlock Name="CC_TxtLow"    Text="0 Low"    FontSize="11" Foreground="#666666" FontWeight="Bold"/>
+                                </Border>
+                            </StackPanel>
+                            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+                                <DataGrid Name="CC_GridResults"
+                                          AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0" GridLinesVisibility="Horizontal"
+                                          SelectionChanged="CC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Severity"  Binding="{Binding Severity}" Width="80"/>
+                                        <DataGridTextColumn Header="Category"  Binding="{Binding Category}" Width="100"/>
+                                        <DataGridTextColumn Header="Level"     Binding="{Binding Level}"    Width="100"/>
+                                        <DataGridTextColumn Header="Name"      Binding="{Binding Name}"     Width="*"/>
+                                        <DataGridTextColumn Header="Check"     Binding="{Binding Check}"    Width="260"/>
+                                    </DataGrid.Columns>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Severity}" Value="High">
+                                                    <Setter Property="Background" Value="#10FF0000"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Severity}" Value="Medium">
+                                                    <Setter Property="Background" Value="#10FF5F00"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                </DataGrid>
+                            </Border>
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                                <Button Content="Select in Model" Name="CC_BtnSelect" Click="CC_Select_Click"
+                                        Style="{DynamicResource SecondaryButton}" Margin="0,0,10,0" IsEnabled="False"/>
+                                <Button Content="Export CSV" Name="CC_BtnExport2" Click="CC_Export_Click"
+                                        Style="{DynamicResource SecondaryButton}" IsEnabled="False"/>
+                            </StackPanel>
+                        </Grid>
+                        <Grid Name="CC_TabRules" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                                <TextBlock Text="Custom Check Rules" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+                                <TextBlock Text="Parameter-based rules that run alongside built-in checks."
+                                           FontSize="11" Opacity="0.55" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Border Grid.Row="1" Style="{DynamicResource Card}" Margin="0,0,0,10">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="130"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="100"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Parameter name" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
+                                            <TextBox Name="CC_TxtRuleParam" Height="28" Padding="6,4" BorderBrush="{DynamicResource BorderColor}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Condition" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
+                                            <ComboBox Name="CC_CboCondition" Height="28" FontSize="11"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Text="Threshold" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
+                                            <TextBox Name="CC_TxtThreshold" Height="28" Padding="6,4" BorderBrush="{DynamicResource BorderColor}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="6">
+                                            <TextBlock Text="Severity" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
+                                            <ComboBox Name="CC_CboSeverity" Height="28" FontSize="11"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="8">
+                                            <TextBlock Text="Category" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
+                                            <ComboBox Name="CC_CboRuleCat" Height="28" FontSize="11"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Label (optional):" FontSize="10" Opacity="0.6" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="2" Name="CC_TxtRuleLabel" Height="26" FontSize="11" Padding="6,3"
+                                                 BorderBrush="{DynamicResource BorderColor}"/>
+                                        <Button Grid.Column="4" Content="Add Rule" Style="{DynamicResource ActionButton}"
+                                                Padding="16,6" Click="CC_AddRule_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="4">
+                                <ListBox Name="CC_LstRules"
+                                         Background="Transparent" BorderThickness="0"
+                                         FontSize="11" Padding="4"/>
+                            </Border>
+                            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+                                <Button Content="Remove Selected" Style="{DynamicResource SecondaryButton}"
+                                        Click="CC_RemoveRule_Click" Margin="0,0,8,0"/>
+                                <Button Content="Import JSON" Style="{DynamicResource SecondaryButton}"
+                                        Click="CC_ImportRules_Click" Margin="0,0,8,0"/>
+                                <Button Content="Export JSON" Style="{DynamicResource SecondaryButton}"
+                                        Click="CC_ExportRules_Click" Margin="0,0,8,0"/>
+                                <Button Content="Save Rules" Style="{DynamicResource ActionButton}"
+                                        Click="CC_SaveRules_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 6: COVER COMPLIANCE ═══ -->
+            <TabItem Header="Cover Compliance">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="260" MinWidth="220" MaxWidth="340"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="380"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="16,16,16,16">
+                                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                                    <StackPanel>
+                                        <TextBlock Text="Exposure class (EC2)" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                                        <ComboBox Name="CV_CboExposure" FontSize="11" Margin="0,0,0,10"
+                                                  SelectionChanged="CV_Exposure_Changed"/>
+                                        <TextBlock Text="Min. cover (mm):" FontSize="11" Margin="0,0,0,2"/>
+                                        <TextBox Name="CV_TxtMinCover" Style="{DynamicResource CV_FieldBox}"
+                                                 TextChanged="CV_MinCover_Changed"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{DynamicResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Summary" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Total rebar:" FontSize="11" Foreground="{DynamicResource TextColor}"/>
+                                            <TextBlock Name="CV_TxtTotal" Grid.Column="1" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextColor}"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="OK:" FontSize="11" Foreground="Green"/>
+                                            <TextBlock Name="CV_TxtOk" Grid.Column="1" FontSize="11" FontWeight="Bold" Foreground="Green"/>
+                                        </Grid>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="Below minimum:" FontSize="11" Foreground="#CC3300"/>
+                                            <TextBlock Name="CV_TxtFail" Grid.Column="1" FontSize="11" FontWeight="Bold" Foreground="#CC3300"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                <Button Content="RUN CHECK" Style="{DynamicResource ActionButton}"
+                                        Click="CV_RunCheck_Click" Margin="0,14,0,6"/>
+                                <Button Content="Show Failing Only" Style="{DynamicResource SecondaryButton}"
+                                        Click="CV_FilterFail_Click" Margin="0,0,0,6"/>
+                                <Button Content="Select in Model" Style="{DynamicResource SecondaryButton}"
+                                        Click="CV_SelectInModel_Click" Margin="0,0,0,6"
+                                        ToolTip="Selects the grid rows you have highlighted, or all failing bars if none are highlighted"/>
+                                <Button Content="Export CSV" Style="{DynamicResource SecondaryButton}"
+                                        Click="CV_ExportCsv_Click"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  ResizeBehavior="PreviousAndNext"/>
+                    <Grid Grid.Column="2" Margin="12,12,20,4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Results — rebar elements"
+                                   FontWeight="Bold" FontSize="12"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                        <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0">
+                            <DataGrid Name="CV_GridResults"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      SelectionMode="Single"
+                                      AlternatingRowBackground="#06000000"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal"
+                                      CanUserReorderColumns="False" FontSize="11">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Host element"   Binding="{Binding Host}"     Width="200"/>
+                                    <DataGridTextColumn Header="Category"       Binding="{Binding Category}" Width="130"/>
+                                    <DataGridTextColumn Header="Cover (mm)"     Binding="{Binding CoverMm}"  Width="80"/>
+                                    <DataGridTextColumn Header="Min. (mm)"      Binding="{Binding MinMm}"    Width="70"/>
+                                    <DataGridTextColumn Header="Status"         Binding="{Binding Status}"   Width="70"/>
+                                </DataGrid.Columns>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Status}" Value="FAIL">
+                                                <Setter Property="Background" Value="#18CC3300"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                    <TextBlock Name="CV_TxtStatus" Grid.Column="2" VerticalAlignment="Bottom"
+                               FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                               Margin="12,0,20,-22" Visibility="Collapsed"/>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 7: FOUNDATION LOAD EXTRACTOR ═══ -->
+            <TabItem Header="Foundation Loads">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Margin="24,18,0,18">
+                                <TextBlock Text="FOUNDATION LOAD EXTRACTOR" FontSize="17" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentColor}"/>
+                                <TextBlock Text="Analytical model reactions — governing envelope per foundation"
+                                           FontSize="11" Opacity="0.55"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                        VerticalAlignment="Center" Margin="0,0,24,0">
+                                <ProgressBar Name="FL_ProgBar" Width="140" Height="4" IsIndeterminate="True"
+                                             Foreground="{DynamicResource AccentColor}" BorderThickness="0"
+                                             Visibility="Collapsed" Margin="0,0,16,0"/>
+                                <Button Name="FL_BtnRun" Content="▶ EXTRACT LOADS"
+                                        Style="{DynamicResource ActionButton}" Click="FL_Run_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0" Margin="20,16,20,0">
+                        <DataGrid Name="FL_GridLoads"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  SelectionMode="Extended" SelectionUnit="FullRow"
+                                  AlternatingRowBackground="#06000000" Background="Transparent"
+                                  BorderThickness="0" GridLinesVisibility="Horizontal" FontSize="11">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Mark"      Binding="{Binding mark}"    Width="80"/>
+                                <DataGridTextColumn Header="Type"      Binding="{Binding etype}"    Width="*"/>
+                                <DataGridTextColumn Header="Level"     Binding="{Binding level}"   Width="90"/>
+                                <DataGridTextColumn Header="Location (m)" Binding="{Binding loc}"  Width="140"/>
+                                <DataGridTextColumn Header="N (kN)"    Binding="{Binding N_kN}"    Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,6,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Vx (kN)"   Binding="{Binding Vx_kN}"   Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,6,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Vy (kN)"   Binding="{Binding Vy_kN}"   Width="80">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,6,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Mx (kN·m)" Binding="{Binding Mx_kNm}" Width="90">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,6,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="My (kN·m)" Binding="{Binding My_kNm}" Width="90">
+                                    <DataGridTextColumn.ElementStyle>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="HorizontalAlignment" Value="Right"/>
+                                            <Setter Property="Margin" Value="0,0,6,0"/>
+                                            <Setter Property="FontFamily" Value="Consolas"/>
+                                        </Style>
+                                    </DataGridTextColumn.ElementStyle>
+                                </DataGridTextColumn>
+                                <DataGridTextColumn Header="Nodes" Binding="{Binding nodes}" Width="60"/>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding N_kN}" Value="—">
+                                            <Setter Property="Opacity" Value="0.5"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
+                    </Border>
+                    <Grid Grid.Row="2" Margin="20,14,20,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Name="FL_TxtStatus" Grid.Column="0"
+                                   Text="Click ▶ EXTRACT LOADS to read analytical model reactions."
+                                   Foreground="{DynamicResource TextColor}" FontSize="11" Opacity="0.6"
+                                   VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Name="FL_BtnSelect" Content="Select in model"
+                                Style="{DynamicResource SecondaryButton}" Click="FL_Select_Click" IsEnabled="False"/>
+                        <Button Grid.Column="3" Name="FL_BtnExport" Content="Export CSV"
+                                Style="{DynamicResource SecondaryButton}" Click="FL_Export_Click" IsEnabled="False"/>
+                        <Button Grid.Column="5" Name="FL_BtnExportPDF" Content="Export PDF Report"
+                                Style="{DynamicResource SecondaryButton}" Click="FL_ExportPDF_Click" IsEnabled="False"
+                                ToolTip="Export a formatted geotechnical PDF report (HTML → PDF via Chrome)"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 8: LEVEL &amp; GRID SYNC ═══ -->
+            <TabItem Header="Level &amp; Grid Sync">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="LEVEL &amp; GRID SYNC" FontSize="18" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentColor}"/>
+                        <TextBlock Text="Compare levels and grids against a linked model"
+                                   FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+                    </StackPanel>
+                    <Border Grid.Row="1" Style="{DynamicResource Card}" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Name="LGS_CboLinks" Grid.Column="0" Height="30" Margin="0,0,10,0"
+                                      VerticalContentAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="Tolerance:" VerticalAlignment="Center"
+                                       Margin="0,0,6,0" FontSize="11" Foreground="{DynamicResource TextColor}"/>
+                            <TextBox Name="LGS_TxtTolerance" Grid.Column="2" Text="1" Width="50" Height="30"
+                                     TextAlignment="Center" VerticalContentAlignment="Center" Margin="0,0,4,0"
+                                     BorderBrush="{DynamicResource BorderColor}"/>
+                            <TextBlock Grid.Column="3" Text="mm" VerticalAlignment="Center"
+                                       FontSize="11" Foreground="{DynamicResource TextColor}"/>
+                        </Grid>
+                    </Border>
+                    <Border Grid.Row="2" Style="{DynamicResource Card}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Name="LGS_ResultsPanel"/>
+                        </ScrollViewer>
+                    </Border>
+                    <Grid Grid.Row="3" Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Name="LGS_TxtStatus" Grid.Column="0" Text=""
+                                   Foreground="{DynamicResource TextColor}"
+                                   Opacity="0.6" FontSize="11" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="RUN COMPARISON" Click="LGS_Run_Click"
+                                Style="{DynamicResource ActionButton}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 9: PARAMETER DRIFT MONITOR ═══ -->
+            <TabItem Header="Parameter Drift">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Border Grid.Row="0" Background="{DynamicResource AccentColor}" Padding="14,9">
+                        <StackPanel>
+                            <TextBlock Text="Parameter Drift Monitor" FontSize="15" FontWeight="Bold" Foreground="White"/>
+                            <TextBlock Name="PD_TxtBaselineInfo" FontSize="10" Foreground="#FFD0B0" Margin="0,1,0,0"/>
+                        </StackPanel>
+                    </Border>
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220" MinWidth="190" MaxWidth="320"/>
+                            <ColumnDefinition Width="6"/>
+                            <ColumnDefinition Width="*" MinWidth="360"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid Grid.Column="0" Background="{DynamicResource BgColor}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Padding="10,8,10,6"
+                                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1">
+                                <StackPanel>
+                                    <TextBlock Text="SHARED PARAMETERS" FontSize="9" FontWeight="Bold"
+                                               Foreground="#AAAAAA" Margin="0,0,0,4"/>
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="None" Style="{DynamicResource PD_GhostButton}"
+                                                Click="PD_ClearAll_Click" Margin="4,0,0,0"/>
+                                        <Button Content="All" Style="{DynamicResource PD_GhostButton}"
+                                                Click="PD_SelectAll_Click"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+                            <ListBox Name="PD_ParamList" Grid.Row="1" BorderThickness="0"
+                                     Background="{DynamicResource BgColor}">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                  Content="{Binding Name}" FontSize="11"
+                                                  Foreground="{DynamicResource TextColor}" Padding="4,3"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Grid.Row="2" Margin="10,8,10,8">
+                                <Button Content="Save Baseline" Click="PD_SaveBaseline_Click"
+                                        Style="{DynamicResource ActionButton}" Margin="0,0,0,6"/>
+                                <Button Content="Import from Excel…" Click="PD_ImportExcel_Click"
+                                        Style="{DynamicResource SecondaryButton}"/>
+                            </StackPanel>
+                        </Grid>
+                        <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                      ResizeBehavior="PreviousAndNext"/>
+                        <Grid Grid.Column="2" Margin="16,16,16,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Style="{DynamicResource Card}" Margin="0,0,0,10">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Export CSV"
+                                            Click="PD_ExportCSV_Click" Style="{DynamicResource SecondaryButton}"
+                                            Padding="12,6"/>
+                                    <Button DockPanel.Dock="Right" Content="Select in Model"
+                                            Click="PD_SelectInModel_Click" Style="{DynamicResource SecondaryButton}"
+                                            Padding="12,6" Margin="0,0,8,0"
+                                            ToolTip="Selects the drifted elements (highlighted rows, or all rows if none is highlighted)"/>
+                                    <Button DockPanel.Dock="Right" Content="Compare" Click="PD_Compare_Click"
+                                            Style="{DynamicResource ActionButton}" Padding="14,6" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Drift Report" FontSize="12" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextColor}" VerticalAlignment="Center"/>
+                                </DockPanel>
+                            </Border>
+                            <Border Grid.Row="1" Style="{DynamicResource Card}" Padding="0" Margin="0,0,0,16">
+                                <DataGrid Name="PD_DriftGrid"
+                                          AutoGenerateColumns="False" IsReadOnly="True"
+                                          CanUserReorderColumns="False" CanUserResizeRows="False"
+                                          AlternatingRowBackground="#F6F6F6"
+                                          RowBackground="{DynamicResource PanelColor}"
+                                          HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                          HorizontalGridLinesBrush="{DynamicResource BorderColor}"
+                                          BorderThickness="0" FontSize="11">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#F0F0F0"/>
+                                            <Setter Property="Foreground" Value="#555"/>
+                                            <Setter Property="FontSize" Value="10"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="8,5"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Element"   Binding="{Binding Element}"   Width="180"/>
+                                        <DataGridTextColumn Header="Parameter" Binding="{Binding Parameter}" Width="160"/>
+                                        <DataGridTextColumn Header="Change"    Binding="{Binding Change}"    Width="75"/>
+                                        <DataGridTextColumn Header="Baseline"  Binding="{Binding Baseline}"  Width="*"/>
+                                        <DataGridTextColumn Header="Current"   Binding="{Binding Current}"   Width="*"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                    <Border Grid.Row="2" Padding="12,7"
+                            Background="{DynamicResource PanelColor}"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+                        <TextBlock Name="PD_TxtStatus" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}"
+                                   Text="Select parameters and save a baseline to start monitoring."/>
+                    </Border>
                 </Grid>
             </TabItem>
         </TabControl>
@@ -464,7 +1281,7 @@
         <!-- Shared loading overlay (NOSAWindow standard) -->
         <Grid Grid.Row="1" Name="LoadingPanel" Visibility="Collapsed"
               Background="#CCFAFAFA" Panel.ZIndex="100">
-            <Border Background="White" CornerRadius="6" Padding="24,16"
+            <Border Style="{DynamicResource Card}" Padding="24,16"
                     HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
                     <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"

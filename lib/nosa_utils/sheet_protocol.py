@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Shared NOSA sheet / titleblock parameter helpers (Drawing Index, Sheet Composer).
+Shared NOSA sheet / titleblock parameter helpers (Drawing Index, Sheet Composer,
+Sheet Export Hub).
 
 The 'Form' field often lives on title block instances rather than the ViewSheet.
 ViewSheet.SheetNumber stores F7 (document number) only — not the full NOSA string.
@@ -13,6 +14,33 @@ from nosa_utils.param_element_ops import param_edit_is_unchanged, set_param_from
 from nosa_utils.revit_helpers import get_id_value
 
 NOSA_ORIGINATOR = u'NOSA'
+
+# NOSA File Naming Protocol fields — in display order. Single source of truth:
+# Drawing Index and Sheet Export Hub both import this instead of keeping their
+# own copy, so the "NOSA Protocols" field set can't drift between tools.
+NOSA_PARAM_ORDER = [
+    # Core identification (NOSA protocol fields 1-8)
+    'Sheet Number',           # F1+F2+F3+F4+F5+F6+F7 encoded
+    'Sheet Name',             # Description
+    'Project Number',         # Field 1
+    'Originator',             # Field 2 (NOSA)
+    'Functional Breakdown',   # Field 3 (DT, GA, SC...)
+    'Spatial Breakdown',      # Field 4 (000, FND, ZZZ...)
+    'Form',                   # Field 5 — read/write via sheet + title blocks
+    'Discipline',              # Field 6 (S, C, X...)
+    'Document Number',        # Field 7 (2200, 4000...)
+    'Current Revision',       # Field 8 (P01, I01, C01...)
+    'Current Revision Date',
+    'Current Revision Description',
+    # Standard sheet params
+    'Scale',
+    'Drawn By',
+    'Checked By',
+    'Designed By',
+    'Approved By',
+    'Sheet Issue Date',
+    'File Path',
+]
 
 # F-key → parameter name aliases (sheet + title block LookupParameter names)
 NOSA_FIELD_ALIASES = {

@@ -1,8 +1,11 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Waffle Slab v2.2" Height="640" Width="720"
+        Title="Waffle Slab v2.2" Height="680" Width="900"
+        MinHeight="560" MinWidth="760"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
         ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
@@ -11,6 +14,18 @@
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
 
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
         <Style TargetType="Button" x:Key="ActionButton">
             <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground"      Value="White"/>
@@ -18,6 +33,20 @@
             <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="Button" x:Key="SecondaryButton">
             <Setter Property="Background"      Value="Transparent"/>
@@ -27,6 +56,22 @@
             <Setter Property="FontWeight"      Value="SemiBold"/>
             <Setter Property="Padding"         Value="14,8"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="TextBox" x:Key="FieldBox">
             <Setter Property="Height"    Value="28"/>
@@ -43,10 +88,11 @@
         </Style>
     </Window.Resources>
 
-    <Grid>
+    <Grid Name="RootGrid">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="260"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="280" MinWidth="230" MaxWidth="380"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*" MinWidth="380"/>
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar -->
@@ -58,34 +104,42 @@
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0" Margin="20,22,20,12">
-                <TextBlock Text="WAFFLE SLAB" FontSize="15" FontWeight="Bold"
+                <TextBlock Text="WAFFLE SLAB" FontSize="16" FontWeight="Bold"
                            Foreground="{DynamicResource AccentColor}"/>
-                <TextBlock Text="Real voids + compression layer" FontSize="10"
+                <TextBlock Text="Real voids + compression layer" FontSize="11"
                            Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
             </StackPanel>
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="20,0,20,10">
-                    <TextBlock Text="Rib spacing (mm):" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtIntereje" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                <StackPanel Margin="14,0,14,10">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Rib spacing (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtIntereje" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Rib width (mm):" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtAncho" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                            <TextBlock Text="Rib width (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtAncho" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Total depth (mm):" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtCanto" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
+                            <TextBlock Text="Total depth (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtCanto" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
-                    <TextBlock Text="Compression slab (mm):" FontSize="11" Margin="0,0,0,4"/>
-                    <TextBox Name="TxtLosa" Style="{DynamicResource FieldBox}" Margin="0,0,0,14"/>
+                            <TextBlock Text="Compression slab (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                            <TextBox Name="TxtLosa" Style="{StaticResource FieldBox}"/>
+                        </StackPanel>
+                    </Border>
 
-                    <TextBlock Text="Slab area" FontWeight="Bold" FontSize="11"
-                               Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
-                    <RadioButton Name="RbRect" Content="Rectangular area" GroupName="Area" IsChecked="True"/>
-                    <RadioButton Name="RbLines" Content="Select existing lines" GroupName="Area"/>
+                    <Border Style="{StaticResource Card}" Margin="0,10,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Slab area" FontWeight="Bold" FontSize="11"
+                                       Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                            <RadioButton Name="RbRect" Content="Rectangular area" GroupName="Area" IsChecked="True"/>
+                            <RadioButton Name="RbLines" Content="Select existing lines" GroupName="Area"/>
+                        </StackPanel>
+                    </Border>
 
                     <Button Name="BtnCreate" Content="CREATE WAFFLE SLAB"
-                            Style="{DynamicResource ActionButton}"
-                            Click="Create_Click" Margin="0,16,0,0"/>
+                            Style="{StaticResource ActionButton}"
+                            Click="Create_Click" Margin="0,14,0,0"/>
                 </StackPanel>
             </ScrollViewer>
 
@@ -95,8 +149,12 @@
             </StackPanel>
         </Grid>
 
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
         <!-- Preview + Log -->
-        <Grid Grid.Column="1" Margin="20">
+        <Grid Grid.Column="2" Margin="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="220"/>
@@ -106,27 +164,28 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="Live Preview — 5 × 5 m example" FontWeight="Bold"
-                       FontSize="13" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                       FontSize="13" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
 
-            <Border Grid.Row="1" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                    Background="White" CornerRadius="4">
-                <Canvas Name="InlinePreviewCanvas" ClipToBounds="True"/>
+            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                <Canvas Name="InlinePreviewCanvas" ClipToBounds="True" Background="White"/>
             </Border>
 
             <TextBlock Grid.Row="2" Name="TxtPreviewDims" FontSize="10"
                        Foreground="{DynamicResource TextColor}" Opacity="0.7"
-                       Margin="0,4,0,8" TextWrapping="Wrap"/>
+                       Margin="0,6,0,10" TextWrapping="Wrap"/>
 
             <TextBlock Grid.Row="3" Text="Output log" FontWeight="Bold" FontSize="13"
                        Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
 
-            <TextBox Grid.Row="4" Name="TxtLog" IsReadOnly="True"
-                     FontFamily="Consolas" FontSize="11"
-                     VerticalScrollBarVisibility="Auto"
-                     HorizontalScrollBarVisibility="Auto"
-                     TextWrapping="Wrap"
-                     Background="Transparent"
-                     BorderBrush="{DynamicResource BorderColor}" Padding="8"/>
+            <Border Grid.Row="4" Style="{StaticResource Card}" Padding="1">
+                <TextBox Name="TxtLog" IsReadOnly="True"
+                         FontFamily="Consolas" FontSize="11"
+                         VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         Background="Transparent"
+                         BorderThickness="0" Padding="10"/>
+            </Border>
 
             <Grid Grid.Row="4" Name="LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA">
                 <Border Background="White" CornerRadius="6" Padding="24,16"

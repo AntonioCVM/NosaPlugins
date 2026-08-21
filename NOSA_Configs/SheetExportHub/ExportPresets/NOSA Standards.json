@@ -1,0 +1,28 @@
+{
+  "subfolder": "", 
+  "force_black": false, 
+  "name": "NOSA Standards", 
+  "export_formats": {
+    "dwg": false, 
+    "dxf": false, 
+    "pdf": true
+  }, 
+  "naming": {
+    "template": [
+      "Project Number", 
+      "Originator", 
+      "Functional Breakdown", 
+      "Spatial Breakdown", 
+      "Form", 
+      "Discipline", 
+      "Sheet Number", 
+      "Current Revision", 
+      "Sheet Name"
+    ], 
+    "separator": "-", 
+    "version": "2.0"
+  }, 
+  "output_folder": "", 
+  "version": "1.0.0", 
+  "created": "2026-08-19 12:41:19"
+}

@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="View Template Manager" Height="680" Width="1080"
+        Title="View Template Manager" Height="700" Width="1120"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
         ResizeMode="CanResizeWithGrip">
@@ -12,22 +12,69 @@
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
 
-        <Style x:Key="ActionBtn" TargetType="Button">
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
+        <Style x:Key="ActionButton" TargetType="Button">
             <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground"      Value="White"/>
             <Setter Property="FontWeight"      Value="Bold"/>
-            <Setter Property="Padding"         Value="20,10"/>
+            <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style x:Key="SecBtn" TargetType="Button">
+        <Style x:Key="SecondaryButton" TargetType="Button">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontWeight"      Value="SemiBold"/>
-            <Setter Property="Padding"         Value="12,7"/>
+            <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
@@ -46,6 +93,7 @@
         <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
                 BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,14">
             <StackPanel Orientation="Horizontal">
+                <Border Width="4" Background="{DynamicResource AccentColor}" CornerRadius="2" Margin="0,0,12,0"/>
                 <TextBlock Text="VIEW TEMPLATE MANAGER" FontSize="18" FontWeight="Bold"
                            Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
                 <TextBlock Text="Guard · Apply · Copy overrides" FontSize="11"
@@ -66,53 +114,59 @@
 
             <!-- ═══ TAB 1: GUARD ═══ -->
             <TabItem Header="Template Guard">
-                <Grid>
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="240"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="260" MinWidth="220" MaxWidth="320"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="360"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Sidebar -->
-                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="16,16,16,8">
-                                <TextBlock Text="Rules to check" FontWeight="Bold"
-                                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
-                                <CheckBox Name="TG_ChkNoTemplate"  Content="Views without template"   IsChecked="True"/>
-                                <CheckBox Name="TG_ChkWrongScale"  Content="Non-standard scale"       IsChecked="True"/>
-                                <CheckBox Name="TG_ChkSheetNaming" Content="Sheet naming convention"  IsChecked="True"/>
-                                <CheckBox Name="TG_ChkOverrides"   Content="Manual graphic overrides" IsChecked="True"/>
-                                <CheckBox Name="TG_ChkCrop"        Content="Missing crop region"      IsChecked="True"/>
-                                <CheckBox Name="TG_ChkDetailLevel" Content="Wrong detail level"       IsChecked="True"/>
-                                <Separator Margin="0,12,0,10"/>
-                                <CheckBox Name="TG_ChkOnlySheets"  Content="Only views on sheets"     IsChecked="False"/>
-                                <Separator Margin="0,10,0,10"/>
-                                <TextBlock Text="Severity filter" FontWeight="Bold"
-                                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
-                                <CheckBox Name="TG_ChkHigh"   Content="High"   IsChecked="True"/>
-                                <CheckBox Name="TG_ChkMedium" Content="Medium" IsChecked="True"/>
-                                <CheckBox Name="TG_ChkLow"    Content="Low"    IsChecked="True"/>
-                            </StackPanel>
-                        </ScrollViewer>
-                        <Button Grid.Row="1" Name="TG_BtnRun" Content="RUN CHECK"
-                                Style="{DynamicResource ActionBtn}" Margin="16,4,16,4"
-                                Click="TG_Run_Click"/>
-                        <Button Grid.Row="2" Name="TG_BtnEditRules" Content="Edit rules.json"
-                                Style="{DynamicResource SecBtn}" Margin="16,4,16,4"
-                                Click="TG_EditRules_Click"/>
-                        <Button Grid.Row="3" Name="TG_BtnExport" Content="Export CSV"
-                                Style="{DynamicResource SecBtn}" Margin="16,4,16,16"
-                                Click="TG_Export_Click" IsEnabled="False"/>
-                    </Grid>
+                    <Border Grid.Column="0" Style="{StaticResource Card}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <TextBlock Text="Rules to check" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="TG_ChkNoTemplate"  Content="Views without template"   IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkWrongScale"  Content="Non-standard scale"       IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkSheetNaming" Content="Sheet naming convention"  IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkOverrides"   Content="Manual graphic overrides" IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkCrop"        Content="Missing crop region"      IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkDetailLevel" Content="Wrong detail level"       IsChecked="True"/>
+                                    <Separator Margin="0,12,0,10"/>
+                                    <CheckBox Name="TG_ChkOnlySheets"  Content="Only views on sheets"     IsChecked="False"/>
+                                    <Separator Margin="0,10,0,10"/>
+                                    <TextBlock Text="Severity filter" FontWeight="Bold"
+                                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="TG_ChkHigh"   Content="High"   IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkMedium" Content="Medium" IsChecked="True"/>
+                                    <CheckBox Name="TG_ChkLow"    Content="Low"    IsChecked="True"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                            <Button Grid.Row="1" Name="TG_BtnRun" Content="RUN CHECK"
+                                    Style="{StaticResource ActionButton}" Margin="0,10,0,4"
+                                    Click="TG_Run_Click"/>
+                            <Button Grid.Row="2" Name="TG_BtnEditRules" Content="Edit rules.json"
+                                    Style="{StaticResource SecondaryButton}" Margin="0,0,0,4"
+                                    Click="TG_EditRules_Click"/>
+                            <Button Grid.Row="3" Name="TG_BtnExport" Content="Export CSV"
+                                    Style="{StaticResource SecondaryButton}" Margin="0,0,0,0"
+                                    Click="TG_Export_Click" IsEnabled="False"/>
+                        </Grid>
+                    </Border>
+
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext"/>
 
                     <!-- Main results -->
-                    <Grid Grid.Column="1" Margin="20">
+                    <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
@@ -135,22 +189,25 @@
                         </StackPanel>
                         <TextBox Grid.Row="1" Name="TG_TxtSearch" Height="28" Padding="6,2"
                                  VerticalContentAlignment="Center" Margin="0,0,0,8"
+                                 BorderBrush="{DynamicResource BorderColor}"
                                  TextChanged="TG_Search_Changed"/>
-                        <DataGrid Grid.Row="2" Name="TG_GridResults"
-                                  AutoGenerateColumns="False" IsReadOnly="True"
-                                  AlternatingRowBackground="#06000000" Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderColor}"
-                                  GridLinesVisibility="Horizontal" SelectionMode="Single"
-                                  SelectionChanged="TG_Grid_SelectionChanged">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="80"/>
-                                <DataGridTextColumn Header="Rule"     Binding="{Binding Label}"    Width="190"/>
-                                <DataGridTextColumn Header="Sheet"    Binding="{Binding Sheet}"    Width="90"/>
-                                <DataGridTextColumn Header="View"     Binding="{Binding ViewName}" Width="*"/>
-                                <DataGridTextColumn Header="Type"     Binding="{Binding ViewType}" Width="110"/>
-                                <DataGridTextColumn Header="Detail"   Binding="{Binding Detail}"   Width="240"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="4">
+                            <DataGrid Name="TG_GridResults"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      AlternatingRowBackground="#06000000" Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal" SelectionMode="Single"
+                                      SelectionChanged="TG_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="80"/>
+                                    <DataGridTextColumn Header="Rule"     Binding="{Binding Label}"    Width="190"/>
+                                    <DataGridTextColumn Header="Sheet"    Binding="{Binding Sheet}"    Width="90"/>
+                                    <DataGridTextColumn Header="View"     Binding="{Binding ViewName}" Width="*"/>
+                                    <DataGridTextColumn Header="Type"     Binding="{Binding ViewType}" Width="110"/>
+                                    <DataGridTextColumn Header="Detail"   Binding="{Binding Detail}"   Width="240"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
                         <!-- Loading -->
                         <Grid Grid.Row="2" Name="LoadingPanel" Visibility="Collapsed"
                               VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -165,7 +222,7 @@
                             </StackPanel>
                         </Grid>
                         <Button Grid.Row="3" Name="TG_BtnSelect" Content="Select in model"
-                                Style="{DynamicResource SecBtn}" HorizontalAlignment="Right"
+                                Style="{StaticResource SecondaryButton}" Padding="12,7" HorizontalAlignment="Right"
                                 Margin="0,10,0,0" IsEnabled="False" Click="TG_Select_Click"/>
                     </Grid>
                 </Grid>
@@ -173,15 +230,16 @@
 
             <!-- ═══ TAB 2: APPLY TEMPLATE ═══ -->
             <TabItem Header="Apply Template">
-                <Grid>
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="260"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="280" MinWidth="240" MaxWidth="340"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="360"/>
                     </Grid.ColumnDefinitions>
 
-                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                    <Border Grid.Column="0" Style="{StaticResource Card}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="16,20,16,16">
+                            <StackPanel>
                                 <TextBlock Text="1. Source template" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
                                 <ComboBox Name="CT_ComboTemplates" Height="28" Margin="0,0,0,10"
@@ -201,12 +259,15 @@
                                 <TextBlock Text="Select in the list on the right." FontSize="10"
                                            Foreground="Gray" Margin="0,0,0,20"/>
                                 <Button Name="CT_BtnApply" Content="APPLY TEMPLATE" Height="40"
-                                        Style="{DynamicResource ActionBtn}" Click="CT_Apply_Click"/>
+                                        Style="{StaticResource ActionButton}" Click="CT_Apply_Click"/>
                             </StackPanel>
                         </ScrollViewer>
-                    </Grid>
+                    </Border>
 
-                    <Grid Grid.Column="1" Margin="20">
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -216,14 +277,16 @@
                                  VerticalContentAlignment="Center" Margin="0,0,0,8"
                                  BorderBrush="{DynamicResource BorderColor}"
                                  TextChanged="CT_Filter_Changed"/>
-                        <ListBox Name="CT_ListViews" Grid.Row="1" SelectionMode="Extended"
-                                 BorderBrush="{DynamicResource BorderColor}" Background="White">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="4">
+                            <ListBox Name="CT_ListViews" SelectionMode="Extended"
+                                     BorderThickness="0" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
                             <CheckBox Name="CT_ChkAll" Content="Select all"
                                       Checked="CT_CheckAll_Checked" Unchecked="CT_CheckAll_Unchecked"
@@ -232,8 +295,8 @@
                     </Grid>
 
                     <!-- Overlay -->
-                    <Grid Name="CT_Overlay" Grid.ColumnSpan="2" Background="#CCFAFAFA" Visibility="Collapsed">
-                        <Border Background="White" CornerRadius="6" Padding="24,16"
+                    <Grid Name="CT_Overlay" Grid.ColumnSpan="3" Background="#CCFAFAFA" Visibility="Collapsed">
+                        <Border Style="{StaticResource Card}"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
                             <StackPanel>
                                 <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"/>
@@ -247,15 +310,16 @@
 
             <!-- ═══ TAB 3: COPY OVERRIDES ═══ -->
             <TabItem Header="Copy Overrides">
-                <Grid>
+                <Grid Margin="16">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="260"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="280" MinWidth="240" MaxWidth="340"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="*" MinWidth="360"/>
                     </Grid.ColumnDefinitions>
 
-                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                    <Border Grid.Column="0" Style="{StaticResource Card}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="16,20,16,16">
+                            <StackPanel>
                                 <TextBlock Text="1. Source view" FontWeight="SemiBold"
                                            Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
                                 <ComboBox Name="CO_ComboSource" Height="28" Margin="0,0,0,10"
@@ -277,12 +341,15 @@
                                 <TextBlock Text="Select in the list on the right." FontSize="10"
                                            Foreground="Gray" Margin="0,0,0,20"/>
                                 <Button Name="CO_BtnCopy" Content="COPY OVERRIDES" Height="40"
-                                        Style="{DynamicResource ActionBtn}" Click="CO_Copy_Click"/>
+                                        Style="{StaticResource ActionButton}" Click="CO_Copy_Click"/>
                             </StackPanel>
                         </ScrollViewer>
-                    </Grid>
+                    </Border>
 
-                    <Grid Grid.Column="1" Margin="20">
+                    <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                                  HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -292,14 +359,16 @@
                                  VerticalContentAlignment="Center" Margin="0,0,0,8"
                                  BorderBrush="{DynamicResource BorderColor}"
                                  TextChanged="CO_Filter_Changed"/>
-                        <ListBox Name="CO_ListViews" Grid.Row="1" SelectionMode="Extended"
-                                 BorderBrush="{DynamicResource BorderColor}" Background="White">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="4">
+                            <ListBox Name="CO_ListViews" SelectionMode="Extended"
+                                     BorderThickness="0" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,8,0,0">
                             <CheckBox Name="CO_ChkAll" Content="Select all"
                                       Checked="CO_CheckAll_Checked" Unchecked="CO_CheckAll_Unchecked"
@@ -308,8 +377,8 @@
                     </Grid>
 
                     <!-- Overlay -->
-                    <Grid Name="CO_Overlay" Grid.ColumnSpan="2" Background="#CCFAFAFA" Visibility="Collapsed">
-                        <Border Background="White" CornerRadius="6" Padding="24,16"
+                    <Grid Name="CO_Overlay" Grid.ColumnSpan="3" Background="#CCFAFAFA" Visibility="Collapsed">
+                        <Border Style="{StaticResource Card}"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
                             <StackPanel>
                                 <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"/>

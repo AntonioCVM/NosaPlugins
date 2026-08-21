@@ -1,6 +1,6 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Copy View Templates v2.0" Height="700" Width="1000"
+        Title="Copy View Templates v2.0" Height="700" Width="1040"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}"
         FontFamily="Century Gothic, Segoe UI"
@@ -13,21 +13,50 @@
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
 
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
         <Style TargetType="TabItem">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="16,8"/>
             <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
         </Style>
-        
+
         <Style TargetType="Button" x:Key="ActionButton">
-            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        
+
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
             <Setter Property="Margin" Value="0,2"/>
@@ -36,100 +65,112 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="280"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="300" MinWidth="260" MaxWidth="360"/>
+            <ColumnDefinition Width="6"/>
+            <ColumnDefinition Width="*" MinWidth="340"/>
         </Grid.ColumnDefinitions>
 
         <!-- Sidebar -->
-        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}"
+              Margin="0,0,0,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <!-- Header -->
-            <StackPanel Grid.Row="0" Margin="20,30,20,20">
-                <TextBlock Text="COPY TEMPLATES" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
-                <TextBlock Text="v2.0" FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.7" Margin="0,5,0,0"/>
-                <Separator Margin="0,12,0,8"/>
+            <StackPanel Grid.Row="0" Margin="20,24,20,16">
+                <StackPanel Orientation="Horizontal">
+                    <Border Width="4" Background="{DynamicResource AccentColor}" CornerRadius="2" Margin="0,0,10,0"/>
+                    <TextBlock Text="COPY TEMPLATES" FontSize="17" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+                </StackPanel>
+                <TextBlock Text="v2.0" FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.7" Margin="14,4,0,0"/>
+                <Separator Margin="0,14,0,10"/>
                 <CheckBox Name="ChkDarkMode" Content="Dark Mode" Foreground="{DynamicResource TextColor}"
                           Click="Theme_Toggled"/>
             </StackPanel>
 
             <!-- Tab Navigation -->
-            <TabControl Grid.Row="1" Margin="0" BorderThickness="0" Background="Transparent" Name="MainTabs">
+            <TabControl Grid.Row="1" Margin="16,0,16,16" BorderThickness="0" Background="Transparent" Name="MainTabs">
                 <!-- TAB 1: APPLY TEMPLATE -->
                 <TabItem Header="Apply Template">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="1. Select Source Template" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
-                            <ComboBox Name="ComboTemplates" Height="28" Margin="0,0,0,15" DisplayMemberPath="Name"/>
-                            
-                            <!-- Template Info -->
-                            <StackPanel Name="PanelTemplateInfo" Visibility="Collapsed">
-                                <TextBlock Text="Details:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextColor}"/>
-                                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="4" Padding="10" Background="#F5F5F5" Margin="0,0,0,15">
-                                    <StackPanel>
-                                        <TextBlock Name="TxtInfoScale" Text="Scale: 1:100" FontSize="11"/>
-                                        <TextBlock Name="TxtInfoFilters" Text="Filters: 0" Margin="0,5,0,0" FontSize="11"/>
-                                    </StackPanel>
-                                </Border>
+                        <Border Style="{StaticResource Card}" Margin="0,10,0,0">
+                            <StackPanel>
+                                <TextBlock Text="1. Select Source Template" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
+                                <ComboBox Name="ComboTemplates" Height="28" Margin="0,0,0,15" DisplayMemberPath="Name"/>
+
+                                <!-- Template Info -->
+                                <StackPanel Name="PanelTemplateInfo" Visibility="Collapsed">
+                                    <TextBlock Text="Details:" FontWeight="SemiBold" Margin="0,0,0,5" Foreground="{DynamicResource TextColor}"/>
+                                    <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="4" Padding="10" Background="#F5F5F5" Margin="0,0,0,15">
+                                        <StackPanel>
+                                            <TextBlock Name="TxtInfoScale" Text="Scale: 1:100" FontSize="11"/>
+                                            <TextBlock Name="TxtInfoFilters" Text="Filters: 0" Margin="0,5,0,0" FontSize="11"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <Separator Margin="0,10,0,15"/>
+
+                                <TextBlock Text="2. Select Target Views" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
+                                <TextBlock Text="Views that will receive this template" FontSize="10" Foreground="Gray" Margin="0,0,0,5"/>
+
+                                <Button Name="BtnApplyTemplate" Content="APPLY TEMPLATE" Height="40" Margin="0,20,0,0"
+                                        Style="{StaticResource ActionButton}" Click="ApplyTemplate_Click"/>
                             </StackPanel>
-                            
-                            <Separator Margin="0,10,0,15"/>
-                            
-                            <TextBlock Text="2. Select Target Views" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
-                            <TextBlock Text="Views that will receive this template" FontSize="10" Foreground="Gray" Margin="0,0,0,5"/>
-                            
-                            <Button Name="BtnApplyTemplate" Content="APPLY TEMPLATE" Height="40" Margin="0,20,0,0" 
-                                    Style="{DynamicResource ActionButton}" Click="ApplyTemplate_Click"/>
-                        </StackPanel>
+                        </Border>
                     </ScrollViewer>
                 </TabItem>
 
                 <!-- TAB 2: COPY OVERRIDES -->
                 <TabItem Header="Copy Overrides">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Margin="20">
-                            <TextBlock Text="1. Select Source View" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
-                            <ComboBox Name="ComboSourceViews" Height="28" Margin="0,0,0,15" DisplayMemberPath="Name"/>
+                        <Border Style="{StaticResource Card}" Margin="0,10,0,0">
+                            <StackPanel>
+                                <TextBlock Text="1. Select Source View" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
+                                <ComboBox Name="ComboSourceViews" Height="28" Margin="0,0,0,15" DisplayMemberPath="Name"/>
 
-                            <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="4" Padding="10" Background="#FFF9F0" Margin="0,0,0,15">
-                                <StackPanel>
-                                    <TextBlock Text="Will copy:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
-                                    <TextBlock Text="• Category Overrides" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,2"/>
-                                    <TextBlock Text="• View Filters" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,2"/>
-                                </StackPanel>
-                            </Border>
-                            
-                            <Separator Margin="0,10,0,15"/>
-                            
-                            <TextBlock Text="2. Select Target Views" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
-                            <TextBlock Text="Views that will receive overrides" FontSize="10" Foreground="Gray" Margin="0,0,0,5"/>
-                            
-                            <Button Name="BtnCopyOverrides" Content="COPY OVERRIDES" Height="40" Margin="0,20,0,0" 
-                                    Style="{DynamicResource ActionButton}" Click="CopyOverrides_Click"/>
-                        </StackPanel>
+                                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="4" Padding="10" Background="#FFF9F0" Margin="0,0,0,15">
+                                    <StackPanel>
+                                        <TextBlock Text="Will copy:" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
+                                        <TextBlock Text="• Category Overrides" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,2"/>
+                                        <TextBlock Text="• View Filters" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,2"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Separator Margin="0,10,0,15"/>
+
+                                <TextBlock Text="2. Select Target Views" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,5"/>
+                                <TextBlock Text="Views that will receive overrides" FontSize="10" Foreground="Gray" Margin="0,0,0,5"/>
+
+                                <Button Name="BtnCopyOverrides" Content="COPY OVERRIDES" Height="40" Margin="0,20,0,0"
+                                        Style="{StaticResource ActionButton}" Click="CopyOverrides_Click"/>
+                            </StackPanel>
+                        </Border>
                     </ScrollViewer>
                 </TabItem>
             </TabControl>
         </Grid>
 
+        <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                      HorizontalAlignment="Stretch" ResizeBehavior="PreviousAndNext"/>
+
         <!-- Main Content Area -->
-        <Grid Grid.Column="1" Margin="20">
+        <Grid Grid.Column="2" Margin="16">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            
+
             <!-- Header -->
             <StackPanel Grid.Row="0" Margin="0,0,0,15">
                 <TextBlock Text="Target Views" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
                 <TextBlock Text="Select views to apply changes" FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.7"/>
             </StackPanel>
-            
+
             <!-- Filter -->
             <TextBox Name="TxtFilterViews1" Grid.Row="1" Height="32" Margin="0,0,0,10" Padding="8" VerticalContentAlignment="Center" BorderBrush="{DynamicResource BorderColor}"/>
             <TextBlock Grid.Row="1" Text="🔍 Filter views..." IsHitTestVisible="False" Foreground="#999" Margin="12,0,0,10" VerticalAlignment="Center">
@@ -145,39 +186,41 @@
                 </TextBlock.Style>
             </TextBlock>
 
-            <!-- List (Tab 1) -->
-            <ListBox Name="ListViews1" Grid.Row="2" SelectionMode="Extended" BorderBrush="{DynamicResource BorderColor}" Background="White">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-            
-            <!-- List (Tab 2) - Hidden by default, shown via code -->
-            <ListBox Name="ListViews2" Grid.Row="2" SelectionMode="Extended" BorderBrush="{DynamicResource BorderColor}" Background="White" Visibility="Collapsed">
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-            
+            <!-- Lists (Tab 1 / Tab 2 — visibility toggled in code-behind) -->
+            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="4">
+                <Grid>
+                    <ListBox Name="ListViews1" SelectionMode="Extended" BorderThickness="0" Background="Transparent">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <ListBox Name="ListViews2" SelectionMode="Extended" BorderThickness="0" Background="Transparent" Visibility="Collapsed">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="5,3"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Border>
+
             <!-- Footer Controls -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,10,0,0">
                 <CheckBox Name="ChkCheckAll1" Content="Select All" Checked="CheckAll1_Checked" Unchecked="CheckAll1_Unchecked" Foreground="{DynamicResource TextColor}"/>
                 <TextBlock Name="TxtCount1" Text="0 selected" Margin="15,0,0,0" Foreground="Gray" VerticalAlignment="Center"/>
-                
+
                 <!-- Tab 2 controls (hidden by default) -->
                 <CheckBox Name="ChkCheckAll2" Content="Select All" Checked="CheckAll2_Checked" Unchecked="CheckAll2_Unchecked" Foreground="{DynamicResource TextColor}" Visibility="Collapsed"/>
                 <TextBlock Name="TxtCount2" Text="0 selected" Margin="15,0,0,0" Foreground="Gray" VerticalAlignment="Center" Visibility="Collapsed"/>
             </StackPanel>
         </Grid>
-        
+
         <!-- Progress Overlay -->
-        <Grid Name="OverlayProgress" Background="#EEFFFFFF" Visibility="Collapsed">
-            <Border VerticalAlignment="Center" HorizontalAlignment="Center" Background="White" Padding="40,30">
-                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="4" Padding="20">
+        <Grid Name="OverlayProgress" Grid.Column="0" Grid.ColumnSpan="3" Background="#EEFFFFFF" Visibility="Collapsed">
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center" Style="{StaticResource Card}" Padding="0">
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" CornerRadius="4" Padding="40,30">
                     <StackPanel>
                         <TextBlock Text="Processing..." FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Foreground="{DynamicResource TextColor}"/>
                         <ProgressBar Name="ProgressBar" Width="300" Height="8" Margin="0,15" IsIndeterminate="True"/>

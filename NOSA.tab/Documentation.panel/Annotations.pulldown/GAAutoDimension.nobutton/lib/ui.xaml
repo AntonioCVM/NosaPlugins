@@ -1,25 +1,30 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GA Auto-Dimension v1.0" Height="660" Width="560"
+        Title="GA Auto-Dimension v1.0" Height="700" Width="620"
+        MinHeight="600" MinWidth="560"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
-        ResizeMode="NoResize">
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
 
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
         <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
-        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="CardColor"   Color="#FFFFFF"/>
 
-        <Style x:Key="ModCard" TargetType="Border">
-            <Setter Property="Background"       Value="{DynamicResource CardColor}"/>
-            <Setter Property="BorderBrush"      Value="{DynamicResource BorderColor}"/>
-            <Setter Property="BorderThickness"  Value="1"/>
-            <Setter Property="CornerRadius"     Value="6"/>
-            <Setter Property="Padding"          Value="16,12"/>
-            <Setter Property="Margin"           Value="0,0,0,10"/>
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="16,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
         </Style>
 
         <Style x:Key="ModTitle" TargetType="TextBlock">
@@ -44,25 +49,55 @@
             <Setter Property="Margin"          Value="10,0,0,0"/>
         </Style>
 
-        <Style x:Key="ActionBtn" TargetType="Button">
+        <Style TargetType="Button" x:Key="ActionButton">
             <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground"      Value="White"/>
             <Setter Property="FontWeight"      Value="Bold"/>
             <Setter Property="Padding"         Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"          Value="Hand"/>
-            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-
-        <Style x:Key="SecBtn" TargetType="Button">
+        <Style TargetType="Button" x:Key="SecondaryButton">
             <Setter Property="Background"      Value="Transparent"/>
             <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
-            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
-            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontWeight"      Value="SemiBold"/>
             <Setter Property="Padding"         Value="14,9"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
             <Setter Property="Cursor"          Value="Hand"/>
-            <Setter Property="FontSize"        Value="12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
 
@@ -89,7 +124,7 @@
         </StackPanel>
 
         <!-- Settings -->
-        <Border Grid.Row="1" Style="{DynamicResource ModCard}" Margin="0,0,0,14">
+        <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,16">
             <StackPanel>
                 <Grid Margin="0,0,0,10">
                     <Grid.ColumnDefinitions>
@@ -100,9 +135,9 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Text="On-grid tolerance"
-                                   Style="{DynamicResource ModTitle}"/>
+                                   Style="{StaticResource ModTitle}"/>
                         <TextBlock Text="Maximum distance to a gridline for an element to be considered 'on grid'"
-                                   Style="{DynamicResource ModDesc}"/>
+                                   Style="{StaticResource ModDesc}"/>
                     </StackPanel>
                     <TextBlock Grid.Column="1" Text="±" VerticalAlignment="Center"
                                Margin="12,0,6,0" FontSize="14" Opacity="0.5"/>
@@ -121,9 +156,9 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Text="Dimension line offset (paper)"
-                                   Style="{DynamicResource ModTitle}"/>
+                                   Style="{StaticResource ModTitle}"/>
                         <TextBlock Text="Element-to-dimension-line distance, constant on paper — scales with the view (8 mm at 1:50 = 400 mm in the model)"
-                                   Style="{DynamicResource ModDesc}"/>
+                                   Style="{StaticResource ModDesc}"/>
                     </StackPanel>
                     <TextBlock Grid.Column="1" Text="" VerticalAlignment="Center"
                                Margin="12,0,6,0" FontSize="14" Opacity="0.5"/>
@@ -137,115 +172,117 @@
         </Border>
 
         <!-- Module cards -->
-        <StackPanel Grid.Row="2">
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="0,0,4,0">
 
-            <!-- Module 1 -->
-            <Border Style="{DynamicResource ModCard}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Name="ChkMod1" Grid.Column="0"
-                              VerticalAlignment="Top" Margin="0,2,14,0"
-                              IsChecked="True"/>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Module 1 — Off-grid elements"
-                                   Style="{DynamicResource ModTitle}"/>
-                        <TextBlock Text="Columns and foundations whose centre does not align with any gridline. Creates H and V dimensions to the nearest grid."
-                                   Style="{DynamicResource ModDesc}"/>
-                    </StackPanel>
-                    <Border Grid.Column="2" Style="{DynamicResource CountBadge}"
-                            Visibility="{Binding ElementName=Mod1Count, Path=Visibility}">
-                        <TextBlock Name="Mod1Count" Text="" FontSize="10"
-                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
-                                   Visibility="Collapsed"/>
-                    </Border>
-                </Grid>
-            </Border>
+                <!-- Module 1 -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Name="ChkMod1" Grid.Column="0"
+                                  VerticalAlignment="Top" Margin="0,2,14,0"
+                                  IsChecked="True"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Module 1 — Off-grid elements"
+                                       Style="{StaticResource ModTitle}"/>
+                            <TextBlock Text="Columns and foundations whose centre does not align with any gridline. Creates H and V dimensions to the nearest grid."
+                                       Style="{StaticResource ModDesc}"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" Style="{StaticResource CountBadge}"
+                                Visibility="{Binding ElementName=Mod1Count, Path=Visibility}">
+                            <TextBlock Name="Mod1Count" Text="" FontSize="10"
+                                       Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
+                                       Visibility="Collapsed"/>
+                        </Border>
+                    </Grid>
+                </Border>
 
-            <!-- Module 2 -->
-            <Border Style="{DynamicResource ModCard}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Name="ChkMod2" Grid.Column="0"
-                              VerticalAlignment="Top" Margin="0,2,14,0"
-                              IsChecked="True"/>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Module 2 — Structural wall length &amp; alignment"
-                                   Style="{DynamicResource ModTitle}"/>
-                        <TextBlock Text="Overall length dimension for each structural wall, plus a perpendicular dimension to the nearest gridline defining its position."
-                                   Style="{DynamicResource ModDesc}"/>
-                    </StackPanel>
-                    <Border Grid.Column="2" Style="{DynamicResource CountBadge}"
-                            Visibility="{Binding ElementName=Mod2Count, Path=Visibility}">
-                        <TextBlock Name="Mod2Count" Text="" FontSize="10"
-                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
-                                   Visibility="Collapsed"/>
-                    </Border>
-                </Grid>
-            </Border>
+                <!-- Module 2 -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Name="ChkMod2" Grid.Column="0"
+                                  VerticalAlignment="Top" Margin="0,2,14,0"
+                                  IsChecked="True"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Module 2 — Structural wall length &amp; alignment"
+                                       Style="{StaticResource ModTitle}"/>
+                            <TextBlock Text="Overall length dimension for each structural wall, plus a perpendicular dimension to the nearest gridline defining its position."
+                                       Style="{StaticResource ModDesc}"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" Style="{StaticResource CountBadge}"
+                                Visibility="{Binding ElementName=Mod2Count, Path=Visibility}">
+                            <TextBlock Name="Mod2Count" Text="" FontSize="10"
+                                       Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
+                                       Visibility="Collapsed"/>
+                        </Border>
+                    </Grid>
+                </Border>
 
-            <!-- Module 3 -->
-            <Border Style="{DynamicResource ModCard}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Name="ChkMod3" Grid.Column="0"
-                              VerticalAlignment="Top" Margin="0,2,14,0"
-                              IsChecked="True"/>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Module 3 — Slab / floor corners"
-                                   Style="{DynamicResource ModTitle}"/>
-                        <TextBlock Text="Dimensions each corner of a slab boundary to the nearest H and V gridline, fully defining the slab plan position."
-                                   Style="{DynamicResource ModDesc}"/>
-                    </StackPanel>
-                    <Border Grid.Column="2" Style="{DynamicResource CountBadge}"
-                            Visibility="{Binding ElementName=Mod3Count, Path=Visibility}">
-                        <TextBlock Name="Mod3Count" Text="" FontSize="10"
-                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
-                                   Visibility="Collapsed"/>
-                    </Border>
-                </Grid>
-            </Border>
+                <!-- Module 3 -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Name="ChkMod3" Grid.Column="0"
+                                  VerticalAlignment="Top" Margin="0,2,14,0"
+                                  IsChecked="True"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Module 3 — Slab / floor corners"
+                                       Style="{StaticResource ModTitle}"/>
+                            <TextBlock Text="Dimensions each corner of a slab boundary to the nearest H and V gridline, fully defining the slab plan position."
+                                       Style="{StaticResource ModDesc}"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" Style="{StaticResource CountBadge}"
+                                Visibility="{Binding ElementName=Mod3Count, Path=Visibility}">
+                            <TextBlock Name="Mod3Count" Text="" FontSize="10"
+                                       Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
+                                       Visibility="Collapsed"/>
+                        </Border>
+                    </Grid>
+                </Border>
 
-            <!-- Module 4 -->
-            <Border Style="{DynamicResource ModCard}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <CheckBox Name="ChkMod4" Grid.Column="0"
-                              VerticalAlignment="Top" Margin="0,2,14,0"
-                              IsChecked="False"/>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Module 4 — Grid line spacing chains"
-                                   Style="{DynamicResource ModTitle}"/>
-                        <TextBlock Text="One continuous dimension chain across all horizontal gridlines (Y spacings) and one across all vertical gridlines (X spacings)."
-                                   Style="{DynamicResource ModDesc}"/>
-                    </StackPanel>
-                    <Border Grid.Column="2" Style="{DynamicResource CountBadge}"
-                            Visibility="{Binding ElementName=Mod4Count, Path=Visibility}">
-                        <TextBlock Name="Mod4Count" Text="" FontSize="10"
-                                   Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
-                                   Visibility="Collapsed"/>
-                    </Border>
-                </Grid>
-            </Border>
-        </StackPanel>
+                <!-- Module 4 -->
+                <Border Style="{StaticResource Card}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <CheckBox Name="ChkMod4" Grid.Column="0"
+                                  VerticalAlignment="Top" Margin="0,2,14,0"
+                                  IsChecked="False"/>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Module 4 — Grid line spacing chains"
+                                       Style="{StaticResource ModTitle}"/>
+                            <TextBlock Text="One continuous dimension chain across all horizontal gridlines (Y spacings) and one across all vertical gridlines (X spacings)."
+                                       Style="{StaticResource ModDesc}"/>
+                        </StackPanel>
+                        <Border Grid.Column="2" Style="{StaticResource CountBadge}"
+                                Visibility="{Binding ElementName=Mod4Count, Path=Visibility}">
+                            <TextBlock Name="Mod4Count" Text="" FontSize="10"
+                                       Foreground="{DynamicResource AccentColor}" FontWeight="Bold"
+                                       Visibility="Collapsed"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
 
         <!-- Status / progress -->
-        <Border Grid.Row="3" Margin="0,0,0,14"
+        <Border Grid.Row="3" Margin="0,14,0,0"
                 Visibility="{Binding ElementName=StatusPanel, Path=Visibility}">
             <StackPanel Name="StatusPanel" Visibility="Collapsed">
                 <ProgressBar Name="ProgBar" IsIndeterminate="True" Height="3"
@@ -257,23 +294,27 @@
         </Border>
 
         <!-- Footer buttons -->
-        <Grid Grid.Row="4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="12"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <CheckBox Name="ChkDarkMode" Grid.Column="0" Content="Dark Mode"
-                      Click="Theme_Toggled" VerticalAlignment="Center" Margin="0,0,12,0"/>
-            <TextBlock Name="TxtResult" Grid.Column="1" Text="" FontSize="11"
-                       Foreground="{DynamicResource TextColor}" Opacity="0.65"
-                       VerticalAlignment="Center" TextWrapping="Wrap"/>
-            <Button Name="BtnDryRun" Grid.Column="2" Content="PREVIEW"
-                    Style="{DynamicResource SecBtn}" Click="DryRun_Click"/>
-            <Button Name="BtnRun" Grid.Column="4" Content="CREATE DIMENSIONS"
-                    Style="{DynamicResource ActionBtn}" Click="Run_Click"/>
-        </Grid>
+        <Border Grid.Row="4" Background="{DynamicResource PanelColor}" Padding="0,14,0,0" Margin="0,14,0,0"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <CheckBox Name="ChkDarkMode" Grid.Column="0" Content="Dark Mode"
+                          Click="Theme_Toggled" VerticalAlignment="Center" Margin="0,0,12,0"
+                          Foreground="{DynamicResource TextColor}"/>
+                <TextBlock Name="TxtResult" Grid.Column="1" Text="" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.65"
+                           VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Name="BtnDryRun" Grid.Column="2" Content="PREVIEW"
+                        Style="{StaticResource SecondaryButton}" Click="DryRun_Click"/>
+                <Button Name="BtnRun" Grid.Column="4" Content="CREATE DIMENSIONS"
+                        Style="{StaticResource ActionButton}" Click="Run_Click"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

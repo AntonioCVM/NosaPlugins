@@ -2,15 +2,32 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Sheet Namer — NOSA Protocol v2.2"
         Width="780" Height="660"
+        MinWidth="680" MinHeight="560"
         WindowStartupLocation="CenterScreen"
         FontFamily="Century Gothic, Segoe UI"
-        FontSize="12">
+        FontSize="12"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
     <Window.Resources>
         <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
         <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
         <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
         <Style TargetType="ComboBox">
             <Setter Property="Height" Value="26"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -30,6 +47,58 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Padding" Value="6,4"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="14,0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
     <Grid Background="{DynamicResource BgColor}" Margin="0">
@@ -75,9 +144,8 @@
         </StackPanel>
 
         <!-- ======== SINGLE SHEET TAB ======== -->
-        <Border Name="PanelBuild" Grid.Row="2" Background="{DynamicResource PanelColor}"
-                Margin="8,8,8,0" Padding="12" CornerRadius="4"
-                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+        <Border Name="PanelBuild" Grid.Row="2" Style="{StaticResource Card}"
+                Margin="8,8,8,0" Padding="12">
             <StackPanel>
                 <TextBlock TextWrapping="Wrap" Foreground="#666" FontSize="11" Margin="0,0,0,8"
                            Text="Single sheet: fill NOSA fields below, preview the number, then apply to the active sheet or a selection."/>
@@ -155,7 +223,8 @@
 
         <!-- Preview -->
         <Border Grid.Row="3" Background="#FFF3E0" Margin="8,6,8,0" Padding="12,8"
-                CornerRadius="4" BorderBrush="{DynamicResource AccentColor}" BorderThickness="1">
+                CornerRadius="10" BorderBrush="{DynamicResource AccentColor}" BorderThickness="1"
+                Effect="{StaticResource CardShadow}">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -183,9 +252,8 @@
         </Border>
 
         <!-- Apply target + apply buttons (Constructor) -->
-        <Border Name="PanelBuildApply" Grid.Row="4" Background="{DynamicResource PanelColor}"
-                Margin="8,6,8,0" Padding="12,8" CornerRadius="4"
-                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+        <Border Name="PanelBuildApply" Grid.Row="4" Style="{StaticResource Card}"
+                Margin="8,6,8,0" Padding="12,8">
             <StackPanel>
                 <TextBlock Text="Apply to:" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <StackPanel Orientation="Horizontal">
@@ -198,23 +266,22 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                     <Button Name="BtnApplyNumber" Content="Apply Sheet Number"
-                            Click="ApplyNumber_Click" Background="{DynamicResource AccentColor}"
-                            Foreground="White" BorderThickness="0" Margin="0,0,8,0"/>
+                            Click="ApplyNumber_Click" Style="{StaticResource ActionButton}"
+                            Margin="0,0,8,0"/>
                     <Button Name="BtnApplyName" Content="Apply Sheet Name"
-                            Click="ApplyName_Click" Margin="0,0,8,0"/>
+                            Click="ApplyName_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <Button Name="BtnApplyBoth" Content="Apply Both"
-                            Click="ApplyBoth_Click" Margin="0,0,8,0"/>
+                            Click="ApplyBoth_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <Button Name="BtnSuggest" Content="🔍 Auto-suggest from active sheet"
-                            Click="Suggest_Click" ToolTip="Infer fields from the active sheet's name and views"/>
+                            Click="Suggest_Click" Style="{StaticResource SecondaryButton}"
+                            ToolTip="Infer fields from the active sheet's name and views"/>
                 </StackPanel>
             </StackPanel>
         </Border>
 
         <!-- ======== BATCH RENAME TAB ======== -->
         <Border Name="PanelBulk" Grid.Row="2" Grid.RowSpan="3" Visibility="Collapsed"
-                Background="{DynamicResource PanelColor}" Margin="8,8,8,0"
-                Padding="8" CornerRadius="4"
-                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                Style="{StaticResource Card}" Margin="8,8,8,0" Padding="8">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -226,46 +293,49 @@
                            Text="Batch rename suggests NOSA v2.2 sheet numbers from existing data. Green = compliant, orange = suggested change, red = error. Run Preview before applying."/>
                 <StackPanel Orientation="Horizontal" Grid.Row="1" Margin="0,0,0,6">
                     <Button Name="BtnBulkRefresh" Content="Refresh" Click="BulkRefresh_Click"
-                            Margin="0,0,8,0"/>
+                            Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <Button Name="BtnBulkPreview" Content="Preview changes"
                             Click="BulkPreview_Click"
-                            Background="{DynamicResource AccentColor}"
-                            Foreground="White" BorderThickness="0" Margin="0,0,8,0"/>
+                            Style="{StaticResource ActionButton}" Margin="0,0,8,0"/>
                     <Button Name="BtnBulkApplyAll" Content="Apply selected" IsEnabled="False"
-                            Click="BulkApplyAll_Click" Margin="0,0,8,0"/>
+                            Click="BulkApplyAll_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <TextBlock Name="TxtBulkStatus" Margin="4,0,0,0"
                                VerticalAlignment="Center" Foreground="#666"/>
                 </StackPanel>
-                <DataGrid Grid.Row="2" Name="GridSheets" AutoGenerateColumns="False"
-                          CanUserAddRows="False" SelectionMode="Extended"
-                          GridLinesVisibility="Horizontal" RowHeight="24" FontSize="11">
-                    <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow">
-                            <Setter Property="Background" Value="{Binding RowBrush}"/>
-                        </Style>
-                    </DataGrid.RowStyle>
-                    <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="✔" Width="30">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="110" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Current Number" Binding="{Binding CurrentNumber}" Width="150" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="F1 Proj"  Binding="{Binding F1}"    Width="55"/>
-                        <DataGridTextColumn Header="F3 Func"  Binding="{Binding F3}"    Width="50"/>
-                        <DataGridTextColumn Header="F4 Spat"  Binding="{Binding F4}"    Width="50"/>
-                        <DataGridTextColumn Header="F5"       Binding="{Binding F5}"    Width="35"/>
-                        <DataGridTextColumn Header="F6"       Binding="{Binding F6}"    Width="35"/>
-                        <DataGridTextColumn Header="F7"       Binding="{Binding F7}"    Width="50"/>
-                        <DataGridTextColumn Header="F8 Rev"   Binding="{Binding F8}"    Width="55"/>
-                        <DataGridTextColumn Header="New Number" Binding="{Binding NewNumber}" Width="*" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Notes" Binding="{Binding Message}" Width="180" IsReadOnly="True"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Border Grid.Row="2" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        CornerRadius="6" Padding="1">
+                    <DataGrid Name="GridSheets" AutoGenerateColumns="False"
+                              CanUserAddRows="False" SelectionMode="Extended"
+                              BorderThickness="0"
+                              GridLinesVisibility="Horizontal" RowHeight="24" FontSize="11">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background" Value="{Binding RowBrush}"/>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="✔" Width="30">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusLabel}" Width="110" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Current Number" Binding="{Binding CurrentNumber}" Width="150" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="F1 Proj"  Binding="{Binding F1}"    Width="55"/>
+                            <DataGridTextColumn Header="F3 Func"  Binding="{Binding F3}"    Width="50"/>
+                            <DataGridTextColumn Header="F4 Spat"  Binding="{Binding F4}"    Width="50"/>
+                            <DataGridTextColumn Header="F5"       Binding="{Binding F5}"    Width="35"/>
+                            <DataGridTextColumn Header="F6"       Binding="{Binding F6}"    Width="35"/>
+                            <DataGridTextColumn Header="F7"       Binding="{Binding F7}"    Width="50"/>
+                            <DataGridTextColumn Header="F8 Rev"   Binding="{Binding F8}"    Width="55"/>
+                            <DataGridTextColumn Header="New Number" Binding="{Binding NewNumber}" Width="*" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Notes" Binding="{Binding Message}" Width="180" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,6,0,0">
                     <Border Background="#E8F5E9" Padding="8,2" CornerRadius="3" Margin="0,0,8,0">
                         <TextBlock Text="Green — OK" FontSize="10"/>
@@ -282,9 +352,7 @@
 
         <!-- ======== FIX EXISTING TAB ======== -->
         <Border Name="PanelParse" Grid.Row="2" Grid.RowSpan="3" Visibility="Collapsed"
-                Background="{DynamicResource PanelColor}" Margin="8,8,8,0"
-                Padding="12" CornerRadius="4"
-                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                Style="{StaticResource Card}" Margin="8,8,8,0" Padding="12">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -294,35 +362,39 @@
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" TextWrapping="Wrap" Foreground="#666" FontSize="11"
                            Text="Fix existing reads sheet numbers that already follow the NOSA pattern, splits them into fields for editing, then re-applies. Only matching sheets are listed."/>
-                <DataGrid Grid.Row="2" Name="GridParse" AutoGenerateColumns="False"
-                          CanUserAddRows="False" SelectionMode="Extended"
-                          GridLinesVisibility="Horizontal" RowHeight="24" FontSize="11">
-                    <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="✔" Width="30">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                              HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Original" Binding="{Binding Original}"  Width="160" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="F1"       Binding="{Binding F1}"    Width="50"/>
-                        <DataGridTextColumn Header="F3"       Binding="{Binding F3}"    Width="45"/>
-                        <DataGridTextColumn Header="F4"       Binding="{Binding F4}"    Width="45"/>
-                        <DataGridTextColumn Header="F5"       Binding="{Binding F5}"    Width="35"/>
-                        <DataGridTextColumn Header="F6"       Binding="{Binding F6}"    Width="35"/>
-                        <DataGridTextColumn Header="F7"       Binding="{Binding F7}"    Width="50"/>
-                        <DataGridTextColumn Header="F8"       Binding="{Binding F8}"    Width="55"/>
-                        <DataGridTextColumn Header="Generated" Binding="{Binding Generated}" Width="*" IsReadOnly="True"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <Border Grid.Row="2" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        CornerRadius="6" Padding="1">
+                    <DataGrid Name="GridParse" AutoGenerateColumns="False"
+                              CanUserAddRows="False" SelectionMode="Extended"
+                              BorderThickness="0"
+                              GridLinesVisibility="Horizontal" RowHeight="24" FontSize="11">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Header="✔" Width="30">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Selected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTextColumn Header="Original" Binding="{Binding Original}"  Width="160" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="F1"       Binding="{Binding F1}"    Width="50"/>
+                            <DataGridTextColumn Header="F3"       Binding="{Binding F3}"    Width="45"/>
+                            <DataGridTextColumn Header="F4"       Binding="{Binding F4}"    Width="45"/>
+                            <DataGridTextColumn Header="F5"       Binding="{Binding F5}"    Width="35"/>
+                            <DataGridTextColumn Header="F6"       Binding="{Binding F6}"    Width="35"/>
+                            <DataGridTextColumn Header="F7"       Binding="{Binding F7}"    Width="50"/>
+                            <DataGridTextColumn Header="F8"       Binding="{Binding F8}"    Width="55"/>
+                            <DataGridTextColumn Header="Generated" Binding="{Binding Generated}" Width="*" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Name="BtnParseRefresh" Content="Parse sheets" Click="ParseRefresh_Click" Margin="0,0,8,0"/>
+                    <Button Name="BtnParseRefresh" Content="Parse sheets" Click="ParseRefresh_Click"
+                            Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                     <Button Name="BtnParseApply"   Content="Apply to selected"
                             Click="ParseApply_Click"
-                            Background="{DynamicResource AccentColor}"
-                            Foreground="White" BorderThickness="0"/>
+                            Style="{StaticResource ActionButton}"/>
                     <TextBlock Name="TxtParseStatus" Margin="12,0,0,0"
                                VerticalAlignment="Center" Foreground="#666"/>
                 </StackPanel>
@@ -340,14 +412,15 @@
                 BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
                 Padding="8,6">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button Content="Close" Click="Close_Click" Width="80"/>
+                <Button Content="Close" Click="Close_Click" Width="80"
+                        Style="{StaticResource SecondaryButton}"/>
             </StackPanel>
         </Border>
 
         <!-- Loading overlay -->
         <Grid Name="LoadingPanel" Grid.Row="0" Grid.RowSpan="7" Visibility="Collapsed"
               Background="#CCFAFAFA">
-            <Border Background="White" CornerRadius="6" Padding="24,16"
+            <Border Style="{StaticResource Card}" Padding="24,16"
                     HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
                     <TextBlock Text="Applying..." HorizontalAlignment="Center" FontSize="13"/>

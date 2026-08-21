@@ -1,0 +1,725 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sheet Export Hub" Height="880" Width="1320"
+        MinHeight="620" MinWidth="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}"
+        FontFamily="Century Gothic"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!-- ================================================================
+             COLOR TOKENS
+             Bg/Panel/Text/Accent/Border are swapped at runtime by
+             NOSAWindow.ApplyTheme() (the Dark Mode toggle) — keep these five
+             exact keys. Everything else below is static: AccentColor is the
+             fixed NOSA orange in both themes, so hover/pressed/soft variants
+             of it can be safely hard-coded rather than computed.
+             ================================================================ -->
+        <SolidColorBrush x:Key="BgColor" Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor" Color="#1F1F1F"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E3E3E3"/>
+
+        <SolidColorBrush x:Key="AccentHoverColor" Color="#E65500"/>
+        <SolidColorBrush x:Key="AccentPressedColor" Color="#CC4C00"/>
+        <SolidColorBrush x:Key="AccentSoftColor" Color="#17FF5F00"/>
+        <SolidColorBrush x:Key="AccentSofterColor" Color="#0AFF5F00"/>
+        <SolidColorBrush x:Key="PendingOverlayColor" Color="#22FFC107"/>
+        <SolidColorBrush x:Key="HoverOverlayColor" Color="#07000000"/>
+        <SolidColorBrush x:Key="StatusOkColor" Color="#2EAA4A"/>
+        <SolidColorBrush x:Key="StatusPendingColor" Color="#C6C6C6"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="16" Opacity="0.09"/>
+        <DropShadowEffect x:Key="PanelShadow" Color="#000000" Direction="180"
+                           ShadowDepth="3" BlurRadius="14" Opacity="0.10"/>
+        <DropShadowEffect x:Key="ButtonShadow" Color="#FF5F00" Direction="270"
+                           ShadowDepth="1" BlurRadius="10" Opacity="0.30"/>
+
+        <!-- ================================================================
+             TYPOGRAPHY
+             ================================================================ -->
+        <Style TargetType="TextBlock" x:Key="PageTitle">
+            <Setter Property="FontSize" Value="21"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="PageSubtitle">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Opacity" Value="0.55"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="SectionTitle">
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="GroupLabel">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="HintText">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Opacity" Value="0.6"/>
+        </Style>
+
+        <!-- ================================================================
+             BUTTONS
+             Implicit (no x:Key) Button style is the default "secondary"
+             look — bordered, rounded, soft accent tint on hover — so every
+             plain <Button> in the file (Load, Save as..., Browse..., the
+             preset Save/Delete pair, etc.) picks it up automatically.
+             ================================================================ -->
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftColor}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSofterColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="26,12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Effect" Value="{StaticResource ButtonShadow}"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="8"
+                                Padding="{TemplateBinding Padding}" SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentHoverColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentPressedColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Background" Value="#D8D8D8"/>
+                                <Setter Property="Foreground" Value="#9C9C9C"/>
+                                <Setter Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="LinkButton" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
+        <Style TargetType="RadioButton" x:Key="PillToggle">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Padding" Value="16,7"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="16"
+                                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSofterColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="Foreground" Value="White"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="SubTabButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="BorderThickness" Value="0,0,0,2"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="Padding" Value="4,8"/>
+            <Setter Property="Margin" Value="0,0,22,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================================================================
+             INPUTS
+             ModernTextBox is applied explicitly to standalone text fields —
+             kept out of the implicit TextBox style so the DataGrid's own
+             inline cell-edit textbox keeps the plain system look, which
+             fits better inside a table cell than a bordered/rounded one.
+             ================================================================ -->
+        <Style TargetType="TextBox" x:Key="ModernTextBox">
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsReadOnly" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BgColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Plain default TextBox (kept minimal — only the DataGrid's own
+             cell-edit textbox and any other unstyled TextBox use this). -->
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="4"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="8,5"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverOverlayColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftColor}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Rounded, accent-filled checkbox glyph — applies everywhere,
+             including the per-row export checkbox in the DataGrid. -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal">
+                            <Border x:Name="Box" Width="16" Height="16" CornerRadius="4"
+                                    Background="{DynamicResource PanelColor}" BorderBrush="{DynamicResource BorderColor}"
+                                    BorderThickness="1.4" VerticalAlignment="Center">
+                                <Path x:Name="Check" Data="M2,6 L5.2,9.4 L11.5,2"
+                                      Stroke="White" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round" Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <StackPanel Orientation="Horizontal">
+                            <Grid Width="16" Height="16" VerticalAlignment="Center">
+                                <Ellipse x:Name="Ring" Stroke="{DynamicResource BorderColor}" StrokeThickness="1.4"/>
+                                <Ellipse x:Name="Dot" Width="8" Height="8" Fill="{DynamicResource AccentColor}" Visibility="Collapsed"/>
+                            </Grid>
+                            <ContentPresenter Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource AccentColor}"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ================================================================
+             DATAGRID
+             ================================================================ -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="DataGridCell">
+                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="DataGridRow" x:Key="SheetRowStyle">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="MinHeight" Value="34"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource HoverOverlayColor}"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource AccentSoftColor}"/>
+                </Trigger>
+                <DataTrigger Binding="{Binding HasPending}" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource PendingOverlayColor}"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Status-strip "chip" -->
+        <Style TargetType="Border" x:Key="StatusChip">
+            <Setter Property="Background" Value="{DynamicResource BgColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="0,0,8,0"/>
+        </Style>
+
+        <!-- Reusable "card" container -->
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid Name="RootGrid">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="520"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="400" MinWidth="320" MaxWidth="560"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- ==================== LEFT PANEL — SELECTION ==================== -->
+            <Grid Grid.Column="0" Margin="24,22,18,22">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- Header -->
+                <Grid Grid.Row="0" Margin="0,0,0,18">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="SHEET EXPORT HUB" Style="{StaticResource PageTitle}"/>
+                        <TextBlock Text="NOSA" Style="{StaticResource PageSubtitle}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <CheckBox Grid.Column="1" Content="Dark Mode" Name="ChkDarkMode" Checked="Theme_Toggled" Unchecked="Theme_Toggled" VerticalAlignment="Center"/>
+                </Grid>
+
+                <!-- Mode / search / filter -->
+                <Grid Grid.Row="1" Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="180"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <RadioButton GroupName="Mode" Content="Sheets" Name="RbSheets" IsChecked="True" Style="{DynamicResource PillToggle}" Checked="Mode_Changed"/>
+                        <RadioButton GroupName="Mode" Content="Views" Name="RbViews" Style="{DynamicResource PillToggle}" Checked="Mode_Changed"/>
+                    </StackPanel>
+                    <TextBox Grid.Column="1" Name="TxtSearch" Style="{StaticResource ModernTextBox}" Margin="16,0,10,0" Tag="Search number, name..." TextChanged="Search_Changed"/>
+                    <ComboBox Grid.Column="2" Name="ComboDiscipline" SelectionChanged="Discipline_Changed"/>
+                </Grid>
+
+                <!-- Column preset row -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
+                    <TextBlock Text="Columns:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource GroupLabel}"/>
+                    <ComboBox Name="ComboColumnPreset" Width="220" SelectionChanged="ColumnPreset_Changed"/>
+                    <Button Content="Manage..." Style="{DynamicResource LinkButton}" Margin="10,0,0,0" Click="ManageColumns_Click"/>
+                </StackPanel>
+
+                <!-- Sheets/Views grid -->
+                <Border Grid.Row="3" Style="{StaticResource Card}" Padding="0" ClipToBounds="True">
+                    <DataGrid Name="GridSheets" AutoGenerateColumns="False" CanUserAddRows="False"
+                              SelectionMode="Extended" BorderThickness="0" Background="Transparent"
+                              RowBackground="Transparent" HeadersVisibility="Column" RowHeaderWidth="0"
+                              GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderColor}"
+                              RowStyle="{DynamicResource SheetRowStyle}"
+                              CellEditEnding="Grid_CellEditEnding">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="40">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsChecked}" Checked="Sheet_Checked" Unchecked="Sheet_Checked" HorizontalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <!-- Selection tools -->
+                <WrapPanel Grid.Row="4" Orientation="Horizontal" Margin="0,12,0,0">
+                    <Button Content="Select All" Click="SelectAll_Click" Margin="0,0,8,6"/>
+                    <Button Content="Select None" Click="SelectNone_Click" Margin="0,0,8,6"/>
+                    <Button Content="Invert" Click="InvertChecks_Click" Margin="0,0,8,6"/>
+                    <Button Content="Range..." Click="SelectRange_Click" Margin="0,0,8,6"/>
+                    <Button Content="Check Highlighted" Click="CheckHighlighted_Click" Margin="0,0,20,6"
+                            ToolTip="Ctrl/Shift-click rows to highlight them, then click this to check their export checkbox."/>
+                    <Button Content="Edit Parameters..." Name="BtnEditParams" Click="EditParameters_Click" Margin="0,0,8,6"/>
+                    <Button Content="Apply Parameter Edits" Name="BtnApplyEdits" IsEnabled="False" Click="ApplyParamEdits_Click" Margin="0,0,0,6"/>
+                </WrapPanel>
+
+                <!-- Sheet sets -->
+                <Expander Grid.Row="5" Header="Sheet Sets" Foreground="{DynamicResource TextColor}" Margin="0,10,0,0">
+                    <Border Style="{StaticResource Card}" Margin="0,6,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Name="ComboSheetSets" Grid.Column="0" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                <Button Content="Load" Margin="0,0,6,0" Click="LoadSet_Click"/>
+                                <Button Content="Save as..." Margin="0,0,6,0" Click="SaveSet_Click"/>
+                                <Button Content="Delete" Click="DeleteSet_Click"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </Expander>
+
+                <!-- Live status strip -->
+                <Border Grid.Row="6" Style="{StaticResource Card}" Margin="0,14,0,0" Effect="{StaticResource CardShadow}">
+                    <WrapPanel Orientation="Horizontal">
+                        <Border Style="{StaticResource StatusChip}">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Name="DotSelection" Width="8" Height="8" Fill="{DynamicResource StatusPendingColor}" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtStatusSelection" Text="No items selected" Margin="7,0,0,0" Style="{StaticResource HintText}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatusChip}">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Name="DotNaming" Width="8" Height="8" Fill="{DynamicResource StatusPendingColor}" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtStatusNaming" Text="Naming OK" Margin="7,0,0,0" Style="{StaticResource HintText}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatusChip}">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Name="DotCollisions" Width="8" Height="8" Fill="{DynamicResource StatusPendingColor}" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtStatusCollisions" Text="No collisions" Margin="7,0,0,0" Style="{StaticResource HintText}"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource StatusChip}" Margin="0">
+                            <StackPanel Orientation="Horizontal">
+                                <Ellipse Name="DotDestination" Width="8" Height="8" Fill="{DynamicResource StatusPendingColor}" VerticalAlignment="Center"/>
+                                <TextBlock Name="TxtStatusDestination" Text="No destination" Margin="7,0,0,0" Style="{StaticResource HintText}"/>
+                            </StackPanel>
+                        </Border>
+                    </WrapPanel>
+                </Border>
+            </Grid>
+
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                          Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+            <!-- ==================== RIGHT PANEL — OUTPUT CONFIGURATION ==================== -->
+            <Border Grid.Column="2" Background="{DynamicResource PanelColor}" BorderBrush="{DynamicResource BorderColor}"
+                    BorderThickness="1,0,0,0" Effect="{StaticResource PanelShadow}">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Output configuration" Style="{StaticResource SectionTitle}" Margin="0,0,0,14"/>
+
+                    <!-- Export preset row -->
+                    <Grid Grid.Row="1" Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <ComboBox Name="ComboExportPreset" Grid.Column="0" Margin="0,0,10,0" SelectionChanged="ExportPreset_Selected" DisplayMemberPath="Name"/>
+                        <Button Content="Save" Grid.Column="1" Margin="0,0,6,0" Click="SaveExportPreset_Click"/>
+                        <Button Content="Delete" Grid.Column="2" Click="DeleteExportPreset_Click"/>
+                    </Grid>
+
+                    <!-- Sub-tabs -->
+                    <WrapPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,14">
+                        <Button Content="Naming" Name="BtnSubNaming" Style="{DynamicResource SubTabButton}" Click="SubTab_Click"/>
+                        <Button Content="PDF" Name="BtnSubPdf" Style="{DynamicResource SubTabButton}" Click="SubTab_Click"/>
+                        <Button Content="Formats" Name="BtnSubFormats" Style="{DynamicResource SubTabButton}" Click="SubTab_Click"/>
+                    </WrapPanel>
+
+                    <!-- Sub-tab content -->
+                    <Grid Grid.Row="3" Name="SubTabContent">
+
+                        <!-- Naming -->
+                        <Grid Name="SubNaming" Visibility="Visible">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Separator:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource GroupLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtSeparator" Style="{StaticResource ModernTextBox}" Text="-" TextChanged="Separator_Changed"/>
+                            </Grid>
+                            <Grid Grid.Row="1">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <DockPanel Grid.Column="0" Margin="0,0,8,0">
+                                    <TextBlock Text="Available Parameters" DockPanel.Dock="Top" Style="{StaticResource GroupLabel}" Margin="0,0,0,6"/>
+                                    <ListBox Name="ListParams" MouseDoubleClick="Param_DoubleClick"/>
+                                </DockPanel>
+                                <DockPanel Grid.Column="1" Margin="8,0,0,0">
+                                    <TextBlock Text="Template (double-click to remove)" DockPanel.Dock="Top" Style="{StaticResource GroupLabel}" Margin="0,0,0,6"/>
+                                    <ListBox Name="ListTemplate" MouseDoubleClick="Template_DoubleClick"/>
+                                </DockPanel>
+                            </Grid>
+                            <StackPanel Grid.Row="2" Margin="0,12,0,0">
+                                <TextBlock Text="Example output" Style="{StaticResource HintText}"/>
+                                <TextBox Name="TxtPreview" Style="{StaticResource ModernTextBox}" IsReadOnly="True" Margin="0,5,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- PDF -->
+                        <StackPanel Name="SubPdf" Visibility="Collapsed">
+                            <TextBlock Text="Colour mode" Style="{StaticResource GroupLabel}" Margin="0,0,0,10"/>
+                            <RadioButton GroupName="ColorMode" Name="RbUseModelColors" Content="Use model / view colours (default)"
+                                         IsChecked="True" Checked="ColorMode_Changed" Margin="0,4"/>
+                            <RadioButton GroupName="ColorMode" Name="RbForceBlack" Content="Force black lines (documentation output)"
+                                         Checked="ColorMode_Changed" Margin="0,4"/>
+                            <TextBlock Text="Paper size" Style="{StaticResource GroupLabel}" Margin="0,20,0,6"/>
+                            <TextBlock Text="Default — follows each sheet's title block. No manual override (Revit does not expose one for batch PDF export)."
+                                       TextWrapping="Wrap" Style="{StaticResource HintText}"/>
+                            <TextBlock Text="Quality preset" Style="{StaticResource GroupLabel}" Margin="0,20,0,8"/>
+                            <ComboBox Name="ComboQualityPreset" HorizontalAlignment="Left" MinWidth="180" SelectionChanged="QualityPreset_Changed"/>
+                        </StackPanel>
+
+                        <!-- Formats — PDF / DWG / DXF toggles all live here, tab is not DWG-specific -->
+                        <StackPanel Name="SubFormats" Visibility="Collapsed">
+                            <CheckBox Name="ChkPDF" Content="PDF (Portable Document Format)" Margin="0,8" IsChecked="True" Checked="Format_Changed" Unchecked="Format_Changed"/>
+
+                            <CheckBox Name="ChkDWG" Content="DWG (AutoCAD Drawing)" Margin="0,8,0,6" Checked="Format_Changed" Unchecked="Format_Changed"/>
+                            <Grid Margin="24,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Export setup:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource HintText}"/>
+                                <ComboBox Grid.Column="1" Name="ComboDwgSetup" SelectionChanged="DwgSetup_Changed"/>
+                            </Grid>
+
+                            <CheckBox Name="ChkDXF" Content="DXF (Drawing Exchange Format)" Margin="0,8" Checked="Format_Changed" Unchecked="Format_Changed"/>
+
+                            <Separator Margin="0,18,0,18" Background="{DynamicResource BorderColor}"/>
+
+                            <CheckBox Name="ChkCombinePdf" Content="Combine PDF (one merged file for the whole selection)"
+                                      Margin="0,4,0,6" Checked="Format_Changed" Unchecked="Format_Changed"/>
+                            <Grid Margin="24,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="File name:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource HintText}"/>
+                                <TextBox Grid.Column="1" Name="TxtCombinedPdfName" Style="{StaticResource ModernTextBox}" Text="Combined Export" TextChanged="CombinedPdfName_Changed"/>
+                            </Grid>
+
+                            <Separator Margin="0,18,0,18" Background="{DynamicResource BorderColor}"/>
+
+                            <CheckBox Name="ChkPreExportCheck" Content="Warn if views have temporary overrides / isolations active"
+                                      IsChecked="True" Margin="0,4"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Destination -->
+                    <StackPanel Grid.Row="4" Margin="0,18,0,0">
+                        <TextBlock Text="Destination" Style="{StaticResource GroupLabel}" Margin="0,0,0,10"/>
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Name="TxtFolder" Style="{StaticResource ModernTextBox}" IsReadOnly="True"/>
+                            <Button Content="Browse..." Grid.Column="1" Margin="8,0,0,0" Click="Browse_Click"/>
+                        </Grid>
+                        <TextBox Name="TxtSubfolder" Style="{StaticResource ModernTextBox}" Tag="Subfolder (optional)" TextChanged="Subfolder_Changed"/>
+                    </StackPanel>
+
+                    <!-- Log toggle -->
+                    <Expander Grid.Row="5" Header="Export log" Foreground="{DynamicResource TextColor}" Margin="0,14,0,0" Name="ExpLog">
+                        <StackPanel Margin="0,8,0,0">
+                            <TextBox Name="TxtLog" Style="{StaticResource ModernTextBox}" Height="120" IsReadOnly="True" VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                            <ProgressBar Name="ExportProgress" Height="8" Margin="0,10,0,0"
+                                         Background="{DynamicResource BgColor}" Foreground="{DynamicResource AccentColor}" BorderThickness="0"/>
+                        </StackPanel>
+                    </Expander>
+
+                    <!-- Export button -->
+                    <Button Grid.Row="6" Name="BtnExport" Content="Export" Style="{DynamicResource ActionButton}"
+                            HorizontalAlignment="Stretch" Margin="0,18,0,0" IsEnabled="False" Click="Export_Click"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Loading overlay -->
+        <Grid Name="LoadingPanel" Visibility="Collapsed" Background="#B3000000">
+            <Border Background="{DynamicResource PanelColor}" CornerRadius="12" Padding="28,22"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Effect="{StaticResource CardShadow}">
+                <StackPanel>
+                    <ProgressBar Name="ProcessBar" Width="240" Height="6" IsIndeterminate="True"
+                                 Background="{DynamicResource BgColor}" Foreground="{DynamicResource AccentColor}" BorderThickness="0"/>
+                    <TextBlock Name="TxtStatus" Text="Processing..." Margin="0,12,0,0" HorizontalAlignment="Center" Foreground="{DynamicResource TextColor}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

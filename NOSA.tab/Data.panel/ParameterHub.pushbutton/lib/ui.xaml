@@ -1,8 +1,11 @@
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Parameter Hub" Height="740" Width="1200"
+        Title="Parameter Hub" Height="760" Width="1240"
+        MinHeight="620" MinWidth="1000"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
         ResizeMode="CanResizeWithGrip">
 
     <Window.Resources>
@@ -11,27 +14,81 @@
         <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
-        <Style x:Key="ActionBtn" TargetType="Button">
-            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
-            <Setter Property="Foreground" Value="White"/> <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Padding" Value="18,9"/> <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-        </Style>
-        <Style x:Key="SecBtn" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
-            <Setter Property="FontWeight" Value="SemiBold"/> <Setter Property="Padding" Value="10,6"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
-            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="18,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
-            <Setter Property="Margin" Value="0,3"/>
+            <Setter Property="Margin"     Value="0,3"/>
         </Style>
         <Style x:Key="FieldBox" TargetType="TextBox">
-            <Setter Property="Height" Value="26"/> <Setter Property="FontSize" Value="11"/>
-            <Setter Property="Padding" Value="4,2"/> <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Height" Value="26"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Padding" Value="4,2"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
         </Style>
     </Window.Resources>
@@ -58,8 +115,10 @@
         <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0">
             <TabControl.Resources>
                 <Style TargetType="TabItem">
-                    <Setter Property="FontSize" Value="12"/> <Setter Property="FontFamily" Value="Century Gothic"/>
-                    <Setter Property="Padding" Value="16,8"/> <Setter Property="BorderThickness" Value="0"/>
+                    <Setter Property="FontSize" Value="12"/>
+                    <Setter Property="FontFamily" Value="Century Gothic"/>
+                    <Setter Property="Padding" Value="16,8"/>
+                    <Setter Property="BorderThickness" Value="0"/>
                 </Style>
             </TabControl.Resources>
 
@@ -67,8 +126,9 @@
             <TabItem Header="Inspector">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="230"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="250" MinWidth="220" MaxWidth="340"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="400"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Sidebar -->
@@ -76,8 +136,6 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
@@ -89,40 +147,54 @@
                         </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="20,0,20,10">
-                                <TextBlock Text="Filters" FontWeight="Bold" FontSize="12"
-                                           Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
-                                <CheckBox Name="PI_ChkShowBuiltin"  Content="Built-in parameters" IsChecked="True"  Click="PI_Filter_Changed"/>
-                                <CheckBox Name="PI_ChkShowShared"   Content="Shared parameters"   IsChecked="True"  Click="PI_Filter_Changed"/>
-                                <CheckBox Name="PI_ChkShowProject"  Content="Project parameters"  IsChecked="True"  Click="PI_Filter_Changed"/>
-                                <CheckBox Name="PI_ChkOnlyDiffs"    Content="Differences only"    IsChecked="False" Click="PI_Filter_Changed"/>
-                                <CheckBox Name="PI_ChkOnlyWritable" Content="Writable only"       IsChecked="False" Click="PI_Filter_Changed"/>
+                            <StackPanel Margin="14,0,14,10">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Filters" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <CheckBox Name="PI_ChkShowBuiltin"  Content="Built-in parameters" IsChecked="True"  Click="PI_Filter_Changed"/>
+                                        <CheckBox Name="PI_ChkShowShared"   Content="Shared parameters"   IsChecked="True"  Click="PI_Filter_Changed"/>
+                                        <CheckBox Name="PI_ChkShowProject"  Content="Project parameters"  IsChecked="True"  Click="PI_Filter_Changed"/>
+                                        <CheckBox Name="PI_ChkOnlyDiffs"    Content="Differences only"    IsChecked="False" Click="PI_Filter_Changed"/>
+                                        <CheckBox Name="PI_ChkOnlyWritable" Content="Writable only"       IsChecked="False" Click="PI_Filter_Changed"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <Separator Margin="0,14,0,12"/>
-                                <TextBlock Text="Bulk edit" FontWeight="Bold" FontSize="12"
-                                           Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
-                                <TextBlock Text="New value:" FontSize="11" Margin="0,0,0,3"/>
-                                <TextBox Name="PI_TxtNewValue" Height="26" Padding="6,3" FontSize="11"
-                                         VerticalContentAlignment="Center"
-                                         BorderBrush="{DynamicResource BorderColor}"/>
-                                <Button Name="PI_BtnApply" Content="Apply to selected row"
-                                        Click="PI_Apply_Click" Style="{DynamicResource SecBtn}"
-                                        Margin="0,8,0,0" IsEnabled="False"/>
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Bulk edit" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="New value:" FontSize="11" Opacity="0.65"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <TextBox Name="PI_TxtNewValue" Height="26" Padding="6,3" FontSize="11"
+                                                 VerticalContentAlignment="Center"
+                                                 BorderBrush="{DynamicResource BorderColor}"/>
+                                        <Button Name="PI_BtnApply" Content="Apply to selected row"
+                                                Click="PI_Apply_Click" Style="{StaticResource SecondaryButton}"
+                                                Margin="0,8,0,0" IsEnabled="False"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
 
-                        <Button Grid.Row="2" Name="PI_BtnLoad" Content="LOAD SELECTION"
-                                Click="PI_Load_Click" Style="{DynamicResource ActionBtn}" Margin="20,0,20,8"/>
-                        <Button Grid.Row="3" Name="PI_BtnCopyFrom" Content="Copy from first element"
-                                Click="PI_CopyFrom_Click" Style="{DynamicResource SecBtn}"
-                                Margin="20,0,20,8" IsEnabled="False"/>
-                        <Button Grid.Row="4" Name="PI_BtnExport" Content="Export CSV"
-                                Click="PI_Export_Click" Style="{DynamicResource SecBtn}"
-                                Margin="20,0,20,20" IsEnabled="False"/>
+                        <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                            <Button Name="PI_BtnLoad" Content="LOAD SELECTION"
+                                    Click="PI_Load_Click" Style="{StaticResource ActionButton}" Margin="0,0,0,8"/>
+                            <Button Name="PI_BtnCopyFrom" Content="Copy from first element"
+                                    Click="PI_CopyFrom_Click" Style="{StaticResource SecondaryButton}"
+                                    Margin="0,0,0,8" IsEnabled="False"/>
+                            <Button Name="PI_BtnExport" Content="Export CSV"
+                                    Click="PI_Export_Click" Style="{StaticResource SecondaryButton}"
+                                    IsEnabled="False"/>
+                        </StackPanel>
                     </Grid>
 
+                    <!-- Splitter -->
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
                     <!-- Main -->
-                    <Grid Grid.Column="1" Margin="24">
+                    <Grid Grid.Column="2" Margin="24">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
@@ -154,29 +226,31 @@
                         </Grid>
 
                         <!-- Parameter grid -->
-                        <DataGrid Name="PI_GridParams" Grid.Row="1"
-                                  AutoGenerateColumns="False" IsReadOnly="True"
-                                  AlternatingRowBackground="#06000000" Background="Transparent"
-                                  BorderBrush="{DynamicResource BorderColor}"
-                                  GridLinesVisibility="Horizontal" SelectionMode="Single"
-                                  SelectionChanged="PI_Grid_SelectionChanged">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Group"     Binding="{Binding Group}"   Width="130"/>
-                                <DataGridTextColumn Header="Parameter" Binding="{Binding Name}"    Width="200"/>
-                                <DataGridTextColumn Header="Type"      Binding="{Binding Storage}" Width="70"/>
-                                <DataGridTextColumn Header="R/W"       Binding="{Binding RW}"      Width="40"/>
-                                <DataGridTextColumn Header="Value(s)"  Binding="{Binding ValueStr}" Width="*"/>
-                            </DataGrid.Columns>
-                            <DataGrid.RowStyle>
-                                <Style TargetType="DataGridRow">
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding HasDiff}" Value="True">
-                                            <Setter Property="Background" Value="#18CC0000"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </DataGrid.RowStyle>
-                        </DataGrid>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="PI_GridParams"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      AlternatingRowBackground="#06000000" Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal" SelectionMode="Single"
+                                      SelectionChanged="PI_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Group"     Binding="{Binding Group}"   Width="130"/>
+                                    <DataGridTextColumn Header="Parameter" Binding="{Binding Name}"    Width="200"/>
+                                    <DataGridTextColumn Header="Type"      Binding="{Binding Storage}" Width="70"/>
+                                    <DataGridTextColumn Header="R/W"       Binding="{Binding RW}"      Width="40"/>
+                                    <DataGridTextColumn Header="Value(s)"  Binding="{Binding ValueStr}" Width="*"/>
+                                </DataGrid.Columns>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasDiff}" Value="True">
+                                                <Setter Property="Background" Value="#18CC0000"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                            </DataGrid>
+                        </Border>
                     </Grid>
                 </Grid>
             </TabItem>
@@ -185,8 +259,9 @@
             <TabItem Header="Bulk Editor">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="356"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="370" MinWidth="320" MaxWidth="460"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="400"/>
                     </Grid.ColumnDefinitions>
 
                     <!-- Sidebar -->
@@ -204,108 +279,135 @@
                         </StackPanel>
 
                         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <StackPanel Margin="18,0,18,14">
-                                <TextBlock Text="Presets" FontWeight="SemiBold" FontSize="11" Margin="0,0,0,6"/>
-                                <ComboBox Name="BE_ComboPresetPick" Height="26" Margin="0,0,0,8"
-                                          SelectionChanged="BE_PresetLoad_Changed"/>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBox Name="BE_TxtPresetSaveName" Width="150" Margin="0,0,8,12"
-                                             Style="{DynamicResource FieldBox}"/>
-                                    <Button Content="Save preset" Click="BE_PresetSave_Click"
-                                            Style="{DynamicResource SecBtn}" Padding="10,6" Margin="0,0,0,12"/>
-                                </StackPanel>
+                            <StackPanel Margin="14,0,14,14">
 
-                                <TextBlock Text="Category" FontWeight="Bold" FontSize="11" Margin="0,0,0,4"/>
-                                <ComboBox Name="BE_ComboCategory" Height="28" DisplayMemberPath="Title"
-                                          SelectionChanged="BE_Category_Changed"/>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Presets" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <ComboBox Name="BE_ComboPresetPick" Height="26" Margin="0,0,0,8"
+                                                  SelectionChanged="BE_PresetLoad_Changed"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBox Name="BE_TxtPresetSaveName" Width="150" Margin="0,0,8,0"
+                                                     Style="{StaticResource FieldBox}"/>
+                                            <Button Content="Save preset" Click="BE_PresetSave_Click"
+                                                    Style="{StaticResource SecondaryButton}" Padding="10,6"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
 
-                                <CheckBox Name="BE_ChkRestrictSelection" Margin="0,10,0,4"
-                                          Content="Limit to current Revit selection"/>
-                                <CheckBox Name="BE_ChkExcludeNonModifiable" Margin="0,0,0,4"
-                                          Content="Exclude non-modifiable instances"/>
-                                <CheckBox Name="BE_ChkOpenWorksetsOnly" Margin="0,0,0,6"
-                                          Content="Exclude elements on closed worksets"/>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Category" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                                        <ComboBox Name="BE_ComboCategory" Height="28" DisplayMemberPath="Title"
+                                                  SelectionChanged="BE_Category_Changed" Margin="0,0,0,10"/>
 
-                                <TextBlock FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
-                                           Foreground="{DynamicResource TextColor}" Opacity="0.7"
-                                           Text="Active document only; linked models cannot be queried."/>
+                                        <CheckBox Name="BE_ChkRestrictSelection"
+                                                  Content="Limit to current Revit selection"/>
+                                        <CheckBox Name="BE_ChkExcludeNonModifiable"
+                                                  Content="Exclude non-modifiable instances"/>
+                                        <CheckBox Name="BE_ChkOpenWorksetsOnly" Margin="0,3,0,6"
+                                                  Content="Exclude elements on closed worksets"/>
 
-                                <TextBlock Text="Filter family (contains)" FontSize="10" Margin="0,12,0,3"/>
-                                <TextBox Name="BE_TxtFamFilter"  Style="{DynamicResource FieldBox}"/>
-                                <TextBlock Text="Filter type / name (contains)" FontSize="10" Margin="0,8,0,3"/>
-                                <TextBox Name="BE_TxtTypeFilter" Style="{DynamicResource FieldBox}"/>
+                                        <TextBlock FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                                                   Text="Active document only; linked models cannot be queried."/>
 
-                                <Button Content="SCAN ELEMENTS" Name="BE_BtnScan" Click="BE_Scan_Click"
-                                        Style="{DynamicResource SecBtn}" Margin="0,12,0,0"/>
-                                <TextBlock Name="BE_TxtRowCount" Text="0 instances" Margin="0,8,0,0"
-                                           FontWeight="SemiBold" Foreground="{DynamicResource AccentColor}"/>
+                                        <TextBlock Text="Filter family (contains)" FontSize="10" Opacity="0.65"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,10,0,3"/>
+                                        <TextBox Name="BE_TxtFamFilter"  Style="{StaticResource FieldBox}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Filter type / name (contains)" FontSize="10" Opacity="0.65"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <TextBox Name="BE_TxtTypeFilter" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
-                                <Separator Margin="0,14,0,12"/>
-                                <TextBlock Text="Parameter filter &amp; scope" FontWeight="Bold"
-                                           FontSize="11" Margin="0,0,0,6"/>
-                                <TextBox Name="BE_TxtParamFilter" Height="26" Margin="0,0,0,8"
-                                         Style="{DynamicResource FieldBox}"
-                                         TextChanged="BE_ParamFilter_TextChanged"/>
-                                <ComboBox Name="BE_ComboParamScope" Height="26" Margin="0,0,0,8"
-                                          SelectionChanged="BE_ParamScope_Changed"/>
+                                        <Button Content="SCAN ELEMENTS" Name="BE_BtnScan" Click="BE_Scan_Click"
+                                                Style="{StaticResource SecondaryButton}"/>
+                                        <TextBlock Name="BE_TxtRowCount" Text="0 instances" Margin="0,8,0,0"
+                                                   FontWeight="SemiBold" Foreground="{DynamicResource AccentColor}"/>
+                                    </StackPanel>
+                                </Border>
 
-                                <TextBlock Text="Primary parameter (editable)" FontWeight="SemiBold"
-                                           FontSize="11" Margin="0,4,0,4"/>
-                                <ComboBox Name="BE_ComboParam" Height="26" Margin="0,0,0,8"
-                                          IsEditable="True" SelectionChanged="BE_Param_SelectionChanged"/>
-                                <TextBlock Text="Secondary column (read-only reference)"
-                                           FontSize="10" Margin="0,0,0,4"/>
-                                <ComboBox Name="BE_ComboParamAux" Height="26" Margin="0,0,0,8"
-                                          SelectionChanged="BE_AuxParam_SelectionChanged"/>
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Parameter filter &amp; scope" FontWeight="Bold"
+                                                   FontSize="12" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <TextBox Name="BE_TxtParamFilter" Height="26" Margin="0,0,0,8"
+                                                 Style="{StaticResource FieldBox}"
+                                                 TextChanged="BE_ParamFilter_TextChanged"/>
+                                        <ComboBox Name="BE_ComboParamScope" Height="26" Margin="0,0,0,10"
+                                                  SelectionChanged="BE_ParamScope_Changed"/>
 
-                                <CheckBox Name="BE_ChkWritableOnlyDiscover"
-                                          Content="Discover writable-only when scanning" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Primary parameter (editable)" FontWeight="SemiBold"
+                                                   FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                                        <ComboBox Name="BE_ComboParam" Height="26" Margin="0,0,0,8"
+                                                  IsEditable="True" SelectionChanged="BE_Param_SelectionChanged"/>
+                                        <TextBlock Text="Secondary column (read-only reference)"
+                                                   FontSize="10" Opacity="0.65"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                                        <ComboBox Name="BE_ComboParamAux" Height="26" Margin="0,0,0,8"
+                                                  SelectionChanged="BE_AuxParam_SelectionChanged"/>
 
-                                <Separator Margin="0,6,0,12"/>
-                                <TextBlock Text="Apply same value (optional)" FontSize="10" Margin="0,0,0,3"/>
-                                <TextBox Name="BE_TxtApplyAll" Style="{DynamicResource FieldBox}" Margin="0,0,0,10"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                                    <Button Content="Fill new from field" Padding="10,6" FontSize="10"
-                                            Click="BE_FillAll_Click" Style="{DynamicResource SecBtn}"
-                                            Margin="0,0,8,0"/>
-                                    <CheckBox Name="BE_ChkWritableApply" VerticalAlignment="Center"
-                                              Content="Hide read-only in grid" IsChecked="True"/>
-                                </StackPanel>
-                                <CheckBox Name="BE_ChkDryRunPreview"
-                                          Content="Detailed preview before APPLY" IsChecked="True" Margin="0,0,0,10"/>
-                                <Button Content="APPLY CHANGES" Name="BE_BtnApply" Click="BE_Apply_Click"
-                                        Style="{DynamicResource ActionBtn}" Margin="0,0,0,8"/>
-                                <Button Content="EXPORT CSV…" Click="BE_Export_Click"
-                                        Style="{DynamicResource SecBtn}"/>
+                                        <CheckBox Name="BE_ChkWritableOnlyDiscover"
+                                                  Content="Discover writable-only when scanning"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Apply same value (optional)" FontSize="10" Opacity="0.65"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <TextBox Name="BE_TxtApplyAll" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                            <Button Content="Fill new from field" Padding="10,6" FontSize="10"
+                                                    Click="BE_FillAll_Click" Style="{StaticResource SecondaryButton}"
+                                                    Margin="0,0,8,0"/>
+                                            <CheckBox Name="BE_ChkWritableApply" VerticalAlignment="Center"
+                                                      Content="Hide read-only in grid" IsChecked="True"/>
+                                        </StackPanel>
+                                        <CheckBox Name="BE_ChkDryRunPreview"
+                                                  Content="Detailed preview before APPLY" IsChecked="True" Margin="0,0,0,10"/>
+                                        <Button Content="APPLY CHANGES" Name="BE_BtnApply" Click="BE_Apply_Click"
+                                                Style="{StaticResource ActionButton}" Margin="0,0,0,8"/>
+                                        <Button Content="EXPORT CSV…" Click="BE_Export_Click"
+                                                Style="{StaticResource SecondaryButton}"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>
 
+                    <!-- Splitter -->
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
                     <!-- Main grid -->
-                    <Grid Grid.Column="1">
-                        <DataGrid Name="BE_GridMain" AutoGenerateColumns="False"
-                                  Margin="22" CanUserAddRows="False"
-                                  SelectionMode="Extended"
-                                  BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                                  GridLinesVisibility="Horizontal" Background="Transparent"
-                                  AlternatingRowBackground="#07000000"
-                                  BeginningEdit="BE_Grid_Main_BeginningEdit">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn Header="Family : Type" Binding="{Binding FamType}"    Width="280" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Name"           Binding="{Binding InstName}"  Width="140" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Elem ID"        Binding="{Binding ElemId}"    Width="90"  IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Aux ref"        Binding="{Binding AuxVal}"    Width="160" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="Current"        Binding="{Binding CurrentVal}" Width="180" IsReadOnly="True"/>
-                                <DataGridTextColumn Header="New"            Binding="{Binding NewVal}"    Width="240"/>
-                            </DataGrid.Columns>
-                        </DataGrid>
+                    <Grid Grid.Column="2" Margin="24">
+                        <Border Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="BE_GridMain" AutoGenerateColumns="False"
+                                      CanUserAddRows="False"
+                                      SelectionMode="Extended"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal" Background="Transparent"
+                                      AlternatingRowBackground="#07000000"
+                                      BeginningEdit="BE_Grid_Main_BeginningEdit">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Family : Type" Binding="{Binding FamType}"    Width="280" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Name"           Binding="{Binding InstName}"  Width="140" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Elem ID"        Binding="{Binding ElemId}"    Width="90"  IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Aux ref"        Binding="{Binding AuxVal}"    Width="160" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Current"        Binding="{Binding CurrentVal}" Width="180" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="New"            Binding="{Binding NewVal}"    Width="240"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
 
                         <!-- BE local loading overlay -->
-                        <Grid Name="BE_LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA"
-                              Margin="22">
+                        <Grid Name="BE_LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA">
                             <Border Padding="24,14" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Background="White" CornerRadius="4"
-                                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                                    Background="White" CornerRadius="8"
+                                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                                    Effect="{StaticResource CardShadow}">
                                 <StackPanel>
                                     <TextBlock Name="BE_TxtLoadingMsg" HorizontalAlignment="Center"
                                                FontWeight="SemiBold" Foreground="{DynamicResource TextColor}"/>
@@ -323,15 +425,18 @@
         <!-- Shared loading overlay (NOSAWindow) -->
         <Grid Grid.Row="1" Name="LoadingPanel" Visibility="Collapsed"
               Background="#CCFAFAFA" Panel.ZIndex="100">
-            <Border Background="White" CornerRadius="6" Padding="24,16"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Background="White" CornerRadius="8" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                    Effect="{StaticResource CardShadow}">
                 <StackPanel>
                     <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"
                                Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
                     <ProgressBar Name="ProcessBar" Width="220" Height="10" IsIndeterminate="True"
                                  Foreground="{DynamicResource AccentColor}"/>
                     <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center"
-                               FontSize="11" Opacity="0.6" Margin="0,6,0,0"/>
+                               FontSize="11" Opacity="0.6" Foreground="{DynamicResource TextColor}"
+                               Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>

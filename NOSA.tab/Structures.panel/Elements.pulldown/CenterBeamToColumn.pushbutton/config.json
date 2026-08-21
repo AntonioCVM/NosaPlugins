@@ -1,6 +1,6 @@
 {
-  "align_both_ends": false, 
-  "include_ground_beams": true, 
   "max_distance_mm": 1000, 
+  "align_both_ends": true, 
+  "include_ground_beams": true, 
   "include_pilecaps": true
 }

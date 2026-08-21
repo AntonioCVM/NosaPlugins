@@ -1,0 +1,242 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Rebar Coverage Checker v1.0" Height="680" Width="1040"
+        MinHeight="560" MinWidth="860"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}"
+        FontFamily="Century Gothic, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="SectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Padding"    Value="18,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"    Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"   Value="Transparent"/>
+            <Setter Property="Foreground"   Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"   Value="SemiBold"/>
+            <Setter Property="Padding"      Value="12,7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"  Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"       Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin"     Value="0,4"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns"      Value="False"/>
+            <Setter Property="IsReadOnly"               Value="True"/>
+            <Setter Property="GridLinesVisibility"      Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="RowBackground"            Value="{DynamicResource PanelColor}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource BgColor}"/>
+            <Setter Property="FontSize"                 Value="11"/>
+            <Setter Property="BorderThickness"          Value="0"/>
+            <Setter Property="Background"               Value="Transparent"/>
+        </Style>
+    </Window.Resources>
+    <Grid Name="RootGrid">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="250" MinWidth="210" MaxWidth="340"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*" MinWidth="480"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- SIDEBAR -->
+        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <StackPanel Grid.Row="0" Margin="20,28,20,16">
+                <TextBlock Text="REBAR COVERAGE" FontSize="16" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="Structural Rebar Check" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+            </StackPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20,0,20,10">
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Categories" Style="{StaticResource SectionTitle}"/>
+                            <CheckBox Name="ChkColumns"     Content="Structural Columns"     IsChecked="True"/>
+                            <CheckBox Name="ChkFraming"     Content="Structural Framing"     IsChecked="True"/>
+                            <CheckBox Name="ChkFoundations" Content="Structural Foundations" IsChecked="True"/>
+                            <CheckBox Name="ChkFloors"      Content="Floors"                 IsChecked="True"/>
+                            <CheckBox Name="ChkWalls"       Content="Walls"                  IsChecked="False"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+            <StackPanel Grid.Row="2" Margin="20,0,20,14">
+                <Button Content="RUN CHECK" Name="BtnRun"
+                        Click="Run_Click" Style="{DynamicResource ActionButton}" Margin="0,0,0,8" HorizontalAlignment="Stretch"/>
+                <Button Content="Export CSV" Name="BtnExport"
+                        Click="Export_Click" Style="{DynamicResource SecondaryButton}"
+                        IsEnabled="False" HorizontalAlignment="Stretch"/>
+            </StackPanel>
+            <StackPanel Grid.Row="3" Margin="20,0,20,20">
+                <Separator Margin="0,0,0,10"/>
+                <CheckBox Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+        <!-- MAIN -->
+        <Grid Grid.Column="2" Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>  <!-- Coverage gauge -->
+                <RowDefinition Height="Auto"/>  <!-- Category summary -->
+                <RowDefinition Height="*"/>     <!-- Missing list -->
+                <RowDefinition Height="Auto"/>  <!-- Actions -->
+            </Grid.RowDefinitions>
+
+            <!-- Coverage bar -->
+            <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,14">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Rebar Coverage" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                        <ProgressBar Name="CoverageBar" Height="16" Minimum="0" Maximum="100" Value="0"
+                                     Foreground="SeaGreen" Background="{DynamicResource BorderColor}" BorderThickness="0"/>
+                        <TextBlock Name="TxtCoverageLabel" Text="Run check to calculate coverage"
+                                   FontSize="11" Foreground="{DynamicResource TextColor}"
+                                   Opacity="0.6" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Name="TxtCoverage" Text="—"
+                               FontSize="38" FontWeight="Bold"
+                               Foreground="{DynamicResource AccentColor}"
+                               VerticalAlignment="Center" Margin="20,0,0,0"/>
+                </Grid>
+            </Border>
+
+            <!-- Category summary -->
+            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1" Height="130" Margin="0,0,0,14">
+                <DataGrid Name="GridSummary">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Category"         Binding="{Binding Category}"   Width="*"/>
+                        <DataGridTextColumn Header="With rebar"       Binding="{Binding WithRebar}"   Width="100"/>
+                        <DataGridTextColumn Header="Without rebar"    Binding="{Binding WithoutRebar}" Width="110"/>
+                        <DataGridTextColumn Header="Coverage %"       Binding="{Binding Coverage}"    Width="90"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </Border>
+
+            <!-- Missing elements -->
+            <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Name="TxtMissingLabel" Text="Elements without rebar"
+                           FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                    <DataGrid Name="GridMissing" SelectionChanged="Grid_SelectionChanged">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180"/>
+                            <DataGridTextColumn Header="Level"    Binding="{Binding Level}"    Width="120"/>
+                            <DataGridTextColumn Header="Name"     Binding="{Binding Name}"     Width="*"/>
+                            <DataGridTextColumn Header="ID"       Binding="{Binding Id}"       Width="80"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+            </Grid>
+
+            <!-- Loading -->
+            <Grid Grid.Row="2" Name="LoadingPanel" Visibility="Collapsed"
+                  VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="Checking rebar coverage..." HorizontalAlignment="Center"
+                               FontSize="13" Foreground="{DynamicResource TextColor}" Margin="0,0,0,10"/>
+                    <ProgressBar Name="ProcessBar" Width="240" Height="12" IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center" FontSize="11"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- Actions -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Content="Select in Model" Name="BtnSelect"
+                        Click="Select_Click" Style="{DynamicResource SecondaryButton}"
+                        IsEnabled="False"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

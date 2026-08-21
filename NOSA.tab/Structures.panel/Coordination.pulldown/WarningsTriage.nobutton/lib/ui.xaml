@@ -12,13 +12,43 @@
         <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
         <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
         <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
         <Style TargetType="Button" x:Key="ActionButton">
             <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="Padding"    Value="20,10"/>
+            <Setter Property="Padding"    Value="18,10"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor"    Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="Button" x:Key="SecondaryButton">
             <Setter Property="Background"   Value="Transparent"/>
@@ -28,6 +58,26 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush"  Value="{DynamicResource AccentColor}"/>
             <Setter Property="Cursor"       Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
         <Style TargetType="CheckBox">
             <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
@@ -37,8 +87,9 @@
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="240"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="240" MinWidth="210" MaxWidth="320"/>
+            <ColumnDefinition Width="6"/>
+            <ColumnDefinition Width="*" MinWidth="420"/>
         </Grid.ColumnDefinitions>
 
         <!-- SIDEBAR -->
@@ -61,15 +112,18 @@
 
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="20,0,20,10">
-                    <TextBlock Text="Show severity" FontWeight="Bold"
-                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
-                    <CheckBox Name="ChkHigh"   Content="High (Critical)"  IsChecked="True"/>
-                    <CheckBox Name="ChkMedium" Content="Medium"           IsChecked="True"/>
-                    <CheckBox Name="ChkLow"    Content="Low (Info)"       IsChecked="True"/>
-
-                    <Separator Margin="0,16,0,12"/>
-                    <CheckBox Name="ChkShowIgnored" Content="Show ignored warnings"
-                              IsChecked="False" Click="Filter_Changed"/>
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Show severity" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                            <CheckBox Name="ChkHigh"   Content="High (Critical)"  IsChecked="True"/>
+                            <CheckBox Name="ChkMedium" Content="Medium"           IsChecked="True"/>
+                            <CheckBox Name="ChkLow"    Content="Low (Info)"       IsChecked="True"/>
+                            <Separator Margin="0,12,0,10"/>
+                            <CheckBox Name="ChkShowIgnored" Content="Show ignored warnings"
+                                      IsChecked="False" Click="Filter_Changed"/>
+                        </StackPanel>
+                    </Border>
                     <Separator Margin="0,16,0,12"/>
                     <CheckBox Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"
                               Foreground="{DynamicResource TextColor}"/>
@@ -90,8 +144,12 @@
                     Margin="20,0,20,20" IsEnabled="False"/>
         </Grid>
 
+        <GridSplitter Grid.Column="1" Width="6" Background="Transparent"
+                      HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      ResizeBehavior="PreviousAndNext"/>
+
         <!-- MAIN -->
-        <Grid Grid.Column="1" Margin="24">
+        <Grid Grid.Column="2" Margin="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -119,40 +177,43 @@
             <!-- Search -->
             <TextBox Grid.Row="1" Name="TxtSearch" Height="28" Margin="0,0,0,10"
                      Padding="6,2" VerticalContentAlignment="Center"
+                     BorderBrush="{DynamicResource BorderColor}"
                      TextChanged="Search_Changed"/>
 
             <!-- DataGrid -->
-            <DataGrid Name="GridResults" Grid.Row="2"
-                      AutoGenerateColumns="False" IsReadOnly="True"
-                      AlternatingRowBackground="#06000000" Background="Transparent"
-                      BorderBrush="{DynamicResource BorderColor}"
-                      GridLinesVisibility="Horizontal"
-                      SelectionMode="Single"
-                      SelectionChanged="Grid_SelectionChanged">
-                <DataGrid.Columns>
-                    <DataGridTextColumn Header="#"          Binding="{Binding Index}"          Width="40"/>
-                    <DataGridTextColumn Header="Severity"   Binding="{Binding Severity}"       Width="80"/>
-                    <DataGridTextColumn Header="Warning"    Binding="{Binding Description}"    Width="*"/>
-                    <DataGridTextColumn Header="Elements"   Binding="{Binding ElementsStr}"    Width="200"/>
-                    <DataGridTextColumn Header="Count"      Binding="{Binding CountElements}"  Width="55"/>
-                    <DataGridTextColumn Header="Action"     Binding="{Binding Action}"         Width="260"/>
-                </DataGrid.Columns>
-                <DataGrid.RowStyle>
-                    <Style TargetType="DataGridRow">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding Severity}" Value="High">
-                                <Setter Property="Background" Value="#10FF0000"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding Severity}" Value="Medium">
-                                <Setter Property="Background" Value="#10FF5F00"/>
-                            </DataTrigger>
-                            <DataTrigger Binding="{Binding IsIgnored}" Value="True">
-                                <Setter Property="Opacity" Value="0.4"/>
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </DataGrid.RowStyle>
-            </DataGrid>
+            <Border Grid.Row="2" Style="{DynamicResource Card}" Padding="0">
+                <DataGrid Name="GridResults"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          AlternatingRowBackground="#06000000" Background="Transparent"
+                          BorderThickness="0"
+                          GridLinesVisibility="Horizontal"
+                          SelectionMode="Single"
+                          SelectionChanged="Grid_SelectionChanged">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="#"          Binding="{Binding Index}"          Width="40"/>
+                        <DataGridTextColumn Header="Severity"   Binding="{Binding Severity}"       Width="80"/>
+                        <DataGridTextColumn Header="Warning"    Binding="{Binding Description}"    Width="*"/>
+                        <DataGridTextColumn Header="Elements"   Binding="{Binding ElementsStr}"    Width="200"/>
+                        <DataGridTextColumn Header="Count"      Binding="{Binding CountElements}"  Width="55"/>
+                        <DataGridTextColumn Header="Action"     Binding="{Binding Action}"         Width="260"/>
+                    </DataGrid.Columns>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Severity}" Value="High">
+                                    <Setter Property="Background" Value="#10FF0000"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Severity}" Value="Medium">
+                                    <Setter Property="Background" Value="#10FF5F00"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IsIgnored}" Value="True">
+                                    <Setter Property="Opacity" Value="0.4"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
+            </Border>
 
             <!-- Loading -->
             <Grid Grid.Row="2" Name="LoadingPanel" Visibility="Collapsed"
@@ -168,10 +229,8 @@
             </Grid>
 
             <!-- Action suggestion box -->
-            <Border Grid.Row="3" Background="{DynamicResource PanelColor}"
-                    BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
-                    CornerRadius="4" Padding="12,8" Margin="0,12,0,0"
-                    Visibility="Collapsed" Name="PanelAction">
+            <Border Grid.Row="3" Style="{DynamicResource Card}"
+                    Margin="0,12,0,0" Visibility="Collapsed" Name="PanelAction">
                 <StackPanel>
                     <TextBlock Text="Suggested action:" FontWeight="Bold" FontSize="11"
                                Foreground="{DynamicResource AccentColor}" Margin="0,0,0,4"/>

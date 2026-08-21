@@ -1,0 +1,916 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOSA — Data Tools Hub" Height="800" Width="1240"
+        MinHeight="620" MinWidth="1000"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
+    <Window.Resources>
+        <!-- Colors (swapped at runtime by NOSAWindow.ApplyTheme via Dark Mode toggle) -->
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
+        <!-- Sidebar nav buttons — shared by the hub's top-level nav AND
+             Model Cleanup's own internal 6-way sub-nav -->
+        <Style TargetType="Button" x:Key="NavButton">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="15,12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Name="b" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter Property="Background"  Value="#20FF5F00"/>
+                                <Setter Property="Foreground"  Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="b" Property="BorderThickness" Value="4,0,0,0"/>
+                                <Setter TargetName="b" Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="18,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="10,6"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Excel Sync's own Params/Import-Table submode toggle -->
+        <Style TargetType="Button" x:Key="ModeButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="FontSize"        Value="11"/>
+            <Setter Property="Padding"         Value="8,4"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="Tag" Value="Active">
+                    <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Model Cleanup's destructive-action button -->
+        <Style TargetType="Button" x:Key="DangerButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="#CC3333"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="#CC3333"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Type Renamer's field textbox -->
+        <Style TargetType="TextBox" x:Key="FieldBox">
+            <Setter Property="Height"    Value="26"/>
+            <Setter Property="FontSize"  Value="11"/>
+            <Setter Property="Padding"   Value="4,2"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin"     Value="0,3"/>
+        </Style>
+        <Style TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="FontSize"   Value="11"/>
+            <Setter Property="Margin"     Value="0,3"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="230" MinWidth="190" MaxWidth="320"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*" MinWidth="700"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- ==================== LEFT PANEL — HUB NAVIGATION ==================== -->
+        <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="20,25,20,20">
+                <TextBlock Text="DATA TOOLS" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+                <TextBlock Text="Data &amp; Project Utilities · NOSA" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+                <Button Content="Excel Sync" Name="NavBtnExcelSync" Tag="Selected"
+                        Style="{DynamicResource NavButton}" Click="HubNav_Click"/>
+                <Button Content="Workset Health" Name="NavBtnWorksetHealth"
+                        Style="{DynamicResource NavButton}" Click="HubNav_Click"/>
+                <Button Content="Model Cleanup" Name="NavBtnModelCleanup"
+                        Style="{DynamicResource NavButton}" Click="HubNav_Click"/>
+                <Button Content="Link Manager" Name="NavBtnLinkManager"
+                        Style="{DynamicResource NavButton}" Click="HubNav_Click"/>
+                <Button Content="Type Renamer" Name="NavBtnTypeRenamer"
+                        Style="{DynamicResource NavButton}" Click="HubNav_Click"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                <Separator Margin="0,0,0,10"/>
+                <CheckBox Name="ChkDarkMode" Content="Dark Mode" Click="Theme_Toggled"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Splitter -->
+        <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                      Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+        <!-- ==================== RIGHT PANEL — CONTENT ==================== -->
+        <Grid Grid.Column="2">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" Name="ContentGrid">
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     PANEL 1 — EXCEL SYNC (ES_)
+                     ═══════════════════════════════════════════════════════════ -->
+                <Grid Name="PanelExcelSync" Visibility="Visible">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="270" MinWidth="230" MaxWidth="360"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="420"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Sidebar -->
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,22,20,12">
+                            <TextBlock Text="EXCEL SYNC" FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <Button Name="ES_BtnModeParams" Content="Parameters" Tag="Active"
+                                        Click="ES_Mode_Click" Style="{DynamicResource ModeButton}"
+                                        Margin="0,0,6,0"/>
+                                <Button Name="ES_BtnModeTable" Content="Import Table"
+                                        Click="ES_Mode_Click" Style="{DynamicResource ModeButton}"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="14,0,14,10">
+
+                            <StackPanel Name="ES_PanelModeParams">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="CSV File" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <Button Content="Browse CSV..." Name="ES_BtnBrowse"
+                                                Click="ES_Browse_Click" Style="{DynamicResource SecondaryButton}"
+                                                Margin="0,0,0,6"/>
+                                        <TextBlock Name="ES_TxtFilePath" Text="No file selected"
+                                                   FontSize="10" Foreground="Gray" TextWrapping="Wrap"
+                                                   Margin="0,0,0,10"/>
+
+                                        <TextBlock Text="Key column:" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <ComboBox Name="ES_CboKeyCol" Height="26" FontSize="11"
+                                                  SelectionChanged="ES_KeyCol_Changed" Margin="0,0,0,10"/>
+
+                                        <TextBlock Text="Match elements by:" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                                        <RadioButton Name="ES_RdoMark"     Content="Mark parameter" IsChecked="True"/>
+                                        <RadioButton Name="ES_RdoUniqueId" Content="UniqueId"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Content="LOAD &amp; PREVIEW" Name="ES_BtnLoad"
+                                        Click="ES_Load_Click" Style="{DynamicResource ActionButton}"
+                                        Margin="0,0,0,8"/>
+                                <Button Content="APPLY TO MODEL" Name="ES_BtnApply"
+                                        Click="ES_Apply_Click" Style="{DynamicResource ActionButton}"
+                                        Margin="0,0,0,10" IsEnabled="False"/>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Export Revit → Excel" FontSize="11" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                                        <TextBlock Text="Parameters to export (one per line):" FontSize="10"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,4" Opacity="0.7"/>
+                                        <TextBox Name="ES_TxtExportParams" Height="80" FontSize="11"
+                                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                 Padding="4" ToolTip="Enter Revit parameter names to export, one per line"
+                                                 BorderBrush="{DynamicResource BorderColor}"
+                                                 Margin="0,0,0,8"/>
+                                        <Button Content="EXPORT FROM MODEL" Name="ES_BtnExport"
+                                                Click="ES_Export_Click" Style="{DynamicResource SecondaryButton}"
+                                                Margin="0,0,0,0"
+                                                ToolTip="Write current Revit parameter values to a new CSV file"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <StackPanel Name="ES_PanelModeTable" Visibility="Collapsed">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Excel workbook" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <Button Content="Browse Excel..." Name="ES_BtnTblBrowse"
+                                                Click="ES_TblBrowse_Click" Style="{DynamicResource SecondaryButton}"
+                                                Margin="0,0,0,6"/>
+                                        <TextBlock Name="ES_TxtTblFilePath" Text="No file selected"
+                                                   FontSize="10" Foreground="Gray" TextWrapping="Wrap"
+                                                   Margin="0,0,0,10"/>
+                                        <TextBlock Text="Worksheet:" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <ComboBox Name="ES_CboTblSheet" Height="26" FontSize="11"
+                                                  SelectionChanged="ES_TblSheet_Changed" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Key column:" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <ComboBox Name="ES_CboTblKeyCol" Height="26" FontSize="11"
+                                                  SelectionChanged="ES_TblKeyCol_Changed" Margin="0,0,0,10"/>
+                                        <TextBlock Text="Match elements by:" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                                        <RadioButton Name="ES_RdoTblMark" Content="Mark parameter" IsChecked="True"/>
+                                        <RadioButton Name="ES_RdoTblUniqueId" Content="UniqueId"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Content="LOAD TABLE" Name="ES_BtnTblLoad"
+                                        Click="ES_TblLoad_Click" Style="{DynamicResource ActionButton}"
+                                        Margin="0,0,0,8"/>
+                                <Button Content="APPLY TABLE TO MODEL" Name="ES_BtnTblApply"
+                                        Click="ES_TblApply_Click" Style="{DynamicResource ActionButton}"
+                                        IsEnabled="False"/>
+
+                                <TextBlock Name="ES_TxtTblStatus" Text="" FontSize="10"
+                                           Foreground="{DynamicResource TextColor}"
+                                           TextWrapping="Wrap" Opacity="0.7" Margin="0,10,0,0"/>
+                            </StackPanel>
+
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- Splitter -->
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <!-- Main -->
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="200"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Name="ES_TxtPreviewHeader" Text="Data Preview" FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                            <TextBox Name="ES_TxtPreview" IsReadOnly="True" FontFamily="Consolas"
+                                     FontSize="11" VerticalScrollBarVisibility="Auto"
+                                     HorizontalScrollBarVisibility="Auto"
+                                     Background="Transparent"
+                                     BorderThickness="0"
+                                     Padding="8" TextWrapping="NoWrap"/>
+                        </Border>
+
+                        <TextBlock Grid.Row="2" Name="ES_TxtMappingHeader"
+                                   Text="Column Mapping  (column → Revit parameter name)"
+                                   FontWeight="Bold" FontSize="13"
+                                   Foreground="{DynamicResource AccentColor}" Margin="0,18,0,8"/>
+
+                        <Border Grid.Row="3" Style="{StaticResource Card}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Name="ES_MappingPanel" Margin="0,0,0,0"/>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     PANEL 2 — WORKSET HEALTH (WH_)
+                     ═══════════════════════════════════════════════════════════ -->
+                <Grid Name="PanelWorksetHealth" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250" MinWidth="220" MaxWidth="320"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="380"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,22,20,12">
+                            <TextBlock Text="WORKSET HEALTH" FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Name="WH_TxtSubtitle" FontSize="11" Opacity="0.55" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="14,0,14,10">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Search" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <TextBox Name="WH_TxtSearch" FontSize="11" Padding="6,4"
+                                                 VerticalContentAlignment="Center"
+                                                 BorderBrush="{DynamicResource BorderColor}"
+                                                 TextChanged="WH_Search_Changed"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Move Elements" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <TextBlock Text="Move selected workset's elements to:" FontSize="10"
+                                                   Opacity="0.65" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                                        <ComboBox Name="WH_CboTargetWorkset" FontSize="11"
+                                                  DisplayMemberPath="Name" Margin="0,0,0,10"/>
+                                        <Button Content="Move Elements" Style="{StaticResource ActionButton}"
+                                                Click="WH_MoveElements_Click" Margin="0,0,0,8"/>
+                                        <Button Content="Refresh" Style="{StaticResource SecondaryButton}"
+                                                Click="WH_Refresh_Click"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                            <Separator Margin="0,0,0,10"/>
+                            <Button Content="Close" Style="{StaticResource SecondaryButton}" Click="WH_Close_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Border Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="WH_GridWorksets"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      SelectionMode="Extended"
+                                      AlternatingRowBackground="#06000000"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal"
+                                      CanUserReorderColumns="False" FontSize="11"
+                                      SelectionChanged="WH_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Workset"        Binding="{Binding Name}"     Width="220"/>
+                                    <DataGridTextColumn Header="Elements"       Binding="{Binding Count}"    Width="80"/>
+                                    <DataGridTextColumn Header="Owner"          Binding="{Binding Owner}"    Width="120"/>
+                                    <DataGridTextColumn Header="Editable"       Binding="{Binding Editable}" Width="80"/>
+                                    <DataGridTextColumn Header="Open"           Binding="{Binding Open}"     Width="70"/>
+                                    <DataGridTextColumn Header="Default visible" Binding="{Binding Visible}" Width="110"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     PANEL 3 — MODEL CLEANUP (MC_)
+                     ═══════════════════════════════════════════════════════════ -->
+                <Grid Name="PanelModelCleanup" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="240" MinWidth="210" MaxWidth="320"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="480"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,22,20,12">
+                            <TextBlock Text="MODEL CLEANUP" FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Text="Find &amp; remove waste from the model"
+                                       FontSize="11" Opacity="0.55" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <Button Name="MC_BtnTabOrphans"   Content="Orphan Views"      Style="{DynamicResource NavButton}" Tag="Selected" Click="MC_NavButton_Click"/>
+                                <Button Name="MC_BtnTabFamilies"  Content="Unused Families"   Style="{DynamicResource NavButton}" Click="MC_NavButton_Click"/>
+                                <Button Name="MC_BtnTabTemplates" Content="Unused Templates"  Style="{DynamicResource NavButton}" Click="MC_NavButton_Click"/>
+                                <Button Name="MC_BtnTabCAD"       Content="CAD Imports"       Style="{DynamicResource NavButton}" Click="MC_NavButton_Click"/>
+                                <Button Name="MC_BtnTabRooms"     Content="Unplaced Rooms"    Style="{DynamicResource NavButton}" Click="MC_NavButton_Click"/>
+                                <Button Name="MC_BtnTabWarnings"  Content="Trivial Warnings"  Style="{DynamicResource NavButton}" Click="MC_NavButton_Click"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <StackPanel Grid.Row="2" Margin="20,10,20,20">
+                            <Button Content="SCAN MODEL" Name="MC_BtnScan"
+                                    Click="MC_Scan_Click" Style="{StaticResource ActionButton}"
+                                    Margin="0,0,0,10"/>
+                            <CheckBox Name="MC_ChkDryRun" Content="Dry Run (preview only)"
+                                      ToolTip="Shows what would be deleted without making any changes"
+                                      Margin="0,0,0,8"/>
+                            <Button Content="Delete Selected" Name="MC_BtnPurge"
+                                    Click="MC_Purge_Click" Style="{StaticResource DangerButton}"
+                                    IsEnabled="False" Margin="0,0,0,8"
+                                    ToolTip="Delete selected rows (Ctrl+click or Shift+click to multi-select)"/>
+                            <Button Content="Quick Purge All" Name="MC_BtnQuickPurgeAll"
+                                    Click="MC_QuickPurgeAll_Click" Style="{StaticResource SecondaryButton}"
+                                    Margin="0,0,0,0"
+                                    ToolTip="Scan model and delete ALL orphan views, unused families, templates, CAD imports and unplaced rooms in one step"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Summary pills -->
+                        <WrapPanel Grid.Row="0" Margin="0,0,0,14">
+                            <Border CornerRadius="12" Background="#FFF3E0" Padding="10,4" Margin="0,0,8,6">
+                                <TextBlock Name="MC_TxtOrphans"   Text="0 orphan views"     FontSize="11" Foreground="#E65C00" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#FFF3E0" Padding="10,4" Margin="0,0,8,6">
+                                <TextBlock Name="MC_TxtFamilies"  Text="0 unused types"     FontSize="11" Foreground="#E65C00" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#F0F0F0" Padding="10,4" Margin="0,0,8,6">
+                                <TextBlock Name="MC_TxtTemplates" Text="0 unused templates" FontSize="11" Foreground="#666" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#FFEEEE" Padding="10,4" Margin="0,0,8,6">
+                                <TextBlock Name="MC_TxtCAD"       Text="0 CAD imports"      FontSize="11" Foreground="#CC3333" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#FFEEEE" Padding="10,4" Margin="0,0,8,6">
+                                <TextBlock Name="MC_TxtRooms"     Text="0 unplaced rooms"   FontSize="11" Foreground="#CC3333" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#F0F0F0" Padding="10,4" Margin="0,0,0,6">
+                                <TextBlock Name="MC_TxtWarnings"  Text="0 trivial warnings" FontSize="11" Foreground="#666" FontWeight="Bold"/>
+                            </Border>
+                        </WrapPanel>
+
+                        <!-- Content area — stacked DataGrids, only one visible at a time -->
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                            <Grid>
+
+                                <DataGrid Name="MC_TabOrphans" AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0"
+                                          GridLinesVisibility="Horizontal" SelectionMode="Extended"
+                                          SelectionChanged="MC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Type" Binding="{Binding VType}" Width="130"/>
+                                        <DataGridTextColumn Header="Name" Binding="{Binding Name}"  Width="*"/>
+                                        <DataGridTextColumn Header="ID"   Binding="{Binding Id}"    Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <DataGrid Name="MC_TabFamilies" Visibility="Collapsed" AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0"
+                                          GridLinesVisibility="Horizontal" SelectionMode="Extended"
+                                          SelectionChanged="MC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="150"/>
+                                        <DataGridTextColumn Header="Family"   Binding="{Binding Family}"   Width="*"/>
+                                        <DataGridTextColumn Header="Type"     Binding="{Binding TypeName}" Width="*"/>
+                                        <DataGridTextColumn Header="ID"       Binding="{Binding Id}"       Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <DataGrid Name="MC_TabTemplates" Visibility="Collapsed" AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0"
+                                          GridLinesVisibility="Horizontal" SelectionMode="Extended"
+                                          SelectionChanged="MC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Template Name" Binding="{Binding Name}" Width="*"/>
+                                        <DataGridTextColumn Header="ID"            Binding="{Binding Id}"   Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <DataGrid Name="MC_TabCAD" Visibility="Collapsed" AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0"
+                                          GridLinesVisibility="Horizontal" SelectionMode="Extended"
+                                          SelectionChanged="MC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Name"  Binding="{Binding Name}" Width="*"/>
+                                        <DataGridTextColumn Header="View"  Binding="{Binding View}" Width="*"/>
+                                        <DataGridTextColumn Header="Kind"  Binding="{Binding Kind}" Width="70"/>
+                                        <DataGridTextColumn Header="ID"    Binding="{Binding Id}"   Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <DataGrid Name="MC_TabRooms" Visibility="Collapsed" AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0"
+                                          GridLinesVisibility="Horizontal" SelectionMode="Extended"
+                                          SelectionChanged="MC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Number" Binding="{Binding Number}" Width="80"/>
+                                        <DataGridTextColumn Header="Name"   Binding="{Binding Name}"   Width="*"/>
+                                        <DataGridTextColumn Header="Level"  Binding="{Binding Level}"  Width="150"/>
+                                        <DataGridTextColumn Header="ID"     Binding="{Binding Id}"     Width="70"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <DataGrid Name="MC_TabWarnings" Visibility="Collapsed" AutoGenerateColumns="False" IsReadOnly="True"
+                                          AlternatingRowBackground="#06000000" Background="Transparent"
+                                          BorderThickness="0"
+                                          GridLinesVisibility="Horizontal">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                                        <DataGridTextColumn Header="Elements"    Binding="{Binding ElementCount}" Width="80"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Grid>
+                        </Border>
+
+                        <!-- Bottom toolbar -->
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                            <Button Content="Select in Model" Name="MC_BtnSelect" Click="MC_Select_Click"
+                                    Style="{StaticResource SecondaryButton}" Margin="0,0,10,0" IsEnabled="False"/>
+                            <Button Content="Export CSV" Name="MC_BtnExport" Click="MC_Export_Click"
+                                    Style="{StaticResource SecondaryButton}" IsEnabled="False"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     PANEL 4 — LINK MANAGER (LM_)
+                     ═══════════════════════════════════════════════════════════ -->
+                <Grid Name="PanelLinkManager" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="240" MinWidth="210" MaxWidth="320"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="400"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,22,20,12">
+                            <TextBlock Text="LINK MANAGER" FontSize="15" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Name="LM_TxtSummary" FontSize="11" Opacity="0.55" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="14,0,14,10">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Search" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <TextBox Name="LM_TxtSearch" FontSize="11" Padding="6,4"
+                                                 VerticalContentAlignment="Center"
+                                                 BorderBrush="{DynamicResource BorderColor}"
+                                                 TextChanged="LM_Search_Changed"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Actions" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <Button Content="Reload Selected" Style="{StaticResource ActionButton}"
+                                                Click="LM_Reload_Click" Margin="0,0,0,8"/>
+                                        <Button Content="Unload Selected" Style="{StaticResource SecondaryButton}"
+                                                Click="LM_Unload_Click" Margin="0,0,0,8"/>
+                                        <Button Content="Remove Selected" Style="{StaticResource SecondaryButton}"
+                                                Click="LM_Remove_Click" Margin="0,0,0,8"/>
+                                        <Button Content="Reload All Missing" Style="{StaticResource SecondaryButton}"
+                                                Click="LM_ReloadAllMissing_Click" Margin="0,0,0,8"/>
+                                        <Button Content="Refresh" Style="{StaticResource SecondaryButton}"
+                                                Click="LM_Refresh_Click" Margin="0,0,0,8"/>
+                                        <Button Content="Snapshot Baseline" Style="{StaticResource SecondaryButton}"
+                                                Click="LM_Snapshot_Click" Margin="0,0,0,8"
+                                                ToolTip="Saves a baseline of levels, grids and element counts for every loaded RVT link"/>
+                                        <Button Content="Check Changes" Style="{StaticResource SecondaryButton}"
+                                                Click="LM_Changes_Click"
+                                                ToolTip="Compares every loaded RVT link against its saved baseline"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                            <Separator Margin="0,0,0,10"/>
+                            <Button Content="Close" Style="{StaticResource SecondaryButton}" Click="LM_Close_Click"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Border Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="LM_GridLinks"
+                                      AutoGenerateColumns="False" IsReadOnly="True"
+                                      SelectionMode="Extended"
+                                      AlternatingRowBackground="#06000000"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal"
+                                      CanUserReorderColumns="False" FontSize="11">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Name"    Binding="{Binding LinkName}"   Width="240"/>
+                                    <DataGridTextColumn Header="Type"    Binding="{Binding Kind}"       Width="90"/>
+                                    <DataGridTextColumn Header="Status"  Binding="{Binding Status}"     Width="80"/>
+                                    <DataGridTextColumn Header="Path"    Binding="{Binding LinkPath}"   Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     PANEL 5 — TYPE RENAMER (TR_)
+                     ═══════════════════════════════════════════════════════════ -->
+                <Grid Name="PanelTypeRenamer" Visibility="Collapsed">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="270" MinWidth="230" MaxWidth="360"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="400"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Controls panel -->
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="16,16,16,16">
+
+                                <TextBlock Text="TYPE RENAMER" FontSize="15" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentColor}" Margin="0,4,0,16"/>
+
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Category" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <ComboBox Name="TR_CboCategory" FontSize="11"
+                                                  SelectionChanged="TR_Category_Changed"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                                    <StackPanel>
+                                        <TextBlock Text="Mode" FontWeight="Bold" FontSize="12"
+                                                   Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
+                                        <RadioButton Name="TR_RbFindReplace" Content="Find &amp; Replace"
+                                                     GroupName="TR_Mode" Checked="TR_Mode_Changed"/>
+                                        <RadioButton Name="TR_RbPrefixSuffix" Content="Add Prefix / Suffix"
+                                                     GroupName="TR_Mode" Checked="TR_Mode_Changed"/>
+
+                                        <StackPanel Name="TR_PnlFindReplace" Margin="0,10,0,0">
+                                            <TextBlock Text="Find:" FontSize="11" Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                            <TextBox Name="TR_TxtFind" Style="{StaticResource FieldBox}" Margin="0,0,0,8"
+                                                     TextChanged="TR_Rule_Changed"/>
+                                            <TextBlock Text="Replace with:" FontSize="11" Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                            <TextBox Name="TR_TxtReplace" Style="{StaticResource FieldBox}"
+                                                     TextChanged="TR_Rule_Changed"/>
+                                        </StackPanel>
+
+                                        <StackPanel Name="TR_PnlPrefixSuffix" Margin="0,10,0,0" Visibility="Collapsed">
+                                            <TextBlock Text="Prefix:" FontSize="11" Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                            <TextBox Name="TR_TxtPrefix" Style="{StaticResource FieldBox}" Margin="0,0,0,8"
+                                                     TextChanged="TR_Rule_Changed"/>
+                                            <TextBlock Text="Suffix:" FontSize="11" Opacity="0.65"
+                                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                            <TextBox Name="TR_TxtSuffix" Style="{StaticResource FieldBox}"
+                                                     TextChanged="TR_Rule_Changed"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Button Content="SELECT ALL" Style="{StaticResource SecondaryButton}"
+                                        Click="TR_SelectAll_Click" Margin="0,0,0,8"/>
+                                <Button Content="APPLY RENAME" Style="{StaticResource ActionButton}"
+                                        Click="TR_ApplyRename_Click"/>
+                                <TextBlock Name="TR_TxtFormStatus" FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}"
+                                           Opacity="0.7" Margin="0,8,0,0"/>
+                                <Button Content="Close" Style="{StaticResource SecondaryButton}"
+                                        Click="TR_Close_Click" Margin="0,16,0,0"/>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- Splitter -->
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <!-- Preview grid -->
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Preview — select types to rename"
+                                       FontWeight="Bold" FontSize="13" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Grid.Column="1" Text="Search:" FontSize="11"
+                                       VerticalAlignment="Center" Opacity="0.6" Margin="0,0,6,0"
+                                       Foreground="{DynamicResource TextColor}"/>
+                            <TextBox Grid.Column="2" Name="TR_TxtSearch" Width="160" FontSize="11"
+                                     Padding="4,2" VerticalContentAlignment="Center"
+                                     BorderBrush="{DynamicResource BorderColor}"
+                                     TextChanged="TR_Search_Changed"/>
+                        </Grid>
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="TR_GridTypes"
+                                      AutoGenerateColumns="False"
+                                      SelectionMode="Extended"
+                                      AlternatingRowBackground="#06000000"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      GridLinesVisibility="Horizontal"
+                                      CanUserReorderColumns="False" FontSize="11"
+                                      SelectionChanged="TR_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Current name" Binding="{Binding Name}"    Width="*"/>
+                                    <DataGridTextColumn Header="New name"     Binding="{Binding NewName}" Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- Shared loading overlay — covers whichever tab is active -->
+                <Grid Name="LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA" Panel.ZIndex="1000">
+                    <Border Background="{DynamicResource PanelColor}" CornerRadius="10" Padding="28,18"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                            Effect="{StaticResource CardShadow}">
+                        <StackPanel>
+                            <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"
+                                       Foreground="{DynamicResource TextColor}"/>
+                            <ProgressBar Name="ProcessBar" Width="200" Height="10"
+                                         IsIndeterminate="True"
+                                         Foreground="{DynamicResource AccentColor}" Margin="0,10,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+
+            <!-- Shared footer -->
+            <Border Grid.Row="1" BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0"
+                    Padding="24,10" Margin="0">
+                <TextBlock Name="TxtStatus" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.7"/>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

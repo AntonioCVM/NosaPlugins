@@ -1,0 +1,978 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Structural QA" Height="740" Width="1160"
+        MinHeight="560" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270"
+                           ShadowDepth="2" BlurRadius="14" Opacity="0.08"/>
+
+        <Style TargetType="Border" x:Key="Card">
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Effect" Value="{StaticResource CardShadow}"/>
+        </Style>
+
+        <Style TargetType="Button" x:Key="ActionButton">
+            <Setter Property="Background"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Foreground"      Value="White"/>
+            <Setter Property="FontWeight"      Value="Bold"/>
+            <Setter Property="Padding"         Value="18,10"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.92"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="Button" x:Key="SecondaryButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="{DynamicResource AccentColor}"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Keys introduced by the 7 absorbed QA tools, prefixed to avoid
+             collisions with each other and with the base chrome above. -->
+        <Style TargetType="Button" x:Key="FA_DangerButton">
+            <Setter Property="Background"      Value="Transparent"/>
+            <Setter Property="Foreground"      Value="#CC3333"/>
+            <Setter Property="FontWeight"      Value="SemiBold"/>
+            <Setter Property="Padding"         Value="12,7"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush"     Value="#CC3333"/>
+            <Setter Property="Cursor"          Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Opacity" Value="0.85"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="TextBox" x:Key="FA_SearchBox">
+            <Setter Property="FontSize"       Value="12"/>
+            <Setter Property="Padding"        Value="6,4"/>
+            <Setter Property="Height"         Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="BorderBrush"    Value="{DynamicResource BorderColor}"/>
+        </Style>
+        <Style TargetType="Button" x:Key="QQ_NavButton">
+            <Setter Property="Background"                 Value="Transparent"/>
+            <Setter Property="Foreground"                 Value="{DynamicResource TextColor}"/>
+            <Setter Property="BorderThickness"            Value="0"/>
+            <Setter Property="Padding"                    Value="16,10"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontSize"                   Value="13"/>
+            <Setter Property="Cursor"                     Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" Name="border" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#10000000"/>
+                            </Trigger>
+                            <Trigger Property="Tag" Value="Selected">
+                                <Setter Property="Background" Value="#20FF5F00"/>
+                                <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="border" Property="BorderThickness" Value="4,0,0,0"/>
+                                <Setter TargetName="border" Property="BorderBrush"     Value="{DynamicResource AccentColor}"/>
+                                <Setter Property="FontWeight" Value="Bold"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style TargetType="ListBoxItem" x:Key="QQ_ListBoxItem">
+            <Setter Property="Padding" Value="6,3"/>
+        </Style>
+
+        <!-- Tool-specific SectionTitle variants: colours/sizes genuinely
+             differ between tools, so each keeps its own prefixed key
+             instead of sharing one (avoids the FieldBox-style collision). -->
+        <Style TargetType="TextBlock" x:Key="CR_SectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="FA_SectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="RC_SectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+        <Style TargetType="TextBlock" x:Key="QQ_SectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Implicit styles shared by every tab (harmless de-duplication:
+             the source tools defined these with only cosmetic 1px
+             differences, so one shared definition is used for all). -->
+        <Style TargetType="CheckBox">
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="Margin"     Value="0,4"/>
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="AutoGenerateColumns"      Value="False"/>
+            <Setter Property="IsReadOnly"               Value="True"/>
+            <Setter Property="GridLinesVisibility"      Value="Horizontal"/>
+            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource BorderColor}"/>
+            <Setter Property="RowBackground"            Value="{DynamicResource PanelColor}"/>
+            <Setter Property="AlternatingRowBackground" Value="{DynamicResource BgColor}"/>
+            <Setter Property="FontSize"                 Value="11"/>
+            <Setter Property="BorderThickness"          Value="0"/>
+            <Setter Property="Background"               Value="Transparent"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,14">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="STRUCTURAL QA" FontSize="18" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                <TextBlock Text="Clash · Drawings · Families · IFC · Schedules · Rebar · Quantities" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.55"
+                           VerticalAlignment="Center" Margin="14,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <TabControl Grid.Row="1" Background="Transparent" BorderThickness="0" Padding="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontSize" Value="12"/> <Setter Property="FontFamily" Value="Century Gothic"/>
+                    <Setter Property="Padding" Value="14,8"/> <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ═══ TAB 1: CLASH REPORT ═══ -->
+            <TabItem Header="Clash Report">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="270" MinWidth="230" MaxWidth="380"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="480"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,20,20,12">
+                            <TextBlock Text="CLASH REPORT" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Text="Geometric interference detection" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="1" Margin="20,0,20,6">
+                            <TextBlock Text="Select ≥ 2 categories" Style="{StaticResource CR_SectionTitle}" Margin="0,0,0,2"/>
+                            <TextBlock Text="(Ctrl+Click to multi-select)" FontSize="10"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,0,0,6"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="2" Style="{StaticResource Card}" Margin="20,0,20,10" Padding="1">
+                            <ListBox Name="CR_ListCategories"
+                                     SelectionMode="Extended"
+                                     BorderThickness="0" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Name}" Padding="6,4"
+                                                   Foreground="{DynamicResource TextColor}"/>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Border>
+
+                        <Button Grid.Row="3" Content="RUN CHECK" Name="CR_BtnRun" Click="CR_Run_Click"
+                                Style="{DynamicResource ActionButton}" Margin="20,0,20,20"/>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                            <TextBlock Name="CR_TxtSummary" Text="Run a check to see results."
+                                       FontSize="12" Foreground="{DynamicResource TextColor}"
+                                       Opacity="0.7" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="CR_GridResults"
+                                      SelectionMode="Single"
+                                      SelectionChanged="CR_Grid_SelectionChanged">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="#"         Binding="{Binding Index}"     Width="40"/>
+                                    <DataGridTextColumn Header="Severity"  Binding="{Binding Severity}"  Width="70"/>
+                                    <DataGridTextColumn Header="Volume"    Binding="{Binding VolumeStr}" Width="85"/>
+                                    <DataGridTextColumn Header="Element 1" Binding="{Binding Name1}"     Width="*"/>
+                                    <DataGridTextColumn Header="Cat 1"     Binding="{Binding Cat1}"      Width="110"/>
+                                    <DataGridTextColumn Header="Element 2" Binding="{Binding Name2}"     Width="*"/>
+                                    <DataGridTextColumn Header="Cat 2"     Binding="{Binding Cat2}"      Width="110"/>
+                                </DataGrid.Columns>
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Severity}" Value="High">
+                                                <Setter Property="Background" Value="#10FF0000"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding Severity}" Value="Medium">
+                                                <Setter Property="Background" Value="#10FF5F00"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+                            </DataGrid>
+                        </Border>
+
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                            <Button Content="Select Both"   Name="CR_BtnSelectBoth" Click="CR_SelectBoth_Click"
+                                    Style="{DynamicResource SecondaryButton}" Margin="0,0,8,0"
+                                    IsEnabled="False" ToolTip="Select both clashing elements in model"/>
+                            <Button Content="Isolate"       Name="CR_BtnIsolate"   Click="CR_Isolate_Click"
+                                    Style="{DynamicResource SecondaryButton}" Margin="0,0,8,0"
+                                    IsEnabled="False"/>
+                            <Button Content="Export CSV"    Name="CR_BtnExportCSV"  Click="CR_ExportCSV_Click"
+                                    Style="{DynamicResource SecondaryButton}" Margin="0,0,8,0"
+                                    IsEnabled="False"/>
+                            <Button Content="Export HTML"   Name="CR_BtnExportHTML" Click="CR_ExportHTML_Click"
+                                    Style="{DynamicResource SecondaryButton}" Margin="0,0,8,0"
+                                    IsEnabled="False"/>
+                            <Button Content="Export BCF 2.1" Name="CR_BtnExportBCF" Click="CR_ExportBCF_Click"
+                                    Style="{DynamicResource SecondaryButton}"
+                                    IsEnabled="False"
+                                    ToolTip="Export clashes as BCF 2.1 file (compatible with Navisworks, Tekla, etc.)"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 2: DRAWING CHECKER ═══ -->
+            <TabItem Header="Drawing Checker">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="DRAWING CHECKER" FontSize="18" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentColor}"/>
+                        <TextBlock Text="Pre-emission quality checks for structural drawings"
+                                   FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Name="DC_ResultsPanel"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Button Content="RE-RUN CHECKS" Click="DC_Refresh_Click" HorizontalAlignment="Right"
+                                Style="{StaticResource ActionButton}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 3: FAMILY AUDIT ═══ -->
+            <TabItem Header="Family Audit">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250" MinWidth="220" MaxWidth="360"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="500"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,20,20,12">
+                            <TextBlock Text="FAMILY AUDIT" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Name="FA_TxtFamilyCount" Text="0 families" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.6" Margin="0,4,0,0"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20,0,20,10">
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Filters" Style="{StaticResource FA_SectionTitle}"/>
+
+                                        <TextBlock Text="Category:" FontSize="11"
+                                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
+                                        <ComboBox Name="FA_CboCategory" Height="26" FontSize="11"
+                                                  SelectionChanged="FA_Category_Changed" Margin="0,0,0,10"/>
+
+                                        <CheckBox Name="FA_ChkOnlyUnused" Content="Unused only (0 instances)"
+                                                  IsChecked="False" Click="FA_Filter_Changed"/>
+                                        <CheckBox Name="FA_ChkOnlyEditable" Content="Editable families only"
+                                                  IsChecked="False" Click="FA_Filter_Changed"/>
+                                        <CheckBox Name="FA_ChkOnlyIncomplete" Content="Incomplete params only"
+                                                  IsChecked="False" Click="FA_Filter_Changed"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Button Grid.Row="2" Content="SCAN FAMILIES" Name="FA_BtnScan"
+                                Click="FA_Scan_Click" Style="{DynamicResource ActionButton}"
+                                Margin="20,0,20,8"/>
+                        <Button Grid.Row="3" Content="Purge Selected" Name="FA_BtnPurge"
+                                Click="FA_Purge_Click" Style="{DynamicResource FA_DangerButton}"
+                                Margin="20,0,20,8" IsEnabled="False"
+                                ToolTip="Delete selected families from the project"/>
+                        <Button Grid.Row="4" Content="Export CSV" Name="FA_BtnExport"
+                                Click="FA_Export_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="20,0,20,8" IsEnabled="False"/>
+                        <Button Grid.Row="5" Content="Select in Model" Name="FA_BtnSelect"
+                                Click="FA_SelectInModel_Click" Style="{DynamicResource SecondaryButton}"
+                                Margin="20,0,20,20" IsEnabled="False"
+                                ToolTip="Select all instances of the highlighted family"/>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+                            <Border CornerRadius="12" Background="#F0F0F0" Padding="10,4" Margin="0,0,8,0">
+                                <TextBlock Name="FA_TxtPillTotal" Text="0 families" FontSize="11"
+                                           Foreground="#666" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#FFEEEE" Padding="10,4" Margin="0,0,8,0">
+                                <TextBlock Name="FA_TxtPillUnused" Text="0 unused" FontSize="11"
+                                           Foreground="#CC3333" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#FFF3E6" Padding="10,4" Margin="0,0,8,0">
+                                <TextBlock Name="FA_TxtPillSelected" Text="0 checked" FontSize="11"
+                                           Foreground="#FF5F00" FontWeight="Bold"/>
+                            </Border>
+                            <Border CornerRadius="12" Background="#E8F5E9" Padding="10,4">
+                                <TextBlock Name="FA_TxtPillInstances" Text="0 instances" FontSize="11"
+                                           Foreground="#2E7D32" FontWeight="Bold"/>
+                            </Border>
+                        </StackPanel>
+
+                        <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Name="FA_TxtSearch" Style="{DynamicResource FA_SearchBox}"
+                                     Text="Search families..." Foreground="Gray"
+                                     GotFocus="FA_Search_GotFocus" LostFocus="FA_Search_LostFocus"
+                                     TextChanged="FA_Search_Changed"/>
+                            <Button Grid.Column="1" Content="Check All"  Click="FA_CheckAll_Click"
+                                    Style="{DynamicResource SecondaryButton}"
+                                    Margin="8,0,4,0" FontSize="11" Padding="10,4"/>
+                            <Button Grid.Column="2" Content="Check None" Click="FA_CheckNone_Click"
+                                    Style="{DynamicResource SecondaryButton}"
+                                    FontSize="11" Padding="10,4"/>
+                        </Grid>
+
+                        <Grid Grid.Row="2">
+                            <Border Style="{StaticResource Card}" Padding="1">
+                                <DataGrid Name="FA_GridFamilies"
+                                          IsReadOnly="False"
+                                          SelectionMode="Single"
+                                          SelectionChanged="FA_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTemplateColumn Header="" Width="36" CanUserResize="False">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                              HorizontalAlignment="Center"
+                                                              Click="FA_RowCheck_Click"/>
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn Header="Category"   Binding="{Binding Category}"    Width="140"/>
+                                        <DataGridTextColumn Header="Family"     Binding="{Binding Name}"        Width="*"/>
+                                        <DataGridTextColumn Header="Types"      Binding="{Binding TypeCount}"   Width="55"/>
+                                        <DataGridTextColumn Header="Instances"  Binding="{Binding InstanceCount}" Width="75"/>
+                                        <DataGridTextColumn Header="Size (MB)"  Binding="{Binding SizeMB}"      Width="75"/>
+                                        <DataGridTextColumn Header="Params"     Binding="{Binding ParamFill}"   Width="65"/>
+                                        <DataGridTextColumn Header="Editable"   Binding="{Binding Editable}"    Width="65"/>
+                                    </DataGrid.Columns>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsUnused}" Value="True">
+                                                    <Setter Property="Background" Value="#10CC0000"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                </DataGrid>
+                            </Border>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 4: IFC STRUCTURAL EXPORT QA ═══ -->
+            <TabItem Header="IFC Export QA">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="IFC STRUCTURAL EXPORT QA" FontSize="16" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentColor}"/>
+                        <TextBlock Text="Pre-export checks for categories, property sets, and coordinates"
+                                   FontSize="11" Opacity="0.6" Foreground="{DynamicResource TextColor}"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <StackPanel Name="IQ_ResultsPanel"/>
+                        </ScrollViewer>
+                    </Border>
+
+                    <Grid Grid.Row="2" Margin="0,16,0,0">
+                        <Button Content="RE-RUN CHECKS" Click="IQ_Refresh_Click" HorizontalAlignment="Right"
+                                Style="{StaticResource ActionButton}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 5: SCHEDULE IMPACT ═══ -->
+            <TabItem Header="Schedule Impact">
+                <Grid Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                        <TextBlock Text="SCHEDULE IMPACT ANALYSER" FontSize="18" FontWeight="Bold"
+                                   Foreground="{DynamicResource AccentColor}"/>
+                        <TextBlock Text="Find all schedules and sheets affected by an element category"
+                                   FontSize="11" Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,16">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Analyse" Click="SI_Analyse_Click"
+                                    Style="{DynamicResource ActionButton}"/>
+                            <TextBlock DockPanel.Dock="Right" Text="Search:" VerticalAlignment="Center"
+                                       FontSize="11" Opacity="0.6" Margin="0,0,6,10"
+                                       Foreground="{DynamicResource TextColor}"/>
+                            <TextBox DockPanel.Dock="Right" Name="SI_TxtSearch" Width="150" FontSize="11"
+                                     Height="28" Padding="6,4" VerticalContentAlignment="Center" Margin="0,0,16,0"
+                                     BorderBrush="{DynamicResource BorderColor}"
+                                     TextChanged="SI_Search_Changed"/>
+                            <TextBlock Text="Category:" VerticalAlignment="Center" FontSize="12"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,10,0"/>
+                            <ComboBox Name="SI_CboCategory" FontSize="12" Height="28"
+                                      Foreground="{DynamicResource TextColor}"
+                                      Background="{DynamicResource PanelColor}"
+                                      VerticalContentAlignment="Center" Padding="6,4"
+                                      Margin="0,0,16,0" MinWidth="260"/>
+                        </DockPanel>
+                    </Border>
+
+                    <Grid Grid.Row="2">
+                        <Border Style="{StaticResource Card}" Padding="1">
+                            <DataGrid Name="SI_ImpactGrid"
+                                      CanUserReorderColumns="False" CanUserResizeRows="False"
+                                      HeadersVisibility="Column"
+                                      MouseDoubleClick="SI_Grid_DoubleClick">
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="#F0F0F0"/>
+                                        <Setter Property="Foreground" Value="#555"/>
+                                        <Setter Property="FontSize" Value="10"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Padding" Value="8,5"/>
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Schedule Name"
+                                                        Binding="{Binding ScheduleName}" Width="220"/>
+                                    <DataGridTextColumn Header="Fields"
+                                                        Binding="{Binding FieldCount}"   Width="55"/>
+                                    <DataGridTextColumn Header="Sheets"
+                                                        Binding="{Binding SheetCount}"   Width="55"/>
+                                    <DataGridTextColumn Header="Sheet Numbers / Names"
+                                                        Binding="{Binding Sheets}"       Width="*"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+
+                    <Grid Grid.Row="3" Margin="0,16,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Name="SI_TxtResult" FontSize="11"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.7"
+                                   VerticalAlignment="Center"
+                                   Text="Select a category and click Analyse. Double-click a row to open the schedule."/>
+                        <Button Grid.Column="1" Content="Export CSV" Click="SI_ExportCsv_Click"
+                                Style="{DynamicResource SecondaryButton}"/>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 6: REBAR COVERAGE ═══ -->
+            <TabItem Header="Rebar Coverage">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="250" MinWidth="210" MaxWidth="340"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="480"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+                        <StackPanel Grid.Row="0" Margin="20,28,20,16">
+                            <TextBlock Text="REBAR COVERAGE" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Text="Structural Rebar Check" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+                        </StackPanel>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20,0,20,10">
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Categories" Style="{StaticResource RC_SectionTitle}"/>
+                                        <CheckBox Name="RC_ChkColumns"     Content="Structural Columns"     IsChecked="True"/>
+                                        <CheckBox Name="RC_ChkFraming"     Content="Structural Framing"     IsChecked="True"/>
+                                        <CheckBox Name="RC_ChkFoundations" Content="Structural Foundations" IsChecked="True"/>
+                                        <CheckBox Name="RC_ChkFloors"      Content="Floors"                 IsChecked="True"/>
+                                        <CheckBox Name="RC_ChkWalls"       Content="Walls"                  IsChecked="False"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                        <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                            <Button Content="RUN CHECK" Name="RC_BtnRun"
+                                    Click="RC_Run_Click" Style="{DynamicResource ActionButton}" Margin="0,0,0,8" HorizontalAlignment="Stretch"/>
+                            <Button Content="Export CSV" Name="RC_BtnExport"
+                                    Click="RC_Export_Click" Style="{DynamicResource SecondaryButton}"
+                                    IsEnabled="False" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2" Margin="24">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,14">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Rebar Coverage" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                                    <ProgressBar Name="RC_CoverageBar" Height="16" Minimum="0" Maximum="100" Value="0"
+                                                 Foreground="SeaGreen" Background="{DynamicResource BorderColor}" BorderThickness="0"/>
+                                    <TextBlock Name="RC_TxtCoverageLabel" Text="Run check to calculate coverage"
+                                               FontSize="11" Foreground="{DynamicResource TextColor}"
+                                               Opacity="0.6" Margin="0,5,0,0"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Name="RC_TxtCoverage" Text="—"
+                                           FontSize="38" FontWeight="Bold"
+                                           Foreground="{DynamicResource AccentColor}"
+                                           VerticalAlignment="Center" Margin="20,0,0,0"/>
+                            </Grid>
+                        </Border>
+
+                        <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1" Height="130" Margin="0,0,0,14">
+                            <DataGrid Name="RC_GridSummary">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Category"         Binding="{Binding Category}"   Width="*"/>
+                                    <DataGridTextColumn Header="With rebar"       Binding="{Binding WithRebar}"   Width="100"/>
+                                    <DataGridTextColumn Header="Without rebar"    Binding="{Binding WithoutRebar}" Width="110"/>
+                                    <DataGridTextColumn Header="Coverage %"       Binding="{Binding Coverage}"    Width="90"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <Grid Grid.Row="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Name="RC_TxtMissingLabel" Text="Elements without rebar"
+                                       FontWeight="Bold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="1">
+                                <DataGrid Name="RC_GridMissing" SelectionChanged="RC_Grid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="180"/>
+                                        <DataGridTextColumn Header="Level"    Binding="{Binding Level}"    Width="120"/>
+                                        <DataGridTextColumn Header="Name"     Binding="{Binding Name}"     Width="*"/>
+                                        <DataGridTextColumn Header="ID"       Binding="{Binding Id}"       Width="80"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </Border>
+                        </Grid>
+
+                        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                            <Button Content="Select in Model" Name="RC_BtnSelect"
+                                    Click="RC_Select_Click" Style="{DynamicResource SecondaryButton}"
+                                    IsEnabled="False"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══ TAB 7: QUANTIFICATION QA ═══ -->
+            <TabItem Header="Quantification QA">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="270" MinWidth="230" MaxWidth="380"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*" MinWidth="500"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0" Background="{DynamicResource PanelColor}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Margin="20,28,20,16">
+                            <TextBlock Text="QUANTIFICATION QA" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}"/>
+                            <TextBlock Text="Concrete · Steel · Rebar" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.6"/>
+                        </StackPanel>
+
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <StackPanel Margin="20,0,20,10">
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                                    <StackPanel>
+                                        <TextBlock Text="Categories" Style="{StaticResource QQ_SectionTitle}"/>
+                                        <ListBox Name="QQ_ListCats" SelectionMode="Multiple" Height="100"
+                                                 ItemContainerStyle="{StaticResource QQ_ListBoxItem}"
+                                                 BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Background="{DynamicResource PanelColor}"
+                                                 Margin="0,0,0,12"/>
+
+                                        <TextBlock Text="Levels" Style="{StaticResource QQ_SectionTitle}"/>
+                                        <ListBox Name="QQ_ListLevels" SelectionMode="Multiple" Height="100"
+                                                 ItemContainerStyle="{StaticResource QQ_ListBoxItem}"
+                                                 BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Background="{DynamicResource PanelColor}"
+                                                 Margin="0,0,0,10"/>
+
+                                        <Button Content="Select All" Click="QQ_SelectAll_Click"
+                                                Style="{DynamicResource SecondaryButton}" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}" Margin="0,0,0,14">
+                                    <StackPanel>
+                                        <TextBlock Text="Exclude Families" Style="{StaticResource QQ_SectionTitle}"/>
+                                        <TextBlock Text="Select families to exclude from results"
+                                                   FontSize="10" Foreground="{DynamicResource TextColor}"
+                                                   Opacity="0.55" Margin="0,0,0,6" TextWrapping="Wrap"/>
+                                        <ListBox Name="QQ_ListExcludeFamilies" SelectionMode="Multiple" Height="90"
+                                                 ItemContainerStyle="{StaticResource QQ_ListBoxItem}"
+                                                 BorderThickness="1" BorderBrush="{DynamicResource BorderColor}" Background="{DynamicResource PanelColor}"
+                                                 Margin="0,0,0,10"/>
+                                        <Button Name="QQ_BtnApplyExclusion" Content="Apply Exclusion"
+                                                Click="QQ_ApplyExclusion_Click"
+                                                Style="{DynamicResource SecondaryButton}" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource Card}">
+                                    <StackPanel>
+                                        <TextBlock Text="Phase / Type Filters" Style="{StaticResource QQ_SectionTitle}"/>
+                                        <CheckBox Name="QQ_ChkExcludeExisting" Content="Exclude existing phase elements"/>
+                                        <CheckBox Name="QQ_ChkExcludePiles" Content="Exclude pile elements"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <StackPanel Grid.Row="2" Margin="20,0,20,20">
+                            <Button Content="CALCULATE" Name="QQ_BtnRun"
+                                    Click="QQ_Run_Click" Style="{DynamicResource ActionButton}"
+                                    Margin="0,0,0,8" HorizontalAlignment="Stretch"/>
+                            <Button Content="Export CSV" Name="QQ_BtnExport"
+                                    Click="QQ_Export_Click" Style="{DynamicResource SecondaryButton}"
+                                    IsEnabled="False" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                  Background="Transparent" ResizeBehavior="PreviousAndNext"/>
+
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="1*"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal"
+                                    Background="{DynamicResource PanelColor}">
+                            <Button Name="QQ_BtnTabConcrete" Content="Concrete (m³)"
+                                    Style="{DynamicResource QQ_NavButton}" Tag="Selected"
+                                    Click="QQ_NavButton_Click"/>
+                            <Button Name="QQ_BtnTabSteel" Content="Steel (kg)"
+                                    Style="{DynamicResource QQ_NavButton}"
+                                    Click="QQ_NavButton_Click"/>
+                            <Button Name="QQ_BtnTabRebar" Content="Rebar (kg)"
+                                    Style="{DynamicResource QQ_NavButton}"
+                                    Click="QQ_NavButton_Click"/>
+                            <Button Name="QQ_BtnTabQA" Content="QA Issues"
+                                    Style="{DynamicResource QQ_NavButton}"
+                                    Click="QQ_NavButton_Click"/>
+                        </StackPanel>
+
+                        <Border Grid.Row="1" Background="{DynamicResource PanelColor}"
+                                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,1"
+                                Padding="20,10">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Name="QQ_TxtTotalVol" Text="Concrete: —" Margin="0,0,24,0"
+                                           FontWeight="Bold" Foreground="{DynamicResource AccentColor}"/>
+                                <TextBlock Name="QQ_TxtTotalSteel" Text="Steel: —" Margin="0,0,24,0"
+                                           FontWeight="Bold" Foreground="#1A6FCF"/>
+                                <TextBlock Name="QQ_TxtTotalRebar" Text="Rebar: —" Margin="0,0,24,0"
+                                           FontWeight="Bold" Foreground="{DynamicResource TextColor}"/>
+                                <TextBlock Name="QQ_TxtQACount" Text="" Foreground="#CC3333" FontWeight="Bold"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Row="2" Name="QQ_TabConcrete" Style="{StaticResource Card}" Padding="1" Margin="20,16,20,20">
+                            <DataGrid Name="QQ_GridConcrete">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Category"    Binding="{Binding Category}" Width="165"/>
+                                    <DataGridTextColumn Header="Material"    Binding="{Binding Material}" Width="155"/>
+                                    <DataGridTextColumn Header="Level"       Binding="{Binding Level}"    Width="110"/>
+                                    <DataGridTextColumn Header="Volume (m³)" Binding="{Binding VolStr}"   Width="110"/>
+                                    <DataGridTextColumn Header="Area (m²)"  Binding="{Binding AreaStr}"  Width="95"/>
+                                    <DataGridTextColumn Header="Count"       Binding="{Binding Count}"    Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <Border Grid.Row="2" Name="QQ_TabSteel" Visibility="Collapsed" Style="{StaticResource Card}" Padding="1" Margin="20,16,20,20">
+                            <DataGrid Name="QQ_GridSteel">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Category"    Binding="{Binding Category}"    Width="165"/>
+                                    <DataGridTextColumn Header="Material"    Binding="{Binding Material}"    Width="155"/>
+                                    <DataGridTextColumn Header="Level"       Binding="{Binding Level}"       Width="110"/>
+                                    <DataGridTextColumn Header="Weight (kg)" Binding="{Binding WeightKg}"    Width="110"/>
+                                    <DataGridTextColumn Header="Weight (t)"  Binding="{Binding WeightTonne}" Width="95"/>
+                                    <DataGridTextColumn Header="Count"       Binding="{Binding Count}"       Width="70"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <Border Grid.Row="2" Name="QQ_TabRebar" Visibility="Collapsed" Style="{StaticResource Card}" Padding="1" Margin="20,16,20,20">
+                            <DataGrid Name="QQ_GridRebar">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Level"       Binding="{Binding Level}"     Width="130"/>
+                                    <DataGridTextColumn Header="&#216; (mm)" Binding="{Binding DiamStr}"   Width="80"/>
+                                    <DataGridTextColumn Header="Count"       Binding="{Binding Count}"     Width="70"/>
+                                    <DataGridTextColumn Header="Length (m)"  Binding="{Binding LengthStr}" Width="110"/>
+                                    <DataGridTextColumn Header="Weight (kg)" Binding="{Binding WeightStr}" Width="110"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+
+                        <Grid Grid.Row="2" Name="QQ_TabQA" Visibility="Collapsed">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="1*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <Border Grid.Row="0" Style="{StaticResource Card}" Padding="1" Margin="20,16,20,0">
+                                <DataGrid Name="QQ_GridQA" SelectionChanged="QQ_QAGrid_SelectionChanged">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Severity"  Binding="{Binding Severity}" Width="80"/>
+                                        <DataGridTextColumn Header="Category"  Binding="{Binding Category}" Width="160"/>
+                                        <DataGridTextColumn Header="Level"     Binding="{Binding Level}"    Width="100"/>
+                                        <DataGridTextColumn Header="Element"   Binding="{Binding Name}"     Width="200"/>
+                                        <DataGridTextColumn Header="Problem"   Binding="{Binding Problem}"  Width="280"/>
+                                    </DataGrid.Columns>
+                                    <DataGrid.RowStyle>
+                                        <Style TargetType="DataGridRow">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Severity}" Value="High">
+                                                    <Setter Property="Background" Value="#10FF0000"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Severity}" Value="Medium">
+                                                    <Setter Property="Background" Value="#10FF5F00"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.RowStyle>
+                                </DataGrid>
+                            </Border>
+                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="20,10,20,16">
+                                <Button Content="Select in Model" Name="QQ_BtnQASelect" Click="QQ_QASelect_Click"
+                                        Style="{DynamicResource SecondaryButton}"
+                                        Margin="0,0,10,0" IsEnabled="False"/>
+                                <Button Content="Assign Material..." Name="QQ_BtnAssignMaterial"
+                                        Click="QQ_AssignMaterial_Click"
+                                        Style="{DynamicResource ActionButton}"
+                                        IsEnabled="False"/>
+                                <TextBlock Name="QQ_TxtQASelection" Text="" Margin="16,0,0,0"
+                                           VerticalAlignment="Center" FontSize="11"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.7"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Shared loading overlay (NOSAWindow standard) -->
+        <Grid Grid.Row="1" Name="LoadingPanel" Visibility="Collapsed"
+              Background="#CCFAFAFA" Panel.ZIndex="100">
+            <Border Style="{DynamicResource Card}" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                    <ProgressBar Name="ProcessBar" Width="220" Height="10" IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="24,10">
+            <CheckBox Name="ChkDarkMode" Content="Dark mode" Click="Theme_Toggled"
+                      Foreground="{DynamicResource TextColor}"/>
+        </Border>
+    </Grid>
+</Window>

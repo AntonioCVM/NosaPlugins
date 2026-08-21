@@ -1,8 +1,8 @@
 {
-  "coord_mode": "coordination", 
+  "param_x": "X coordinate", 
   "param_y": "Y coordinate", 
-  "update_rotation": true, 
-  "active": true, 
+  "coord_mode": "coordination", 
   "param_rot": "Rotation angle", 
-  "param_x": "X coordinate"
+  "update_rotation": true, 
+  "active": false
 }

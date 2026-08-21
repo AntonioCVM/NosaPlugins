@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from Autodesk.Revit import DB
-from pyrevit import forms, revit
+from pyrevit import forms, DB, revit
 import os
 import sys
 import System.Windows
@@ -35,6 +34,7 @@ class DimensionWallsWindow(NOSAWindow):
         self.all_views = []
         self.visible_views = []
 
+        # Init list before XAML loads to be safe
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml_file, 'dimension_walls')
         self.ChkDarkMode.IsChecked = self.dark_mode
@@ -43,7 +43,7 @@ class DimensionWallsWindow(NOSAWindow):
         self.LoadDimensionTypes()
         self.LoadViews()
 
-        # Events
+        # Events (Defensive)
         self.TxtFilterViews.TextChanged += self.FilterViews_Changed
 
     def LoadDimensionTypes(self):
@@ -156,5 +156,3 @@ class DimensionWallsWindow(NOSAWindow):
         self.OverlayProgress.Visibility = System.Windows.Visibility.Collapsed
         forms.alert("Created {} dimensions.\n(Failed/Skipped: {})".format(total_created, total_failed))
         self.Close()
-
-

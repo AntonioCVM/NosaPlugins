@@ -107,6 +107,7 @@ class NOSAWindow(WPFWindow):
         self._plugin_key = plugin_key
         try:
             WPFWindow.__init__(self, xaml_path)
+            self._merge_shared_theme()
             self._config_file = os.path.join(_CONFIGS_ROOT, '_{}.json'.format(plugin_key))
             self._ensure_config_dir()
             self.dark_mode = ThemeManager.load_theme()
@@ -120,6 +121,120 @@ class NOSAWindow(WPFWindow):
                 u'{} — XAML / window load failed:\n{}'.format(plugin_key, e),
                 title=u'NOSA — Window Error')
             raise
+
+    # ------------------------------------------------------------------
+    # Shared visual style (NosaTheme.xaml)
+    # ------------------------------------------------------------------
+
+    def _merge_shared_theme(self):
+        """
+        Merge lib/nosa_utils/NosaTheme.xaml into this window's own
+        Resources, so every NOSAWindow-based plugin picks up the shared
+        button/DataGrid/checkbox/etc. styling without having to paste the
+        style block into each plugin's own ui.xaml.
+
+        WPF resolves a resource key by checking the window's own Resources
+        first and only falling back to MergedDictionaries — so a plugin
+        that already defines its own Style for the same TargetType/key
+        keeps that local one untouched; this only fills gaps.
+
+        Deliberately swallows every error here rather than letting it
+        propagate: a plugin must still open normally (with whatever
+        styling it already had) if the shared theme file is missing,
+        moved, or fails to parse for any reason. Never let a shared
+        cosmetic resource take down an actual working tool.
+        """
+        try:
+            theme_path = os.path.join(os.path.dirname(__file__), 'NosaTheme.xaml')
+            if not os.path.exists(theme_path):
+                return
+            import clr
+            clr.AddReference('PresentationFramework')
+            from System.Windows.Markup import XamlReader
+            from System.IO import FileStream, FileMode, FileAccess
+            stream = FileStream(theme_path, FileMode.Open, FileAccess.Read)
+            try:
+                shared_dict = XamlReader.Load(stream)
+            finally:
+                stream.Close()
+            self.Resources.MergedDictionaries.Add(shared_dict)
+            self._apply_shared_control_styles(shared_dict)
+            # Second pass after the window is actually shown: some plugins
+            # populate ListBox/DataGrid items (which generate their own
+            # ComboBox/CheckBox instances from a DataTemplate) only after
+            # __init__ runs, so those didn't exist yet for the first walk
+            # above. Re-running once Loaded fires catches those too, and
+            # is cheap insurance against the first pass ever missing
+            # anything for whatever reason.
+            self._nosa_shared_dict = shared_dict
+            self.Loaded += self._reapply_shared_control_styles_on_load
+        except Exception as e:
+            logger.debug("NOSAWindow: could not merge shared theme ({}): {}".format(
+                self._plugin_key, e))
+
+    def _reapply_shared_control_styles_on_load(self, sender, args):
+        try:
+            self._apply_shared_control_styles(self._nosa_shared_dict)
+        except Exception as e:
+            logger.debug("NOSAWindow: reapply on Loaded failed ({}): {}".format(
+                self._plugin_key, e))
+
+    def _apply_shared_control_styles(self, shared_dict):
+        """
+        Belt-and-braces on top of the MergedDictionaries.Add() above.
+        WPF is supposed to resolve implicit (TargetType-only) styles
+        dynamically even for elements created before the merge, but that
+        wasn't reliably reaching Button in practice across plugins here —
+        so this walks the window's logical tree and explicitly assigns
+        the shared style to any Button / TextBox / ComboBox / CheckBox /
+        RadioButton / DataGrid that doesn't already have its own local
+        Style set.
+
+        Only ever touches the Style property, and only when the element
+        has no local Style value of its own (ReadLocalValue == Unset) —
+        a plugin's own explicit Style="{StaticResource ...}" on a specific
+        button is left completely alone. Style changes rendering only:
+        Click handlers, bindings, IsChecked, Content — everything that
+        makes a control actually DO something — live on separate
+        properties this never reads or writes.
+        """
+        try:
+            from System.Windows.Controls import Button, TextBox, ComboBox, CheckBox, RadioButton, DataGrid
+            from System.Windows import LogicalTreeHelper, DependencyObject, FrameworkElement, DependencyProperty
+
+            target_types = [Button, TextBox, ComboBox, CheckBox, RadioButton, DataGrid]
+            styles = []
+            for t in target_types:
+                try:
+                    s = shared_dict[t]
+                except Exception:
+                    s = None
+                if s is not None:
+                    styles.append((t, s))
+            if not styles:
+                return
+
+            def visit(node):
+                for t, style in styles:
+                    if isinstance(node, t):
+                        try:
+                            if node.ReadLocalValue(FrameworkElement.StyleProperty) == DependencyProperty.UnsetValue:
+                                node.Style = style
+                        except Exception:
+                            pass
+                        break
+                if isinstance(node, DependencyObject):
+                    try:
+                        for child in LogicalTreeHelper.GetChildren(node):
+                            if child is not None:
+                                visit(child)
+                    except Exception:
+                        pass
+
+            visit(self)
+        except Exception as e:
+            logger.debug("NOSAWindow: could not apply shared control styles ({}): {}".format(
+                self._plugin_key, e))
 
     # ------------------------------------------------------------------
     # Window size persistence (resizable windows only)

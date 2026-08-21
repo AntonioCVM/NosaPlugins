@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-from Autodesk.Revit import DB
-from pyrevit import forms, revit
+from pyrevit import forms, DB, revit
 import os
 import sys
 import System.Windows
@@ -178,5 +177,3 @@ class CopyTemplatesWindow(NOSAWindow):
         self.OverlayProgress.Visibility = System.Windows.Visibility.Collapsed
         forms.alert("Copied overrides to {} views.".format(count))
         self.Close()
-
-
