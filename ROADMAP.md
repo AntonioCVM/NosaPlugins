@@ -78,7 +78,13 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F3 — Numeración y marcado ⏳ Pending
+## F3 — Numeración y marcado 🚧 IN PROGRESS
+
+**Progreso actual:**
+- ✅ `lib/rebar_marking.py` creado (deduplicate_and_mark, compute_total_length_mm, assign_layers_and_lengths, renumber_batch)
+- ✅ Integrado en `rebar_batch.py` (paso 3: marking tras provenance, antes de Assimilate)
+- ✅ `tests/test_rebar_marking.py` creado (6/6 tests puros PASS)
+- ⏳ Pendiente: UI cabecera proyecto, actualizar perfiles JSON, etiquetado Layer en generadores
 
 **Entregables:**
 - `lib/rebar_marking.py` (dedup, mark_format, capas, Total_Length)
