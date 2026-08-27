@@ -19,8 +19,8 @@ wired into floor_rebar.py's main grid).
 Meant to be loaded in isolation the same way every other module in
 this plugin is:
 
-    import imp
-    slab_topology = imp.load_source(
+    from nosa_utils.bootstrap import load_module
+    slab_topology = load_module(
         'slab_topology', os.path.join(os.path.dirname(__file__), 'slab_topology.py'))
 
 SCOPE

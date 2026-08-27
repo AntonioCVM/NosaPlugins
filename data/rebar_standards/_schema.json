@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "nosa-rebar-standard-profile",
+  "title": "NOSA Rebar Standard Profile",
+  "description": "PHASE F0 STUB -- fleshed out in F2 (see docs/REBARAUTOMATE_BLUEPRINT.md Part 06). Only the top-level shape and the minimum fields F2's standards.load() needs to not crash are required here; every nested block's own detailed schema (steel, cover_mm, bend, hook, anchorage, lap, stirrups, marking, schedule) is added in F2 alongside the actual EHE-08/EN-ISO-3766/BS-8666-2020 profiles.",
+  "type": "object",
+  "required": ["code", "display_name", "shape_catalog", "units"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "description": "Unique profile identifier, e.g. 'EHE-08'."
+    },
+    "display_name": { "type": "string" },
+    "revision": { "type": "string" },
+    "shape_catalog": {
+      "type": "string",
+      "description": "Which data/shape_catalogs/<id>/ this profile's shapes come from."
+    },
+    "units": { "type": "string", "enum": ["mm"] }
+  },
+  "additionalProperties": true
+}

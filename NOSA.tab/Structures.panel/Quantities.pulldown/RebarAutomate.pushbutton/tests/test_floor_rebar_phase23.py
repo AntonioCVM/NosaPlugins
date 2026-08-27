@@ -1,0 +1,529 @@
+# -*- coding: utf-8 -*-
+"""Mocked-API test for floor_rebar.py's Phase 2.3 hardening: Rebar Set
+grouping (MRA), real polygon cover offset, and dynamic leg length /
+closed-link fallback in narrow zones."""
+import math
+import os
+import sys
+import types
+import importlib.util
+
+_MM_PER_FT = 304.8
+
+
+class XYZ(object):
+    def __init__(self, x=0.0, y=0.0, z=0.0):
+        self.X, self.Y, self.Z = x, y, z
+    def __add__(self, o):
+        return XYZ(self.X + o.X, self.Y + o.Y, self.Z + o.Z)
+    def __sub__(self, o):
+        return XYZ(self.X - o.X, self.Y - o.Y, self.Z - o.Z)
+    def Multiply(self, s):
+        return XYZ(self.X * s, self.Y * s, self.Z * s)
+    def DotProduct(self, o):
+        return self.X * o.X + self.Y * o.Y + self.Z * o.Z
+    def CrossProduct(self, o):
+        return XYZ(self.Y * o.Z - self.Z * o.Y,
+                    self.Z * o.X - self.X * o.Z,
+                    self.X * o.Y - self.Y * o.X)
+    def GetLength(self):
+        return math.sqrt(self.X**2 + self.Y**2 + self.Z**2)
+    def Normalize(self):
+        L = self.GetLength()
+        if L == 0:
+            return XYZ(0, 0, 0)
+        return XYZ(self.X / L, self.Y / L, self.Z / L)
+    def DistanceTo(self, o):
+        return (self - o).GetLength()
+
+class UV(object):
+    def __init__(self, u, v):
+        self.U, self.V = u, v
+
+class BBoxUV(object):
+    def __init__(self, umin, vmin, umax, vmax):
+        self.Min = UV(umin, vmin)
+        self.Max = UV(umax, vmax)
+
+class BBoxXYZ(object):
+    def __init__(self, mn, mx):
+        self.Min, self.Max = mn, mx
+
+class PlanarFace(object):
+    pass
+
+class MockLine(object):
+    def __init__(self, p0, p1):
+        self._p0, self._p1 = p0, p1
+    def Tessellate(self):
+        return [self._p0, self._p1]
+
+def _loop_mm(points_mm, z_ft):
+    pts_ft = [XYZ(x / _MM_PER_FT, y / _MM_PER_FT, z_ft) for x, y in points_mm]
+    n = len(pts_ft)
+    return [MockLine(pts_ft[i], pts_ft[(i + 1) % n]) for i in range(n)]
+
+class FakeFace(PlanarFace):
+    def __init__(self, z_ft, normal, umin, vmin, umax, vmax, curve_loops):
+        self._z = z_ft
+        self._normal = normal
+        self._bbox = BBoxUV(umin, vmin, umax, vmax)
+        self._curve_loops = curve_loops
+    def GetBoundingBox(self):
+        return self._bbox
+    def ComputeNormal(self, uv):
+        return self._normal
+    def Evaluate(self, uv):
+        return XYZ(uv.U, uv.V, self._z)
+    def GetEdgesAsCurveLoops(self):
+        return self._curve_loops
+
+class Solid(object):
+    def __init__(self, faces, volume=1.0):
+        self.Faces = faces
+        self.Volume = volume
+
+class Options(object):
+    def __init__(self):
+        self.ComputeReferences = False
+        self.DetailLevel = None
+
+class Line(object):
+    def __init__(self, p0, p1):
+        self._p0, self._p1 = p0, p1
+    @staticmethod
+    def CreateBound(p0, p1):
+        return Line(p0, p1)
+    def GetEndPoint(self, i):
+        return self._p0 if i == 0 else self._p1
+    @property
+    def Direction(self):
+        return (self._p1 - self._p0).Normalize()
+    @property
+    def Length(self):
+        return self._p0.DistanceTo(self._p1)
+    def CreateTransformed(self, transform):
+        return Line(self._p0 + transform.shift, self._p1 + transform.shift)
+
+class Transform(object):
+    def __init__(self, shift):
+        self.shift = shift
+    @staticmethod
+    def CreateTranslation(shift):
+        return Transform(shift)
+
+class FakeHost(object):
+    def __init__(self, bottom_face, top_face, width_ft, depth_ft, height_ft):
+        self._bottom_face = bottom_face
+        self._top_face = top_face
+        self._w, self._d, self._h = width_ft, depth_ft, height_ft
+        self._solid = Solid([bottom_face, top_face], volume=width_ft * depth_ft * height_ft)
+    def get_Geometry(self, opts):
+        return [self._solid]
+    def get_BoundingBox(self, view):
+        return BBoxXYZ(XYZ(0.0, 0.0, 0.0), XYZ(self._w, self._d, self._h))
+
+DB = types.ModuleType('Autodesk.Revit.DB')
+DB.XYZ = XYZ
+DB.XYZ.BasisZ = XYZ(0, 0, 1)
+DB.UV = UV
+DB.Line = Line
+DB.PlanarFace = PlanarFace
+DB.Solid = Solid
+DB.Options = Options
+DB.Transform = Transform
+DB.GeometryInstance = type('GeometryInstance', (), {})
+DB.ViewDetailLevel = types.SimpleNamespace(Fine=1)
+DB.BuiltInParameter = types.SimpleNamespace(REBAR_BAR_DIAMETER=1)
+DB.FilteredElementCollector = lambda doc: types.SimpleNamespace(
+    OfClass=lambda cls: types.SimpleNamespace(ToElements=lambda: []))
+
+DBS = types.ModuleType('Autodesk.Revit.DB.Structure')
+class _NoRebarHostData(object):
+    @staticmethod
+    def GetRebarHostData(host):
+        raise RuntimeError('not mocked')
+DBS.RebarHostData = _NoRebarHostData
+DBS.RebarBarType = object
+DBS.RebarShape = object
+DBS.RebarStyle = types.SimpleNamespace(Standard=1, StirrupTie=2)
+DBS.RebarHookOrientation = types.SimpleNamespace(Left=1, Right=2)
+DBS.RebarHookType = object
+DB.Structure = DBS
+
+autodesk = types.ModuleType('Autodesk')
+revit_mod = types.ModuleType('Autodesk.Revit')
+autodesk.Revit = revit_mod
+revit_mod.DB = DB
+sys.modules['Autodesk'] = autodesk
+sys.modules['Autodesk.Revit'] = revit_mod
+sys.modules['Autodesk.Revit.DB'] = DB
+sys.modules['Autodesk.Revit.DB.Structure'] = DBS
+sys.modules['System.Collections.Generic'] = types.SimpleNamespace(List=lambda t: (lambda items: list(items)))
+
+_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+
+spec_re = importlib.util.spec_from_file_location('re_engine', _LIB + r'\rebar_engine.py')
+re_engine = importlib.util.module_from_spec(spec_re)
+sys.modules['re_engine'] = re_engine
+spec_re.loader.exec_module(re_engine)
+
+spec_fr = importlib.util.spec_from_file_location('footing_rebar_mod', _LIB + r'\footing_rebar.py')
+footing_rebar_mod = importlib.util.module_from_spec(spec_fr)
+sys.modules['footing_rebar_mod'] = footing_rebar_mod
+spec_fr.loader.exec_module(footing_rebar_mod)
+footing_rebar_mod.re_engine = re_engine
+footing_rebar_mod._ensure_engine = lambda: re_engine
+
+spec_topo = importlib.util.spec_from_file_location('slab_topology', _LIB + r'\slab_topology.py')
+slab_topology = importlib.util.module_from_spec(spec_topo)
+sys.modules['slab_topology'] = slab_topology
+spec_topo.loader.exec_module(slab_topology)
+
+spec_flr = importlib.util.spec_from_file_location('floor_rebar', _LIB + r'\floor_rebar.py')
+floor_rebar = importlib.util.module_from_spec(spec_flr)
+sys.modules['floor_rebar'] = floor_rebar
+spec_flr.loader.exec_module(floor_rebar)
+floor_rebar.footing_rebar_mod = footing_rebar_mod
+floor_rebar._ensure_footing_rebar = lambda: footing_rebar_mod
+floor_rebar.re_engine = re_engine
+floor_rebar._ensure_engine = lambda: re_engine
+floor_rebar.slab_topology = slab_topology
+floor_rebar._ensure_topology = lambda: slab_topology
+
+doc = None
+
+
+def make_rect_floor(width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0, holes_mm=None):
+    holes_mm = holes_mm or []
+    w_ft, d_ft, h_ft = width_mm / _MM_PER_FT, depth_mm / _MM_PER_FT, thickness_mm / _MM_PER_FT
+    outer = [(0.0, 0.0), (width_mm, 0.0), (width_mm, depth_mm), (0.0, depth_mm)]
+    bottom_loops = [_loop_mm(outer, 0.0)] + [_loop_mm(h, 0.0) for h in holes_mm]
+    top_loops = [_loop_mm(outer, h_ft)] + [_loop_mm(h, h_ft) for h in holes_mm]
+    bottom = FakeFace(0.0, XYZ(0, 0, -1), 0.0, 0.0, w_ft, d_ft, bottom_loops)
+    top = FakeFace(h_ft, XYZ(0, 0, 1), 0.0, 0.0, w_ft, d_ft, top_loops)
+    return FakeHost(bottom, top, w_ft, d_ft, h_ft)
+
+
+def make_l_shape_floor(thickness_mm=200.0):
+    h_ft = thickness_mm / _MM_PER_FT
+    outer = [(0, 0), (5000, 0), (5000, 2000), (3000, 2000), (3000, 3000), (0, 3000)]
+    bottom = FakeFace(0.0, XYZ(0, 0, -1), 0.0, 0.0, 5000.0 / _MM_PER_FT, 3000.0 / _MM_PER_FT,
+                       [_loop_mm(outer, 0.0)])
+    top = FakeFace(h_ft, XYZ(0, 0, 1), 0.0, 0.0, 5000.0 / _MM_PER_FT, 3000.0 / _MM_PER_FT,
+                    [_loop_mm(outer, h_ft)])
+    return FakeHost(bottom, top, 5000.0 / _MM_PER_FT, 3000.0 / _MM_PER_FT, h_ft)
+
+
+# ── Test 1: plain rectangle -> the ENTIRE main grid groups into Sets ───
+host = make_rect_floor(width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0)
+result = floor_rebar.build_floor_reinforcement(
+    doc, host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0)
+along_x = result['bottom_mat']['along_x']
+assert len(along_x['bars']) == 0, "a plain rectangle should produce ZERO individual bars"
+assert len(along_x['sets']) == 1, "every row is identical -> exactly ONE Rebar Set"
+print("build_floor_reinforcement (rectangle): entire B1 direction is ONE Rebar Set, "
+      "zero individual bars — MRA-friendly: OK")
+
+# ── Test 2: real cover offset — bars respect cover on the CHAMFERED edge ──
+host_l = make_l_shape_floor()
+result_l = floor_rebar.build_floor_reinforcement(
+    doc, host_l, bottom_cover_mm=40.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=250.0)
+along_x_l = result_l['bottom_mat']['along_x']
+all_bars_l = along_x_l['bars'] + along_x_l['sets']
+for b in all_bars_l:
+    line = b['curves'][0]
+    x0 = line.GetEndPoint(0).X * _MM_PER_FT
+    x1 = line.GetEndPoint(1).X * _MM_PER_FT
+    y = line.GetEndPoint(0).Y * _MM_PER_FT
+    if y > 2000.0:
+        assert x1 <= 3000.0 - 40.0 + 1e-3, \
+            "bar violates real cover on the chamfered notch edge (must be >= 40mm inside it)"
+print("build_floor_reinforcement (L-shape): real polygon cover offset keeps bars "
+      ">= cover away from the chamfered edge, not just axis-inset: OK")
+
+# ── Test 3: large hole — grouping still happens either side of it ──────
+host_hole = make_rect_floor(width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0,
+                             holes_mm=[[(2500, 1500), (3500, 1500), (3500, 2500), (2500, 2500)]])
+result_hole = floor_rebar.build_floor_reinforcement(
+    doc, host_hole, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0)
+along_x_hole = result_hole['bottom_mat']['along_x']
+# axis-aligned rectangular hole -> every row is EITHER "full width" or "split in 2",
+# each a uniform run of its own -> should still be almost entirely Sets, few/no individual bars
+assert len(along_x_hole['sets']) >= 2, "expected at least 2 sets (above/below vs through the hole)"
+assert len(along_x_hole['bars']) <= 2, \
+    "an axis-aligned hole should produce at most a couple of individual bars, not thousands"
+print("build_floor_reinforcement (large rectangular hole): grouping still produces "
+      "Rebar Sets on both sides of the hole, negligible individual-bar count: OK")
+
+# ── Test 4 (Phase 3.5 item 5): ONE continuous Set per polygon EDGE ──────
+# A wide-open 6000x4000 rectangle: X-anchor U-bars (B1/T1) sit on the
+# LEFT/RIGHT edges (they run along Y); Y-anchor (B2/T2) sit on the
+# TOP/BOTTOM edges (they run along X). Each edge must become exactly
+# ONE continuous Rebar Set spanning corner-to-corner (minus the
+# corner-inset margin at each end), NOT a chain of per-row fragments.
+result_closure = floor_rebar.build_floor_reinforcement(
+    doc, host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=25.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0,
+    include_perimeter_closure_ubars=True,
+    x_anchor_ubar_dia_mm=8.0, x_anchor_ubar_spacing_mm=200.0,
+    y_anchor_ubar_dia_mm=8.0, y_anchor_ubar_spacing_mm=200.0)
+closure = result_closure['perimeter_closure_ubars']
+nominal_leg_mm = 40.0 * 8.0  # default_anchorage_length_mm(8mm) = 320mm
+cover_mm = 25.0  # the outer boundary is cover-offset BEFORE the edges are walked
+assert len(closure['x_bars']['sets']) == 2 and closure['x_bars']['bars'] == [], \
+    "the left AND right edges (4000mm each) must each be exactly ONE Set — no fragments, no loose bars"
+assert len(closure['y_bars']['sets']) == 2 and closure['y_bars']['bars'] == [], \
+    "the top AND bottom edges (6000mm each) must each be exactly ONE Set"
+for s in closure['x_bars']['sets']:
+    assert s['style'] is None
+    assert abs(s['array_length_mm'] - ((4000.0 - 2 * cover_mm) - 2 * nominal_leg_mm)) < 1.0, \
+        "the Set must span the edge's own (cover-offset) length minus the corner inset at each end"
+for s in closure['y_bars']['sets']:
+    assert s['style'] is None
+    assert abs(s['array_length_mm'] - ((6000.0 - 2 * cover_mm) - 2 * nominal_leg_mm)) < 1.0
+print("build_floor_reinforcement (closure U-bars, wide floor): each polygon "
+      "edge becomes exactly ONE continuous Rebar Set corner-to-corner, not a "
+      "chain of scanline fragments: OK")
+
+# ── Test 4b: an L-shaped (non-convex) floor also closes with continuous ──
+# edges, including around its own reflex/notch corner — no fragmentation.
+l_host = make_l_shape_floor(thickness_mm=200.0)
+result_l = floor_rebar.build_floor_reinforcement(
+    doc, l_host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=25.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0,
+    include_perimeter_closure_ubars=True,
+    x_anchor_ubar_dia_mm=8.0, x_anchor_ubar_spacing_mm=200.0,
+    y_anchor_ubar_dia_mm=8.0, y_anchor_ubar_spacing_mm=200.0)
+l_closure = result_l['perimeter_closure_ubars']
+# the L-shape's outer loop has 6 edges (3 X-anchor "vertical" ones, 3
+# Y-anchor "horizontal" ones) — every edge long enough for the corner
+# inset (320mm) becomes its own Set or individual bar; NONE should be
+# missing (a fragmented scanline would have silently dropped the notch).
+l_x_total = len(l_closure['x_bars']['sets']) + len(l_closure['x_bars']['bars'])
+l_y_total = len(l_closure['y_bars']['sets']) + len(l_closure['y_bars']['bars'])
+assert l_x_total == 3, "3 vertical edges (left, the step, and the right side of the notch)"
+assert l_y_total == 3, "3 horizontal edges (bottom, the notch shelf, and the top)"
+print("build_floor_reinforcement (L-shaped floor): every edge around a "
+      "non-convex boundary, including the reflex notch corner, gets its own "
+      "continuous closure run: OK")
+
+# ── Test 5 (Phase 3.5 item 5): narrow rib between two holes -> closed link ──
+narrow_host = make_rect_floor(
+    width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0,
+    holes_mm=[
+        [(1000, 500), (2900, 500), (2900, 3500), (1000, 3500)],
+        [(3100, 500), (5000, 500), (5000, 3500), (3100, 3500)],
+    ])
+# the rib between the two holes is only 200mm wide (2900 to 3100) — a
+# full 320mm leg from EITHER hole's own facing edge would cross into
+# the OTHER hole; the material-containment check (not a shrunk leg)
+# must catch this and fall back to a closed link on those facing edges.
+result_narrow = floor_rebar.build_floor_reinforcement(
+    doc, narrow_host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=25.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0,
+    include_perimeter_closure_ubars=True,
+    x_anchor_ubar_dia_mm=8.0, x_anchor_ubar_spacing_mm=200.0,
+    y_anchor_ubar_dia_mm=8.0, y_anchor_ubar_spacing_mm=200.0)
+x_closure_narrow = result_narrow['perimeter_closure_ubars']['x_bars']
+all_x_entries_narrow = x_closure_narrow['sets'] + x_closure_narrow['bars']
+link_entries = [e for e in all_x_entries_narrow if e.get('style') == 'StirrupTie']
+assert len(link_entries) >= 2, \
+    "both hole edges facing the 200mm rib must fall back to a closed link"
+for e in link_entries:
+    assert len(e['curves']) == 4, "a closed link is a 4-segment closed rectangle"
+    xs = set(round(c.GetEndPoint(i).X * _MM_PER_FT, 1) for c in e['curves'] for i in (0, 1))
+    assert any(2850.0 < x < 3150.0 for x in xs), \
+        "the closed link must sit right at the narrow rib, not elsewhere on the hole"
+print("build_floor_reinforcement (200mm-wide rib between two holes): the "
+      "material-containment check catches the WOULD-BE leg collision and "
+      "falls back to a closed link instead of colliding U-bars: OK")
+
+# ── Test 6: every open closure U-bar's leg is the FULL nominal length ──
+y_closure_narrow = result_narrow['perimeter_closure_ubars']['y_bars']
+all_y_entries = y_closure_narrow['sets'] + y_closure_narrow['bars']
+for e in all_x_entries_narrow + all_y_entries:
+    if e.get('style') == 'StirrupTie':
+        continue
+    # an open U-bar chain's legs are curves[0] and curves[-1]
+    leg0 = e['curves'][0]
+    leg_len_mm = leg0.GetEndPoint(0).DistanceTo(leg0.GetEndPoint(1)) * _MM_PER_FT
+    assert abs(leg_len_mm - nominal_leg_mm) < 1e-3, \
+        "every open U-bar's leg must be EXACTLY the full nominal length, never shrunk"
+print("build_floor_reinforcement: every open closure U-bar's leg is exactly "
+      "the full 40xdiameter nominal length — never a shrunk/degenerate leg: OK")
+
+# ── Test 7 (Phase 2.4 item 3): narrow-zone main bar suppression ────────
+# The 200mm gap between the two holes (X:2900-3100) is narrower than
+# 2 x 40 x 8mm = 640mm -> gets a closed link on the X-anchor closure
+# scan, so the along_x main grid must NOT also generate a redundant
+# straight bar spanning that same narrow X-interval.
+along_x_narrow = result_narrow['bottom_mat']['along_x']
+for b in along_x_narrow['bars'] + along_x_narrow['sets']:
+    line = b['curves'][0] if b['curves'][0].Length else b['curves'][-1]
+    x0 = line.GetEndPoint(0).X * _MM_PER_FT
+    x1 = line.GetEndPoint(1).X * _MM_PER_FT
+    width = abs(x1 - x0)
+    assert not (1.0 < width < 640.0 and 2850.0 < min(x0, x1) < 2950.0), \
+        "a redundant sliver main bar was generated inside the narrow closed-link zone"
+print("build_floor_reinforcement (narrow zone + closure U-bars active): no "
+      "redundant sliver main bar generated inside the closed-link zone — "
+      "'basura' bug fixed: OK")
+
+# ── Test 8: WITHOUT closure U-bars active, the narrow zone keeps its normal bar ──
+result_no_closure = floor_rebar.build_floor_reinforcement(
+    doc, narrow_host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0)
+along_x_no_closure = result_no_closure['bottom_mat']['along_x']
+assert len(along_x_no_closure['bars']) + len(along_x_no_closure['sets']) > 0
+print("build_floor_reinforcement (narrow zone, closure U-bars OFF): main grid "
+      "still reinforces the narrow strip normally — suppression only applies "
+      "when a closed link actually replaces it: OK")
+
+# ── Test 9 (Phase 2.5 item 2): every grouped Set carries materialized_bars ──
+# so a failed SetLayoutAsMaximumSpacing propagation can be rebuilt via
+# create_freeform_group instead of silently staying "Layout Rule: Single".
+for s in along_x['sets']:
+    assert 'materialized_bars' in s and len(s['materialized_bars']) >= 2
+    for mb in s['materialized_bars']:
+        assert 'curves' in mb and 'normal' in mb
+for s in closure['x_bars']['sets'] + closure['y_bars']['sets']:
+    assert 'materialized_bars' in s and len(s['materialized_bars']) >= 2
+print("build_floor_reinforcement: every grouped Set (main grid AND closure "
+      "U-bars) carries materialized_bars for the Set-to-FreeForm fallback "
+      "cascade — guarantees zero loose bars: OK")
+
+# ── Test 10 (Phase 2.6 "flying bars"): Set propagation direction ───────
+# Every SET's array_length_mm must span an interval that stays WITHIN
+# the floor's own footprint — a Set propagating the wrong way (the
+# handedness bug) would still report a POSITIVE array_length_mm (it's
+# just abs(last-first)), so the real diagnostic is: every MATERIALIZED
+# bar in the run must itself lie strictly inside the offset boundary
+# (bottom_outer's own bbox, inset by the residual half-diameter) — a
+# bar propagated backwards would land OUTSIDE it.
+xmin, xmax, ymin, ymax = 0.0, 6000.0, 0.0, 4000.0
+for direction_key, dia in (('along_x', 10.0), ('along_y', 10.0)):
+    grouped = result['bottom_mat'][direction_key]
+    for s in grouped['sets']:
+        for mb in s['materialized_bars']:
+            for curve in mb['curves']:
+                for i in (0, 1):
+                    p = curve.GetEndPoint(i)
+                    x_mm, y_mm = p.X * _MM_PER_FT, p.Y * _MM_PER_FT
+                    assert xmin - 1.0 <= x_mm <= xmax + 1.0, \
+                        "%s materialized bar X=%.1f flies outside [%.1f,%.1f] (handedness regression)" % (
+                            direction_key, x_mm, xmin, xmax)
+                    assert ymin - 1.0 <= y_mm <= ymax + 1.0, \
+                        "%s materialized bar Y=%.1f flies outside [%.1f,%.1f] (handedness regression)" % (
+                            direction_key, y_mm, ymin, ymax)
+print("build_floor_reinforcement (rectangle): every materialized Set bar, in "
+      "BOTH directions, stays strictly within the floor's footprint — no "
+      "'flying bars' from a backwards propagation normal: OK")
+
+# ── Test 11 (UPDATED — PHASE 3.5.8 item 1): top/bottom mats share ONE
+# LATERAL (plan) cover boundary, independent of their own Z-direction
+# face covers ───────────────────────────────────────────────────────
+# Originally this test asserted the top mat's PLAN boundary used its
+# own top_cover_mm (60mm) while the bottom mat used bottom_cover_mm
+# (25mm) — i.e. two DIFFERENT lateral insets derived from two
+# DIFFERENT vertical face covers. That was exactly the bug Phase 3.5.8
+# item 1 fixed: a slab has ONE physical side/edge cover regardless of
+# which mat you're placing; the vertical Z cover differs between top
+# and bottom mats (correctly), but the X/Y plan inset must not. Both
+# mats' plan boundaries are now resolved from the SAME native
+# "Exterior" side cover (falling back to bottom_cover_mm when no native
+# value is set on the host, as here) — so both mats' bars share the
+# SAME lateral inset (25mm's fallback), not two different ones.
+result_diff_cover = floor_rebar.build_floor_reinforcement(
+    doc, host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=60.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0)
+along_x_top = result_diff_cover['top_mat']['along_x']
+for s in along_x_top['sets'] + along_x_top['bars']:
+    for curve in s['curves']:
+        for i in (0, 1):
+            p = curve.GetEndPoint(i)
+            x_mm = p.X * _MM_PER_FT
+            assert 25.0 - 1.0 <= x_mm <= 6000.0 - 25.0 + 1.0, \
+                "top mat bar at X=%.1f should respect the SHARED lateral cover " \
+                "(25mm fallback), not its own top_cover_mm (60mm)" % x_mm
+print("build_floor_reinforcement (top cover 60mm != bottom cover 25mm): top and "
+      "bottom mats now share ONE lateral plan boundary (native side cover, not "
+      "each mat's own Z-direction face cover): OK")
+
+# ── Test 12: an interval collapsed to empty by inset -> zero ghost bars ──
+# Uses a perfectly normal, well-formed 6000x4000 floor (valid offset
+# polygon) but an absurdly large own-diameter so material_intervals'
+# own residual inset (dia/2) collapses every row's interval to empty —
+# isolating "inset consumes the whole interval" from a degenerate
+# offset-polygon edge case (a tiny floor with cover exceeding its own
+# width, which is a different, unrealistic failure mode).
+result_collapsed = floor_rebar.build_floor_reinforcement(
+    doc, host, bottom_cover_mm=25.0, bottom_dia_x_mm=6000.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0)
+along_x_collapsed = result_collapsed['bottom_mat']['along_x']
+assert along_x_collapsed['sets'] == [] and along_x_collapsed['bars'] == []
+print("build_floor_reinforcement: an interval collapsed to empty by its own "
+      "inset produces ZERO sets/bars, never a ghost Set with an empty shape: OK")
+
+# ── Test 13 (Phase 3.5 item 5 regression): edge-based leg is STILL binary ──
+# A single short rectangular hole whose own edges are shorter than
+# 2 x nominal_leg_mm (320mm) must fall back to a closed link on those
+# edges, never a shrunk leg — the SAME binary guarantee as before,
+# now enforced by _build_edge_ubars' edge-length check instead of
+# _closure_treatments' interval-width check.
+tiny_hole_host = make_rect_floor(
+    width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0,
+    holes_mm=[[(2000, 1500), (2500, 1500), (2500, 2000), (2000, 2000)]])  # 500x500mm hole
+result_tiny_hole = floor_rebar.build_floor_reinforcement(
+    doc, tiny_hole_host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=25.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0,
+    include_perimeter_closure_ubars=True,
+    x_anchor_ubar_dia_mm=8.0, x_anchor_ubar_spacing_mm=200.0,
+    y_anchor_ubar_dia_mm=8.0, y_anchor_ubar_spacing_mm=200.0)
+tiny_closure = result_tiny_hole['perimeter_closure_ubars']
+tiny_hole_entries = (tiny_closure['x_bars']['sets'] + tiny_closure['x_bars']['bars']
+                     + tiny_closure['y_bars']['sets'] + tiny_closure['y_bars']['bars'])
+# every edge of this 500mm hole (each side ~550mm after cover growth)
+# is shorter than 2*320=640mm -> ALL 4 of its own edges must be
+# closed links, and every OPEN entry anywhere (from the outer
+# boundary, which is plenty large) must carry the FULL nominal leg,
+# never a fraction of it.
+hole_area_entries = [e for e in tiny_hole_entries
+                      if e.get('style') == 'StirrupTie' and
+                      any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2600.0
+                          for c in e['curves'] for i in (0, 1))]
+assert len(hole_area_entries) == 4, \
+    "all 4 edges of a hole smaller than 2x the nominal leg must become closed links"
+for e in tiny_hole_entries:
+    if e.get('style') == 'StirrupTie':
+        continue
+    leg0 = e['curves'][0]
+    leg_len_mm = leg0.GetEndPoint(0).DistanceTo(leg0.GetEndPoint(1)) * _MM_PER_FT
+    assert abs(leg_len_mm - 320.0) < 1e-3, \
+        "every non-link U-bar leg must be the FULL nominal length, never shrunk"
+print("_build_edge_ubars: leg length is still strictly binary (full nominal_leg_mm "
+      "or closed link) under the edge-based rewrite — a hole smaller than 2x the "
+      "leg length closes entirely with links, no shrunk legs anywhere: OK")
+
+# ── Test 14 (Phase 3.1 item 3 regression): mm coordinates are rounded ────
+assert floor_rebar._round_mm(1499.999999999997) == 1500.0, \
+    "floating-point noise a few ULPs off a clean mm value must be squashed before curve construction"
+assert floor_rebar._round_mm(123.456) == 123.456
+print("_round_mm: sub-micron floating-point drift from upstream topology math is "
+      "squashed to a clean value before any curve endpoint is built — Shape-00 "
+      "recognition failures from near-perpendicular/near-coincident noise fixed: OK")
+
+print("\nALL FLOOR_REBAR PHASE 2.3 CHECKS PASSED")

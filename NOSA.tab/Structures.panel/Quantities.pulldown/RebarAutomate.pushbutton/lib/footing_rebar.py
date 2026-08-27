@@ -4,8 +4,9 @@ NOSA.RebarAutomate — Footing Rebar (Phase 2)
 ============================================================================
 
 Category module for isolated and strip footings. Loads rebar_engine.py
-in isolation via imp.load_source (unique alias 're_engine'), matching
-this extension's established sys.modules isolation convention.
+in isolation via nosa_utils.bootstrap.load_module (unique alias
+'re_engine'), matching this extension's established sys.modules
+isolation convention.
 
 Pure geometry/math — NO UI, no direct Rebar.CreateFromCurves calls of
 its own. Every public function here returns DB.Curve objects (or lists
@@ -260,8 +261,10 @@ floor_rebar_mod = None  # populated by _ensure_floor_rebar() — Phase 3.5.7
 def _ensure_engine():
     global re_engine
     if re_engine is None:
-        import imp
-        re_engine = imp.load_source('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
+        # PHASE F0 — migrated from imp.load_source to
+        # nosa_utils.bootstrap.load_module. Registered name unchanged.
+        from nosa_utils.bootstrap import load_module
+        re_engine = load_module('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
     return re_engine
 
 
@@ -274,8 +277,8 @@ def _ensure_topology():
     assumption that ignored holes entirely."""
     global slab_topology
     if slab_topology is None:
-        import imp
-        slab_topology = imp.load_source(
+        from nosa_utils.bootstrap import load_module
+        slab_topology = load_module(
             'slab_topology', os.path.join(_HERE, 'slab_topology.py'))
     return slab_topology
 
@@ -294,8 +297,8 @@ def _ensure_floor_rebar():
     either function body ever runs)."""
     global floor_rebar_mod
     if floor_rebar_mod is None:
-        import imp
-        floor_rebar_mod = imp.load_source(
+        from nosa_utils.bootstrap import load_module
+        floor_rebar_mod = load_module(
             'floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
     return floor_rebar_mod
 

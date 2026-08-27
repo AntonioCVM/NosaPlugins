@@ -4,8 +4,9 @@ NOSA.RebarAutomate — Beam Rebar (Phase 2)
 ============================================================================
 
 Category module for structural framing (beams). Loads rebar_engine.py
-in isolation via imp.load_source (unique alias 're_engine'), matching
-this extension's established sys.modules isolation convention.
+in isolation via nosa_utils.bootstrap.load_module (unique alias
+'re_engine'), matching this extension's established sys.modules
+isolation convention.
 
 Pure geometry/math — NO UI, no direct Rebar.CreateFromCurves calls of
 its own. Every public function returns DB.Curve objects (or lists of
@@ -37,8 +38,13 @@ re_engine = None
 def _ensure_engine():
     global re_engine
     if re_engine is None:
-        import imp
-        re_engine = imp.load_source('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
+        # PHASE F0 — migrated from imp.load_source to
+        # nosa_utils.bootstrap.load_module (tries importlib first,
+        # falls back to imp). Relies on ui.py having already added the
+        # extension's shared lib/ to sys.path, same as this module
+        # already implicitly relied on ui.py running first.
+        from nosa_utils.bootstrap import load_module
+        re_engine = load_module('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
     return re_engine
 
 

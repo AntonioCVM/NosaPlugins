@@ -4,8 +4,9 @@ NOSA.RebarAutomate — Column Rebar (Phase 2)
 ============================================================================
 
 Category module for structural columns. Loads rebar_engine.py in
-isolation via imp.load_source (unique alias 're_engine'), matching this
-extension's established sys.modules isolation convention.
+isolation via nosa_utils.bootstrap.load_module (unique alias
+'re_engine'), matching this extension's established sys.modules
+isolation convention.
 
 Pure geometry/math — NO UI. Every public function returns DB.Curve
 objects (or lists of them) for a caller to hand to
@@ -72,8 +73,10 @@ re_engine = None
 def _ensure_engine():
     global re_engine
     if re_engine is None:
-        import imp
-        re_engine = imp.load_source('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
+        # PHASE F0 — migrated from imp.load_source to
+        # nosa_utils.bootstrap.load_module. Registered name unchanged.
+        from nosa_utils.bootstrap import load_module
+        re_engine = load_module('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
     return re_engine
 
 

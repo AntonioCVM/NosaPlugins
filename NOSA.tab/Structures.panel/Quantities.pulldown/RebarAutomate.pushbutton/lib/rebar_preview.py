@@ -6,8 +6,8 @@ NOSA.RebarAutomate — Section Preview Engine (Phase 2, redrawn Phase 2.4)
 Meant to be loaded in isolation the same way every other module in this
 plugin is:
 
-    import imp
-    rebar_preview = imp.load_source(
+    from nosa_utils.bootstrap import load_module
+    rebar_preview = load_module(
         'rebar_preview', os.path.join(os.path.dirname(__file__), 'rebar_preview.py'))
 
 A lightweight, pure-Python drawing-DATA engine for the WPF Canvas

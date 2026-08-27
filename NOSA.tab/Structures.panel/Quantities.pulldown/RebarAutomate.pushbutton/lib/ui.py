@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 
 from pyrevit import forms, revit
 from Autodesk.Revit import DB
@@ -19,24 +19,32 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.bootstrap import load_module
 
 _HERE = os.path.dirname(__file__)
-re_engine = imp.load_source('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
-footing_rebar = imp.load_source('footing_rebar', os.path.join(_HERE, 'footing_rebar.py'))
-rebar_detailing = imp.load_source('rebar_detailing', os.path.join(_HERE, 'rebar_detailing.py'))
+# PHASE F0 — migrated from imp.load_source to nosa_utils.bootstrap's
+# unified loader (tries importlib first, falls back to imp — a strict
+# superset of the old behaviour). Registered module names are UNCHANGED
+# (re_engine, footing_rebar, rebar_detailing, column_rebar, beam_rebar,
+# floor_rebar, rebar_preview) — several sibling modules cross-reference
+# each other by exactly these names via sys.modules, so renaming any of
+# them here would break those references.
+re_engine = load_module('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
+footing_rebar = load_module('footing_rebar', os.path.join(_HERE, 'footing_rebar.py'))
+rebar_detailing = load_module('rebar_detailing', os.path.join(_HERE, 'rebar_detailing.py'))
 # Phase 1 dashboard scaffold — the next three are loaded here (isolated,
-# same imp.load_source convention as the rest of this plugin) so the
-# module-wiring itself is proven end-to-end before their own phases
+# same bootstrap.load_module convention as the rest of this plugin) so
+# the module-wiring itself is proven end-to-end before their own phases
 # (2/3/4) add real logic. floor_rebar/rebar_preview are new Phase 1
 # scaffolds (NotImplementedError placeholders); column_rebar/beam_rebar
 # already existed from this plugin's very first geometry sprint but were
 # never wired into ui.py or the Set/global-bbox/Z-layering architecture
 # footings ended up with — that reconciliation is Phase 3/4's job, not
 # this one's.
-column_rebar = imp.load_source('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
-beam_rebar = imp.load_source('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
-floor_rebar = imp.load_source('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
-rebar_preview = imp.load_source('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
+column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
+beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
+floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
+rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
 
 _FOUNDATION_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFoundation))
 _FLOOR_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Floors))

@@ -5,8 +5,8 @@ NOSA.RebarAutomate — Floor/Slab Rebar (Phase 2, refactored 2.2, hardened 2.3)
 
 Category module for structural floor slabs (OST_Floors). Loads
 rebar_engine.py, footing_rebar.py and slab_topology.py in isolation via
-imp.load_source (unique aliases), matching this extension's established
-sys.modules isolation convention.
+nosa_utils.bootstrap.load_module (unique aliases), matching this
+extension's established sys.modules isolation convention.
 
 PHASE 2.2 — REAL TOPOLOGY, NOT A BOUNDING BOX (background)
 ------------------------------------------------------------------
@@ -157,16 +157,19 @@ _EDGE_EXCEPTION_TYPES = (Exception,) if System is None else (Exception, System.E
 def _ensure_engine():
     global re_engine
     if re_engine is None:
-        import imp
-        re_engine = imp.load_source('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
+        # PHASE F0 — migrated from imp.load_source to
+        # nosa_utils.bootstrap.load_module (tries importlib first,
+        # falls back to imp). Registered name unchanged.
+        from nosa_utils.bootstrap import load_module
+        re_engine = load_module('re_engine', os.path.join(_HERE, 'rebar_engine.py'))
     return re_engine
 
 
 def _ensure_footing_rebar():
     global footing_rebar_mod
     if footing_rebar_mod is None:
-        import imp
-        footing_rebar_mod = imp.load_source(
+        from nosa_utils.bootstrap import load_module
+        footing_rebar_mod = load_module(
             'footing_rebar_mod', os.path.join(_HERE, 'footing_rebar.py'))
     return footing_rebar_mod
 
@@ -174,8 +177,8 @@ def _ensure_footing_rebar():
 def _ensure_topology():
     global slab_topology
     if slab_topology is None:
-        import imp
-        slab_topology = imp.load_source(
+        from nosa_utils.bootstrap import load_module
+        slab_topology = load_module(
             'slab_topology', os.path.join(_HERE, 'slab_topology.py'))
     return slab_topology
 

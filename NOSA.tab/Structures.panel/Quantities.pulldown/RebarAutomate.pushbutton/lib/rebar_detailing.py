@@ -8,8 +8,8 @@ rebar_engine.RebarWrapper: tags (IndependentTag) and dimensions
 (doc.Create.NewDimension). Meant to be loaded in isolation the same way
 every other module in this plugin is:
 
-    import imp
-    detailing = imp.load_source(
+    from nosa_utils.bootstrap import load_module
+    detailing = load_module(
         'rebar_detailing', os.path.join(os.path.dirname(__file__), 'rebar_detailing.py'))
 
 Like rebar_engine.py, this module does NOT open its own Transaction —

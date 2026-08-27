@@ -6,8 +6,8 @@ NOSA.RebarAutomate — Core Engine (Phase 1)
 Pure backend module — NO UI. This is the shared library the future
 RebarAutomate plugin's ui.py (and any other consumer) will load via:
 
-    import imp
-    _rebar_engine = imp.load_source(
+    from nosa_utils.bootstrap import load_module
+    _rebar_engine = load_module(
         'rebar_engine', os.path.join(os.path.dirname(__file__), 'rebar_engine.py'))
 
 No script.py exists yet in this folder on purpose — this pushbutton is
