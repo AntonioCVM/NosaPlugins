@@ -85,7 +85,8 @@ def load(doc):
     path = config_path(doc)
     if os.path.isfile(path):
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            import io
+            with io.open(path, 'r', encoding='utf-8') as f:
                 loaded = json.load(f)
             if isinstance(loaded, dict):
                 data.update(loaded)
@@ -104,6 +105,7 @@ def save(doc, data):
         os.makedirs(_CONFIG_DIR)
     merged = load(doc)
     merged.update(data)
-    with open(config_path(doc), 'w', encoding='utf-8') as f:
+    import io
+    with io.open(config_path(doc), 'w', encoding='utf-8') as f:
         json.dump(merged, f, indent=2, sort_keys=True)
     return merged
