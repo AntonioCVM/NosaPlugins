@@ -1111,6 +1111,19 @@ devuelve la clase correcta por versión; CI verde.
 `Standard_Code`; "Borrar ejecución" elimina exactamente ese lote y respeta `Finalized=1`. Humo
 OK en 2024–2027.
 
+> **[NOTA DE IMPLEMENTACIÓN F1]** `_run_reinforcement`/`_run_column_reinforcement` (`ui.py`) ya
+> abrían su PROPIO `TransactionGroup` internamente — Revit no admite un `TransactionGroup`
+> anidado/concurrente en el mismo documento, así que "envolver la llamada actual en
+> TransactionGroup" (tal cual se pidió) no podía apilarse encima sin chocar. Resuelto moviendo
+> la propiedad del `TransactionGroup` a `RebarBatch.run` y retirando el `with
+> revit.TransactionGroup(...)` que antes envolvía esos dos métodos — la generación de geometría
+> en sí es idéntica (mismos `RebarWrapper`, mismas Transactions internas por Set/barra), solo
+> cambia QUIÉN posee el grupo exterior. Además, ambos métodos ahora devuelven `(created_rebars,
+> summary)` en lugar de solo `summary` — la lista de elementos creados ya se construía
+> internamente, solo no se exponía — para que `RebarBatch.run` pueda sellar la procedencia en
+> cada uno. Sin cambio de comportamiento observable: sigue siendo un único paso de deshacer por
+> lote, ahora también cubriendo el sellado.
+
 ### F2 · Perfiles de normativa — deps: F0
 
 - `standards.py` + `EHE-08.json`, `EN-ISO-3766.json`, `BS-8666-2020.json`.

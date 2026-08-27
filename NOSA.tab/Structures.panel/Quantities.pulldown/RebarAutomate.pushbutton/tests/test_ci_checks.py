@@ -46,6 +46,8 @@ for fname in sorted(os.listdir(_lib_dir)):
     if fname.endswith('.py'):
         _PY_FILES.append(os.path.join(_lib_dir, fname))
 _PY_FILES.append(os.path.join(_EXTENSION_ROOT, 'lib', 'nosa_utils', 'revit_compat.py'))
+# PHASE F1
+_PY_FILES.append(os.path.join(_EXTENSION_ROOT, 'lib', 'nosa_utils', 'shared_params.py'))
 
 # Heuristic Python-3-only constructs that are hard syntax errors under
 # IronPython 2.7. Deliberately narrow (see module docstring).

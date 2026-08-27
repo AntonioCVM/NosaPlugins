@@ -608,6 +608,28 @@
                                FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,16"/>
 
+                    <!-- PHASE F1 — basic batch manager: one row per batch_id found
+                         among this plugin's own elements (rebar_batch.RebarBatch.
+                         list_batches). "Select in Model" / "Delete Batch" act on
+                         the currently selected row. -->
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Batch Manager" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBlock Text="Every reinforcement run creates one batch — select a row below to select or delete everything from that run."
+                                       FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                            <ListBox Name="LstBatches" Height="120" Margin="0,0,0,8"/>
+                            <UniformGrid Columns="3">
+                                <Button Name="BtnRefreshBatches" Content="Refresh"
+                                        Click="RefreshBatches_Click" Margin="0,0,4,0"/>
+                                <Button Name="BtnSelectBatch" Content="Select in Model"
+                                        Click="SelectBatch_Click" Margin="4,0,4,0"/>
+                                <Button Name="BtnDeleteBatch" Content="Delete Batch"
+                                        Click="DeleteBatch_Click" Margin="4,0,0,0"/>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Schedule Generation" Style="{StaticResource RA_SectionTitle}"/>

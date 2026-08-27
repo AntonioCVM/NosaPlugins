@@ -11,6 +11,7 @@ import System.Windows.Media as SWM
 import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
 from System.Windows.Media import SolidColorBrush, Color
+from System.Collections.Generic import List
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', 'lib'))
@@ -20,6 +21,7 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.bootstrap import load_module
+from nosa_utils import shared_params
 
 _HERE = os.path.dirname(__file__)
 # PHASE F0 — migrated from imp.load_source to nosa_utils.bootstrap's
@@ -45,6 +47,10 @@ column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'
 beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
+# PHASE F1
+rebar_batch = load_module('rebar_batch', os.path.join(_HERE, 'rebar_batch.py'))
+rebar_project = load_module('rebar_project', os.path.join(_HERE, 'rebar_project.py'))
+_version_mod = load_module('rebarautomate_version', os.path.join(_HERE, '_version.py'))
 
 _FOUNDATION_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFoundation))
 _FLOOR_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Floors))
@@ -135,13 +141,27 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     return
                 window.SetLoading(True, u'Generating column reinforcement…')
                 try:
-                    summary = window._run_column_reinforcement(elements, values)
+                    # PHASE F1 — RebarBatch wraps the SAME
+                    # _run_column_reinforcement call in one
+                    # TransactionGroup and stamps provenance on every
+                    # created Rebar. It does not change what geometry
+                    # gets generated — generate_fn is this exact,
+                    # unchanged call.
+                    batch = rebar_batch.RebarBatch(
+                        window.doc, standard=None,
+                        generator_version=window.ra_generator_version,
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                    batch_result = batch.run(
+                        lambda: window._run_column_reinforcement(elements, values))
+                    summary = dict(batch_result.summary)
+                    summary['errors'] = batch_result.errors
                 except Exception as e:
                     forms.alert(u'Column reinforcement generation failed:\n{}'.format(e))
                     return
                 finally:
                     window.SetLoading(False)
                 window._show_column_result(elements, summary)
+                window._refresh_batch_list()
             else:
                 footings = [e for e in elements if e.Category is not None and
                             get_id_value(e.Category.Id) == _FOUNDATION_CAT_ID]
@@ -160,13 +180,24 @@ class _ReinforcementEventHandler(IExternalEventHandler):
 
                 window.SetLoading(True, u'Generating reinforcement…')
                 try:
-                    summary = window._run_reinforcement(footings, floors, values)
+                    # PHASE F1 — same wrapping as the column branch
+                    # above; generate_fn is the exact, unchanged
+                    # _run_reinforcement call.
+                    batch = rebar_batch.RebarBatch(
+                        window.doc, standard=None,
+                        generator_version=window.ra_generator_version,
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                    batch_result = batch.run(
+                        lambda: window._run_reinforcement(footings, floors, values))
+                    summary = dict(batch_result.summary)
+                    summary['errors'] = batch_result.errors
                 except Exception as e:
                     forms.alert(u'Reinforcement generation failed:\n{}'.format(e))
                     return
                 finally:
                     window.SetLoading(False)
                 window._show_reinforcement_result(footings, floors, summary)
+                window._refresh_batch_list()
         finally:
             window.Show()
 
@@ -211,6 +242,36 @@ class RebarAutomateWindow(NOSAWindow):
         self._reinforcement_handler = _ReinforcementEventHandler(self)
         self._reinforcement_event = ExternalEvent.Create(self._reinforcement_handler)
 
+        # PHASE F1 — shared-param sealing, once per document. On the
+        # VERY FIRST launch on a given document (no rebar_project.json
+        # saved for it yet — rebar_project.exists returns False), ask
+        # ONCE whether to also insert NOSA's parameters into the
+        # office's own shared-parameter file (default No — never
+        # touches it uninvited); the answer is saved and never asked
+        # again for this document. ensure_bound itself is idempotent
+        # and safe to re-run on every launch (Decision 5.A: it swaps
+        # app.SharedParametersFilename to NOSA's own .txt just long
+        # enough to bind, then restores the original path).
+        self.ra_project = rebar_project.load(self.doc)
+        if not rebar_project.exists(self.doc):
+            insert_into_office_file = forms.alert(
+                u'¿Insertar también los parámetros compartidos de NOSA en el fichero '
+                u'de shared parameters de tu oficina? (Los bindings del proyecto se '
+                u'crean de todos modos, aunque respondas que no.)',
+                title=u'NOSA RebarAutomate — Shared Parameters',
+                yes=True, no=True)
+            self.ra_project['insert_shared_params_into_user_file'] = bool(insert_into_office_file)
+            rebar_project.save(self.doc, self.ra_project)
+        self.ra_generator_version = _version_mod.RA_VERSION
+        try:
+            self._shared_params_report = shared_params.ensure_bound(
+                self.doc,
+                insert_into_user_file=self.ra_project.get(
+                    'insert_shared_params_into_user_file', False))
+        except Exception as e:
+            self._shared_params_report = {'bound': [], 'already': [], 'skipped': [],
+                                           'errors': [u'ensure_bound failed: {}'.format(e)]}
+
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
         self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
@@ -237,6 +298,7 @@ class RebarAutomateWindow(NOSAWindow):
         self.Loaded += self._on_window_loaded
 
         self._is_loaded = True
+        self._refresh_batch_list()
 
     def _on_window_loaded(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -1042,13 +1104,27 @@ class RebarAutomateWindow(NOSAWindow):
 
     def _run_reinforcement(self, footings, floors, values):
         """
-        One TransactionGroup around the whole run — footings and floors
-        alike: per-host curve generation (pure geometry, no
+        PHASE F1 — the outer TransactionGroup this docstring used to
+        describe is now owned by rebar_batch.RebarBatch.run (its own
+        caller — see the Execute() handler), not this method: Revit
+        does not support a nested/concurrent TransactionGroup on the
+        same document, and RebarBatch's own group now also needs to
+        cover the provenance-stamping pass that runs AFTER this method
+        returns. This method's own geometry generation is completely
+        unchanged — per-host curve generation (pure geometry, no
         Transaction), then one RebarWrapper call per Rebar Set / dowel
-        bar (each opens its own inner Transaction), then one Transaction
-        to tag every element created (footings and floors together),
-        then (if requested) one Transaction to create detail sections
-        (footings only). Assimilated into a single undo step.
+        bar (each still opens its own inner Transaction, exactly as
+        before), then one Transaction to tag every element created
+        (footings and floors together), then (if requested) one
+        Transaction to create detail sections (footings only).
+
+        Returns:
+            (created_rebars, summary) — the actual list of DB.Element
+            objects just created (PHASE F1: newly returned, so
+            RebarBatch can stamp provenance on each one — it was
+            already being built internally, just never returned before),
+            and the same summary dict shape as always
+            ({'created', 'tags', 'sections', 'errors'}).
         """
         errors = []
         bar_types = self._resolve_bar_types(values, errors)
@@ -1057,39 +1133,39 @@ class RebarAutomateWindow(NOSAWindow):
         wrapper = re_engine.RebarWrapper(self.doc)
         created_rebars = []
 
-        with revit.TransactionGroup(u'NOSA — Reinforcement'):
-            for host in footings:
-                try:
-                    self._process_footing(host, values, wrapper, bar_types, hook_type,
-                                          errors, created_rebars)
-                except Exception as e:
-                    errors.append(u'Footing {}: {}'.format(get_id_value(host.Id), e))
+        for host in footings:
+            try:
+                self._process_footing(host, values, wrapper, bar_types, hook_type,
+                                      errors, created_rebars)
+            except Exception as e:
+                errors.append(u'Footing {}: {}'.format(get_id_value(host.Id), e))
 
-            for host in floors:
-                try:
-                    self._process_floor(host, values, wrapper, bar_types, errors, created_rebars)
-                except Exception as e:
-                    errors.append(u'Floor {}: {}'.format(get_id_value(host.Id), e))
+        for host in floors:
+            try:
+                self._process_floor(host, values, wrapper, bar_types, errors, created_rebars)
+            except Exception as e:
+                errors.append(u'Floor {}: {}'.format(get_id_value(host.Id), e))
 
-            created = len(created_rebars)
+        created = len(created_rebars)
 
-            tags_created = 0
-            if created_rebars:
-                view = self.doc.ActiveView
-                try:
-                    with revit.Transaction(u'NOSA — Tag Rebar'):
-                        tags, tag_errors = rebar_detailing.create_rebar_tags(
-                            self.doc, view, created_rebars)
-                    tags_created = len(tags)
-                    errors.extend(tag_errors)
-                except Exception as e:
-                    errors.append(u'Tagging failed: {}'.format(e))
+        tags_created = 0
+        if created_rebars:
+            view = self.doc.ActiveView
+            try:
+                with revit.Transaction(u'NOSA — Tag Rebar'):
+                    tags, tag_errors = rebar_detailing.create_rebar_tags(
+                        self.doc, view, created_rebars)
+                tags_created = len(tags)
+                errors.extend(tag_errors)
+            except Exception as e:
+                errors.append(u'Tagging failed: {}'.format(e))
 
-            sections_created = 0
-            if values['generate_sections'] and footings:
-                sections_created = self._create_detail_sections(footings, errors)
+        sections_created = 0
+        if values['generate_sections'] and footings:
+            sections_created = self._create_detail_sections(footings, errors)
 
-        return {'created': created, 'tags': tags_created, 'sections': sections_created, 'errors': errors}
+        return created_rebars, {'created': created, 'tags': tags_created,
+                                 'sections': sections_created, 'errors': errors}
 
     # ── Columns (Phase 3) ────────────────────────────────────────────────
 
@@ -1629,6 +1705,18 @@ class RebarAutomateWindow(NOSAWindow):
                     created_rebars.append(rebar)
 
     def _run_column_reinforcement(self, columns, values):
+        """
+        PHASE F1 — see _run_reinforcement's own docstring for why the
+        TransactionGroup that used to wrap this loop moved up into
+        rebar_batch.RebarBatch.run instead (Revit doesn't support a
+        nested/concurrent TransactionGroup, and the outer one now also
+        needs to cover the provenance-stamping pass). Geometry
+        generation itself is unchanged.
+
+        Returns:
+            (created_rebars, summary) — see _run_reinforcement's own
+            docstring for the same PHASE F1 return-shape change.
+        """
         errors = []
         diameters = {values['bar_dia'], values['link_dia']}
         bar_types = {}
@@ -1642,14 +1730,13 @@ class RebarAutomateWindow(NOSAWindow):
         wrapper = re_engine.RebarWrapper(self.doc)
         created_rebars = []
 
-        with revit.TransactionGroup(u'NOSA — Column Reinforcement'):
-            for host in columns:
-                try:
-                    self._process_column(host, values, wrapper, bar_types, errors, created_rebars)
-                except Exception as e:
-                    errors.append(u'Column {}: {}'.format(get_id_value(host.Id), e))
+        for host in columns:
+            try:
+                self._process_column(host, values, wrapper, bar_types, errors, created_rebars)
+            except Exception as e:
+                errors.append(u'Column {}: {}'.format(get_id_value(host.Id), e))
 
-        return {'created': len(created_rebars), 'errors': errors}
+        return created_rebars, {'created': len(created_rebars), 'errors': errors}
 
     # ── Detailing & Tools — dashboard (Phase 1 placeholders) ────────────────
     # Every handler below is wired (not disabled) so the button gives real
@@ -1659,6 +1746,91 @@ class RebarAutomateWindow(NOSAWindow):
     # to factor out yet, and pre-building an abstraction for behaviour that
     # doesn't exist yet would be exactly the speculative generality this
     # project avoids elsewhere.
+
+    # ── Batch Manager (Phase F1) ─────────────────────────────────────────
+
+    def _refresh_batch_list(self):
+        """Repopulates LstBatches from rebar_batch.RebarBatch.list_batches
+        — one formatted row per distinct batch_id, storing the RAW
+        batch_id string as each ListBoxItem's own Tag so Select/Delete
+        don't need to re-parse the displayed text."""
+        self.LstBatches.Items.Clear()
+        try:
+            batches = rebar_batch.RebarBatch.list_batches(self.doc)
+        except Exception as e:
+            forms.alert(u'Could not list batches:\n{}'.format(e))
+            return
+        if not batches:
+            item = SWC.ListBoxItem()
+            item.Content = u'(no NOSA RebarAutomate batches found in this document)'
+            item.IsEnabled = False
+            self.LstBatches.Items.Add(item)
+            return
+        for b in batches:
+            item = SWC.ListBoxItem()
+            item.Content = u'{}   —   {} bar(s)   —   {}'.format(
+                b['batch_id'], b['count'], b.get('standard_code') or u'?')
+            item.Tag = b['batch_id']
+            self.LstBatches.Items.Add(item)
+
+    def _selected_batch_id(self):
+        selected = self.LstBatches.SelectedItem
+        if selected is None:
+            return None
+        return getattr(selected, 'Tag', None)
+
+    def RefreshBatches_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._refresh_batch_list()
+
+    def SelectBatch_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        batch_id = self._selected_batch_id()
+        if not batch_id:
+            forms.alert(u'Select a batch from the list first.')
+            return
+        try:
+            ids = rebar_batch.RebarBatch.select_batch(self.doc, batch_id)
+        except Exception as e:
+            forms.alert(u'Could not select batch {}:\n{}'.format(batch_id, e))
+            return
+        if not ids:
+            forms.alert(u'No elements found for batch {} — it may already be deleted.'.format(
+                batch_id))
+            return
+        self.uidoc.Selection.SetElementIds(List[DB.ElementId](ids))
+        forms.alert(u'{} element(s) from batch {} selected in the model.'.format(
+            len(ids), batch_id))
+
+    def DeleteBatch_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        batch_id = self._selected_batch_id()
+        if not batch_id:
+            forms.alert(u'Select a batch from the list first.')
+            return
+        confirmed = forms.alert(
+            u'Delete every element from batch {}? Elements marked '
+            u'"Finalized" are protected and will be skipped.'.format(batch_id),
+            title=u'NOSA RebarAutomate — Delete Batch', yes=True, no=True)
+        if not confirmed:
+            return
+        try:
+            result = rebar_batch.RebarBatch.delete_batch(self.doc, batch_id)
+        except Exception as e:
+            forms.alert(u'Delete batch failed:\n{}'.format(e))
+            return
+        lines = [
+            u'{} element(s) deleted.'.format(len(result['deleted'])),
+            u'{} element(s) protected (Finalized) and kept.'.format(len(result['protected'])),
+        ]
+        if result['errors']:
+            lines.append(u'{} error(s):'.format(len(result['errors'])))
+            lines.extend(result['errors'][:10])
+        forms.alert(u'\n'.join(lines))
+        self._refresh_batch_list()
 
     def GenerateSchedule_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):

@@ -1,0 +1,67 @@
+# This is a Revit shared parameter file.
+# Do not edit manually. Generated from docs/REBARAUTOMATE_BLUEPRINT.md Part 05.
+# GUIDs are FINAL — never regenerate. If a parameter is renamed, keep its GUID.
+# If a parameter is retired, its GUID is burned and never reused.
+#
+# USERMODIFIABLE was not specified per-parameter in the blueprint (only Mark=1
+# and Created_By_NOSA=0 were given as examples) — the rest is a disclosed F1
+# judgement call, applied consistently:
+#   0 (plugin-owned, do not hand-edit): anything COMPUTED by a generator/
+#     classifier/marking pass and re-derived on every run (all of Shape,
+#     most of Status, most of Fabrication, Detail_Section_Id), plus internal
+#     lookups/caches (Host_Id, Position_In_Host, Export_Id, BVBS_Line).
+#   1 (user-editable): free-text organisational fields (Mark*, Layer, Group,
+#     Assembly), fields a user genuinely sets by hand (Steel_Grade, Coupler_*,
+#     EndTreatment_*, Tag_Offset_*, Show_In_Schedule), and Revision/
+#     Issue_Status (normal editable metadata) — plus Finalized, which MUST be
+#     user-modifiable: it's the "do not regenerate this bar" flag the user
+#     sets to protect a bar from a future batch run.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Rebar_Identity
+GROUP	2	NOSA_Rebar_Shape
+GROUP	3	NOSA_Rebar_Status
+GROUP	4	NOSA_Rebar_Fabrication
+GROUP	5	NOSA_Rebar_Detailing
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	b0a7083b-fab5-43da-a8d6-be2dbba2b310	NOSA_Rebar_Mark	TEXT		1	1	Marca de posicion visible (p.ej. Z12-04)	1	0
+PARAM	f743bc96-c90e-419b-a1fd-978eeb07fa78	NOSA_Rebar_Mark_Number	INTEGER		1	1	Numero de posicion puro, para ordenar	1	0
+PARAM	bdf4e7c4-427a-4ba1-ac7a-d8311b40da70	NOSA_Rebar_Mark_Prefix	TEXT		1	1	Prefijo (marca de host / tipologia)	1	0
+PARAM	0dc98d97-3440-4275-a91b-68f26dc4fe2b	NOSA_Rebar_Mark_Suffix	TEXT		1	1	Sufijo opcional	1	0
+PARAM	b924bef3-194e-4cab-adbf-17d45483fa25	NOSA_Rebar_Host_Mark	TEXT		1	1	Marca del elemento hospedador	0	0
+PARAM	6dfa3bff-84ce-4b33-b549-64e28ece316e	NOSA_Rebar_Host_Id	TEXT		1	1	ElementId del host (string, multi-version)	0	0
+PARAM	d06c7f54-06e1-43b2-b577-af951d3c0e85	NOSA_Rebar_Layer	TEXT		1	1	Capa de armado	1	0
+PARAM	924457d4-36b3-4cfa-9e43-ecd50bba68d5	NOSA_Rebar_Group	TEXT		1	1	Agrupacion libre (paquete de plano)	1	0
+PARAM	574f41d2-9fcd-4b87-8e15-f020f4f7e7b6	NOSA_Rebar_Assembly	TEXT		1	1	Conjunto / assembly	1	0
+PARAM	da6d9efa-635d-49f1-a18c-c1f4d5d90c30	NOSA_Rebar_Position_In_Host	TEXT		1	1	Posicion semantica: bottom-X, stirrup, dowel...	0	0
+PARAM	3af513b3-360f-4184-ac71-15352196e0e8	NOSA_Rebar_Shape_Code	TEXT		2	1	Codigo de forma segun catalogo	0	0
+PARAM	93e114b7-61e3-4b55-9999-123047a052cc	NOSA_Rebar_Shape_Catalog	TEXT		2	1	Catalogo activo (en_iso_3766, bs_8666_2020)	0	0
+PARAM	9d6f4403-dfec-4e42-8874-f08a0a1a6254	NOSA_Rebar_Shape_Params	TEXT		2	1	A=1200;B=300;R=64 para la tabla de doblado	0	0
+PARAM	834af015-5907-4db6-a9ce-49aae7157710	NOSA_Rebar_Bend_Diameter	LENGTH		2	1	Diametro de mandril usado	0	0
+PARAM	e6296fa2-4b65-4255-9408-88f1039def22	NOSA_Rebar_Hook_Start	TEXT		2	1	Gancho inicio: none/90/135/180	0	0
+PARAM	2650ae68-68b6-4e08-88cf-8ab318fa8d17	NOSA_Rebar_Hook_End	TEXT		2	1	Gancho fin	0	0
+PARAM	d84c3a95-a9d3-4ebf-b30f-77bd21c89e64	NOSA_Rebar_Is_Variable	YESNO		2	1	Barra de longitud variable (mat en cuna, etc.)	0	0
+PARAM	24fb1e29-fef1-46da-841f-f5fdcc8ab8d5	NOSA_Rebar_Segment_Count	INTEGER		2	1	Numero de tramos rectos	0	0
+PARAM	7fcd3b49-56f5-4687-8095-67f153ee2d02	NOSA_Rebar_Created_By_NOSA	YESNO		3	1	Marca de origen	0	0
+PARAM	0233dc14-11d9-44e1-95b7-e82662da4759	NOSA_Rebar_Batch_Id	TEXT		3	1	Id de la ejecucion que la creo	0	0
+PARAM	9cfdaebb-465e-4c95-b342-c81484917a4e	NOSA_Rebar_Generator_Version	TEXT		3	1	Version del plugin	0	0
+PARAM	5711215e-99dd-4fcc-a4d6-2f1ab4a27516	NOSA_Rebar_Standard_Code	TEXT		3	1	Perfil de normativa activo al crearla	0	0
+PARAM	4a687ef1-4e0a-4f62-8a80-6e2c98b11e9c	NOSA_Rebar_Finalized	YESNO		3	1	No regenerar	1	0
+PARAM	77bab632-d23d-4a91-ae17-03eed8c4412b	NOSA_Rebar_Revision	TEXT		3	1	Revision	1	0
+PARAM	7e9822da-b3b4-406c-8d59-77b1c79af1df	NOSA_Rebar_Issue_Status	TEXT		3	1	Estado de emision	1	0
+PARAM	cca44491-979b-4d1d-b12d-5f41a8e151ec	NOSA_Rebar_Last_Modified	TEXT		3	1	ISO-8601 de la ultima accion del plugin sobre la barra	0	0
+PARAM	49266137-bb93-48bb-8473-1cd1b14bef3a	NOSA_Rebar_Steel_Grade	TEXT		4	1	B500SD / B500S ...	1	0
+PARAM	e8842236-4817-44c4-a658-bfb3cbee40e4	NOSA_Rebar_Mass_Per_Length	NUMBER		4	1	kg/m del diametro	0	0
+PARAM	5091b739-01c2-48e0-a212-4f181cfb85e4	NOSA_Rebar_Total_Length	LENGTH		4	1	Longitud total de la posicion	0	0
+PARAM	bafe48b8-787a-4bf8-90f4-ab0a5c39224d	NOSA_Rebar_Cut_Length	LENGTH		4	1	Longitud de corte de una barra	0	0
+PARAM	c82adfee-18de-4d2d-ac96-7f45124fa11c	NOSA_Rebar_Coupler_Start	TEXT		4	1	Manguito en inicio	1	0
+PARAM	490f6e0f-fe07-44b7-9828-a674e211c799	NOSA_Rebar_Coupler_End	TEXT		4	1	Manguito en fin	1	0
+PARAM	caca5c09-7644-443e-bab1-07d48a4e701d	NOSA_Rebar_EndTreatment_Start	TEXT		4	1	Tratamiento de extremo inicio	1	0
+PARAM	c4fb884e-26f8-40e8-aada-888d59d95603	NOSA_Rebar_EndTreatment_End	TEXT		4	1	Tratamiento de extremo fin	1	0
+PARAM	4669bb75-74d7-456b-87d0-791cd3c4382d	NOSA_Rebar_Export_Id	TEXT		4	1	Id estable para BVBS / Excel	0	0
+PARAM	f2fb2f85-aa1c-40b1-bf29-ab1fc59357b2	NOSA_Rebar_BVBS_Line	TEXT		4	1	Cadena BVBS pre-generada (cache)	0	0
+PARAM	1fa47447-1b45-4516-8a07-a6590a69b83b	NOSA_Rebar_Tag_Offset_X	LENGTH		5	1	Desplazamiento de etiqueta X	1	0
+PARAM	245b5c8c-1813-4935-8c27-8d89df2d48f3	NOSA_Rebar_Tag_Offset_Y	LENGTH		5	1	Desplazamiento de etiqueta Y	1	0
+PARAM	2abdcbaa-8f6b-48e1-8607-26d6efc679d0	NOSA_Rebar_Detail_Section_Id	TEXT		5	1	Id de la seccion de detalle asociada	0	0
+PARAM	ff5b23e1-7668-48ad-b600-71b754a212bb	NOSA_Rebar_Show_In_Schedule	YESNO		5	1	Incluir en despiece	1	0
