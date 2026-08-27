@@ -1,0 +1,330 @@
+# -*- coding: utf-8 -*-
+"""
+NOSA.RebarAutomate — Bar Bending Schedule (BBS) generation and export.
+Blueprint Parte 9 (F5).
+
+Recolecta barras, agrupa por posición, calcula longitudes de corte, exporta CSV/XLSX.
+"""
+from __future__ import absolute_import, print_function, unicode_literals
+import sys
+import os
+
+_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _lib not in sys.path:
+    sys.path.insert(0, _lib)
+
+from nosa_utils import shared_params
+from nosa_utils.compat import text_type
+import csv
+
+_FT_TO_MM = 304.8
+
+
+class SchedulePosition(object):
+    """Representa una posición (Mark) en el despiece, con todas sus barras."""
+    
+    def __init__(self, mark):
+        self.mark = mark
+        self.bars = []  # lista de ElementIds
+        self.diameter_mm = 0
+        self.shape_code = u''
+        self.shape_params = u''
+        self.count = 0
+        self.unit_length_mm = 0.0
+        self.total_length_mm = 0.0
+        self.layer = u''
+        self.host_mark = u''
+    
+    def add_bar(self, rebar_id):
+        """Añade una barra a esta posición."""
+        self.bars.append(rebar_id)
+        self.count = len(self.bars)
+    
+    def compute_totals(self):
+        """Calcula longitudes totales (count × unit_length)."""
+        self.total_length_mm = self.count * self.unit_length_mm
+
+
+def collect_rebars(doc, batch_id=None, include_finalized=False):
+    """
+    Recolecta todas las barras del documento (o de un lote específico).
+    
+    Args:
+        doc: Revit Document
+        batch_id: opcional, filtra por batch_id (None = todas las barras NOSA)
+        include_finalized: si False, excluye barras con Finalized=1
+    
+    Returns:
+        list[ElementId] de barras filtradas
+    """
+    from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory
+    
+    # Recolectar todas las Rebar
+    all_rebars = FilteredElementCollector(doc).OfCategory(
+        BuiltInCategory.OST_Rebar
+    ).WhereElementIsNotElementType().ToElementIds()
+    
+    filtered = []
+    for rid in all_rebars:
+        # Verificar que tenga NOSA_Rebar_Batch_Id (es una barra NOSA)
+        stored_batch = shared_params.read(doc, rid, "NOSA_Rebar_Batch_Id")
+        if not stored_batch:
+            continue
+        
+        # Filtrar por batch_id si se especificó
+        if batch_id and stored_batch != batch_id:
+            continue
+        
+        # Filtrar finalizadas si no se incluyen
+        if not include_finalized:
+            finalized = shared_params.read(doc, rid, "NOSA_Rebar_Finalized")
+            if finalized == 1 or finalized == "1":
+                continue
+        
+        filtered.append(rid)
+    
+    return filtered
+
+
+def group_by_position(doc, rebar_ids):
+    """
+    Agrupa barras por NOSA_Rebar_Mark (posición).
+    
+    Returns:
+        dict[mark_str, SchedulePosition]
+    """
+    positions = {}
+    
+    for rid in rebar_ids:
+        mark = shared_params.read(doc, rid, "NOSA_Rebar_Mark")
+        if not mark:
+            mark = u"?"
+        
+        if mark not in positions:
+            pos = SchedulePosition(mark)
+            positions[mark] = pos
+            
+            # Leer datos comunes de la primera barra de esta posición
+            rebar = doc.GetElement(rid)
+            if rebar:
+                bar_type = doc.GetElement(rebar.GetTypeId())
+                if bar_type:
+                    try:
+                        pos.diameter_mm = int(bar_type.BarModelDiameter * _FT_TO_MM)
+                    except AttributeError:
+                        try:
+                            pos.diameter_mm = int(bar_type.BarNominalDiameter * _FT_TO_MM)
+                        except AttributeError:
+                            pos.diameter_mm = 0
+            
+            pos.shape_code = shared_params.read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
+            pos.shape_params = shared_params.read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
+            pos.layer = shared_params.read(doc, rid, "NOSA_Rebar_Layer") or u""
+            pos.unit_length_mm = shared_params.read(doc, rid, "NOSA_Rebar_Total_Length") or 0.0
+            
+            # Host mark
+            host_id = shared_params.read(doc, rid, "NOSA_Rebar_Host_Element_Id")
+            if host_id:
+                try:
+                    from Autodesk.Revit.DB import ElementId, BuiltInParameter
+                    host = doc.GetElement(ElementId(int(host_id)))
+                    if host:
+                        mark_param = host.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
+                        if mark_param and mark_param.HasValue:
+                            pos.host_mark = mark_param.AsString() or u""
+                except:
+                    pass
+        
+        positions[mark].add_bar(rid)
+    
+    # Calcular totales para todas las posiciones
+    for pos in positions.values():
+        pos.compute_totals()
+    
+    return positions
+
+
+def generate_schedule_data(doc, batch_id=None, include_finalized=False):
+    """
+    Genera datos completos del despiece.
+    
+    Returns:
+        list[dict] con una entrada por posición, campos:
+        - mark, host_mark, layer, diameter_mm, shape_code, shape_params,
+          count, unit_length_mm, total_length_mm
+    """
+    rebars = collect_rebars(doc, batch_id, include_finalized)
+    positions = group_by_position(doc, rebars)
+    
+    # Convertir a lista de dicts, ordenada por mark
+    schedule = []
+    for mark in sorted(positions.keys()):
+        pos = positions[mark]
+        schedule.append({
+            'mark': pos.mark,
+            'host_mark': pos.host_mark,
+            'layer': pos.layer,
+            'diameter_mm': pos.diameter_mm,
+            'shape_code': pos.shape_code,
+            'shape_params': pos.shape_params,
+            'count': pos.count,
+            'unit_length_mm': pos.unit_length_mm,
+            'total_length_mm': pos.total_length_mm
+        })
+    
+    return schedule
+
+
+def export_csv(schedule_data, output_path):
+    """
+    Exporta schedule_data a CSV.
+    
+    Args:
+        schedule_data: list[dict] de generate_schedule_data()
+        output_path: path completo del archivo CSV a crear
+    
+    Returns:
+        True si éxito, False si error
+    """
+    try:
+        # Python 3: modo texto con encoding UTF-8
+        # Python 2 (IronPython): modo binario
+        try:
+            # Python 3
+            import io
+            f = io.open(output_path, 'w', encoding='utf-8', newline='')
+            py3_mode = True
+        except (AttributeError, TypeError):
+            # Python 2 / IronPython
+            f = open(output_path, 'wb')
+            py3_mode = False
+        
+        try:
+            # Cabeceras
+            fieldnames = [
+                'mark', 'host_mark', 'layer', 'diameter_mm', 'shape_code',
+                'shape_params', 'count', 'unit_length_mm', 'total_length_mm'
+            ]
+            
+            writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator='\n')
+            
+            # Escribir cabecera
+            writer.writerow({fn: fn for fn in fieldnames})
+            
+            # Escribir datos
+            for row in schedule_data:
+                if py3_mode:
+                    # Python 3: strings directamente
+                    writer.writerow(row)
+                else:
+                    # Python 2: convertir unicode a UTF-8 bytes
+                    encoded_row = {}
+                    for key, val in row.items():
+                        if isinstance(val, text_type):
+                            encoded_row[key] = val.encode('utf-8')
+                        else:
+                            encoded_row[key] = str(val).encode('utf-8') if val else b''
+                    writer.writerow(encoded_row)
+        finally:
+            f.close()
+        
+        return True
+    except Exception as e:
+        print(u'[rebar_schedule] CSV export failed: {}'.format(e))
+        return False
+
+
+def export_xlsx(schedule_data, output_path):
+    """
+    Exporta schedule_data a XLSX (Excel).
+    Requiere openpyxl (pip install openpyxl) — si no está disponible, retorna False.
+    
+    Args:
+        schedule_data: list[dict] de generate_schedule_data()
+        output_path: path completo del archivo XLSX a crear
+    
+    Returns:
+        True si éxito, False si error o librería no disponible
+    """
+    try:
+        from openpyxl import Workbook
+    except ImportError:
+        print(u'[rebar_schedule] openpyxl not available, XLSX export skipped')
+        return False
+    
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Bar Bending Schedule"
+        
+        # Cabeceras (en inglés británico)
+        headers = [
+            'Mark', 'Host', 'Layer', 'Diameter (mm)', 'Shape Code',
+            'Shape Parameters', 'Quantity', 'Unit Length (mm)', 'Total Length (mm)'
+        ]
+        ws.append(headers)
+        
+        # Datos
+        for row in schedule_data:
+            ws.append([
+                row['mark'],
+                row['host_mark'],
+                row['layer'],
+                row['diameter_mm'],
+                row['shape_code'],
+                row['shape_params'],
+                row['count'],
+                round(row['unit_length_mm'], 1),
+                round(row['total_length_mm'], 1)
+            ])
+        
+        # Formato: bold headers, auto-width
+        for cell in ws[1]:
+            cell.font = cell.font.copy(bold=True)
+        
+        for col in ws.columns:
+            max_length = 0
+            col_letter = col[0].column_letter
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
+        
+        wb.save(output_path)
+        return True
+    
+    except Exception as e:
+        print(u'[rebar_schedule] XLSX export failed: {}'.format(e))
+        return False
+
+
+def get_summary_stats(schedule_data):
+    """
+    Calcula estadísticas sumarias del despiece.
+    
+    Returns:
+        dict con total_positions, total_bars, total_length_m, by_diameter
+    """
+    total_positions = len(schedule_data)
+    total_bars = sum(row['count'] for row in schedule_data)
+    total_length_mm = sum(row['total_length_mm'] for row in schedule_data)
+    total_length_m = total_length_mm / 1000.0
+    
+    # Agrupar por diámetro
+    by_diameter = {}
+    for row in schedule_data:
+        dia = row['diameter_mm']
+        if dia not in by_diameter:
+            by_diameter[dia] = {'count': 0, 'length_m': 0.0}
+        by_diameter[dia]['count'] += row['count']
+        by_diameter[dia]['length_m'] += row['total_length_mm'] / 1000.0
+    
+    return {
+        'total_positions': total_positions,
+        'total_bars': total_bars,
+        'total_length_m': round(total_length_m, 2),
+        'by_diameter': by_diameter
+    }
