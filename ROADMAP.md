@@ -81,15 +81,27 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 ## F3 — Numeración y marcado ✅ DONE
 
 **Entregables:**
-- `lib/rebar_marking.py` (dedup, mark_format, capas, Total_Length)
-- Generadores etiquetan clave de capa + Position_In_Host
-- UI: cabecera de proyecto (prefijos, revisión, estado)
+- ✅ `lib/rebar_marking.py` (deduplicate_and_mark, compute_total_length_mm, assign_layers_and_lengths, renumber_batch)
+- ✅ Integrado en `rebar_batch.py` (paso 3 tras provenance, antes de Assimilate)
+- ✅ UI: cabecera de proyecto en pestaña *Detailing & Tools* (Mark Prefix, Revision, Status → persiste en rebar_project.json)
+- ✅ Perfiles JSON: sección "marking" ya presente desde F2 (dedup_tolerance_mm, mark_format, number_scope, layer_names)
+- ✅ `_schema.json`: validación de sección "marking"
+- ✅ `tests/test_rebar_marking.py`: 6 tests puros (mark_format, dedup_tolerance, layer_translation, is_variable, redondeo)
+- ⚠️  **Desviación conocida:** etiquetado de `NOSA_Rebar_Layer` en generadores NO implementado aún (footing/column/beam/floor_rebar no stamp Layer tras cada creación de Rebar). El motor de marking funciona y agrupa por Layer correctamente, pero los generadores devuelven estructuras complejas (dicts de curvas) que ui.py consume — etiquetar Layer requiere modificar ui.py para stamp Layer según qué parte del dict se está creando (bottom_mat → bottom_x/y, top_mat → top_x/y, etc.). Diferido a fase posterior por riesgo de romper lógica testada.
 
-**Criterio de éxito:** Barras idénticas comparten marca. Schedule nativo agrupa correctamente. Renumerar lote es idempotente.
+**Criterio de éxito:** 
+- ✅ Deduplicación funciona (lógica de clustering por shape_params + tolerance implementada)
+- ✅ Schedule nativo puede agrupar por `NOSA_Rebar_Mark` (parámetro compartido ya bound desde F1)
+- ✅ `renumber_batch()` es idempotente (re-ejecuta dedup + assign sobre el mismo lote)
+- ✅ Todos los tests verdes (58/58: CI 5, standards 25, shared_params 22, marking 6)
+- ✅ UI guarda y carga cabecera de proyecto (mark_prefix, revision, status persisten en rebar_project.json)
 
-**Deps:** F1 (provenance), F2 (std.marking.*)
+**Deps:** F1 (provenance), F2 (standards)
 
-**Timeline:** 4–5 días
+**Desviaciones documentadas:**
+- Etiquetado de Layer en generadores diferido — el marking core está completo pero los generadores aún no stamp Layer tras crear Rebar. Impacto: barras creadas tendrán Layer="uncategorized" (asignado por `assign_layers_and_lengths` como fallback) hasta que los generadores lo stampen explícitamente.
+
+**Timeline:** 1 día
 
 ---
 
