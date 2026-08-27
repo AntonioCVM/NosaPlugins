@@ -1,0 +1,22 @@
+# PHASE F0 — normalize line endings for text files this branch touches,
+# so an editor with core.autocrlf=true doesn't generate a spurious
+# whole-file diff the next time it saves one of these files (the
+# "LF will be replaced by CRLF" warnings seen while committing F0).
+# Scoped to text source formats only — does not retroactively rewrite
+# anything already committed (that would need `git add --renormalize .`,
+# a separate, deliberate cleanup outside this branch's scope).
+
+* text=auto eol=lf
+
+*.py    text eol=lf
+*.json  text eol=lf
+*.xaml  text eol=lf
+*.txt   text eol=lf
+*.md    text eol=lf
+*.ini   text eol=lf
+*.cfg   text eol=lf
+
+*.png   binary
+*.ico   binary
+*.rfa   binary
+*.rvt   binary

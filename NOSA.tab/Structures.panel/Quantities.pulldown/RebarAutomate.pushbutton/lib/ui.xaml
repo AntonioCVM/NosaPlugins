@@ -1,0 +1,700 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOSA — Rebar Automate" Height="880" Width="1040"
+        MinHeight="640" MinWidth="820"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!-- Colour tokens defined locally so ApplyTheme()/Theme_Toggled can
+             mutate them directly — see NosaTheme.xaml's header comment.
+             Card / ActionButton and every implicit control style come from
+             the merged NosaTheme.xaml, referenced below via DynamicResource. -->
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+
+        <Style TargetType="TextBlock" x:Key="RA_SectionTitle">
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentColor}"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+
+        <Style TargetType="TextBlock" x:Key="RA_FieldLabel">
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <Style TargetType="TextBox" x:Key="RA_NumField">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        </Style>
+
+        <Style TargetType="Grid" x:Key="RA_FieldRow">
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,0,0,1" Padding="24,14">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="REBAR AUTOMATE" FontSize="18" FontWeight="Bold"
+                           Foreground="{DynamicResource AccentColor}" VerticalAlignment="Center"/>
+                <TextBlock Text="Automatic reinforcement generation" FontSize="11"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.55"
+                           VerticalAlignment="Center" Margin="14,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Body: unified Dashboard TabControl. Footings & Slabs (Phase
+             2) covers BOTH OST_StructuralFoundation and OST_Floors from
+             one shared form — the backend dispatches on each selected
+             element's own category. Columns/Beams remain placeholders
+             until their own phases (3/4); Detailing & Tools is the
+             Phase 5 dashboard, placeholders for now. -->
+        <TabControl Grid.Row="1" Name="MainTabControl" Background="Transparent" BorderThickness="0" Margin="0">
+
+        <!-- ═══ FOOTINGS & SLABS ═══ -->
+        <TabItem Header="Footings &amp; Slabs">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+        <!-- LEFT COLUMN — controls, scrollable -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,16,20">
+
+                <TextBlock Text="Select one or more Structural Foundations and/or Floors in the model, set the parameters below, then run. Both categories share the parameters below; the tool dispatches to the correct engine per element."
+                           FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.65"
+                           Margin="0,0,0,16"/>
+
+                <!-- ═══ BOTTOM MAT ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Bottom Mat" Style="{StaticResource RA_SectionTitle}"/>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Bar Diameter - X Direction (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtDiaX" Text="16" Style="{StaticResource RA_NumField}"
+                                     TextChanged="Preview_Changed"/>
+                        </Grid>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Bar Diameter - Y Direction (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtDiaY" Text="16" Style="{StaticResource RA_NumField}"
+                                     TextChanged="Preview_Changed"/>
+                        </Grid>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Spacing, Both Directions (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtSpacing" Text="150" Style="{StaticResource RA_NumField}"
+                                     TextChanged="Preview_Changed"/>
+                        </Grid>
+
+                        <CheckBox Name="ChkBottomHooks" Content="Include 90° Hooks" Click="Preview_Changed"
+                                  Foreground="{DynamicResource TextColor}" Margin="0,2,0,0"/>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Max Stock Length, mm (Floors only)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtMaxStockLength" Text="12000" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ TOP MAT ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkIncludeTopMat" Content="Include Top Mat" Click="IncludeTopMat_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+
+                        <StackPanel Name="PanelTopMat" IsEnabled="False">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Bar Diameter - X Direction (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtTopDiaX" Text="12" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Bar Diameter - Y Direction (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtTopDiaY" Text="12" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Spacing, Both Directions (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtTopSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+
+                            <CheckBox Name="ChkTopHooks" Content="Include 90° Hooks" Click="Preview_Changed"
+                                      Foreground="{DynamicResource TextColor}" Margin="0,2,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ PERIMETER CLOSURE U-BARS ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkIncludePerimeterUBars" Content="Add Perimeter Closure U-Bars" Click="IncludePerimeterUBars_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+
+                        <StackPanel Name="PanelPerimeterUBars" IsEnabled="False">
+                            <TextBlock Text="Orthogonal Direction (X-Bars Anchoring)" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.85" Margin="0,0,0,4"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="U-Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtXAnchorUBarDia" Text="10" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="U-Bar Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtXAnchorUBarSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+
+                            <TextBlock Text="Parallel Direction (Y-Bars Anchoring)" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.85" Margin="0,10,0,4"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="U-Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtYAnchorUBarDia" Text="10" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="U-Bar Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtYAnchorUBarSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                         TextChanged="Preview_Changed"/>
+                            </Grid>
+
+                            <TextBlock Text="Perimeter U-Bars anchor the bottom mat to the top mat at each edge. The Orthogonal and Parallel Direction U-Bars cross at the corners while respecting the same B1/B2/T1/T2 layer hierarchy as the main mats, so they weave past one another without physical collision. Requires Include Top Mat to be checked."
+                                       FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ SIDE REBAR (Footings only) ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkIncludeSideRebar" Content="Include Side Rebar — anti-crack / skin (Footings only)" Click="IncludeSideRebar_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+
+                        <StackPanel Name="PanelSideRebar" IsEnabled="False">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Side Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtSideDiameter" Text="10" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Vertical Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtSideSpacing" Text="300" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ DOWELS (Footings only) ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkIncludeDowels" Content="Include Dowels — column splice bars (Footings only)" Click="IncludeDowels_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+
+                        <StackPanel Name="PanelDowels" IsEnabled="False">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Dowel Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtDowelDiameter" Text="16" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Dowel Count (4 or 8)" Style="{StaticResource RA_FieldLabel}"/>
+                                <ComboBox Grid.Column="1" Name="CmbDowelCount">
+                                    <ComboBoxItem Content="4"/>
+                                    <ComboBoxItem Content="8"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Anchor Length in Footing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtDowelAnchor" Text="400" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtDowelSplice" Text="600" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <CheckBox Name="ChkGenerateSections" Content="Generate Detail Sections — 2 orthogonal sections, centred (Footings only)"
+                              Foreground="{DynamicResource TextColor}"/>
+                </Border>
+
+                <Button Name="BtnRunFooting" Content="GENERATE REINFORCEMENT"
+                        Click="RunReinforcement_Click" Style="{DynamicResource ActionButton}"
+                        HorizontalAlignment="Stretch" Height="52" FontSize="14" FontWeight="Bold"
+                        Margin="0,4,0,16"/>
+
+                <Border Style="{DynamicResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
+                        <TextBlock Name="TxtResult" Text="No run yet."
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- RIGHT COLUMN — Section Preview, fixed in view (no scroll needed
+             to see the effect of a parameter change on the left) -->
+        <Border Grid.Column="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1,0,0,0">
+            <StackPanel Margin="16,20,20,20">
+                <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <TextBlock Name="TxtAdoptedSolution" Text="Adopted Solution: —"
+                           FontSize="11" FontWeight="Bold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="320">
+                    <!-- PHASE 2.5 fix — the Canvas draws onto a FIXED
+                         virtual surface (matching PreviewCanvas.Width/
+                         Height read in ui.py's own scale calculation,
+                         not the unreliable ActualWidth/ActualHeight,
+                         which can be 0 or narrower than assumed at
+                         first render); the Viewbox then scales that
+                         fixed surface UNIFORMLY to fit whatever space
+                         is actually available, so content can never
+                         run wider than its container and get clipped
+                         on the right. -->
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="PreviewCanvas" Width="700" Height="320"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Illustrative only — bar count and section width shown are not the real model geometry."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"/>
+            </StackPanel>
+        </Border>
+
+        </Grid>
+        </TabItem>
+
+        <!-- ═══ COLUMNS (Phase 3) ═══ -->
+        <TabItem Header="Columns">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+        <!-- LEFT COLUMN — controls, scrollable -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,16,20">
+
+                <TextBlock Text="Select one or more Structural Columns in the model, set the parameters below, then run."
+                           FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.65"
+                           Margin="0,0,0,16"/>
+
+                <!-- ═══ VERTICAL BARS ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Vertical Bars" Style="{StaticResource RA_SectionTitle}"/>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtColBarDia" Text="20" Style="{StaticResource RA_NumField}"
+                                     TextChanged="ColumnPreview_Changed"/>
+                        </Grid>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Quantity (total bars)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtColBarCount" Text="8" Style="{StaticResource RA_NumField}"
+                                     TextChanged="ColumnPreview_Changed"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ LINKS / TIES ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Links / Ties" Style="{StaticResource RA_SectionTitle}"/>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Link Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtColLinkDia" Text="10" Style="{StaticResource RA_NumField}"
+                                     TextChanged="ColumnPreview_Changed"/>
+                        </Grid>
+
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Centre Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtColLinkSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                     TextChanged="ColumnPreview_Changed"/>
+                        </Grid>
+
+                        <CheckBox Name="ChkColDensify" Content="Densify at nodes" Click="ColumnDensify_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,2,0,0"/>
+
+                        <StackPanel Name="PanelColDensify" IsEnabled="False" Margin="0,10,0,0">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Densified Spacing at Nodes (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtColDenseSpacing" Text="100" Style="{StaticResource RA_NumField}"
+                                         TextChanged="ColumnPreview_Changed"/>
+                            </Grid>
+                            <TextBlock Text="Splits the column into 3 zones (bottom node, centre, top node), with denser links at each node — the beam/slab connection zones — and the spacing above in the centre span."
+                                       FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.5"/>
+                        </StackPanel>
+
+                        <CheckBox Name="ChkColCrossties" Content="Include Interior Crossties"
+                                  Click="ColumnCrossties_Click"
+                                  Foreground="{DynamicResource TextColor}" Margin="0,10,0,0"/>
+                        <TextBlock Text="For columns with intermediate (non-corner) bars: ties each one to its direct mirror across the section, at the same zones/spacing as the main links. Anchored with normative 135°/90° hooks, not a bare line."
+                                   FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,10"/>
+
+                        <StackPanel Name="PanelColCrossties" IsEnabled="False">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Crosstie Layout" Style="{StaticResource RA_FieldLabel}"/>
+                                <ComboBox Grid.Column="1" Name="CboCrosstieLayout">
+                                    <ComboBoxItem Content="Tie all intermediate bars"/>
+                                    <ComboBoxItem Content="Tie alternate bars"/>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- ═══ LAP SPLICES / STARTERS ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Lap Splices" Style="{StaticResource RA_SectionTitle}"/>
+                        <TextBlock Text="Every floor the column crosses now gets its own lap splice automatically — that part is no longer optional. This checkbox only concerns the column's OWN final top."
+                                   FontSize="9" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                        <CheckBox Name="ChkColStarterBars" Content="Extend lap splice at ultimate roof level"
+                                  Foreground="{DynamicResource TextColor}"
+                                  Checked="ColumnPreview_Changed" Unchecked="ColumnPreview_Changed"/>
+                        <TextBlock Text="Checked: leaves a projecting starter above the column's own final top, in case the building grows a storey later. Unchecked: the last segment's bars simply die straight, under the last floor's own cover — no projection above the roof."
+                                   FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,10"/>
+
+                        <CheckBox Name="ChkColCrankedLaps" Content="Use Cranked Laps (1:6 slope)"
+                                  Foreground="{DynamicResource TextColor}"
+                                  Checked="ColumnPreview_Changed" Unchecked="ColumnPreview_Changed"/>
+                        <TextBlock Text="Before leaving the floor, each starter kinks inward at a 1:6 slope (1 unit sideways per 6 units up) to lap on the interior side of the reinforcement above, keeping cover. Off by default: a plain straight extension."
+                                   FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <Button Name="BtnRunColumn" Content="GENERATE REINFORCEMENT"
+                        Click="RunColumnReinforcement_Click" Style="{DynamicResource ActionButton}"
+                        HorizontalAlignment="Stretch" Height="52" FontSize="14" FontWeight="Bold"
+                        Margin="0,4,0,16"/>
+
+                <Border Style="{DynamicResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
+                        <TextBlock Name="TxtColumnResult" Text="No run yet."
+                                   FontSize="11" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- RIGHT COLUMN — Section + Elevation Preview, fixed in view -->
+        <Border Grid.Column="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,20,20,20">
+                <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <TextBlock Name="TxtColumnAdoptedSolution" Text="Adopted Solution: —"
+                           FontSize="11" FontWeight="Bold" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="240">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="ColumnPreviewCanvas" Width="700" Height="240"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Illustrative only — a representative rectangular section, not the real model geometry."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,16"/>
+
+                <TextBlock Text="Elevation Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="360">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="ColumnElevationCanvas" Width="420" Height="360"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Shows the vertical bars (with starter bars projecting above the head, if included) and the link/tie spacing along the column's height, including node densification."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"/>
+            </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        </Grid>
+        </TabItem>
+
+        <!-- ═══ BEAMS (Phase 4 placeholder) ═══ -->
+        <TabItem Header="Beams">
+            <Grid>
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360">
+                    <Border Style="{DynamicResource Card}" Padding="28,24">
+                        <StackPanel>
+                            <TextBlock Text="Beams" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}" HorizontalAlignment="Center"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock Text="Automatic beam reinforcement (OST_StructuralFraming) — top/bottom longitudinals with automatic lap splicing and stirrups with end-zone densification."
+                                       FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,12"/>
+                            <TextBlock Text="Tool under development — Phase 4" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.4" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </TabItem>
+
+        <!-- ═══ WALLS (Phase 5 placeholder) ═══ -->
+        <TabItem Header="Walls">
+            <Grid>
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="360">
+                    <Border Style="{DynamicResource Card}" Padding="28,24">
+                        <StackPanel>
+                            <TextBlock Text="Walls" FontSize="16" FontWeight="Bold"
+                                       Foreground="{DynamicResource AccentColor}" HorizontalAlignment="Center"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock Text="Automatic shear/retaining wall reinforcement (OST_Walls) — vertical and horizontal mesh, boundary elements and openings."
+                                       FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,12"/>
+                            <TextBlock Text="Tool under development — Phase 5" FontSize="11" FontWeight="Bold"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.4" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </TabItem>
+
+        <!-- ═══ DETAILING & TOOLS (Dashboard — placeholders, Phase 5) ═══ -->
+        <TabItem Header="Detailing &amp; Tools">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="24,20,24,20">
+
+                    <TextBlock Text="Global tools for reinforcement already placed in the model — not tied to a specific category."
+                               FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,16"/>
+
+                    <!-- PHASE F1 — basic batch manager: one row per batch_id found
+                         among this plugin's own elements (rebar_batch.RebarBatch.
+                         list_batches). "Select in Model" / "Delete Batch" act on
+                         the currently selected row. -->
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Batch Manager" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBlock Text="Every reinforcement run creates one batch — select a row below to select or delete everything from that run."
+                                       FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                            <ListBox Name="LstBatches" Height="120" Margin="0,0,0,8"/>
+                            <UniformGrid Columns="3">
+                                <Button Name="BtnRefreshBatches" Content="Refresh"
+                                        Click="RefreshBatches_Click" Margin="0,0,4,0"/>
+                                <Button Name="BtnSelectBatch" Content="Select in Model"
+                                        Click="SelectBatch_Click" Margin="4,0,4,0"/>
+                                <Button Name="BtnDeleteBatch" Content="Delete Batch"
+                                        Click="DeleteBatch_Click" Margin="4,0,0,0"/>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Schedule Generation" Style="{StaticResource RA_SectionTitle}"/>
+                            <Button Name="BtnGenerateSchedule" Content="Generate Rebar Schedule..."
+                                    Click="GenerateSchedule_Click" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Modification Tools" Style="{StaticResource RA_SectionTitle}"/>
+                            <UniformGrid Columns="2" Margin="0,0,0,8">
+                                <Button Name="BtnLap" Content="Lap (Join Collinear Bars)" Click="Lap_Click" Margin="0,0,4,8"/>
+                                <Button Name="BtnSplit" Content="Split (To Commercial Length)" Click="Split_Click" Margin="4,0,0,8"/>
+                                <Button Name="BtnExtend" Content="Extend (Hooks/Legs)" Click="Extend_Click" Margin="0,4,4,0"/>
+                                <Button Name="BtnCopyToSimilar" Content="Copy to Similar Hosts" Click="CopyToSimilar_Click" Margin="4,4,0,0"/>
+                            </UniformGrid>
+                            <Button Name="BtnDeleteHostRebars" Content="Delete Host Rebars"
+                                    Click="DeleteHostRebars_Click" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Visibility" Style="{StaticResource RA_SectionTitle}"/>
+                            <Button Name="BtnToggleSolids" Content="Show/Hide Rebar as Solids"
+                                    Click="ToggleSolids_Click" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Detailing" Style="{StaticResource RA_SectionTitle}"/>
+                            <Button Name="BtnAutoMRA" Content="Auto Multi-Rebar Annotation (MRA)..."
+                                    Click="AutoMRA_Click" HorizontalAlignment="Stretch"/>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        </TabControl>
+
+        <!-- Shared loading overlay (NOSAWindow standard) -->
+        <Grid Grid.Row="1" Name="LoadingPanel" Visibility="Collapsed"
+              Background="#CCFAFAFA" Panel.ZIndex="100">
+            <Border Style="{DynamicResource Card}" Padding="24,16"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"
+                               Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                    <ProgressBar Name="ProcessBar" Width="220" Height="10" IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtStatus" Text="" HorizontalAlignment="Center"
+                               FontSize="11" Opacity="0.6" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="0,1,0,0" Padding="24,10">
+            <CheckBox Name="ChkDarkMode" Content="Dark mode" Click="Theme_Toggled"
+                      Foreground="{DynamicResource TextColor}"/>
+        </Border>
+    </Grid>
+</Window>
