@@ -10,7 +10,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 |---|---|---|---|---|
 | **F0** | Revit 2024–2027 compat facade + tooling migration | ✅ **DONE** | `feat/rebar-F0-compat` | 3cfa461 |
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
-| **F2** | Perfiles de normativa (EHE-08, ISO, BS) | 🚧 **IN PROGRESS** | `feat/rebar-F2-standards` | — |
+| **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
 | **F3** | Numeración y marcado | ⏳ Pending | — | — |
 | **F4** | Catálogo de formas + clasificador | ⏳ Pending | — | — |
 | **F5** | Despiece (BBS) + export CSV/XLSX | ⏳ Pending | — | — |
@@ -51,7 +51,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F2 — Perfiles de normativa 🚧 IN PROGRESS
+## F2 — Perfiles de normativa ✅ DONE (partial)
 
 **Entregables:**
 - `lib/nosa_utils/standards.py` (load, list_available, cover_for, mandrel_*, lap_*, anchorage_*, hook_*)
@@ -61,8 +61,16 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 - Migración: DEFAULT_COVER_MM → standards.cover_for (con envoltorios compat)
 - `ctx["standard"]` pasa de None a perfil resuelto
 - `rebar_preview` consume std
+- tests/test_standards.py: 25 tests puros (sin Revit)
 
 **Criterio de éxito:** Cambiar de EHE-08 a BS-8666 en UI cambia cover/lap/mandrel en siguiente generación. Tests puros verdes.
+
+**Desviaciones documentadas:**
+- **COVER: conectado end-to-end** — preview y generación real usan el mismo helper `_standard_default_cover_mm()`
+- **LAP/MANDREL/STOCK_LENGTH: wrappers listos pero NO conectados** — `column_rebar.default_lap_length_mm(..., std=None)`, `footing_rebar.default_anchorage_length_mm(..., std=None)` existen con backward-compat (std=None reproduce pre-F2), pero NO están llamados desde `build_column_reinforcement`/`build_footing_reinforcement` (cambio de firma >2000 líneas, riesgo alto de romper geometría ya testada en fases 4/5)
+- **Consecuencia honesta**: hoy, cambiar "Standard:" en UI SOLO cambia cover (preview + real). Lap/mandrel/stock siguen fijos, coherentes entre sí, pero no gobernados por normativa aún. Conexión completa diferida a fase posterior (F2.5 o F3).
+
+**Bug corregido:** column_rebar.py/footing_rebar.py faltaban sys.path para `import nosa_utils` — los 9 scripts legacy ahora corren standalone sin ModuleNotFoundError.
 
 **Deps:** F0 (compat), F1 (provenance)
 
