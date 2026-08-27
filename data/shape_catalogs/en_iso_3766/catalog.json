@@ -1,0 +1,49 @@
+{
+  "catalog": "en_iso_3766",
+  "display_name": "EN ISO 3766 Shape Codes",
+  "revision": "2026-08",
+  "_comment": "Minimal shape catalog for F4 — basic shapes only (00=straight, 11=L-shape, 51=U-bar, 99=custom)",
+  "shapes": {
+    "00": {
+      "name": "Straight bar",
+      "segments": 1,
+      "bends": 0,
+      "params": ["A"],
+      "constraints": {
+        "A_min_mm": 100
+      }
+    },
+    "11": {
+      "name": "L-shape (90° bend)",
+      "segments": 2,
+      "bends": 1,
+      "params": ["A", "B", "R"],
+      "constraints": {
+        "A_min_mm": 50,
+        "B_min_mm": 50,
+        "angle_deg": 90,
+        "angle_tolerance_deg": 5
+      }
+    },
+    "51": {
+      "name": "U-bar (2 bends 90°)",
+      "segments": 3,
+      "bends": 2,
+      "params": ["A", "B", "C", "R"],
+      "constraints": {
+        "A_min_mm": 50,
+        "B_min_mm": 100,
+        "C_min_mm": 50,
+        "angle_deg": 90,
+        "angle_tolerance_deg": 5
+      }
+    },
+    "99": {
+      "name": "Custom shape",
+      "segments": -1,
+      "bends": -1,
+      "params": [],
+      "constraints": {}
+    }
+  }
+}

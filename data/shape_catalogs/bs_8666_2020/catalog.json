@@ -1,0 +1,49 @@
+{
+  "catalog": "bs_8666_2020",
+  "display_name": "BS 8666:2020 Shape Codes",
+  "revision": "2026-08",
+  "_comment": "Minimal shape catalog for F4 — same basic shapes as ISO",
+  "shapes": {
+    "00": {
+      "name": "Straight bar",
+      "segments": 1,
+      "bends": 0,
+      "params": ["A"],
+      "constraints": {
+        "A_min_mm": 100
+      }
+    },
+    "11": {
+      "name": "L-shape (90° bend)",
+      "segments": 2,
+      "bends": 1,
+      "params": ["A", "B", "R"],
+      "constraints": {
+        "A_min_mm": 50,
+        "B_min_mm": 50,
+        "angle_deg": 90,
+        "angle_tolerance_deg": 5
+      }
+    },
+    "51": {
+      "name": "U-bar (2 bends 90°)",
+      "segments": 3,
+      "bends": 2,
+      "params": ["A", "B", "C", "R"],
+      "constraints": {
+        "A_min_mm": 50,
+        "B_min_mm": 100,
+        "C_min_mm": 50,
+        "angle_deg": 90,
+        "angle_tolerance_deg": 5
+      }
+    },
+    "99": {
+      "name": "Custom shape",
+      "segments": -1,
+      "bends": -1,
+      "params": [],
+      "constraints": {}
+    }
+  }
+}
