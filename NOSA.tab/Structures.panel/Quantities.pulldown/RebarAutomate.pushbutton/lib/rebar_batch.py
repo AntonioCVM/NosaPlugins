@@ -157,6 +157,18 @@ class RebarBatch(object):
                                 u'Element {}: failed to stamp {}'.format(
                                     get_id_value(elem.Id), u', '.join(sorted(failed_fields))))
 
+                # F3: Numeración y marcado
+                with revit.Transaction(u'NOSA RebarAutomate — Marking {}'.format(self.ctx['batch_id'])):
+                    try:
+                        from . import rebar_marking
+                        all_created_ids = [e.Id for e in created_rebars]
+                        mark_summary = rebar_marking.deduplicate_and_mark(doc, all_created_ids, self.ctx)
+                        rebar_marking.assign_layers_and_lengths(doc, all_created_ids, self.ctx)
+                        print(u'[RebarBatch] Marking: {} positions, {} bars'.format(
+                            mark_summary['total_positions'], mark_summary['total_bars']))
+                    except Exception as mark_err:
+                        stamp_errors.append(u'Marking failed: {}'.format(mark_err))
+
             transaction_group.Assimilate()
         except Exception as e:
             try:

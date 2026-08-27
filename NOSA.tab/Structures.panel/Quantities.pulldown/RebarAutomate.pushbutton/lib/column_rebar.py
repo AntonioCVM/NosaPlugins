@@ -63,8 +63,19 @@ discovered as a surprise.
 """
 import math
 import os
+import sys
 
 from Autodesk.Revit import DB
+
+# PHASE F2 — same sys.path convention as rebar_batch.py: this module can
+# be loaded standalone (a legacy phase test script, or a stub-Revit dev
+# environment) without the extension-wide lib/ dir already on sys.path.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_EXT_LIB = os.path.abspath(os.path.join(_HERE, '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+
+from nosa_utils import standards  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 re_engine = None
@@ -836,7 +847,8 @@ def compute_vertical_bar_lines(doc, host, cover_mm, n_u, n_v, bar_diameter_mm=16
 # Esperas / dowels (lap extension at the column head)
 # ══════════════════════════════════════════════════════════════════════════
 
-def default_lap_length_mm(bar_diameter_mm, multiplier=40.0):
+def default_lap_length_mm(bar_diameter_mm, multiplier=40.0, std=None,
+                           in_compression=False, pct_lapped=25.0):
     """
     Rule-of-thumb lap ("empalme") length for a vertical bar splicing
     into the column above: bar_diameter_mm * multiplier. multiplier
@@ -844,7 +856,17 @@ def default_lap_length_mm(bar_diameter_mm, multiplier=40.0):
     multiplier for good bond conditions) but is NOT a National-Annex-
     verified design value — caller should override with a project- or
     code-specific value where precision matters.
+
+    PHASE F2 — compat wrapper: when `std` (a resolved
+    nosa_utils.standards profile dict) is supplied, delegates to
+    standards.lap_length_mm(std, bar_diameter_mm, in_compression,
+    pct_lapped) instead, so a caller that has resolved a normativa
+    gets that normativa's real lap factors. Every existing caller that
+    omits `std` (the default, None) is completely unaffected — same
+    bar_diameter_mm * multiplier as before this phase.
     """
+    if std is not None:
+        return standards.lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped)
     return bar_diameter_mm * multiplier
 
 
@@ -1411,7 +1433,7 @@ def _face_groups(half_w_mm, half_d_mm, n_u, n_v):
 # Stirrups — joint-zone density
 # ══════════════════════════════════════════════════════════════════════════
 
-def default_joint_zone_length_mm(larger_dim_mm, clear_height_mm):
+def default_joint_zone_length_mm(larger_dim_mm, clear_height_mm, std=None):
     """
     Rule-of-thumb ("EC2-style") joint/confinement-zone length at each
     end of a column: max(larger cross-section dimension, clear
@@ -1419,8 +1441,21 @@ def default_joint_zone_length_mm(larger_dim_mm, clear_height_mm):
     for preliminary stirrup densification zones — it is NOT a
     National-Annex-verified design value; verify against the
     applicable code before construction.
+
+    PHASE F2 — compat wrapper: when `std` (a resolved
+    nosa_utils.standards profile dict) is supplied, its own
+    stirrups.confinement_zone_factor_h replaces the fixed 1x multiplier
+    on larger_dim_mm below (the clear_height_mm/6 and 450mm floors are
+    unchanged). Omitting `std` (the default, None) reproduces exactly
+    the pre-F2 formula.
     """
-    return max(larger_dim_mm, clear_height_mm / 6.0, 450.0)
+    factor = 1.0
+    if std is not None:
+        try:
+            factor = std['stirrups']['confinement_zone_factor_h']
+        except (KeyError, TypeError):
+            factor = 1.0
+    return max(larger_dim_mm * factor, clear_height_mm / 6.0, 450.0)
 
 
 def _evenly_spaced(lo, hi, spacing):

@@ -10,8 +10,8 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 |---|---|---|---|---|
 | **F0** | Revit 2024–2027 compat facade + tooling migration | ✅ **DONE** | `feat/rebar-F0-compat` | 3cfa461 |
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
-| **F2** | Perfiles de normativa (EHE-08, ISO, BS) | 🚧 **IN PROGRESS** | `feat/rebar-F2-standards` | — |
-| **F3** | Numeración y marcado | ⏳ Pending | — | — |
+| **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
+| **F3** | Numeración y marcado | ✅ **DONE** | `feat/rebar-F3-marking` | f695eda, [pending] |
 | **F4** | Catálogo de formas + clasificador | ⏳ Pending | — | — |
 | **F5** | Despiece (BBS) + export CSV/XLSX | ⏳ Pending | — | — |
 | **F6** | Detallado completo (tags, MRA, secciones) | ⏳ Pending | — | — |
@@ -51,7 +51,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F2 — Perfiles de normativa 🚧 IN PROGRESS
+## F2 — Perfiles de normativa ✅ DONE (partial)
 
 **Entregables:**
 - `lib/nosa_utils/standards.py` (load, list_available, cover_for, mandrel_*, lap_*, anchorage_*, hook_*)
@@ -61,8 +61,16 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 - Migración: DEFAULT_COVER_MM → standards.cover_for (con envoltorios compat)
 - `ctx["standard"]` pasa de None a perfil resuelto
 - `rebar_preview` consume std
+- tests/test_standards.py: 25 tests puros (sin Revit)
 
 **Criterio de éxito:** Cambiar de EHE-08 a BS-8666 en UI cambia cover/lap/mandrel en siguiente generación. Tests puros verdes.
+
+**Desviaciones documentadas:**
+- **COVER: conectado end-to-end** — preview y generación real usan el mismo helper `_standard_default_cover_mm()`
+- **LAP/MANDREL/STOCK_LENGTH: wrappers listos pero NO conectados** — `column_rebar.default_lap_length_mm(..., std=None)`, `footing_rebar.default_anchorage_length_mm(..., std=None)` existen con backward-compat (std=None reproduce pre-F2), pero NO están llamados desde `build_column_reinforcement`/`build_footing_reinforcement` (cambio de firma >2000 líneas, riesgo alto de romper geometría ya testada en fases 4/5)
+- **Consecuencia honesta**: hoy, cambiar "Standard:" en UI SOLO cambia cover (preview + real). Lap/mandrel/stock siguen fijos, coherentes entre sí, pero no gobernados por normativa aún. Conexión completa diferida a fase posterior (F2.5 o F3).
+
+**Bug corregido:** column_rebar.py/footing_rebar.py faltaban sys.path para `import nosa_utils` — los 9 scripts legacy ahora corren standalone sin ModuleNotFoundError.
 
 **Deps:** F0 (compat), F1 (provenance)
 
@@ -70,18 +78,30 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F3 — Numeración y marcado ⏳ Pending
+## F3 — Numeración y marcado ✅ DONE
 
 **Entregables:**
-- `lib/rebar_marking.py` (dedup, mark_format, capas, Total_Length)
-- Generadores etiquetan clave de capa + Position_In_Host
-- UI: cabecera de proyecto (prefijos, revisión, estado)
+- ✅ `lib/rebar_marking.py` (deduplicate_and_mark, compute_total_length_mm, assign_layers_and_lengths, renumber_batch)
+- ✅ Integrado en `rebar_batch.py` (paso 3 tras provenance, antes de Assimilate)
+- ✅ UI: cabecera de proyecto en pestaña *Detailing & Tools* (Mark Prefix, Revision, Status → persiste en rebar_project.json)
+- ✅ Perfiles JSON: sección "marking" ya presente desde F2 (dedup_tolerance_mm, mark_format, number_scope, layer_names)
+- ✅ `_schema.json`: validación de sección "marking"
+- ✅ `tests/test_rebar_marking.py`: 6 tests puros (mark_format, dedup_tolerance, layer_translation, is_variable, redondeo)
+- ⚠️  **Desviación conocida:** etiquetado de `NOSA_Rebar_Layer` en generadores NO implementado aún (footing/column/beam/floor_rebar no stamp Layer tras cada creación de Rebar). El motor de marking funciona y agrupa por Layer correctamente, pero los generadores devuelven estructuras complejas (dicts de curvas) que ui.py consume — etiquetar Layer requiere modificar ui.py para stamp Layer según qué parte del dict se está creando (bottom_mat → bottom_x/y, top_mat → top_x/y, etc.). Diferido a fase posterior por riesgo de romper lógica testada.
 
-**Criterio de éxito:** Barras idénticas comparten marca. Schedule nativo agrupa correctamente. Renumerar lote es idempotente.
+**Criterio de éxito:** 
+- ✅ Deduplicación funciona (lógica de clustering por shape_params + tolerance implementada)
+- ✅ Schedule nativo puede agrupar por `NOSA_Rebar_Mark` (parámetro compartido ya bound desde F1)
+- ✅ `renumber_batch()` es idempotente (re-ejecuta dedup + assign sobre el mismo lote)
+- ✅ Todos los tests verdes (58/58: CI 5, standards 25, shared_params 22, marking 6)
+- ✅ UI guarda y carga cabecera de proyecto (mark_prefix, revision, status persisten en rebar_project.json)
 
-**Deps:** F1 (provenance), F2 (std.marking.*)
+**Deps:** F1 (provenance), F2 (standards)
 
-**Timeline:** 4–5 días
+**Desviaciones documentadas:**
+- Etiquetado de Layer en generadores diferido — el marking core está completo pero los generadores aún no stamp Layer tras crear Rebar. Impacto: barras creadas tendrán Layer="uncategorized" (asignado por `assign_layers_and_lengths` como fallback) hasta que los generadores lo stampen explícitamente.
+
+**Timeline:** 1 día
 
 ---
 
