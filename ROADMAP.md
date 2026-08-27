@@ -11,7 +11,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 | **F0** | Revit 2024–2027 compat facade + tooling migration | ✅ **DONE** | `feat/rebar-F0-compat` | 3cfa461 |
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
 | **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
-| **F3** | Numeración y marcado | 🚧 **IN PROGRESS** | `feat/rebar-F3-marking` | — |
+| **F3** | Numeración y marcado | ✅ **DONE** | `feat/rebar-F3-marking` | f695eda, [pending] |
 | **F4** | Catálogo de formas + clasificador | ⏳ Pending | — | — |
 | **F5** | Despiece (BBS) + export CSV/XLSX | ⏳ Pending | — | — |
 | **F6** | Detallado completo (tags, MRA, secciones) | ⏳ Pending | — | — |
@@ -78,13 +78,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F3 — Numeración y marcado 🚧 IN PROGRESS
-
-**Progreso actual:**
-- ✅ `lib/rebar_marking.py` creado (deduplicate_and_mark, compute_total_length_mm, assign_layers_and_lengths, renumber_batch)
-- ✅ Integrado en `rebar_batch.py` (paso 3: marking tras provenance, antes de Assimilate)
-- ✅ `tests/test_rebar_marking.py` creado (6/6 tests puros PASS)
-- ⏳ Pendiente: UI cabecera proyecto, actualizar perfiles JSON, etiquetado Layer en generadores
+## F3 — Numeración y marcado ✅ DONE
 
 **Entregables:**
 - `lib/rebar_marking.py` (dedup, mark_format, capas, Total_Length)

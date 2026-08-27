@@ -280,6 +280,7 @@ class RebarAutomateWindow(NOSAWindow):
         # persisted code string (rebar_project.json's 'standard_code').
         self.ra_standard = self._load_standard(self.ra_project.get('standard_code', u'EHE-08'))
         self._populate_standard_dropdown()
+        self._populate_project_header()
 
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
@@ -386,6 +387,38 @@ class RebarAutomateWindow(NOSAWindow):
         rebar_project.save(self.doc, self.ra_project)
         self._update_preview()
         self._update_column_preview()
+
+    # ── project marking header — PHASE F3 ───────────────────────────────
+
+    def _populate_project_header(self):
+        """Cabecera de proyecto (F3): prefijo de marca, revisión, estado.
+        Poblado en código desde rebar_project.json, nunca XAML SelectedIndex."""
+        statuses = [u'Design', u'Construction', u'As-Built']
+        self.CmbProjectStatus.Items.Clear()
+        for status in statuses:
+            self.CmbProjectStatus.Items.Add(status)
+        
+        # Cargar valores desde rebar_project.json
+        self.TxtMarkPrefix.Text = self.ra_project.get('mark_prefix', u'')
+        self.TxtRevision.Text = self.ra_project.get('revision', u'')
+        current_status = self.ra_project.get('status', u'Design')
+        if current_status in statuses:
+            self.CmbProjectStatus.SelectedItem = current_status
+        else:
+            self.CmbProjectStatus.SelectedIndex = 0
+        
+        # Cablear botón Save (no usar SelectedIndex/SelectionChanged en XAML)
+        self.BtnSaveProjectHeader.Click += self.BtnSaveProjectHeader_Click
+
+    def BtnSaveProjectHeader_Click(self, sender, args):
+        """Guarda prefijo de marca, revisión y estado en rebar_project.json."""
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.ra_project['mark_prefix'] = (self.TxtMarkPrefix.Text or u'').strip()
+        self.ra_project['revision'] = (self.TxtRevision.Text or u'').strip()
+        self.ra_project['status'] = self.CmbProjectStatus.SelectedItem or u'Design'
+        rebar_project.save(self.doc, self.ra_project)
+        forms.alert(u'Project settings saved.', title=u'RebarAutomate')
 
     # ── section enable/disable ───────────────────────────────────────────
 

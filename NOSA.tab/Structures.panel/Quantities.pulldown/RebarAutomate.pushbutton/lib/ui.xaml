@@ -622,6 +622,39 @@
                                FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,16"/>
 
+                    <!-- PHASE F3 — Project Marking Settings -->
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Project Marking Settings" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBlock Text="Configure mark prefix, revision, and project status. These settings persist per document."
+                                       FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Mark Prefix:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="1" Name="TxtMarkPrefix" MaxLength="10" Margin="0,0,16,8"/>
+                                
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="Revision:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBox Grid.Row="0" Grid.Column="3" Name="TxtRevision" MaxLength="5" Margin="0,0,0,8"/>
+                                
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Status:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                <ComboBox Grid.Row="1" Grid.Column="1" Name="CmbProjectStatus" Margin="0,0,16,0"/>
+                                
+                                <Button Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Name="BtnSaveProjectHeader" Content="Save Project Settings" Margin="0,0,0,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- PHASE F1 — basic batch manager: one row per batch_id found
                          among this plugin's own elements (rebar_batch.RebarBatch.
                          list_batches). "Select in Model" / "Delete Batch" act on
