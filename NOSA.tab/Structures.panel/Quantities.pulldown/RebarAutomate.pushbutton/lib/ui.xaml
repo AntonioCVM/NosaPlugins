@@ -677,11 +677,18 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- PHASE F5 — Bar Bending Schedule (BBS) -->
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Schedule Generation" Style="{StaticResource RA_SectionTitle}"/>
-                            <Button Name="BtnGenerateSchedule" Content="Generate Rebar Schedule..."
-                                    Click="GenerateSchedule_Click" HorizontalAlignment="Stretch"/>
+                            <TextBlock Text="Bar Bending Schedule (BBS)" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBlock Text="Generate a full bar bending schedule for all NOSA rebars in the project. Export to CSV or Excel."
+                                       FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                            <Button Name="BtnGenerateSchedule" Content="Generate Schedule..."
+                                    HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
+                            <TextBlock Name="TxtScheduleSummary" Text="" FontSize="11" 
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.8"
+                                       TextWrapping="Wrap" Margin="0,0,0,0"/>
                         </StackPanel>
                     </Border>
 

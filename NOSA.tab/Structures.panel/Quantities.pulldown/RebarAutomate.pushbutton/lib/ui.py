@@ -409,6 +409,9 @@ class RebarAutomateWindow(NOSAWindow):
         
         # Cablear botón Save (no usar SelectedIndex/SelectionChanged en XAML)
         self.BtnSaveProjectHeader.Click += self.BtnSaveProjectHeader_Click
+        
+        # Cablear botón Generate Schedule (F5)
+        self.BtnGenerateSchedule.Click += self.BtnGenerateSchedule_Click
 
     def BtnSaveProjectHeader_Click(self, sender, args):
         """Guarda prefijo de marca, revisión y estado en rebar_project.json."""
@@ -419,6 +422,100 @@ class RebarAutomateWindow(NOSAWindow):
         self.ra_project['status'] = self.CmbProjectStatus.SelectedItem or u'Design'
         rebar_project.save(self.doc, self.ra_project)
         forms.alert(u'Project settings saved.', title=u'RebarAutomate')
+    
+    def BtnGenerateSchedule_Click(self, sender, args):
+        """Genera y exporta Bar Bending Schedule (BBS)."""
+        if not getattr(self, '_is_loaded', False):
+            return
+        
+        try:
+            from . import rebar_schedule
+            
+            # Generar schedule de todas las barras NOSA
+            schedule_data = rebar_schedule.generate_schedule_data(
+                self.doc, batch_id=None, include_finalized=False
+            )
+            
+            if not schedule_data:
+                forms.alert(u'No NOSA rebars found in the project.', 
+                           title=u'Bar Bending Schedule')
+                return
+            
+            # Calcular estadísticas
+            stats = rebar_schedule.get_summary_stats(schedule_data)
+            
+            # Mostrar resumen
+            summary_msg = u'Bar Bending Schedule Summary:\n\n'
+            summary_msg += u'Total positions: {}\n'.format(stats['total_positions'])
+            summary_msg += u'Total bars: {}\n'.format(stats['total_bars'])
+            summary_msg += u'Total length: {:.2f} m\n\n'.format(stats['total_length_m'])
+            summary_msg += u'By diameter:\n'
+            for dia in sorted(stats['by_diameter'].keys()):
+                dia_stats = stats['by_diameter'][dia]
+                summary_msg += u'  Ø{} mm: {} bars, {:.2f} m\n'.format(
+                    dia, dia_stats['count'], dia_stats['length_m']
+                )
+            
+            # Mostrar summary en UI
+            self.TxtScheduleSummary.Text = u'{} positions, {} bars, {:.1f} m total'.format(
+                stats['total_positions'], stats['total_bars'], stats['total_length_m']
+            )
+            
+            # Preguntar formato de export
+            result = forms.CommandSwitchWindow.show(
+                [u'Export to CSV', u'Export to Excel (XLSX)', u'Cancel'],
+                message=summary_msg,
+                title=u'Bar Bending Schedule'
+            )
+            
+            if result == u'Cancel' or result is None:
+                return
+            
+            # Pedir path de salida
+            from pyrevit import script
+            import os
+            
+            if result == u'Export to CSV':
+                ext = 'csv'
+                filter_str = 'CSV files (*.csv)|*.csv'
+            else:
+                ext = 'xlsx'
+                filter_str = 'Excel files (*.xlsx)|*.xlsx'
+            
+            # Nombre por defecto
+            doc_name = self.doc.Title or u'RebarSchedule'
+            default_name = u'{}_BBS.{}'.format(doc_name, ext)
+            
+            # Diálogo save
+            from System.Windows.Forms import SaveFileDialog, DialogResult
+            dlg = SaveFileDialog()
+            dlg.Filter = filter_str
+            dlg.FileName = default_name
+            
+            if dlg.ShowDialog() != DialogResult.OK:
+                return
+            
+            output_path = dlg.FileName
+            
+            # Exportar
+            if result == u'Export to CSV':
+                success = rebar_schedule.export_csv(schedule_data, output_path)
+            else:
+                success = rebar_schedule.export_xlsx(schedule_data, output_path)
+            
+            if success:
+                forms.alert(u'Schedule exported successfully to:\n{}'.format(output_path),
+                           title=u'Export Complete')
+                # Abrir carpeta
+                import subprocess
+                subprocess.Popen(['explorer', '/select,', output_path])
+            else:
+                forms.alert(u'Export failed. Check script output for details.',
+                           title=u'Export Error', warn_icon=True)
+        
+        except Exception as e:
+            forms.alert(u'Schedule generation failed:\n{}'.format(e),
+                       title=u'Error', warn_icon=True)
 
     # ── section enable/disable ───────────────────────────────────────────
 

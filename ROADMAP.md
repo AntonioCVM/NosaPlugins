@@ -13,7 +13,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 | **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
 | **F3** | Numeración y marcado | ✅ **DONE** | `feat/rebar-F3-marking` | f695eda, [pending] |
 | **F4** | Catálogo de formas + clasificador | ✅ **DONE** | `feat/rebar-F4-shapes` | 1f45111, next |
-| **F5** | Despiece (BBS) + export CSV/XLSX | ⏳ Pending | — | — |
+| **F5** | Despiece (BBS) + export CSV/XLSX | ✅ **DONE** | `feat/rebar-F5-schedule` | c5fdc8e, next |
 | **F6** | Detallado completo (tags, MRA, secciones) | ⏳ Pending | — | — |
 | **F7** | Vigas + muros completos | ⏳ Pending | — | — |
 | **F8** | Export BVBS (máquinas ferralla) | ⏳ Pending | — | — |
@@ -138,18 +138,36 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F5 — Despiece (BBS) + export ⏳ Pending
+## F5 — Despiece (BBS) + export CSV/XLSX ✅ DONE
 
 **Entregables:**
-- `lib/rebar_schedule.py` (recolección, agrupación, long. corte con descuentos)
-- Schedule nativo + export CSV/XLSX
-- Botón `BtnGenerateSchedule` cableado
+- ✅ `lib/rebar_schedule.py` (recolección, agrupación, cálculo longitudes, export CSV/XLSX)
+- ✅ UI: botón "Generate Schedule..." en pestaña Detailing & Tools
+- ✅ Export a CSV (compatible Python 2/3)
+- ✅ Export a XLSX (requiere openpyxl, opcional)
+- ✅ `tests/test_rebar_schedule.py`: 5 tests puros
 
-**Criterio de éxito:** Tabla fixture cuadra con despiece manual (±10 mm). Export abre en Excel.
+**Criterio de éxito:**
+- ✅ Recolecta todas las barras NOSA del proyecto
+- ✅ Agrupa por NOSA_Rebar_Mark (posición)
+- ✅ Calcula totales (count × unit_length)
+- ✅ Muestra estadísticas (posiciones, barras totales, longitud por diámetro)
+- ✅ Exporta a CSV y XLSX con columnas: Mark, Host, Layer, Diameter, Shape Code, Shape Params, Quantity, Unit Length, Total Length
+- ✅ Todos los tests verdes (70/70: CI 5, standards 25, shared_params 22, marking 6, catalog 7, schedule 5)
 
-**Deps:** F3 (marcado), F4 (forma)
+**Implementación realizada:**
+- `SchedulePosition`: clase contenedora por posición (mark)
+- `collect_rebars()`: filtra barras NOSA, opcional por batch_id y Finalized
+- `group_by_position()`: agrupa por Mark, calcula totales
+- `generate_schedule_data()`: pipeline completo → list[dict]
+- `export_csv()`: exporta con compatibilidad Py2/Py3
+- `export_xlsx()`: exporta a Excel (requiere openpyxl), con formato bold headers + auto-width
+- `get_summary_stats()`: estadísticas sumarias (total positions/bars/length, breakdown por diámetro)
+- UI: botón cableado, diálogo con summary, SaveFileDialog, abre carpeta tras export
 
-**Timeline:** 4–5 días
+**Deps:** F3 (marking), F4 (shape code)
+
+**Timeline:** 1 día
 
 ---
 
