@@ -12,7 +12,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
 | **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
 | **F3** | Numeración y marcado | ✅ **DONE** | `feat/rebar-F3-marking` | f695eda, [pending] |
-| **F4** | Catálogo de formas + clasificador | ⏳ Pending | — | — |
+| **F4** | Catálogo de formas + clasificador | 🚧 **IN PROGRESS** | `feat/rebar-F4-shapes` | — |
 | **F5** | Despiece (BBS) + export CSV/XLSX | ⏳ Pending | — | — |
 | **F6** | Detallado completo (tags, MRA, secciones) | ⏳ Pending | — | — |
 | **F7** | Vigas + muros completos | ⏳ Pending | — | — |
