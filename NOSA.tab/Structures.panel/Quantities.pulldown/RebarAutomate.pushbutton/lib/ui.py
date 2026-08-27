@@ -255,9 +255,9 @@ class RebarAutomateWindow(NOSAWindow):
         self.ra_project = rebar_project.load(self.doc)
         if not rebar_project.exists(self.doc):
             insert_into_office_file = forms.alert(
-                u'¿Insertar también los parámetros compartidos de NOSA en el fichero '
-                u'de shared parameters de tu oficina? (Los bindings del proyecto se '
-                u'crean de todos modos, aunque respondas que no.)',
+                u'Would you also like to insert NOSA\'s shared parameters into your '
+                u'office\'s own shared parameter file? (The project\'s own bindings '
+                u'are created either way, even if you answer No.)',
                 title=u'NOSA RebarAutomate — Shared Parameters',
                 yes=True, no=True)
             self.ra_project['insert_shared_params_into_user_file'] = bool(insert_into_office_file)
