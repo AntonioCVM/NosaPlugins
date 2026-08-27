@@ -48,6 +48,8 @@ for fname in sorted(os.listdir(_lib_dir)):
 _PY_FILES.append(os.path.join(_EXTENSION_ROOT, 'lib', 'nosa_utils', 'revit_compat.py'))
 # PHASE F1
 _PY_FILES.append(os.path.join(_EXTENSION_ROOT, 'lib', 'nosa_utils', 'shared_params.py'))
+# PHASE F2
+_PY_FILES.append(os.path.join(_EXTENSION_ROOT, 'lib', 'nosa_utils', 'standards.py'))
 
 # Heuristic Python-3-only constructs that are hard syntax errors under
 # IronPython 2.7. Deliberately narrow (see module docstring).
@@ -137,6 +139,23 @@ def test_no_direct_integer_value_outside_compat_layer():
     assert not failures, (
         u'.IntegerValue used directly outside revit_compat.py/revit_helpers.py '
         u'(use get_id_value() instead):\n' + u'\n'.join(failures))
+
+
+def test_every_rebar_standard_profile_validates_against_the_schema():
+    """PHASE F2 — Part 14's own CI requirement: json-schema validates
+    every data/rebar_standards/*.json profile against _schema.json."""
+    sys.path.insert(0, os.path.join(_EXTENSION_ROOT, 'lib'))
+    from nosa_utils import standards
+
+    codes = standards.list_available()
+    assert codes, 'expected at least one rebar_standards profile to validate'
+    failures = []
+    for code in codes:
+        std = standards.load(code)
+        is_valid, errors = standards.validate_profile(std)
+        if not is_valid:
+            failures.append(u'{}: {}'.format(code, errors))
+    assert not failures, u'\n'.join(failures)
 
 
 if __name__ == '__main__':

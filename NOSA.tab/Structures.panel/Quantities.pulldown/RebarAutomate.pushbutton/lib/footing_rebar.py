@@ -251,6 +251,14 @@ import sys
 from Autodesk.Revit import DB
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+# PHASE F2 — same sys.path convention as rebar_batch.py: this module can
+# be loaded standalone (a legacy phase test script, or a stub-Revit dev
+# environment) without the extension-wide lib/ dir already on sys.path.
+_EXT_LIB = os.path.abspath(os.path.join(_HERE, '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+
+from nosa_utils import standards  # noqa: E402
 re_engine = None  # populated by _ensure_engine(), so this file can be
                    # imported/py_compiled standalone without imp needing
                    # a live pyRevit session
@@ -534,7 +542,8 @@ def generate_orthogonal_grid(face_info, cover_mm, spacing_x_mm, spacing_y_mm,
 # Hooks / anchorage
 # ══════════════════════════════════════════════════════════════════════════
 
-def default_anchorage_length_mm(bar_diameter_mm, multiplier=40.0):
+def default_anchorage_length_mm(bar_diameter_mm, multiplier=40.0, std=None,
+                                 good_bond=True, in_compression=False):
     """
     A simple bar-diameter-multiple ESTIMATE of anchorage/hook length.
 
@@ -556,7 +565,18 @@ def default_anchorage_length_mm(bar_diameter_mm, multiplier=40.0):
 
     Returns:
         float: anchorage length in mm.
+
+    PHASE F2 — compat wrapper: when `std` (a resolved
+    nosa_utils.standards profile dict) is supplied, delegates to
+    standards.anchorage_length_mm(std, bar_diameter_mm, good_bond,
+    in_compression) instead, so a caller that has resolved a normativa
+    gets that normativa's real anchorage factors. Every existing
+    caller that omits `std` (the default, None) is completely
+    unaffected — same bar_diameter_mm * multiplier as before this
+    phase.
     """
+    if std is not None:
+        return standards.anchorage_length_mm(std, bar_diameter_mm, good_bond, in_compression)
     return bar_diameter_mm * multiplier
 
 

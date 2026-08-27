@@ -22,6 +22,7 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.bootstrap import load_module
 from nosa_utils import shared_params
+from nosa_utils import standards
 
 _HERE = os.path.dirname(__file__)
 # PHASE F0 — migrated from imp.load_source to nosa_utils.bootstrap's
@@ -148,7 +149,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     # gets generated — generate_fn is this exact,
                     # unchanged call.
                     batch = rebar_batch.RebarBatch(
-                        window.doc, standard=None,
+                        window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'))
                     batch_result = batch.run(
@@ -184,7 +185,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     # above; generate_fn is the exact, unchanged
                     # _run_reinforcement call.
                     batch = rebar_batch.RebarBatch(
-                        window.doc, standard=None,
+                        window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'))
                     batch_result = batch.run(
@@ -272,6 +273,14 @@ class RebarAutomateWindow(NOSAWindow):
             self._shared_params_report = {'bound': [], 'already': [], 'skipped': [],
                                            'errors': [u'ensure_bound failed: {}'.format(e)]}
 
+        # PHASE F2 — normativa (rebar standard) profile, resolved once at
+        # launch and re-resolved whenever the user changes the "Standard:"
+        # dropdown. self.ra_standard is the full profile dict consumed by
+        # standards.cover_for/lap_length_mm/etc; self.ra_project holds the
+        # persisted code string (rebar_project.json's 'standard_code').
+        self.ra_standard = self._load_standard(self.ra_project.get('standard_code', u'EHE-08'))
+        self._populate_standard_dropdown()
+
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
         self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
@@ -283,6 +292,7 @@ class RebarAutomateWindow(NOSAWindow):
         self.CboCrosstieLayout.SelectedIndex = 0
         self.CboCrosstieLayout.SelectionChanged += self.ColumnPreview_Changed
         self.MainTabControl.SelectionChanged += self.MainTabControl_SelectionChanged
+        self.CmbStandard.SelectionChanged += self.CmbStandard_SelectionChanged
 
         self._update_preview()
         self._update_column_preview()
@@ -328,6 +338,55 @@ class RebarAutomateWindow(NOSAWindow):
             return
         self._update_column_preview()
 
+    # ── normativa (rebar standard) — PHASE F2 ───────────────────────────
+
+    def _load_standard(self, code):
+        """Resolve a rebar-standard profile dict for `code`, falling back
+        to EHE-08 and finally to None (never raises) so a missing/corrupt
+        user-override file under NOSA_Configs/rebar_standards/ can never
+        crash the window. Every call site that consumes the result treats
+        None the same as "no standard resolved" — the pre-F2 hardcoded
+        defaults (DEFAULT_COVER_MM etc.) apply, matching this plugin's
+        behaviour before this phase existed."""
+        try:
+            return standards.load(code)
+        except Exception:
+            if code != u'EHE-08':
+                try:
+                    return standards.load(u'EHE-08')
+                except Exception:
+                    pass
+            return None
+
+    def _populate_standard_dropdown(self):
+        """Global "Standard:" selector (ui.xaml, outside the TabControl).
+        Populated here in code from standards.list_available() — never
+        XAML SelectedIndex/SelectionChanged, per the Phase 3.6 note above
+        in __init__. Called BEFORE CmbStandard.SelectionChanged is wired,
+        so setting SelectedItem here does not fire the handler."""
+        codes = standards.list_available()
+        if not codes:
+            codes = [u'EHE-08']
+        self.CmbStandard.Items.Clear()
+        for code in codes:
+            self.CmbStandard.Items.Add(code)
+        current_code = self.ra_project.get('standard_code', u'EHE-08')
+        if current_code not in codes:
+            current_code = codes[0]
+        self.CmbStandard.SelectedItem = current_code
+
+    def CmbStandard_SelectionChanged(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        code = self.CmbStandard.SelectedItem
+        if not code:
+            return
+        self.ra_standard = self._load_standard(code)
+        self.ra_project['standard_code'] = code
+        rebar_project.save(self.doc, self.ra_project)
+        self._update_preview()
+        self._update_column_preview()
+
     # ── section enable/disable ───────────────────────────────────────────
 
     def IncludeTopMat_Click(self, sender, args):
@@ -365,25 +424,46 @@ class RebarAutomateWindow(NOSAWindow):
             return
         self._update_preview()
 
-    def _preview_cover_mm(self, host, face_type_name):
+    def _standard_default_cover_mm(self, element_kind):
+        """
+        PHASE F2 — the normative fallback cover for element_kind
+        ('foundation'/'slab'/'column'/...), used wherever a host has no
+        native Rebar Cover of its own to read. Resolves via
+        standards.cover_for(self.ra_standard, element_kind) when a
+        standard has resolved and declares a cover for that kind;
+        falls back to the pre-F2 re_engine.DEFAULT_COVER_MM otherwise
+        (unresolved standard, unknown element_kind, or element_kind not
+        supplied by an older caller) — never a behaviour change for a
+        caller that omits element_kind.
+        """
+        if element_kind is not None and getattr(self, 'ra_standard', None) is not None:
+            std_cover = standards.cover_for(self.ra_standard, element_kind)
+            if std_cover is not None:
+                return std_cover
+        return re_engine.DEFAULT_COVER_MM
+
+    def _preview_cover_mm(self, host, face_type_name, element_kind=None):
         """
         PHASE 3.5.3 item 4 — cover for the illustrative section
         preview: reads the LIVE selected host's own native Rebar Cover
         when one is selected (so the preview reflects reality, not a
-        typed guess), or the plain normative default with no console
-        warning when nothing is selected yet (a completely normal
-        state while the user is just browsing the tool, not a real
-        cover gap worth flagging).
+        typed guess), or a normative default with no console warning
+        when nothing is selected yet (a completely normal state while
+        the user is just browsing the tool, not a real cover gap worth
+        flagging). PHASE F2 — that default is now
+        _standard_default_cover_mm(element_kind).
         """
+        default_mm = self._standard_default_cover_mm(element_kind)
         if host is None:
-            return re_engine.DEFAULT_COVER_MM
-        return re_engine.get_native_cover_mm(self.doc, host, face_type_name)
+            return default_mm
+        return re_engine.get_native_cover_mm(self.doc, host, face_type_name, default_mm)
 
     def _update_preview(self):
         footings, floors = self._selected_hosts()
         preview_host = (footings + floors)[0] if (footings or floors) else None
+        preview_kind = u'foundation' if footings else (u'slab' if floors else None)
 
-        cover = self._preview_cover_mm(preview_host, u'Bottom')
+        cover = self._preview_cover_mm(preview_host, u'Bottom', preview_kind)
         try:
             dia_x = float(self.TxtDiaX.Text)
             dia_y = float(self.TxtDiaY.Text)
@@ -396,7 +476,7 @@ class RebarAutomateWindow(NOSAWindow):
         top_cover = top_dia_x = top_dia_y = None
         if include_top:
             try:
-                top_cover = self._preview_cover_mm(preview_host, u'Top')
+                top_cover = self._preview_cover_mm(preview_host, u'Top', preview_kind)
                 top_dia_x = float(self.TxtTopDiaX.Text)
                 top_dia_y = float(self.TxtTopDiaY.Text)
                 if top_cover <= 0 or top_dia_x <= 0 or top_dia_y <= 0:
@@ -942,8 +1022,10 @@ class RebarAutomateWindow(NOSAWindow):
         footings in the same selection can genuinely have different
         configured covers.
         """
-        bottom_cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Bottom')
-        top_cover_mm = (re_engine.get_native_cover_mm(self.doc, host, u'Top')
+        bottom_cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Bottom', self._standard_default_cover_mm(u'foundation'))
+        top_cover_mm = (re_engine.get_native_cover_mm(
+                            self.doc, host, u'Top', self._standard_default_cover_mm(u'foundation'))
                         if values['include_top_mat'] else None)
         reinforcement = footing_rebar.build_footing_reinforcement(
             self.doc, host,
@@ -1035,8 +1117,10 @@ class RebarAutomateWindow(NOSAWindow):
         Rebar Cover, same as _process_footing — see that method's own
         note.
         """
-        bottom_cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Bottom')
-        top_cover_mm = (re_engine.get_native_cover_mm(self.doc, host, u'Top')
+        bottom_cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Bottom', self._standard_default_cover_mm(u'slab'))
+        top_cover_mm = (re_engine.get_native_cover_mm(
+                            self.doc, host, u'Top', self._standard_default_cover_mm(u'slab'))
                         if values['include_top_mat'] else None)
         reinforcement = floor_rebar.build_floor_reinforcement(
             self.doc, host,
@@ -1193,7 +1277,7 @@ class RebarAutomateWindow(NOSAWindow):
         # PHASE 3.5.3 item 4 — cover from the live selected column's
         # own native Rebar Cover, matching real generation exactly
         # (see _process_column) instead of a typed UI value.
-        cover = self._preview_cover_mm(col_host, u'Exterior')
+        cover = self._preview_cover_mm(col_host, u'Exterior', u'column')
         try:
             bar_dia = float(self.TxtColBarDia.Text)
             bar_count = float(self.TxtColBarCount.Text)
@@ -1246,7 +1330,7 @@ class RebarAutomateWindow(NOSAWindow):
 
         # PHASE 3.5.3 item 4 — same live-host native cover as the plan
         # preview (_update_column_preview) — see that method's note.
-        cover = self._preview_cover_mm(col_host, u'Exterior')
+        cover = self._preview_cover_mm(col_host, u'Exterior', u'column')
         try:
             bar_dia = float(self.TxtColBarDia.Text)
             bar_count = float(self.TxtColBarCount.Text)
@@ -1599,7 +1683,8 @@ class RebarAutomateWindow(NOSAWindow):
         # Rebar Cover ('Exterior' face — a column's cover is uniform
         # across all 4 side faces in this plugin's model), not a UI
         # text field.
-        cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Exterior')
+        cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Exterior', self._standard_default_cover_mm(u'column'))
         reinforcement = column_rebar.build_column_reinforcement(
             self.doc, host,
             cover_mm=cover_mm,

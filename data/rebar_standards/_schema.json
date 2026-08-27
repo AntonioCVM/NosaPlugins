@@ -2,21 +2,136 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "nosa-rebar-standard-profile",
   "title": "NOSA Rebar Standard Profile",
-  "description": "PHASE F0 STUB -- fleshed out in F2 (see docs/REBARAUTOMATE_BLUEPRINT.md Part 06). Only the top-level shape and the minimum fields F2's standards.load() needs to not crash are required here; every nested block's own detailed schema (steel, cover_mm, bend, hook, anchorage, lap, stirrups, marking, schedule) is added in F2 alongside the actual EHE-08/EN-ISO-3766/BS-8666-2020 profiles.",
+  "description": "PHASE F2 — full schema for a rebar_standards/<code>.json profile. See docs/REBARAUTOMATE_BLUEPRINT.md Part 06 for the worked EHE-08 example this schema is derived from.",
   "type": "object",
-  "required": ["code", "display_name", "shape_catalog", "units"],
+  "required": ["code", "display_name", "shape_catalog", "units", "steel", "cover_mm",
+               "bend", "hook", "anchorage", "lap", "stirrups", "stock_length_mm",
+               "marking", "schedule"],
   "properties": {
-    "code": {
-      "type": "string",
-      "description": "Unique profile identifier, e.g. 'EHE-08'."
-    },
+    "code": { "type": "string" },
     "display_name": { "type": "string" },
     "revision": { "type": "string" },
-    "shape_catalog": {
-      "type": "string",
-      "description": "Which data/shape_catalogs/<id>/ this profile's shapes come from."
+    "shape_catalog": { "type": "string" },
+    "units": { "type": "string", "enum": ["mm"] },
+
+    "steel": {
+      "type": "object",
+      "required": ["default_grade", "grades", "bar_diameters_mm", "mass_per_length_kg_m"],
+      "properties": {
+        "default_grade": { "type": "string" },
+        "grades": { "type": "object" },
+        "bar_diameters_mm": { "type": "array", "items": { "type": "number" } },
+        "mass_per_length_kg_m": { "type": "object" }
+      }
     },
-    "units": { "type": "string", "enum": ["mm"] }
+
+    "cover_mm": {
+      "type": "object",
+      "required": ["by_element"],
+      "properties": {
+        "by_element": { "type": "object" },
+        "by_exposure": { "type": "object" }
+      }
+    },
+
+    "bend": {
+      "type": "object",
+      "required": ["mandrel_factor"],
+      "properties": {
+        "mandrel_factor": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["bar_max_mm", "stirrup_factor", "bar_factor"],
+            "properties": {
+              "bar_max_mm": { "type": "number" },
+              "stirrup_factor": { "type": "number" },
+              "bar_factor": { "type": "number" }
+            }
+          }
+        },
+        "min_straight_after_bend_factor": { "type": "number" }
+      }
+    },
+
+    "hook": {
+      "type": "object",
+      "required": ["standard_bend_deg", "stirrup_bend_deg", "hook_extension_factor"],
+      "properties": {
+        "standard_bend_deg": { "type": "number" },
+        "stirrup_bend_deg": { "type": "number" },
+        "seismic_stirrup_bend_deg": { "type": "number" },
+        "hook_extension_factor": { "type": "object" },
+        "min_hook_extension_mm": { "type": "number" }
+      }
+    },
+
+    "anchorage": {
+      "type": "object",
+      "required": ["basic_length_factor"],
+      "properties": {
+        "mode": { "type": "string" },
+        "basic_length_factor": {
+          "type": "object",
+          "required": ["good_bond", "poor_bond"],
+          "properties": {
+            "good_bond": { "type": "number" },
+            "poor_bond": { "type": "number" }
+          }
+        },
+        "min_factor": { "type": "number" },
+        "min_mm": { "type": "number" },
+        "compression_factor": { "type": "number" }
+      }
+    },
+
+    "lap": {
+      "type": "object",
+      "required": ["tension_factor", "compression_factor", "min_mm"],
+      "properties": {
+        "mode": { "type": "string" },
+        "tension_factor": { "type": "object" },
+        "compression_factor": { "type": "number" },
+        "min_mm": { "type": "number" },
+        "stagger_offset_mm": { "type": "number" }
+      }
+    },
+
+    "stirrups": {
+      "type": "object",
+      "required": ["default_spacing_mm", "min_spacing_mm", "confinement_zone_factor_h"],
+      "properties": {
+        "default_spacing_mm": { "type": "number" },
+        "min_spacing_mm": { "type": "number" },
+        "max_spacing_beam_factor_h": { "type": "number" },
+        "max_spacing_column_min": { "type": "object" },
+        "confinement_zone_factor_h": { "type": "number" }
+      }
+    },
+
+    "stock_length_mm": { "type": "number" },
+
+    "marking": {
+      "type": "object",
+      "required": ["mark_format", "number_scope", "layer_names"],
+      "properties": {
+        "mark_format": { "type": "string" },
+        "number_scope": { "type": "string", "enum": ["per_host", "per_project", "per_view"] },
+        "dedup_tolerance_mm": { "type": "number" },
+        "layer_names": { "type": "object" }
+      }
+    },
+
+    "schedule": {
+      "type": "object",
+      "required": ["columns"],
+      "properties": {
+        "columns": { "type": "array", "items": { "type": "string" } },
+        "length_precision_mm": { "type": "number" },
+        "round_cut_length_to_mm": { "type": "number" },
+        "group_by": { "type": "array", "items": { "type": "string" } }
+      }
+    }
   },
   "additionalProperties": true
 }

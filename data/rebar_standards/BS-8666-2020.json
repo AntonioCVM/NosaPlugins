@@ -1,0 +1,86 @@
+{
+  "_comment": "PHASE F2 SKELETON — minimal functional profile. The mandrel factors below (4d for bar sizes up to 16mm, 7d above) are the one figure explicitly confirmed in docs/REBARAUTOMATE_BLUEPRINT.md's own SOFiSTiK disk analysis (Part 06) — everything else (cover, hook, anchorage, lap, stirrup spacing) is a generic placeholder at the same order of magnitude as EHE-08/EN-ISO-3766, NOT checked against the real BS 8666:2020 / BS EN 1992-1-1 UK National Annex text. A follow-up phase must replace those before relying on them for construction.",
+  "code": "BS-8666-2020",
+  "display_name": "BS 8666:2020 (United Kingdom)",
+  "revision": "2026-08-skeleton",
+  "shape_catalog": "bs_8666_2020",
+  "units": "mm",
+  "steel": {
+    "default_grade": "B500B",
+    "grades": {
+      "B500A": { "fyk_mpa": 500, "ductility": "A" },
+      "B500B": { "fyk_mpa": 500, "ductility": "B" },
+      "B500C": { "fyk_mpa": 500, "ductility": "C" }
+    },
+    "bar_diameters_mm": [6, 8, 10, 12, 16, 20, 25, 32, 40],
+    "mass_per_length_kg_m": { "6":0.222,"8":0.395,"10":0.617,"12":0.888,"16":1.578,
+                              "20":2.466,"25":3.854,"32":6.313,"40":9.865 }
+  },
+
+  "cover_mm": {
+    "by_element": { "foundation": 75, "column": 35, "beam": 30, "slab": 25, "wall": 30, "pile_cap": 75 },
+    "by_exposure": { "XC1": 15, "XC2": 25, "XC3": 25, "XC4": 30, "XD1": 40, "XD2": 40, "XS1": 45 }
+  },
+
+  "bend": {
+    "_comment": "BS 8666:2020 Table 2 — confirmed on disk (SOFiSTiK's own BS_8666_2020 shape catalog references this split): 4d for d<=16mm, 7d for d>16mm.",
+    "mandrel_factor": [
+      { "bar_max_mm": 16, "stirrup_factor": 4, "bar_factor": 4 },
+      { "bar_max_mm": 40, "stirrup_factor": 7, "bar_factor": 7 }
+    ],
+    "min_straight_after_bend_factor": 5
+  },
+
+  "hook": {
+    "standard_bend_deg": 90,
+    "stirrup_bend_deg": 135,
+    "seismic_stirrup_bend_deg": 135,
+    "hook_extension_factor": { "90": 12, "135": 10, "180": 4 },
+    "min_hook_extension_mm": 70
+  },
+
+  "anchorage": {
+    "mode": "factor",
+    "basic_length_factor": { "good_bond": 40, "poor_bond": 57 },
+    "min_factor": 10, "min_mm": 150,
+    "compression_factor": 0.7
+  },
+
+  "lap": {
+    "mode": "factor",
+    "tension_factor": { "pct_lapped_le_25": 40, "pct_lapped_gt_50": 57 },
+    "compression_factor": 40,
+    "min_mm": 200,
+    "stagger_offset_mm": 25
+  },
+
+  "stirrups": {
+    "default_spacing_mm": 200,
+    "min_spacing_mm": 75,
+    "max_spacing_beam_factor_h": 0.75,
+    "max_spacing_column_min": { "factor_min_dim": 1.0, "factor_bar_dia": 12, "abs_mm": 300 },
+    "confinement_zone_factor_h": 2.0
+  },
+
+  "stock_length_mm": 12000,
+
+  "marking": {
+    "mark_format": "{host_mark}-{number:02d}",
+    "number_scope": "per_host",
+    "dedup_tolerance_mm": 2.0,
+    "layer_names": {
+      "bottom_x":"Bottom-X","bottom_y":"Bottom-Y","top_x":"Top-X","top_y":"Top-Y",
+      "long_top":"Long-Top","long_bot":"Long-Bottom","skin":"Skin",
+      "stirrup":"Stirrup","crosstie":"Crosstie","dowel":"Starter",
+      "edge_u":"Edge Reinforcement"
+    }
+  },
+
+  "schedule": {
+    "columns": ["mark","count","diameter","shape_code","A","B","C","D","E","R",
+                "total_length_mm","unit_mass_kg_m","total_mass_kg"],
+    "length_precision_mm": 10,
+    "round_cut_length_to_mm": 10,
+    "group_by": ["host_mark","layer"]
+  }
+}
