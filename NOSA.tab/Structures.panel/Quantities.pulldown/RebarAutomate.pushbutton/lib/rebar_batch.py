@@ -157,6 +157,22 @@ class RebarBatch(object):
                                 u'Element {}: failed to stamp {}'.format(
                                     get_id_value(elem.Id), u', '.join(sorted(failed_fields))))
 
+                # F4: Clasificación de formas
+                with revit.Transaction(u'NOSA RebarAutomate — Shape Classification'):
+                    try:
+                        from . import rebar_shape_classifier
+                        all_created_ids = [e.Id for e in created_rebars]
+                        standard_code = self.ctx.get('standard_code', 'en_iso_3766')
+                        shape_summary = rebar_shape_classifier.batch_classify(doc, all_created_ids, standard_code)
+                        print(u'[RebarBatch] Shape classification: {} classified, {} failed'.format(
+                            shape_summary['classified'], shape_summary['failed']))
+                        if shape_summary['shapes']:
+                            shapes_str = u', '.join(u'{}×{}'.format(code, count) 
+                                                    for code, count in sorted(shape_summary['shapes'].items()))
+                            print(u'  Shapes: {}'.format(shapes_str))
+                    except Exception as shape_err:
+                        stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))
+
                 # F3: Numeración y marcado
                 with revit.Transaction(u'NOSA RebarAutomate — Marking {}'.format(self.ctx['batch_id'])):
                     try:

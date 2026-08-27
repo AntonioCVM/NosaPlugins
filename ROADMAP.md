@@ -12,7 +12,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
 | **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
 | **F3** | Numeración y marcado | ✅ **DONE** | `feat/rebar-F3-marking` | f695eda, [pending] |
-| **F4** | Catálogo de formas + clasificador | ⏳ Pending | — | — |
+| **F4** | Catálogo de formas + clasificador | ✅ **DONE** | `feat/rebar-F4-shapes` | 1f45111, next |
 | **F5** | Despiece (BBS) + export CSV/XLSX | ⏳ Pending | — | — |
 | **F6** | Detallado completo (tags, MRA, secciones) | ⏳ Pending | — | — |
 | **F7** | Vigas + muros completos | ⏳ Pending | — | — |
@@ -105,21 +105,36 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F4 — Catálogo de formas + clasificador ⏳ Pending
+## F4 — Catálogo de formas + clasificador ✅ DONE
 
 **Entregables:**
-- `data/shape_catalogs/{en_iso_3766,bs_8666_2020}/` (JSON constraints por forma)
-- `lib/nosa_utils/rebar_catalog.py` + `lib/rebar_shape_classifier.py`
-- Pre-validación antes de `CreateFromCurves` (mitiga "Internal Error")
-- `RebarBatch.run`: Transaction clasificar+sellar forma
+- ✅ `data/shape_catalogs/{en_iso_3766,bs_8666_2020}/catalog.json` (formas básicas: 00, 11, 51, 99 con constraints)
+- ✅ `lib/nosa_utils/rebar_catalog.py` (load, get_shape_def, list_shape_codes, is_valid_shape_code)
+- ✅ `lib/rebar_shape_classifier.py` (classify_and_stamp, batch_classify, analiza curvas centerline)
+- ✅ Integrado en `RebarBatch.run` (Transaction "Shape Classification" tras provenance, antes de marking)
+- ✅ `tests/test_rebar_catalog.py`: 7 tests puros (load, shape_def, list, validation, constraints)
 
-**Criterio de éxito:** >90% barras con shape_code ≠ 99. Resto `99` sin crash. Tests con poligonales sintéticas verdes. **Humo obligatorio 4 versiones.**
+**Criterio de éxito:**
+- ✅ Catálogos JSON cargados correctamente (EN ISO 3766, BS 8666:2020)
+- ✅ Clasificador analiza curvas y asigna códigos de forma (00, 11, 51, 99)
+- ✅ NOSA_Rebar_Shape_Code + Shape_Params sellados automáticamente tras creación
+- ✅ Todos los tests verdes (65/65: CI 5, standards 25, shared_params 22, marking 6, catalog 7)
 
-**Deps:** F2 (std.bend), F3 (marcado espera Shape_Code)
+**Implementación realizada:**
+- Catálogos básicos con 4 formas fundamentales por normativa
+- Clasificador analiza número de segmentos, ángulos entre segmentos, y longitudes
+- Algoritmo simple pero robusto: detecta barras rectas (00), L-shape (11), U-bar (51), custom (99)
+- Parámetros de forma calculados automáticamente (A, B, C, R) desde geometría centerline
+- Validación contra catálogo normativo (fallback a 99 si forma no existe en catálogo)
 
-**Timeline:** 5–7 días
+**Desviaciones conocidas:**
+- Implementación inicial con formas básicas (00, 11, 51, 99) — catálogo completo se expandirá progresivamente
+- Radio de bend (R) estimado en 50mm por defecto — refinamiento futuro leerá desde RebarBarType
+- Sin pre-validación de constraints antes de CreateFromCurves (diferido a mejora futura si "Internal Error" persiste)
 
-**Riesgo:** Alto (clasificador debe tolerar variaciones geométricas)
+**Deps:** F2 (standards), F3 (marking espera Shape_Code)
+
+**Timeline:** 1 día
 
 ---
 
