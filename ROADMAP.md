@@ -188,6 +188,52 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
+## 🔥 FIXES POST-F5 (2026-08-28)
+
+### ✅ FIX CRÍTICO: Shared Parameters no se creaban
+**Problema:** Tras completar F3, F4, F5, los smoke tests revelaron que los parámetros NOSA nunca aparecían en las barras. El diálogo de creación de shared params se mostraba, pero los parámetros no se stampaban.
+
+**Root Cause:** `lib/nosa_utils/shared_params.py::ensure_bound()` ejecutaba `doc.ParameterBindings.Insert()` **sin Transaction activa**. En Revit, cualquier modificación al documento DEBE ocurrir dentro de una transacción. La operación fallaba silenciosamente (retornaba `False`).
+
+**Fix aplicado:**
+- Envolví el bucle de bindings en `Transaction(doc, u'NOSA — Bind Shared Parameters')`.
+- Commit: `c47a823` (2026-08-28)
+
+**Impacto:** Este bug bloqueaba **TODO** el sistema de provenance (F1), marking (F3), shape classification (F4) y schedule (F5). Era el bloqueador crítico #1.
+
+---
+
+### 📋 BUGS CONOCIDOS (No bloqueantes para F6)
+
+Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan a F0-F5. Se documentan aquí para priorización futura:
+
+1. **Geometría de columnas circulares:** Refuerzan como si fueran cuadradas.
+   - Origen: `lib/rebar_generators/column_rebar.py` (legacy)
+   - Prioridad: Alta (fix en fase post-F9)
+
+2. **Density at nodes en columnas continuas:** Solo se aplica en parte superior/inferior, no en plantas intermedias.
+   - Origen: `lib/rebar_generators/column_rebar.py` (legacy)
+   - Prioridad: Media (fix en fase post-F9)
+
+3. **Crank bars en columnas:** No se generan. Las esperas de la siguiente planta quedan rectas.
+   - Origen: `lib/rebar_generators/column_rebar.py` (legacy)
+   - Prioridad: Alta (fix en fase post-F9)
+
+4. **Mínimo 25mm en losas no cuadradas:** Error "The minimum length of rebar shape is 25 mm" en algunos casos no rectangulares.
+   - Origen: `lib/rebar_generators/floor_rebar.py` (legacy)
+   - Prioridad: Media (fix en F9 durante refactoring de floor_rebar)
+
+5. **Huecos en losas:** Corta barras lisas pero no coloca U-bars. Petición: ignorar huecos < 200x200mm, armar huecos ≥ 200x200mm.
+   - Origen: `lib/rebar_generators/floor_rebar.py` (legacy)
+   - Prioridad: Alta (fix en F9 durante refactoring de floor_rebar)
+
+6. **UI modeless:** Petición de usuario para poder interactuar con Revit mientras RebarAutomate está abierto.
+   - Prioridad: Media (UX improvement en fase post-F9)
+
+**Estrategia:** Estos bugs NO bloquean F6-F8. Los abordaremos en **F9** cuando refactoricemos `floor_rebar.py` y `column_rebar.py` completamente.
+
+---
+
 ## F7 — Vigas + muros ⏳ Pending
 
 **Entregables:**

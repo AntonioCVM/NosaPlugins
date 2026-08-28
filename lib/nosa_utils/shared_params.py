@@ -193,7 +193,7 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
          'skipped': [names...], 'errors': [unicode...]}
     """
     from Autodesk.Revit.DB import (
-        BuiltInCategory, CategorySet, InstanceBinding, TypeBinding, GroupTypeId)
+        BuiltInCategory, CategorySet, InstanceBinding, TypeBinding, GroupTypeId, Transaction)
 
     report = {'bound': [], 'already': [], 'skipped': [], 'errors': []}
     category_names = categories if categories is not None else list(DEFAULT_CATEGORY_NAMES)
@@ -232,49 +232,58 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
         param_names_by_guid = {p['guid']: p['name'] for p in parsed['params']}
         tag_eligible_requested = bool(set(category_names) & set(_TAG_CATEGORY_NAMES))
 
-        for group in def_file.Groups:
-            for definition in group.Definitions:
-                name = definition.Name
-                # A parameter not present in our own parsed table isn't
-                # one of ours — skip it defensively rather than binding
-                # something unexpected.
-                if str(definition.GUID) not in param_names_by_guid:
-                    continue
+        # CRITICAL: Bindings MUST be inserted within a Transaction
+        t = Transaction(doc, u'NOSA — Bind Shared Parameters')
+        t.Start()
+        try:
+            for group in def_file.Groups:
+                for definition in group.Definitions:
+                    name = definition.Name
+                    # A parameter not present in our own parsed table isn't
+                    # one of ours — skip it defensively rather than binding
+                    # something unexpected.
+                    if str(definition.GUID) not in param_names_by_guid:
+                        continue
 
-                existing = doc.ParameterBindings.get_Item(definition)
-                if existing is not None:
-                    report['already'].append(name)
-                    continue
+                    existing = doc.ParameterBindings.get_Item(definition)
+                    if existing is not None:
+                        report['already'].append(name)
+                        continue
 
-                this_category_set = category_set
-                if tag_eligible_requested and name not in _TAG_ELIGIBLE_PARAM_NAMES:
-                    # Only the tag-eligible subset gets the tag
-                    # categories mixed in; rebuild a set without them
-                    # for everything else.
-                    this_category_set = CategorySet()
-                    for cat_name in category_names:
-                        if cat_name in _TAG_CATEGORY_NAMES:
-                            continue
-                        try:
-                            bic = getattr(BuiltInCategory, cat_name)
-                            category = doc.Settings.Categories.get_Item(bic)
-                            if category is not None:
-                                this_category_set.Insert(category)
-                        except Exception:
-                            pass
+                    this_category_set = category_set
+                    if tag_eligible_requested and name not in _TAG_ELIGIBLE_PARAM_NAMES:
+                        # Only the tag-eligible subset gets the tag
+                        # categories mixed in; rebuild a set without them
+                        # for everything else.
+                        this_category_set = CategorySet()
+                        for cat_name in category_names:
+                            if cat_name in _TAG_CATEGORY_NAMES:
+                                continue
+                            try:
+                                bic = getattr(BuiltInCategory, cat_name)
+                                category = doc.Settings.Categories.get_Item(bic)
+                                if category is not None:
+                                    this_category_set.Insert(category)
+                            except Exception:
+                                pass
 
-                try:
-                    if name in _TYPE_PARAM_NAMES:
-                        binding = TypeBinding(this_category_set)
-                    else:
-                        binding = InstanceBinding(this_category_set)
-                    ok = doc.ParameterBindings.Insert(definition, binding, GroupTypeId.Data)
-                    if ok:
-                        report['bound'].append(name)
-                    else:
-                        report['skipped'].append(name)
-                except Exception as e:
-                    report['errors'].append(u'{}: {}'.format(name, e))
+                    try:
+                        if name in _TYPE_PARAM_NAMES:
+                            binding = TypeBinding(this_category_set)
+                        else:
+                            binding = InstanceBinding(this_category_set)
+                        ok = doc.ParameterBindings.Insert(definition, binding, GroupTypeId.Data)
+                        if ok:
+                            report['bound'].append(name)
+                        else:
+                            report['skipped'].append(name)
+                    except Exception as e:
+                        report['errors'].append(u'{}: {}'.format(name, e))
+            
+            t.Commit()
+        except Exception as e:
+            t.RollBack()
+            report['errors'].append(u'Transaction failed: {}'.format(e))
 
         if insert_into_user_file:
             _insert_definitions_into_user_file(app, original_path, def_file, report)
