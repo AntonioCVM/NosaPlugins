@@ -429,7 +429,10 @@ class RebarAutomateWindow(NOSAWindow):
             return
         
         try:
-            from . import rebar_schedule
+            # Cargar rebar_schedule con load_module (IronPython compatible)
+            import imp
+            rebar_schedule = imp.load_source('rebar_schedule',
+                os.path.join(os.path.dirname(__file__), 'rebar_schedule.py'))
             
             # Generar schedule de todas las barras NOSA
             schedule_data = rebar_schedule.generate_schedule_data(

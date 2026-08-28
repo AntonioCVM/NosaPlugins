@@ -103,13 +103,14 @@ def load(code):
             "fall back to defaults" situation.
         ValueError: the factory (or override) file isn't valid JSON.
     """
+    import io
     factory_path = _profile_path(code)
-    with open(factory_path, 'r', encoding='utf-8') as f:
+    with io.open(factory_path, 'r', encoding='utf-8') as f:
         base = json.load(f)
 
     override_path = _user_override_path(code)
     if os.path.isfile(override_path):
-        with open(override_path, 'r', encoding='utf-8') as f:
+        with io.open(override_path, 'r', encoding='utf-8') as f:
             user_override = json.load(f)
         return deep_merge(base, user_override)
     return base
@@ -129,7 +130,8 @@ def list_available():
             continue
         path = os.path.join(_STANDARDS_DIR, fname)
         try:
-            with open(path, 'r', encoding='utf-8') as f:
+            import io
+            with io.open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             code = data.get('code')
             if code:
@@ -269,7 +271,8 @@ def hook_extension_mm(std, bar_diameter_mm, angle_deg):
 # ══════════════════════════════════════════════════════════════════════════
 
 def _load_schema():
-    with open(_SCHEMA_PATH, 'r', encoding='utf-8') as f:
+    import io
+    with io.open(_SCHEMA_PATH, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
