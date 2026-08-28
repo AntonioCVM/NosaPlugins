@@ -311,8 +311,7 @@ class RebarAutomateWindow(NOSAWindow):
                     u'• NOSA_Rebar_Shape_Code\n'
                     u'• NOSA_Rebar_Shape_Params\n'
                     u'• ... and more'.format(bound_count),
-                    title=u'NOSA RebarAutomate — Shared Parameters',
-                    ok_only=True)
+                    title=u'NOSA RebarAutomate — Shared Parameters')
                 
         except Exception as e:
             self._shared_params_report = {'bound': [], 'already': [], 'skipped': [],
