@@ -116,7 +116,8 @@ def parse_shared_parameters_txt(path=None):
     resolved_path = _resolve_txt_path(path)
     groups = {}
     params = []
-    with open(resolved_path, 'r', encoding='utf-8') as f:
+    import io
+    with io.open(resolved_path, 'r', encoding='utf-8') as f:
         reader = csv.reader(f, delimiter='\t')
         for row in reader:
             if not row or not row[0] or row[0].startswith('#') or row[0].startswith('*'):
