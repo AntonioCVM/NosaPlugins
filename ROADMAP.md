@@ -210,9 +210,61 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 - Agregado logging detallado a consola pyRevit con conteo de bound/already/skipped/errors
 - Alert visual cuando se crean parámetros por primera vez (con lista de parámetros disponibles)
 - Alert de WARNING si hay errores durante la creación
-- Commit: `[pending]` (2026-08-28)
+- Commit: `5b81943` (2026-08-28)
 
 **Impacto:** El usuario ahora tiene visibilidad completa de qué está pasando con los shared parameters al abrir RebarAutomate.
+
+---
+
+### ✅ FIX: Python 2/3 encoding en parse_shared_parameters_txt
+**Problema:** Error al abrir RebarAutomate: "open() got an unexpected keyword argument 'encoding'"
+
+**Root Cause:** `parse_shared_parameters_txt()` usaba `open(..., encoding='utf-8')` que IronPython 2.7 no soporta.
+
+**Fix aplicado:**
+- Cambié a `io.open(..., encoding='utf-8')` compatible con Python 2/3
+- Commit: `5d9759f` (2026-08-28)
+
+**Impacto:** Este era el ÚLTIMO caso de `open()/encoding` en el codebase. Todos los módulos ahora usan `io.open()`.
+
+---
+
+### ✅ FIX: forms.alert ok_only parameter
+**Problema:** Error después de crear parámetros: "alert() got an unexpected keyword argument 'ok_only'"
+
+**Root Cause:** pyRevit's `forms.alert()` no tiene parámetro `ok_only`. Por defecto ya muestra botón OK.
+
+**Fix aplicado:**
+- Eliminado `ok_only=True` del alert de éxito
+- Commit: `1772c69` (2026-08-28)
+
+**Impacto:** El diálogo de éxito ahora se muestra correctamente tras crear parámetros.
+
+---
+
+### ✅ FIX: os import en schedule generation
+**Problema:** Error al generar schedule: "Local variable 'os' referenced before assignment"
+
+**Root Cause:** En `BtnGenerateSchedule_Click()`, se usaba `os.path.join()` antes de importar `os`.
+
+**Fix aplicado:**
+- Movido `import os` al inicio de la función (junto con `import imp`)
+- Commit: `3460a96` (2026-08-28)
+
+**Impacto:** El botón "Generate Schedule" en la pestaña BBS ahora funciona correctamente.
+
+---
+
+### 🎉 RESULTADO FINAL (2026-08-28 12:11)
+
+**✅ TODOS LOS BLOCKERS DE F1-F5 RESUELTOS:**
+- ✅ 40 parámetros NOSA creados y visibles en Properties
+- ✅ Batch manager reconoce barras NOSA
+- ✅ Marking funciona (F3)
+- ✅ Shape classification funciona (F4)
+- ✅ Schedule generation funciona (F5)
+
+**Total de commits de fixing:** 5 (5a9319c, 5b81943, 5d9759f, 1772c69, 3460a96)
 
 ---
 
