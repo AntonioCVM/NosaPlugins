@@ -197,9 +197,22 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 **Fix aplicado:**
 - Envolví el bucle de bindings en `Transaction(doc, u'NOSA — Bind Shared Parameters')`.
-- Commit: `c47a823` (2026-08-28)
+- Commit: `5a9319c` (2026-08-28)
 
 **Impacto:** Este bug bloqueaba **TODO** el sistema de provenance (F1), marking (F3), shape classification (F4) y schedule (F5). Era el bloqueador crítico #1.
+
+---
+
+### ✅ MEJORA: Feedback visible de shared parameters
+**Problema:** `ensure_bound()` se ejecutaba pero no daba feedback visible al usuario. Era imposible saber si los parámetros se habían creado correctamente o no.
+
+**Mejora aplicada:**
+- Agregado logging detallado a consola pyRevit con conteo de bound/already/skipped/errors
+- Alert visual cuando se crean parámetros por primera vez (con lista de parámetros disponibles)
+- Alert de WARNING si hay errores durante la creación
+- Commit: `[pending]` (2026-08-28)
+
+**Impacto:** El usuario ahora tiene visibilidad completa de qué está pasando con los shared parameters al abrir RebarAutomate.
 
 ---
 
