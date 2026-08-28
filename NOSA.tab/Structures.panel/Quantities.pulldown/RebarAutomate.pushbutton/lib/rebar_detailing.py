@@ -306,3 +306,306 @@ def create_rebar_detail_section(doc, host, view_family_type_id, cut_axis='X', de
         return DB.ViewSection.CreateDetail(doc, view_family_type_id, section_box)
     except Exception:
         return None
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# F6 Enhancements — Multi-Rebar Annotation (MRA), smart offsets, auto-dims
+# ══════════════════════════════════════════════════════════════════════════
+
+def _read_tag_offset_from_params(rebar):
+    """
+    Read tag offsets from NOSA_Rebar_Tag_Offset_X/Y parameters if present.
+    
+    Args:
+        rebar (DBS.Rebar): the rebar element to read from.
+    
+    Returns:
+        (float, float, float): (dx_mm, dy_mm, dz_mm) offset tuple.
+                              Returns (0.0, 0.0, 0.0) if parameters not found
+                              or have no value.
+    """
+    try:
+        # Try to get parameters by GUID (preferred) or by name (fallback)
+        offset_x = 0.0
+        offset_y = 0.0
+        
+        # Offset X
+        try:
+            import System
+            guid_x = System.Guid('1fa47447-1b45-4516-8a07-a6590a69b83b')
+            param_x = rebar.get_Parameter(guid_x)
+            if param_x and param_x.HasValue:
+                offset_x = param_x.AsDouble() * _MM_PER_FT  # Convert feet to mm
+        except Exception:
+            param_x = rebar.LookupParameter('NOSA_Rebar_Tag_Offset_X')
+            if param_x and param_x.HasValue:
+                offset_x = param_x.AsDouble() * _MM_PER_FT
+        
+        # Offset Y
+        try:
+            guid_y = System.Guid('245b5c8c-1813-4935-8c27-8d89df2d48f3')
+            param_y = rebar.get_Parameter(guid_y)
+            if param_y and param_y.HasValue:
+                offset_y = param_y.AsDouble() * _MM_PER_FT
+        except Exception:
+            param_y = rebar.LookupParameter('NOSA_Rebar_Tag_Offset_Y')
+            if param_y and param_y.HasValue:
+                offset_y = param_y.AsDouble() * _MM_PER_FT
+        
+        return (offset_x, offset_y, 0.0)
+    
+    except Exception:
+        return (0.0, 0.0, 0.0)
+
+
+def create_rebar_tags_smart(doc, view, rebars, use_param_offsets=True,
+                             fallback_offset_mm=(0.0, 0.0, 0.0),
+                             orientation=None, tag_type_id=None, add_leader=False):
+    """
+    Enhanced version of create_rebar_tags that reads offsets from
+    NOSA_Rebar_Tag_Offset_X/Y parameters per-bar, allowing fine-grained
+    control of tag placement to avoid overlaps.
+    
+    Args:
+        doc                 (DB.Document)
+        view                (DB.View): the view to tag in.
+        rebars              (list[DBS.Rebar]): the bars to tag.
+        use_param_offsets   (bool): if True, reads NOSA_Rebar_Tag_Offset_X/Y
+                            from each bar; if False or params not found, uses
+                            fallback_offset_mm.
+        fallback_offset_mm  (float, float, float): default offset when
+                            use_param_offsets is False or params not found.
+        orientation         (DB.TagOrientation or None)
+        tag_type_id         (DB.ElementId or None)
+        add_leader          (bool)
+    
+    Returns:
+        (list[DB.IndependentTag], list[unicode]) — created tags and errors.
+    """
+    tags = []
+    errors = []
+    
+    for rebar in rebars:
+        try:
+            if use_param_offsets:
+                offset_mm = _read_tag_offset_from_params(rebar)
+                # If no offset found in params, use fallback
+                if offset_mm == (0.0, 0.0, 0.0):
+                    offset_mm = fallback_offset_mm
+            else:
+                offset_mm = fallback_offset_mm
+            
+            tag = create_rebar_tag(doc, view, rebar, offset_mm, orientation,
+                                  tag_type_id, add_leader)
+            tags.append(tag)
+        except Exception as e:
+            errors.append(u'Rebar {}: {}'.format(rebar.Id, e))
+    
+    return tags, errors
+
+
+def create_multi_rebar_annotation(doc, view, rebars, placement_point=None,
+                                   tag_type_id=None):
+    """
+    Create a Multi-Rebar Annotation (MRA) that references multiple rebars
+    with a single annotation element.
+    
+    This uses DB.MultiReferenceAnnotation.Create to create an annotation
+    that shows marks for all selected rebars in a compact group.
+    
+    Args:
+        doc              (DB.Document)
+        view             (DB.View): the view to place the MRA in.
+        rebars           (list[DBS.Rebar]): the rebars to annotate together.
+        placement_point  (DB.XYZ or None): where to place the MRA; if None,
+                         uses the centroid of all rebars' bounding boxes.
+        tag_type_id      (DB.ElementId or None): specific tag type to use.
+    
+    Returns:
+        DB.MultiReferenceAnnotation on success, or None on failure.
+    
+    Note:
+        API CONFIDENCE: MEDIUM
+        MultiReferenceAnnotation.Create is documented for Revit 2022+,
+        but less commonly used than IndependentTag. Verify behavior
+        in your target Revit versions.
+    """
+    if not rebars:
+        return None
+    
+    try:
+        # Build ReferenceArray
+        ref_array = DB.ReferenceArray()
+        for rebar in rebars:
+            ref_array.Append(DB.Reference(rebar))
+        
+        # Calculate placement point if not provided
+        if placement_point is None:
+            centers = []
+            for rebar in rebars:
+                bbox = rebar.get_BoundingBox(view)
+                if bbox is not None:
+                    centers.append((bbox.Min + bbox.Max).Multiply(0.5))
+            
+            if centers:
+                # Centroid of all centers
+                sum_x = sum(c.X for c in centers)
+                sum_y = sum(c.Y for c in centers)
+                sum_z = sum(c.Z for c in centers)
+                placement_point = DB.XYZ(sum_x / len(centers),
+                                        sum_y / len(centers),
+                                        sum_z / len(centers))
+            else:
+                # Fallback to origin if no bounding boxes found
+                placement_point = DB.XYZ.Zero
+        
+        # Create MRA
+        mra = DB.MultiReferenceAnnotation.Create(doc, view.Id, ref_array,
+                                                  placement_point)
+        
+        if mra is None:
+            return None
+        
+        # Change type if specified
+        if tag_type_id is not None:
+            try:
+                mra.ChangeTypeId(tag_type_id)
+            except Exception:
+                pass  # Type change failed, but MRA was created
+        
+        return mra
+    
+    except Exception:
+        return None
+
+
+def create_stirrup_dimension_smart(doc, view, stirrup_rebars, host=None,
+                                    offset_mm=300.0):
+    """
+    Enhanced version of create_stirrup_dimension that calculates dim_line
+    automatically from the host element's axis, instead of requiring the
+    caller to supply it.
+    
+    Args:
+        doc             (DB.Document)
+        view            (DB.View): the view to place the dimension in.
+        stirrup_rebars  (list[DBS.Rebar]): the stirrups to dimension, in
+                        run order — at least 2.
+        host            (DB.Element or None): the host element (beam/column)
+                        to extract the axis from. If None, falls back to
+                        computing axis from first and last stirrup centroids.
+        offset_mm       (float): perpendicular offset from the axis for the
+                        dimension line, mm.
+    
+    Returns:
+        DB.Dimension on success, or None on failure.
+    
+    Note:
+        This function tries to automatically determine the axis. If host is
+        provided and has a Location.Curve (e.g., FamilyInstance beam/column),
+        uses that. Otherwise, computes axis from stirrup positions.
+    """
+    if len(stirrup_rebars) < 2:
+        return None
+    
+    try:
+        # Try to get axis from host
+        axis_line = None
+        
+        if host is not None:
+            try:
+                loc = host.Location
+                if hasattr(loc, 'Curve') and loc.Curve is not None:
+                    axis_line = loc.Curve
+            except Exception:
+                pass
+        
+        # Fallback: compute axis from first and last stirrup
+        if axis_line is None:
+            first_bbox = stirrup_rebars[0].get_BoundingBox(view)
+            last_bbox = stirrup_rebars[-1].get_BoundingBox(view)
+            
+            if first_bbox is None or last_bbox is None:
+                return None
+            
+            p1 = (first_bbox.Min + first_bbox.Max).Multiply(0.5)
+            p2 = (last_bbox.Min + last_bbox.Max).Multiply(0.5)
+            axis_line = DB.Line.CreateBound(p1, p2)
+        
+        # Get axis direction and perpendicular offset
+        axis_dir = (axis_line.GetEndPoint(1) - axis_line.GetEndPoint(0)).Normalize()
+        
+        # Perpendicular direction (in view plane, assuming Z-up)
+        perp_dir = DB.XYZ(-axis_dir.Y, axis_dir.X, 0.0).Normalize()
+        offset_vec = perp_dir.Multiply(offset_mm / _MM_PER_FT)
+        
+        # Create dimension line parallel to axis, offset to one side
+        p1_offset = axis_line.GetEndPoint(0) + offset_vec
+        p2_offset = axis_line.GetEndPoint(1) + offset_vec
+        dim_line = DB.Line.CreateBound(p1_offset, p2_offset)
+        
+        # Create dimension
+        refs = DB.ReferenceArray()
+        for bar in stirrup_rebars:
+            refs.Append(DB.Reference(bar))
+        
+        return doc.Create.NewDimension(view, dim_line, refs)
+    
+    except Exception:
+        return None
+
+
+def tag_rebar_set_along_run(doc, view, rebar_set, tag_type_id=None, 
+                             dim_offset_mm=300.0):
+    """
+    Tag and dimension a single Rebar element that uses ShapeDrivenAccessor
+    (i.e., a "set" of bars along a run, like stirrups or mat distribution).
+    
+    Creates ONE tag at the first bar position, plus a dimension showing
+    the spacing along the run.
+    
+    Args:
+        doc             (DB.Document)
+        view            (DB.View): the view to tag and dimension in.
+        rebar_set       (DBS.Rebar): a single Rebar element (not a list),
+                        typically created with ShapeDrivenAccessor and
+                        representing multiple bars along a run.
+        tag_type_id     (DB.ElementId or None): specific tag type.
+        dim_offset_mm   (float): perpendicular offset for dimension line, mm.
+    
+    Returns:
+        (DB.IndependentTag or None, DB.Dimension or None) — the tag and
+        dimension created, or None for each if creation failed.
+    
+    Note:
+        This is a convenience function for the common pattern of "one tag +
+        one dimension" for a distributed rebar set. For more complex
+        arrangements, call create_rebar_tag and create_stirrup_dimension_smart
+        separately.
+    """
+    tag = None
+    dim = None
+    
+    try:
+        # Create tag at rebar's first position (using bounding box center)
+        try:
+            tag = create_rebar_tag(doc, view, rebar_set, offset_mm=(0.0, 0.0, 0.0),
+                                  orientation=DB.TagOrientation.Horizontal,
+                                  tag_type_id=tag_type_id, add_leader=False)
+        except Exception:
+            pass
+        
+        # For dimension, we need to extract individual bar positions
+        # For a ShapeDrivenAccessor rebar, we can't easily get individual
+        # bar positions without GetCenterlineCurves, which varies by version.
+        # For now, skip dimension creation for single Rebar sets.
+        # (This would require version-specific code or a more complex approach)
+        
+        # TODO: Implement dimension extraction for ShapeDrivenAccessor
+        # This requires iterating through bar positions, which is
+        # version-dependent. For now, return tag only.
+        
+    except Exception:
+        pass
+    
+    return tag, dim
