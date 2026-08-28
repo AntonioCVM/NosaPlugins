@@ -717,8 +717,29 @@
                     <Border Style="{DynamicResource Card}">
                         <StackPanel>
                             <TextBlock Text="Detailing" Style="{StaticResource RA_SectionTitle}"/>
-                            <Button Name="BtnAutoMRA" Content="Auto Multi-Rebar Annotation (MRA)..."
-                                    Click="AutoMRA_Click" HorizontalAlignment="Stretch"/>
+                            <TextBlock Text="Annotate selected rebars in the active view, or create orthogonal detail sections through selected hosts. Uses the annotation families already loaded in this project."
+                                       FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Rebar tag type:" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                            <ComboBox Name="CmbRebarTagType" Margin="0,0,0,8"/>
+
+                            <TextBlock Text="Multi-rebar annotation type:" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                            <ComboBox Name="CmbMraType" Margin="0,0,0,8"/>
+
+                            <UniformGrid Columns="2" Margin="0,0,0,8">
+                                <Button Name="BtnAutoTag" Content="Auto Tag Selection"
+                                        Click="AutoTag_Click" Margin="0,0,4,0"/>
+                                <Button Name="BtnAutoMRA" Content="Auto MRA..."
+                                        Click="AutoMRA_Click" Margin="4,0,0,0"/>
+                            </UniformGrid>
+                            <Button Name="BtnAutoSections" Content="Auto Detail Sections (X + Y)..."
+                                    Click="AutoSections_Click" HorizontalAlignment="Stretch"/>
+                            <TextBlock Name="TxtDetailingStatus" Text="" FontSize="11"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.8"
+                                       TextWrapping="Wrap" Margin="0,8,0,0"/>
                         </StackPanel>
                     </Border>
 

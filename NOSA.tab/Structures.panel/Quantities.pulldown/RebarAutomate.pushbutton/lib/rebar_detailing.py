@@ -404,79 +404,141 @@ def create_rebar_tags_smart(doc, view, rebars, use_param_offsets=True,
     return tags, errors
 
 
-def create_multi_rebar_annotation(doc, view, rebars, placement_point=None,
-                                   tag_type_id=None):
+def list_mra_types(doc):
     """
-    Create a Multi-Rebar Annotation (MRA) that references multiple rebars
-    with a single annotation element.
-    
-    This uses DB.MultiReferenceAnnotation.Create to create an annotation
-    that shows marks for all selected rebars in a compact group.
-    
+    All MultiReferenceAnnotationType elements in the document
+    (shown in Project Browser as Multi-Rebar Annotations).
+
+    Returns:
+        list[DB.MultiReferenceAnnotationType]
+    """
+    return list(DB.FilteredElementCollector(doc)
+                .OfClass(DB.MultiReferenceAnnotationType)
+                .ToElements())
+
+
+def list_rebar_tag_types(doc):
+    """
+    All IndependentTag types in OST_RebarTags (Project Browser:
+    Annotation Symbols → Rebar Tags / NOSA Rebar Tag).
+
+    Returns:
+        list[DB.ElementType]
+    """
+    return list(DB.FilteredElementCollector(doc)
+                .OfCategory(DB.BuiltInCategory.OST_RebarTags)
+                .WhereElementIsElementType()
+                .ToElements())
+
+
+def create_multi_rebar_annotation(doc, view, rebars, mra_type=None,
+                                   dim_offset_mm=300.0, tag_has_leader=False):
+    """
+    Create a Multi-Rebar Annotation (MRA) for the given rebars.
+
+    Uses the documented Revit API:
+      MultiReferenceAnnotation.Create(doc, viewId, MultiReferenceAnnotationOptions)
+
     Args:
         doc              (DB.Document)
-        view             (DB.View): the view to place the MRA in.
-        rebars           (list[DBS.Rebar]): the rebars to annotate together.
-        placement_point  (DB.XYZ or None): where to place the MRA; if None,
-                         uses the centroid of all rebars' bounding boxes.
-        tag_type_id      (DB.ElementId or None): specific tag type to use.
-    
+        view             (DB.View): owner view for the annotation.
+        rebars           (list[DBS.Rebar]): bars to dimension/tag together
+                         (typically parallel members of one set).
+        mra_type         (DB.MultiReferenceAnnotationType or None): if None,
+                         uses the first available type in the document.
+        dim_offset_mm    (float): offset of the dimension line from the bar
+                         run, measured along view.UpDirection, mm.
+        tag_has_leader   (bool): TagHasLeader on the options object.
+
     Returns:
         DB.MultiReferenceAnnotation on success, or None on failure.
-    
+
     Note:
-        API CONFIDENCE: MEDIUM
-        MultiReferenceAnnotation.Create is documented for Revit 2022+,
-        but less commonly used than IndependentTag. Verify behavior
-        in your target Revit versions.
+        API CONFIDENCE: MEDIUM — geometry heuristics (sort along
+        view.RightDirection, offset along UpDirection) are reasonable
+        for plan views; verify on section/elevation views.
     """
     if not rebars:
         return None
-    
+
     try:
-        # Build ReferenceArray
-        ref_array = DB.ReferenceArray()
+        from System.Collections.Generic import List as NetList
+
+        if mra_type is None:
+            types = list_mra_types(doc)
+            if not types:
+                return None
+            mra_type = types[0]
+
+        centers = []
         for rebar in rebars:
-            ref_array.Append(DB.Reference(rebar))
-        
-        # Calculate placement point if not provided
-        if placement_point is None:
-            centers = []
-            for rebar in rebars:
-                bbox = rebar.get_BoundingBox(view)
-                if bbox is not None:
-                    centers.append((bbox.Min + bbox.Max).Multiply(0.5))
-            
-            if centers:
-                # Centroid of all centers
-                sum_x = sum(c.X for c in centers)
-                sum_y = sum(c.Y for c in centers)
-                sum_z = sum(c.Z for c in centers)
-                placement_point = DB.XYZ(sum_x / len(centers),
-                                        sum_y / len(centers),
-                                        sum_z / len(centers))
-            else:
-                # Fallback to origin if no bounding boxes found
-                placement_point = DB.XYZ.Zero
-        
-        # Create MRA
-        mra = DB.MultiReferenceAnnotation.Create(doc, view.Id, ref_array,
-                                                  placement_point)
-        
-        if mra is None:
+            bbox = rebar.get_BoundingBox(view)
+            if bbox is not None:
+                centers.append((bbox.Min + bbox.Max).Multiply(0.5))
+        if not centers:
             return None
-        
-        # Change type if specified
-        if tag_type_id is not None:
-            try:
-                mra.ChangeTypeId(tag_type_id)
-            except Exception:
-                pass  # Type change failed, but MRA was created
-        
-        return mra
-    
+
+        right = view.RightDirection
+        up = view.UpDirection
+
+        def _along_right(pt):
+            return pt.DotProduct(right)
+
+        sorted_centers = sorted(centers, key=_along_right)
+        p0 = sorted_centers[0]
+        p1 = sorted_centers[-1]
+        run = p1 - p0
+        if run.GetLength() < 1.0 / _MM_PER_FT:
+            direction = right
+        else:
+            direction = run.Normalize()
+
+        offset = up.Multiply(dim_offset_mm / _MM_PER_FT)
+        mid = (p0 + p1).Multiply(0.5)
+
+        options = DB.MultiReferenceAnnotationOptions(mra_type)
+        options.DimensionPlaneNormal = view.ViewDirection
+        options.DimensionLineDirection = direction
+        options.DimensionLineOrigin = p0 + offset
+        options.TagHeadPosition = mid + offset.Multiply(1.5)
+        try:
+            options.TagHasLeader = bool(tag_has_leader)
+        except Exception:
+            pass
+
+        ids = NetList[DB.ElementId]()
+        for rebar in rebars:
+            ids.Add(rebar.Id)
+        options.SetElementsToDimension(ids)
+
+        return DB.MultiReferenceAnnotation.Create(doc, view.Id, options)
     except Exception:
         return None
+
+
+def create_orthogonal_detail_sections(doc, host, depth_margin_mm=200.0):
+    """
+    Create two orthogonal detail sections (X and Y) through `host`.
+
+    Returns:
+        (list[DB.ViewSection], list[unicode]) — created sections and
+        per-axis error messages (never raises).
+    """
+    sections = []
+    errors = []
+    vft = get_detail_section_view_family_type(doc)
+    if vft is None:
+        errors.append(u'No Detail Section view type found in this project.')
+        return sections, errors
+
+    for axis in ('X', 'Y'):
+        section = create_rebar_detail_section(
+            doc, host, vft.Id, cut_axis=axis, depth_margin_mm=depth_margin_mm)
+        if section is None:
+            errors.append(u'Could not create {}-axis detail section.'.format(axis))
+        else:
+            sections.append(section)
+    return sections, errors
 
 
 def create_stirrup_dimension_smart(doc, view, stirrup_rebars, host=None,

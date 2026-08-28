@@ -333,6 +333,7 @@ class RebarAutomateWindow(NOSAWindow):
         self.ra_standard = self._load_standard(self.ra_project.get('standard_code', u'EHE-08'))
         self._populate_standard_dropdown()
         self._populate_project_header()
+        self._populate_detailing_combos()
 
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
@@ -2139,10 +2140,204 @@ class RebarAutomateWindow(NOSAWindow):
             return
         forms.alert(u'Show/Hide Rebar as Solids is not implemented yet — planned for Phase 5.')
 
+    # ── Detailing (Phase F6) ─────────────────────────────────────────────
+
+    def _populate_detailing_combos(self):
+        """Fill CmbRebarTagType / CmbMraType from families loaded in the project."""
+        # Rebar tag types
+        self.CmbRebarTagType.Items.Clear()
+        tag_types = []
+        try:
+            tag_types = rebar_detailing.list_rebar_tag_types(self.doc)
+        except Exception:
+            tag_types = []
+        if not tag_types:
+            item = SWC.ComboBoxItem()
+            item.Content = u'(no rebar tag types loaded)'
+            item.IsEnabled = False
+            self.CmbRebarTagType.Items.Add(item)
+        else:
+            for tt in sorted(tag_types, key=lambda t: t.Name or u''):
+                item = SWC.ComboBoxItem()
+                item.Content = tt.Name
+                item.Tag = tt.Id
+                self.CmbRebarTagType.Items.Add(item)
+            self.CmbRebarTagType.SelectedIndex = 0
+
+        # Multi-rebar annotation types
+        self.CmbMraType.Items.Clear()
+        mra_types = []
+        try:
+            mra_types = rebar_detailing.list_mra_types(self.doc)
+        except Exception:
+            mra_types = []
+        if not mra_types:
+            item = SWC.ComboBoxItem()
+            item.Content = u'(no multi-rebar annotation types loaded)'
+            item.IsEnabled = False
+            self.CmbMraType.Items.Add(item)
+        else:
+            for mt in sorted(mra_types, key=lambda t: t.Name or u''):
+                item = SWC.ComboBoxItem()
+                item.Content = mt.Name
+                item.Tag = mt.Id
+                self.CmbMraType.Items.Add(item)
+            self.CmbMraType.SelectedIndex = 0
+
+    def _combo_selected_element_id(self, combo):
+        selected = combo.SelectedItem
+        if selected is None:
+            return None
+        return getattr(selected, 'Tag', None)
+
+    def _selected_rebars(self):
+        """Rebars currently selected in the model (OST_Rebar only)."""
+        rebars = []
+        try:
+            for eid in self.uidoc.Selection.GetElementIds():
+                elem = self.doc.GetElement(eid)
+                if elem is None:
+                    continue
+                try:
+                    if elem.Category and get_id_value(elem.Category.Id) == get_id_value(
+                            DB.ElementId(DB.BuiltInCategory.OST_Rebar)):
+                        rebars.append(elem)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return rebars
+
+    def _selected_detail_hosts(self):
+        """Footings / floors / columns currently selected (for detail sections)."""
+        hosts = []
+        allowed = set([_FOUNDATION_CAT_ID, _FLOOR_CAT_ID, _COLUMN_CAT_ID])
+        try:
+            for eid in self.uidoc.Selection.GetElementIds():
+                elem = self.doc.GetElement(eid)
+                if elem is None or elem.Category is None:
+                    continue
+                try:
+                    if get_id_value(elem.Category.Id) in allowed:
+                        hosts.append(elem)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return hosts
+
+    def AutoTag_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        rebars = self._selected_rebars()
+        if not rebars:
+            forms.alert(u'Select one or more rebar elements in the model first.',
+                        title=u'NOSA — Auto Tag')
+            return
+
+        view = self.doc.ActiveView
+        if view is None or getattr(view, 'IsTemplate', False):
+            forms.alert(u'Switch to a model view (not a template) before tagging.',
+                        title=u'NOSA — Auto Tag')
+            return
+
+        tag_type_id = self._combo_selected_element_id(self.CmbRebarTagType)
+        try:
+            with revit.Transaction(u'NOSA — Auto Tag Rebar'):
+                tags, errors = rebar_detailing.create_rebar_tags_smart(
+                    self.doc, view, rebars,
+                    use_param_offsets=True,
+                    tag_type_id=tag_type_id,
+                    add_leader=False)
+        except Exception as e:
+            forms.alert(u'Auto Tag failed:\n{}'.format(e), title=u'NOSA — Auto Tag')
+            return
+
+        msg = u'Created {} tag(s) for {} selected rebar(s).'.format(len(tags), len(rebars))
+        if errors:
+            msg += u'\n\n{} warning(s):\n{}'.format(
+                len(errors), u'\n'.join(errors[:8]))
+        self.TxtDetailingStatus.Text = msg
+        forms.alert(msg, title=u'NOSA — Auto Tag')
+
     def AutoMRA_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
-        forms.alert(u'Automatic Multi-Rebar Annotation is not implemented yet — planned for Phase 5.')
+        rebars = self._selected_rebars()
+        if len(rebars) < 1:
+            forms.alert(
+                u'Select one or more rebar elements (typically a parallel set) '
+                u'in the model first.',
+                title=u'NOSA — Auto MRA')
+            return
+
+        view = self.doc.ActiveView
+        if view is None or getattr(view, 'IsTemplate', False):
+            forms.alert(u'Switch to a model view (not a template) before creating an MRA.',
+                        title=u'NOSA — Auto MRA')
+            return
+
+        mra_type_id = self._combo_selected_element_id(self.CmbMraType)
+        mra_type = self.doc.GetElement(mra_type_id) if mra_type_id else None
+        if mra_type is None:
+            forms.alert(
+                u'No Multi-Rebar Annotation type is available in this project.\n'
+                u'Load a Multi-Rebar Annotation family first (Project Browser → '
+                u'Families → Annotation Symbols → Multi-Rebar Annotations).',
+                title=u'NOSA — Auto MRA')
+            return
+
+        try:
+            with revit.Transaction(u'NOSA — Auto Multi-Rebar Annotation'):
+                mra = rebar_detailing.create_multi_rebar_annotation(
+                    self.doc, view, rebars, mra_type=mra_type, dim_offset_mm=300.0)
+        except Exception as e:
+            forms.alert(u'Auto MRA failed:\n{}'.format(e), title=u'NOSA — Auto MRA')
+            return
+
+        if mra is None:
+            msg = (u'Could not create Multi-Rebar Annotation for {} selected bar(s).\n'
+                   u'Check that they are the same category, roughly parallel, and '
+                   u'visible in the active view.'.format(len(rebars)))
+            self.TxtDetailingStatus.Text = msg
+            forms.alert(msg, title=u'NOSA — Auto MRA')
+            return
+
+        msg = u'Multi-Rebar Annotation created for {} bar(s).'.format(len(rebars))
+        self.TxtDetailingStatus.Text = msg
+        forms.alert(msg, title=u'NOSA — Auto MRA')
+
+    def AutoSections_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        hosts = self._selected_detail_hosts()
+        if not hosts:
+            forms.alert(
+                u'Select one or more footings, floors, or columns in the model first.',
+                title=u'NOSA — Auto Sections')
+            return
+
+        created = 0
+        errors = []
+        try:
+            with revit.Transaction(u'NOSA — Auto Detail Sections'):
+                for host in hosts:
+                    sections, host_errors = rebar_detailing.create_orthogonal_detail_sections(
+                        self.doc, host)
+                    created += len(sections)
+                    for err in host_errors:
+                        errors.append(u'{}: {}'.format(get_id_value(host.Id), err))
+        except Exception as e:
+            forms.alert(u'Auto Sections failed:\n{}'.format(e),
+                        title=u'NOSA — Auto Sections')
+            return
+
+        msg = u'Created {} detail section(s) for {} host(s).'.format(created, len(hosts))
+        if errors:
+            msg += u'\n\n{} warning(s):\n{}'.format(
+                len(errors), u'\n'.join(errors[:8]))
+        self.TxtDetailingStatus.Text = msg
+        forms.alert(msg, title=u'NOSA — Auto Sections')
 
     # ── shared ────────────────────────────────────────────────────────────
 

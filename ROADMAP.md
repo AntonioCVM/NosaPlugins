@@ -171,12 +171,12 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F6 — Detallado completo ⏳ Pending
+## F6 — Detallado completo 🚧 In Progress
 
 **Entregables:**
-- Familias `NOSA_Tag_*.rfa` (OST_RebarTags, guardadas en 2024)
-- `lib/rebar_detailing.py` ampliado (MRA, dimensiones verificadas, secciones preset, croquis)
-- Botón `BtnAutoMRA` cableado
+- Familias `NOSA_Tag_*.rfa` (OST_RebarTags) — **diferido**: usar familias existentes del proyecto y optimizarlas post-F6
+- `lib/rebar_detailing.py` ampliado (MRA, dimensiones, secciones) — ✅ **F6.2 DONE** (`72ad5be`)
+- Botón `BtnAutoMRA` + Auto Tag + Auto Sections cableados — ✅ **F6.3 DONE**
 
 **Criterio de éxito:** Plano de zapata etiquetado+acotado+2 secciones automáticas legibles, sin intervención manual. **Humo obligatorio 4 versiones.**
 
@@ -185,6 +185,14 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 **Timeline:** 5–6 días
 
 **Riesgo:** Medio-alto (`create_rebar_detail_section` inestable; estilo defensivo obligatorio)
+
+**F6.3 (2026-08-28):**
+- UI Detailing card: combos de tag type / MRA type, botones Auto Tag / Auto MRA / Auto Sections
+- `create_multi_rebar_annotation` corregido a API real (`MultiReferenceAnnotationOptions`)
+- Helpers `list_mra_types`, `list_rebar_tag_types`, `create_orthogonal_detail_sections`
+- Flujo: seleccionar barras (o Batch → Select in Model) → Auto Tag / Auto MRA en vista activa
+
+**Pendiente F6.4:** smoke test en zapata (tags + MRA + 2 secciones) y humo 4 versiones
 
 ---
 
