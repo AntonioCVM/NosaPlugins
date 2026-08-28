@@ -160,7 +160,9 @@ class RebarBatch(object):
                 # F4: Clasificación de formas
                 with revit.Transaction(u'NOSA RebarAutomate — Shape Classification'):
                     try:
-                        from . import rebar_shape_classifier
+                        import imp
+                        rebar_shape_classifier = imp.load_source('rebar_shape_classifier',
+                            os.path.join(os.path.dirname(__file__), 'rebar_shape_classifier.py'))
                         all_created_ids = [e.Id for e in created_rebars]
                         standard_code = self.ctx.get('standard_code', 'en_iso_3766')
                         shape_summary = rebar_shape_classifier.batch_classify(doc, all_created_ids, standard_code)
@@ -176,7 +178,9 @@ class RebarBatch(object):
                 # F3: Numeración y marcado
                 with revit.Transaction(u'NOSA RebarAutomate — Marking {}'.format(self.ctx['batch_id'])):
                     try:
-                        from . import rebar_marking
+                        import imp
+                        rebar_marking = imp.load_source('rebar_marking',
+                            os.path.join(os.path.dirname(__file__), 'rebar_marking.py'))
                         all_created_ids = [e.Id for e in created_rebars]
                         mark_summary = rebar_marking.deduplicate_and_mark(doc, all_created_ids, self.ctx)
                         rebar_marking.assign_layers_and_lengths(doc, all_created_ids, self.ctx)
