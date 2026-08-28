@@ -47,6 +47,7 @@ rebar_detailing = load_module('rebar_detailing', os.path.join(_HERE, 'rebar_deta
 column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
 beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
+wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
 # PHASE F1
 rebar_batch = load_module('rebar_batch', os.path.join(_HERE, 'rebar_batch.py'))
@@ -56,6 +57,8 @@ _version_mod = load_module('rebarautomate_version', os.path.join(_HERE, '_versio
 _FOUNDATION_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFoundation))
 _FLOOR_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Floors))
 _COLUMN_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralColumns))
+_FRAMING_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFraming))
+_WALL_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Walls))
 
 _PREVIEW_BAR_FILL = SolidColorBrush(Color.FromRgb(51, 51, 51))
 _PREVIEW_SECTION_STROKE = SolidColorBrush(Color.FromRgb(255, 95, 0))
@@ -122,6 +125,12 @@ class _ReinforcementEventHandler(IExternalEventHandler):
             if mode == 'columns':
                 sel_filter = _CategorySelectionFilter([_COLUMN_CAT_ID])
                 prompt = u'Select Structural Columns to reinforce, then click Finish.'
+            elif mode == 'beams':
+                sel_filter = _CategorySelectionFilter([_FRAMING_CAT_ID])
+                prompt = u'Select Structural Framing (beams) to reinforce, then click Finish.'
+            elif mode == 'walls':
+                sel_filter = _CategorySelectionFilter([_WALL_CAT_ID])
+                prompt = u'Select Walls to reinforce, then click Finish.'
             else:
                 sel_filter = _CategorySelectionFilter([_FOUNDATION_CAT_ID, _FLOOR_CAT_ID])
                 prompt = (u'Select Structural Foundations and/or Floors to reinforce, '
@@ -142,12 +151,6 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     return
                 window.SetLoading(True, u'Generating column reinforcement…')
                 try:
-                    # PHASE F1 — RebarBatch wraps the SAME
-                    # _run_column_reinforcement call in one
-                    # TransactionGroup and stamps provenance on every
-                    # created Rebar. It does not change what geometry
-                    # gets generated — generate_fn is this exact,
-                    # unchanged call.
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
@@ -162,6 +165,48 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 finally:
                     window.SetLoading(False)
                 window._show_column_result(elements, summary)
+                window._refresh_batch_list()
+            elif mode == 'beams':
+                if not elements:
+                    forms.alert(u'No Structural Framing (beams) selected.')
+                    return
+                window.SetLoading(True, u'Generating beam reinforcement…')
+                try:
+                    batch = rebar_batch.RebarBatch(
+                        window.doc, standard=window.ra_standard,
+                        generator_version=window.ra_generator_version,
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                    batch_result = batch.run(
+                        lambda: window._run_beam_reinforcement(elements, values))
+                    summary = dict(batch_result.summary)
+                    summary['errors'] = batch_result.errors
+                except Exception as e:
+                    forms.alert(u'Beam reinforcement generation failed:\n{}'.format(e))
+                    return
+                finally:
+                    window.SetLoading(False)
+                window._show_beam_result(elements, summary)
+                window._refresh_batch_list()
+            elif mode == 'walls':
+                if not elements:
+                    forms.alert(u'No Walls selected.')
+                    return
+                window.SetLoading(True, u'Generating wall reinforcement…')
+                try:
+                    batch = rebar_batch.RebarBatch(
+                        window.doc, standard=window.ra_standard,
+                        generator_version=window.ra_generator_version,
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                    batch_result = batch.run(
+                        lambda: window._run_wall_reinforcement(elements, values))
+                    summary = dict(batch_result.summary)
+                    summary['errors'] = batch_result.errors
+                except Exception as e:
+                    forms.alert(u'Wall reinforcement generation failed:\n{}'.format(e))
+                    return
+                finally:
+                    window.SetLoading(False)
+                window._show_wall_result(elements, summary)
                 window._refresh_batch_list()
             else:
                 footings = [e for e in elements if e.Category is not None and
@@ -181,9 +226,6 @@ class _ReinforcementEventHandler(IExternalEventHandler):
 
                 window.SetLoading(True, u'Generating reinforcement…')
                 try:
-                    # PHASE F1 — same wrapping as the column branch
-                    # above; generate_fn is the exact, unchanged
-                    # _run_reinforcement call.
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
@@ -2007,6 +2049,280 @@ class RebarAutomateWindow(NOSAWindow):
             except Exception as e:
                 errors.append(u'Column {}: {}'.format(get_id_value(host.Id), e))
 
+        return created_rebars, {'created': len(created_rebars), 'errors': errors}
+
+    # ── Beams (Phase F7) ─────────────────────────────────────────────────
+
+    def _read_beam_inputs(self):
+        errors = []
+        values = {}
+        values['bar_dia'] = self._read_number(self.TxtBeamBarDia.Text, u'Bar diameter', errors)
+        try:
+            values['n_top'] = int(float(self.TxtBeamTopCount.Text))
+            if values['n_top'] < 0:
+                errors.append(u'"Top bars" must be zero or positive.')
+        except (TypeError, ValueError):
+            errors.append(u'"Top bars" must be a number.')
+            values['n_top'] = None
+        try:
+            values['n_bottom'] = int(float(self.TxtBeamBottomCount.Text))
+            if values['n_bottom'] < 0:
+                errors.append(u'"Bottom bars" must be zero or positive.')
+        except (TypeError, ValueError):
+            errors.append(u'"Bottom bars" must be a number.')
+            values['n_bottom'] = None
+        values['stirrup_dia'] = self._read_number(
+            self.TxtBeamStirrupDia.Text, u'Stirrup diameter', errors)
+        values['stirrup_spacing'] = self._read_number(
+            self.TxtBeamStirrupSpacing.Text, u'Stirrup spacing', errors)
+        values['end_offset'] = self._read_number(
+            self.TxtBeamEndOffset.Text, u'End offset', errors)
+        values['stock_length'] = self._read_number(
+            self.TxtBeamStockLength.Text, u'Max stock length', errors)
+        if values.get('n_top') == 0 and values.get('n_bottom') == 0:
+            errors.append(u'At least one top or bottom bar is required.')
+        if errors:
+            forms.alert(u'\n'.join(errors))
+            return None
+        return values
+
+    def RunBeamReinforcement_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        values = self._read_beam_inputs()
+        if values is None:
+            return
+        self._reinforcement_handler.pending = {'mode': 'beams', 'values': values}
+        self.Hide()
+        self._reinforcement_event.Raise()
+
+    def _show_beam_result(self, beams, summary):
+        lines = [
+            u'{} beam(s) processed.'.format(len(beams)),
+            u'{} Rebar element(s) created.'.format(summary.get('created', 0)),
+        ]
+        if summary.get('errors'):
+            lines.append(u'')
+            lines.append(u'{} issue(s):'.format(len(summary['errors'])))
+            lines.extend(summary['errors'][:12])
+        self.TxtBeamResult.Text = u'\n'.join(lines)
+
+    def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars):
+        cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
+        # Lap length from standard when stock split is needed
+        lap_mm = None
+        try:
+            lap_mm = standards.lap_length_mm(
+                self.ra_standard, values['bar_dia'], in_compression=False)
+        except Exception:
+            lap_mm = max(40.0 * values['bar_dia'], 200.0)
+
+        curves = beam_rebar.build_beam_rebar_curves(
+            self.doc, host,
+            cover_mm=cover_mm,
+            bar_diameter_mm=values['bar_dia'],
+            n_top_bars=values['n_top'],
+            n_bottom_bars=values['n_bottom'],
+            stirrup_spacing_mm=values['stirrup_spacing'],
+            stirrup_bar_diameter_mm=values['stirrup_dia'],
+            stirrup_start_offset_mm=values['end_offset'],
+            stirrup_end_offset_mm=values['end_offset'],
+            stock_length_mm=values['stock_length'],
+            lap_length_mm=lap_mm)
+
+        axis = beam_rebar.get_beam_axis(host)
+        axis_dir = axis.Direction.Normalize()
+
+        bar_type_long = bar_types.get(values['bar_dia'])
+        if bar_type_long is not None:
+            for chain in curves.get('top_bars', []):
+                for segment in chain:
+                    rebar = wrapper.create_from_curves(
+                        host, [segment], bar_type_long,
+                        transaction_name=u'NOSA — Create Beam Top Bar')
+                    if rebar is None:
+                        errors.append(u'Beam {}: top bar — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+                    else:
+                        created_rebars.append(rebar)
+            for chain in curves.get('bottom_bars', []):
+                for segment in chain:
+                    rebar = wrapper.create_from_curves(
+                        host, [segment], bar_type_long,
+                        transaction_name=u'NOSA — Create Beam Bottom Bar')
+                    if rebar is None:
+                        errors.append(u'Beam {}: bottom bar — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+                    else:
+                        created_rebars.append(rebar)
+
+        bar_type_st = bar_types.get(values['stirrup_dia'])
+        stirrups = curves.get('stirrups', [])
+        if bar_type_st is not None and stirrups:
+            first = stirrups[0]
+            n = len(stirrups)
+            array_mm = (n - 1) * values['stirrup_spacing'] if n > 1 else 0.0
+            if n > 1 and array_mm > 0:
+                rebar = wrapper.create_rebar_set(
+                    host, first, bar_type_st, values['stirrup_spacing'], array_mm,
+                    normal=axis_dir, style=DBS.RebarStyle.StirrupTie,
+                    transaction_name=u'NOSA — Create Beam Stirrups')
+                if rebar is None:
+                    # Fallback: individual stirrups
+                    for st_curves in stirrups:
+                        rb = wrapper.create_from_curves(
+                            host, st_curves, bar_type_st,
+                            style=DBS.RebarStyle.StirrupTie,
+                            transaction_name=u'NOSA — Create Beam Stirrup')
+                        if rb is None:
+                            errors.append(u'Beam {}: stirrup — {}'.format(
+                                get_id_value(host.Id), wrapper.last_error))
+                        else:
+                            created_rebars.append(rb)
+                else:
+                    created_rebars.append(rebar)
+                    if wrapper.last_error:
+                        errors.append(u'Beam {}: stirrups (set) — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+            else:
+                rebar = wrapper.create_from_curves(
+                    host, first, bar_type_st, style=DBS.RebarStyle.StirrupTie,
+                    transaction_name=u'NOSA — Create Beam Stirrup')
+                if rebar is None:
+                    errors.append(u'Beam {}: stirrup — {}'.format(
+                        get_id_value(host.Id), wrapper.last_error))
+                else:
+                    created_rebars.append(rebar)
+
+    def _run_beam_reinforcement(self, beams, values):
+        errors = []
+        diameters = {values['bar_dia'], values['stirrup_dia']}
+        bar_types = {}
+        for dia_mm in diameters:
+            bt = re_engine.get_bar_type_by_diameter(self.doc, dia_mm)
+            if bt is None:
+                errors.append(u'No RebarBarType found for {}mm — bars of that '
+                              u'diameter will be skipped.'.format(dia_mm))
+            bar_types[dia_mm] = bt
+
+        wrapper = re_engine.RebarWrapper(self.doc)
+        created_rebars = []
+        for host in beams:
+            try:
+                self._process_beam(host, values, wrapper, bar_types, errors, created_rebars)
+            except Exception as e:
+                errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
+        return created_rebars, {'created': len(created_rebars), 'errors': errors}
+
+    # ── Walls (Phase F7) ─────────────────────────────────────────────────
+
+    def _read_wall_inputs(self):
+        errors = []
+        values = {}
+        values['vert_dia'] = self._read_number(self.TxtWallVertDia.Text, u'Vertical diameter', errors)
+        values['vert_spacing'] = self._read_number(
+            self.TxtWallVertSpacing.Text, u'Vertical spacing', errors)
+        values['horiz_dia'] = self._read_number(
+            self.TxtWallHorizDia.Text, u'Horizontal diameter', errors)
+        values['horiz_spacing'] = self._read_number(
+            self.TxtWallHorizSpacing.Text, u'Horizontal spacing', errors)
+        values['both_faces'] = self.ChkWallBothFaces.IsChecked == True
+        if errors:
+            forms.alert(u'\n'.join(errors))
+            return None
+        return values
+
+    def RunWallReinforcement_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        values = self._read_wall_inputs()
+        if values is None:
+            return
+        self._reinforcement_handler.pending = {'mode': 'walls', 'values': values}
+        self.Hide()
+        self._reinforcement_event.Raise()
+
+    def _show_wall_result(self, walls, summary):
+        lines = [
+            u'{} wall(s) processed.'.format(len(walls)),
+            u'{} Rebar element(s) created.'.format(summary.get('created', 0)),
+        ]
+        if summary.get('errors'):
+            lines.append(u'')
+            lines.append(u'{} issue(s):'.format(len(summary['errors'])))
+            lines.extend(summary['errors'][:12])
+        self.TxtWallResult.Text = u'\n'.join(lines)
+
+    def _process_wall(self, host, values, wrapper, bar_types, errors, created_rebars):
+        cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Exterior', self._standard_default_cover_mm(u'wall'))
+        reinforcement = wall_rebar.build_wall_reinforcement(
+            self.doc, host,
+            cover_mm=cover_mm,
+            vert_dia_mm=values['vert_dia'],
+            vert_spacing_mm=values['vert_spacing'],
+            horiz_dia_mm=values['horiz_dia'],
+            horiz_spacing_mm=values['horiz_spacing'],
+            both_faces=values['both_faces'])
+
+        for w in reinforcement.get('warnings', []):
+            errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))
+
+        bar_type_v = bar_types.get(values['vert_dia'])
+        if bar_type_v is not None:
+            for vs in reinforcement.get('vertical_sets', []):
+                if vs.get('count', 1) > 1 and vs.get('array_length_mm', 0) > 0:
+                    rebar = wrapper.create_rebar_set(
+                        host, vs['curves'], bar_type_v, vs['spacing_mm'],
+                        vs['array_length_mm'], normal=vs['normal'],
+                        transaction_name=u'NOSA — Create Wall Vertical Mesh')
+                else:
+                    rebar = wrapper.create_from_curves(
+                        host, vs['curves'], bar_type_v, normal=vs['normal'],
+                        transaction_name=u'NOSA — Create Wall Vertical Bar')
+                if rebar is None:
+                    errors.append(u'Wall {}: vertical — {}'.format(
+                        get_id_value(host.Id), wrapper.last_error))
+                else:
+                    created_rebars.append(rebar)
+
+        bar_type_h = bar_types.get(values['horiz_dia'])
+        if bar_type_h is not None:
+            for hs in reinforcement.get('horizontal_sets', []):
+                if hs.get('count', 1) > 1 and hs.get('array_length_mm', 0) > 0:
+                    rebar = wrapper.create_rebar_set(
+                        host, hs['curves'], bar_type_h, hs['spacing_mm'],
+                        hs['array_length_mm'], normal=hs['normal'],
+                        transaction_name=u'NOSA — Create Wall Horizontal Mesh')
+                else:
+                    rebar = wrapper.create_from_curves(
+                        host, hs['curves'], bar_type_h, normal=hs['normal'],
+                        transaction_name=u'NOSA — Create Wall Horizontal Bar')
+                if rebar is None:
+                    errors.append(u'Wall {}: horizontal — {}'.format(
+                        get_id_value(host.Id), wrapper.last_error))
+                else:
+                    created_rebars.append(rebar)
+
+    def _run_wall_reinforcement(self, walls, values):
+        errors = []
+        diameters = {values['vert_dia'], values['horiz_dia']}
+        bar_types = {}
+        for dia_mm in diameters:
+            bt = re_engine.get_bar_type_by_diameter(self.doc, dia_mm)
+            if bt is None:
+                errors.append(u'No RebarBarType found for {}mm — bars of that '
+                              u'diameter will be skipped.'.format(dia_mm))
+            bar_types[dia_mm] = bt
+
+        wrapper = re_engine.RebarWrapper(self.doc)
+        created_rebars = []
+        for host in walls:
+            try:
+                self._process_wall(host, values, wrapper, bar_types, errors, created_rebars)
+            except Exception as e:
+                errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), e))
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
 
     # ── Detailing & Tools — dashboard (Phase 1 placeholders) ────────────────

@@ -171,28 +171,31 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## F6 — Detallado completo 🚧 In Progress
+## F6 — Detallado completo ✅ Code-complete (smoke pendiente)
 
 **Entregables:**
-- Familias `NOSA_Tag_*.rfa` (OST_RebarTags) — **diferido**: usar familias existentes del proyecto y optimizarlas post-F6
-- `lib/rebar_detailing.py` ampliado (MRA, dimensiones, secciones) — ✅ **F6.2 DONE** (`72ad5be`)
-- Botón `BtnAutoMRA` + Auto Tag + Auto Sections cableados — ✅ **F6.3 DONE**
+- `lib/rebar_detailing.py` ampliado (MRA, smart tags, secciones) — ✅ F6.2 (`72ad5be`)
+- UI Auto Tag / Auto MRA / Auto Sections — ✅ F6.3 (`0eba562`)
+- Familias `NOSA_Tag_*.rfa` optimizadas — **DIFERIDO → post-F7 / final de proyecto** (usar familias existentes del proyecto mientras tanto)
 
-**Criterio de éxito:** Plano de zapata etiquetado+acotado+2 secciones automáticas legibles, sin intervención manual. **Humo obligatorio 4 versiones.**
+**Criterio de éxito:** Plano de zapata etiquetado+acotado+2 secciones automáticas. **Humo 4 versiones** — pendiente (F6.4 / junto con F7).
 
 **Deps:** F3 (marcado), F4 (forma)
 
-**Timeline:** 5–6 días
+**Notas:**
+- Smoke test de F6 se puede hacer en paralelo mientras avanza F7.
+- Optimización de familias de anotación (tags/MRA) queda planificada **después de F7** (o al cierre del proyecto con F9).
 
-**Riesgo:** Medio-alto (`create_rebar_detail_section` inestable; estilo defensivo obligatorio)
+---
 
-**F6.3 (2026-08-28):**
-- UI Detailing card: combos de tag type / MRA type, botones Auto Tag / Auto MRA / Auto Sections
-- `create_multi_rebar_annotation` corregido a API real (`MultiReferenceAnnotationOptions`)
-- Helpers `list_mra_types`, `list_rebar_tag_types`, `create_orthogonal_detail_sections`
-- Flujo: seleccionar barras (o Batch → Select in Model) → Auto Tag / Auto MRA en vista activa
+## 🔖 BACKLOG — Familias de anotación (post-F7)
 
-**Pendiente F6.4:** smoke test en zapata (tags + MRA + 2 secciones) y humo 4 versiones
+| Tarea | Cuándo | Notas |
+|---|---|---|
+| Auditar familias actuales (`NOSA Rebar Tag`, `Multi-Rebar Annotations`) | Tras F7 | Ya cargadas en proyecto |
+| Optimizar labels (Mark, Ø, spacing, multiplier) | Post-F7 | Ajustar a `NOSA_Rebar_*` params |
+| Empaquetar `.rfa` en `content/tags/` (Revit 2024) | F9 / release | Compat 2024–2027 |
+| Croquis de doblado / bending detail family | Post-F8 | Opcional |
 
 ---
 
@@ -307,11 +310,12 @@ Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan
 
 ---
 
-## F7 — Vigas + muros ⏳ Pending
+## F7 — Vigas + muros 🚧 In Progress
 
 **Entregables:**
-- **Vigas:** pestaña UI cableada, long. sup/inf, piel, cercos 135°, confinamiento, preview
-- **Muros:** `lib/wall_rebar.py` desde cero, mallas vert.+horiz., ties, borde/hueco, esperas, preview
+- **Vigas:** pestaña UI cableada, long. sup/inf, cercos, preview — F7.1
+- **Muros:** `lib/wall_rebar.py` + UI, mallas vert.+horiz. — F7.2
+- Ties / borde / huecos / esperas muro — F7.3 (si cabe; si no → post-F7)
 
 **Criterio de éxito:** 5 tipologías (zapata, pilar, viga, muro, losa) generan armado válido, marcado y clasificado. **Humo obligatorio 4 versiones.**
 
@@ -320,6 +324,14 @@ Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan
 **Timeline:** 6–8 días
 
 **Decisión:** Vigas aisladas en v1; continuidad entre vanos = fase posterior.
+
+**F7.1 + F7.2 (2026-08-28):**
+- Pestaña Beams cableada (long. top/bottom, stirrups, stock/laps) → `beam_rebar.build_beam_rebar_curves`
+- Pestaña Walls cableada (mesh vert./horiz., both faces) → nuevo `lib/wall_rebar.py`
+- ExternalEvent modes `beams` / `walls` + RebarBatch provenance
+- Pendiente: densificación extremos viga, ties/huecos muro, preview WPF, smoke 4 versiones
+
+**Familias de tags:** NO bloquean F7 — ver backlog post-F7 arriba.
 
 ---
 
