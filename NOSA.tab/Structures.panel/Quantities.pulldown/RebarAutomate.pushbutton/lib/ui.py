@@ -483,6 +483,7 @@ class RebarAutomateWindow(NOSAWindow):
         try:
             # Cargar rebar_schedule con load_module (IronPython compatible)
             import imp
+            import os
             rebar_schedule = imp.load_source('rebar_schedule',
                 os.path.join(os.path.dirname(__file__), 'rebar_schedule.py'))
             
@@ -528,7 +529,6 @@ class RebarAutomateWindow(NOSAWindow):
             
             # Pedir path de salida
             from pyrevit import script
-            import os
             
             if result == u'Export to CSV':
                 ext = 'csv'
