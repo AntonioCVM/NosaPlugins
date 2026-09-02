@@ -16,7 +16,7 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 | **F4** | Catálogo de formas + clasificador | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (`import Rebar` del módulo equivocado), corregido | `main` (sin commitear) | — |
 | **F5** | Despiece (BBS) + export CSV/XLSX + peso | ✅ **DONE** | `main` (sin commitear) | — |
 | **F6** | Detallado completo (tags, MRA, secciones) | ✅ Code-complete — tagging tenía un bug real (vista 3D sin bloquear), corregido; smoke 4 versiones sigue pendiente | `main` (sin commitear) | 72ad5be, 0eba562 |
-| **F7** | Vigas + muros + pilares circulares + losas/zapatas (cierres perimetrales) | 🚧 **En smoke real del usuario, F7.1→F7.11** — la mayoría de la geometría reportada YA verificada en vivo contra el modelo real; 2 puntos siguen abiertos (huecos de losa/zapata, ver abajo). Commit PENDIENTE | `main` (sin commitear) | 9df02d7 + working tree |
+| **F7** | Vigas + muros + pilares circulares + losas/zapatas (cierres perimetrales) | 🚧 **En smoke real del usuario, F7.1→F7.17** — cierres perimetrales y Shape Code en huecos confirmados en vivo; **vigas: causa raíz encontrada, reproducida y corregida EN VIVO** (`SetLayoutAsMaximumSpacing` propaga desde la barra semilla hacia `+normal`, no "rellena entre" dos barras — la semilla caía en el lado equivocado; corregido y reverificado con `revit_create_rebar_by_curves`+`revit_set_rebar_layout`); huecos pequeños ahora garantizan mínimo 3 U-bars/lado. Ambos pendientes de confirmación en vivo del usuario. Commit PENDIENTE | `main` (sin commitear) | 9df02d7 + working tree |
 | **F8** | Export BVBS (máquinas ferralla) | 🚧 Código+tests escritos; formato BF2D/checksum explícitamente SIN validar contra un `.abs` real | `main` (sin commitear) | — |
 | **F9** | Losas + endurecimiento + release 1.0.0 | ⏳ El motor de losas (`floor_rebar.py`) ya existe y se está probando dentro de F7 — falta la matriz de humo 4 versiones y el empaquetado de release | — | — |
 
@@ -32,10 +32,11 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 **Para cerrar F7 formalmente, en orden:**
 
-1. **Confirmar en vivo, con el botón real, los 2 fixes más recientes** (vigas: barras ya no salen fuera del sólido; muro: edge bars eliminadas) — el usuario ya validó parte de esto en su último mensaje, falta la vuelta de confirmación final.
-2. **Huecos en losas/zapatas — el único punto realmente abierto sin verificar:** el fix de `floor_rebar._build_edge_ubars` (fallback al contorno crudo del hueco cuando el offset se autointersecta) no se ha podido probar contra un hueco real que reproduzca el bow-tie — el forjado de prueba actual no tiene un hueco lo bastante estrecho. Necesita un caso real del usuario (o crear uno de prueba) para cerrarlo.
+1. **Vigas — causa raíz encontrada y CORREGIDA (F7.16), verificada en vivo con reproducción manual (no solo lectura de código):** `create_rebar_set`'s `SetLayoutAsMaximumSpacing` propaga las copias DESDE la barra semilla hacia `+normal`, no "rellena entre" dos barras — la barra semilla podía caer en el lado `+normal` en vez de `-normal` (orden arbitrario de `_beam_faces`), empujando el Set entero fuera de la sección. Corregido con un `seed_side_normal` compartido entre top y bottom. Reproducido en vivo antes y después del fix contra la viga real 1318407 — confirmado. **Pendiente:** que el usuario vuelva a generar el armado con el botón real y confirme.
+2. **Huecos — mínimo 3 U-bars por lado en huecos pequeños, implementado (F7.17) por decisión explícita del usuario:** margen de esquina más ajustado (`leg/4`) SOLO para huecos, SOLO cuando ni el spacing estándar ni el margen relajado dan 2+, apuntando directamente a 3 posiciones — la pata de anclaje nunca se reduce. Verificado con un test que reproduce el caso exacto reportado (hueco 500×500mm, pata 400mm) — 19/19 suites en verde. **Pendiente de confirmar en vivo.**
+3. **Aviso del usuario: Revit se cierra inesperadamente de vez en cuando al recargar pyRevit** — no investigado (no hay traza/repro en este hilo); dado el volumen de ediciones a `beam_rebar.py`/`floor_rebar.py` hoy, recomendable guardar antes de cada Reload y considerar reiniciar Revit del todo en vez de depender solo del hot-reload de pyRevit al probar estos cambios concretos.
 3. **`NOSA_Rebar_Layer` sin stampar en los generadores** (deuda conocida desde F3, confirmada de nuevo por el análisis de brecha SOFiSTiK) — ahora que F3 realmente funciona (bug de firma corregido hoy), vale la pena cerrarla: sin esto, todo sale con `Layer="uncategorized"`.
-4. **Decisión de commit:** hay ~21 ficheros modificados + 4 nuevos sin commitear desde F2.5. Cuando el usuario dé el visto bueno final de este ciclo de smoke, toca dividir esto en commits lógicos (por fase o por bug) en vez de uno solo gigante — pendiente de que el usuario lo pida explícitamente.
+4. **Decisión de commit:** hay ~23 ficheros modificados + 4 nuevos sin commitear desde F2.5. Cuando el usuario dé el visto bueno final de este ciclo de smoke, toca dividir esto en commits lógicos (por fase o por bug) en vez de uno solo gigante — pendiente de que el usuario lo pida explícitamente.
 5. **Matriz de humo en 2024/2025/2026/2027** — todo lo probado hasta ahora es sobre Revit 2026 real del usuario; **obligatoria antes de mergear F7** según la Matriz de validación más abajo. Sin fecha todavía.
 
 **Después de cerrar F7:**
@@ -225,6 +226,158 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 **Notas:**
 - Smoke test de F6 se puede hacer en paralelo mientras avanza F7.
 - Optimización de familias de anotación (tags/MRA) queda planificada **después de F7** (o al cierre del proyecto con F9).
+
+---
+
+## ✅ Normalización de ventanas RebarAutomate — DONE (2026-09-02)
+
+Implementado a petición explícita del usuario (adelantado respecto al plan
+original de "empezar cuando F7 esté cerrado" — decisión suya). Cambios en
+`ui.xaml` únicamente, ningún `x:Name`/`Click` tocado (solo se cambiaron
+atributos de layout/Style y el texto de 2 botones):
+
+- **Beams y Walls reestructuradas al mismo layout de 2 columnas** que
+  Footings/Slabs y Columns ya usaban (columna izquierda `ScrollViewer` con
+  los controles, columna derecha `380px` fija con el Section Preview) — antes
+  eran una única columna con todo apilado, incluida la preview al final.
+- **Panel "Result" envuelto en `Card` con título**, igual que
+  `TxtResult`/`TxtColumnResult` — antes `TxtBeamResult`/`TxtWallResult` eran
+  un `TextBox` suelto sin `Card` ni título.
+- **Botones "Generate" unificados**: `Style="{DynamicResource ActionButton}"`,
+  `Height="52" FontSize="14" FontWeight="Bold"`, texto "GENERATE
+  REINFORCEMENT" — antes Beams/Walls usaban el botón WPF por defecto,
+  `Height="36"`, sin `ActionButton`, con texto distinto por pestaña
+  ("Generate Beam/Wall Reinforcement...").
+- **`BeamPreviewCanvas`/`WallPreviewCanvas` envueltas en el mismo patrón
+  `Border` + `Viewbox Stretch="Uniform"`** que ya usaban `PreviewCanvas`/
+  `ColumnPreviewCanvas` — verificado en `ui.py` que `_draw_simple_section_
+  preview` lee `canvas.Width`/`.Height` directamente (nunca `ActualWidth`/
+  `.ActualHeight`), así que envolver en `Viewbox` es un cambio puramente
+  visual, sin riesgo de romper el dibujo.
+- "Detailing & Tools" queda deliberadamente distinta — es un dashboard de
+  herramientas de proyecto, no una pestaña de generación de armado por
+  tipología, tal como contemplaba el backlog original.
+
+Verificado: XAML bien formado (`xml.dom.minidom.parse` sin error), 5
+`TabItem` presentes, cero `x:Name` duplicados, 19/19 suites de test en
+verde (no tocan `ui.xaml` pero confirman que nada más se rompió). **Pendiente:
+smoke visual real en Revit** (abrir la ventana y confirmar que las 4 pestañas
+de generación se ven iguales).
+
+---
+
+## ✅ Previsualizaciones RebarAutomate — DONE (2026-09-02, Phase 2.6)
+
+Petición explícita del usuario, aplicable a las 4 pestañas de generación:
+que cualquier cambio seleccionado/ejecutado sea visible en la previsualización,
+más 4 bugs concretos reportados en vivo. `rebar_preview.py` sigue
+DELIBERADAMENTE desacoplado de Revit/WPF (su propio docstring) — todo lo
+de abajo es Python puro, sin necesidad de mock alguno.
+
+- **Footings/Slabs — "Include 90° Hooks" no tenía ningún efecto visible:**
+  causa real, `compute_section_preview` no tenía NINGÚN concepto de hooks
+  — los checkboxes ya estaban cableados a `Preview_Changed` (redibujaba),
+  pero no había nada que dibujar. Añadido `bottom_hooks`/`top_hooks` +
+  nueva salida `'hooks'`: un pequeño tramo doblado 90° en cada extremo de
+  la línea B2/T2 (el único elemento realmente VISIBLE desde este ángulo de
+  corte — B1/T1 son puntos, mirando de frente al extremo de la barra, un
+  hook ahí no añadiría geometría visible). Hooks de fondo doblan hacia
+  abajo, de techo hacia arriba.
+- **Vigas — "las barras mostradas... ahora parece que chocan":** causa
+  real confirmada, `compute_beam_section_preview` usaba el MISMO inset
+  para el estribo Y para las barras — el punto de la barra quedaba
+  centrado EXACTAMENTE sobre la línea del estribo (mitad del punto
+  sobresaliendo), sobre todo en las 2 barras de esquina. Corregido con el
+  mismo convenio de doble inset YA usado (y correcto) en columnas/zapatas:
+  el estribo se dibuja a `cover + su propio radio`; las barras, más
+  adentro, a `cover + diámetro completo del estribo + su propio radio`.
+- **Vigas — nuevo Elevation Preview** (petición explícita: "sería
+  interesante ver un alzado de la viga"): nueva
+  `compute_beam_elevation_preview` (barras superior/inferior como líneas
+  a lo largo de toda la longitud, estribos como marcas verticales
+  espaciadas — con las mismas 3 zonas de densificación en extremos que ya
+  usa `compute_column_elevation_preview`) + nuevo canvas
+  `BeamElevationCanvas` en `ui.xaml`, junto al Section Preview existente
+  (mismo patrón de doble canvas que Columns). Cableados los campos que
+  antes NO disparaban ningún redibujado (spacing de estribos, end offset,
+  densify, dense spacing, confine length) — antes solo afectaban al motor
+  real, invisibles en el preview.
+- **Muros — vista no centrada, mal etiquetada, sin sección real:** 3
+  hallazgos en el mismo sitio. (1) `_draw_wall_elevation_preview` usaba un
+  margen izquierdo FIJO como offset, en vez de centrar el ancho ya
+  escalado dentro del canvas — el muro quedaba pegado a la izquierda con
+  hueco vacío a la derecha en cuanto el muro real era más corto que el
+  canvas. Corregido con el mismo cálculo de centrado que
+  `_draw_column_elevation_preview`/el nuevo `_draw_beam_elevation_preview`
+  ya usan correctamente. (2) El canvas se llamaba "Section Preview" pero
+  dibujaba un ALZADO (front view) — renombrado a "Elevation Preview"
+  (el propio `x:Name` `WallPreviewCanvas` no cambia, solo su etiqueta).
+  (3) Añadida una SECCIÓN real (corte horizontal por el espesor del muro)
+  usando `rebar_preview.compute_wall_section_preview` — ya escrita desde
+  antes pero NUNCA cableada a la UI hasta ahora — reutilizando
+  `_draw_simple_section_preview` tal cual (su forma de retorno ya
+  coincidía exactamente). Cableados también los 8 campos de Vertical/
+  Horizontal Mesh + Ties + U-Bars que antes no disparaban ningún
+  redibujado (`TxtWallVertDia/Spacing`, `TxtWallHorizDia/Spacing`,
+  `TxtWallTieDia/Spacing`, `TxtWallUBarDia/Spacing`) — el diámetro
+  horizontal en concreto no tenía NINGÚN efecto en ningún preview, ni
+  siquiera estaba cableado. De paso, `compute_wall_elevation_preview`
+  ganó un parámetro `horiz_dia_mm` real (antes SIEMPRE derivaba un valor
+  falso, `vert_dia_mm * 0.85`, ignorando el campo que el usuario
+  realmente escribía).
+
+Verificado con un nuevo fichero de test, `tests/test_rebar_preview_
+phase26.py` (mismo convenio sin-Revit que `test_phase351_fixes.py`) — 6
+comprobaciones dirigidas a cada uno de los 4 bugs de arriba, todas en
+verde. 20/20 suites de test totales en verde (ninguna regresión). **Pendiente
+de verdad: smoke visual real en Revit** — confirmar que hooks, el nuevo
+alzado de vigas y las 2 vistas de muro se ven correctamente en la ventana
+real, algo que no puedo verificar sin ojos en el render WPF.
+
+---
+
+## 🔖 BACKLOG — Normalización de ventanas RebarAutomate (petición 2026-09-02, COMPLETADO arriba)
+
+Petición explícita del usuario: que las 5 pestañas (Footings/Floors, Columns,
+Beams, Walls, Detailing & Tools) de la ventana de RebarAutomate se vean
+consistentes entre sí. Estado actual verificado en `ui.xaml` — inconsistencias
+reales encontradas al planificar esto:
+
+- **Footings/Floors y Columns:** el panel "Result" usa `<Border Style="Card">`
+  envolviendo un `<StackPanel>` con título + `TxtResult`/`TxtColumnResult`.
+- **Beams y Walls:** el resultado (`TxtBeamResult`/`TxtWallResult`) es un
+  `TextBox` suelto SIN la `Card`/título que envuelve a los otros dos — ya eran
+  distintos entre sí incluso antes de este backlog (confirmado leyendo el
+  XAML actual).
+- Botones de "Generate": Footings/Columns usan `Style="{DynamicResource
+  ActionButton}"` explícito con `Height="52" FontSize="14" FontWeight="Bold"`;
+  Beams/Walls usan el estilo de botón por defecto (WPF) con `Height="36"`, sin
+  `ActionButton`. Visualmente son dos tamaños/pesos distintos para la misma
+  acción.
+- Vale la pena auditar también: espaciado de `Card`/`Margin` entre secciones,
+  si las 4 pestañas de generación comparten la misma anchura de columna
+  izquierda/derecha, y si "Detailing & Tools" (con layout propio, dashboard-
+  style) debería normalizarse con el resto o queda deliberadamente distinto
+  por ser una pestaña de naturaleza diferente (herramientas de proyecto, no
+  una tipología estructural).
+
+**Alcance:** solo visual/consistencia de `ui.xaml` (estilos compartidos ya
+existen como `RA_SectionTitle`, `RA_FieldRow`, `RA_FieldLabel`, `RA_NumField`,
+`Card`, `ActionButton` — se trata de APLICARLOS de forma uniforme, no crear
+un sistema de estilos nuevo). Sin tocar `ui.py` salvo que algún `x:Name`
+tenga que cambiar de tipo de control (p.ej. si se decide que
+`TxtBeamResult`/`TxtWallResult` pasen a vivir dentro de una `Card` como los
+otros dos — cambio de contenedor, no de nombre).
+
+**Riesgo a vigilar (memoria del proyecto):** nunca fijar `SelectedIndex`/
+`SelectionChanged` de un ComboBox o TabControl en el propio XAML — cablear
+en code-behind tras `LoadComponent`, con guardas `_is_loaded` (patrón que
+esta ventana ya usa en sus `_Click` handlers existentes).
+
+**Prioridad:** media — no bloquea el cierre de F7; el usuario lo pidió como
+mejora de pulido, no como fix urgente. Empezar cuando F7 esté cerrado
+(commiteado, humo 4 versiones) para no mezclar un cambio puramente visual
+con los fixes de geometría/datos aún en curso.
 
 ---
 
@@ -459,7 +612,44 @@ Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan
 
 - **"Los ubars paran muy lejos del borde de la losa" — investigado, parece YA corregido en una fase anterior:** el propio código (`floor_rebar.py`, comentario "PHASE 3.5.8 item 1 FIX") ya sustituyó el cover vertical del mat (`bottom_cover_mm`/`top_cover_mm`) por el cover lateral REAL del elemento (`side_cover_mm`, leído de `get_native_cover_mm(doc, host, 'Exterior', ...)`) para el offset en planta (X/Y) de `bottom_outer`/`bottom_holes` — la MISMA fuente que usan tanto el mat principal como `_build_edge_ubars`. Esto es exactamente la causa descrita por el usuario (usar un cover ajeno/vertical como si fuera el lateral, dejando el U-bar "muy lejos" del canto real). El suelo de prueba del modelo (id 1317654) no tiene armado activo ahora mismo para verificarlo en vivo con esta build concreta — probable que la imagen del usuario mostrara barras de una ejecución ANTERIOR a este fix. **Pendiente:** que el usuario vuelva a armar ese forjado desde cero y confirme si el gap persiste; si persiste, es un bug distinto (p.ej. el propio leg length/anclaje, que SÍ debe ser largo por normativa y no es un bug).
 
+**F7.12 (2026-09-02) — 2 causas raíz reales encontradas y confirmadas EN VIVO con `revit_create_rebar_by_curves` (no solo por lectura de código), tras que el fix de ROUND 1 de vigas resultase ser un no-op:**
+
+- **Vigas — el fix de F7.11 (clamp al `get_BoundingBox`) no hizo NADA — confirmado en vivo (mismos 7.3mm de más en cada extremo, dígito a dígito, antes y después del fix):** causa real — `host.get_BoundingBox(None)` de Revit NO se contrae para reflejar una unión/mitrado en el extremo de un elemento de framing, al contrario que el sólido REAL visible (patrón YA documentado en este mismo código: `rebar_engine.get_isolated_solid_bbox`, escrito en la Phase 3.5.6 para un problema análogo en encepados con pilotes anidados). Corregido `_clamp_axis_to_bbox` para usar esa MISMA utilidad ya probada (deriva el bbox de las `Solid.Edges` reales del sólido de nivel superior, que sí reflejan la unión) en vez de escribir un segundo fix específico de vigas para la misma clase de bug.
+
+- **Zapatas/losas — "Rebar.CreateFromCurves returned None" en las 4 aristas exteriores, SIEMPRE, en TODAS las ejecuciones:** reproducido en vivo con geometría real de la zapata 1317591: el rectángulo cerrado (`_link_loop_edge`, el lazo StirrupTie que se usa cuando una arista es demasiado corta para caber un U-bar abierto, o cuando la punta de la pata caería fuera del material) reutilizaba sin cambio el `normal_vec` (= dirección tangente de la arista) del U-bar ABIERTO — pero el propio plano de ESTE rectángulo cerrado contiene la dirección de la arista Y Z, así que su normal real debe ser la dirección perpendicular (hacia dentro), no la tangente. Confirmado con dos pruebas en vivo idénticas salvo el `normal`: con `unit_dir` → `NullReferenceException` real de Revit; con la dirección perpendicular correcta → creado sin problema (`Shape 31`). Exactamente la misma clase de bug ya corregida una vez esta sesión para el Top U-bar de muro. Corregido en las 2 ramas que construyen este rectángulo (arista demasiado corta / punta de pata fuera de material) para usar `leg_dir` en vez de `normal_vec`.
+  - **Por qué esto también podría arreglar los huecos sin Ubars:** las 3 losas comprobadas en vivo confirman que el bug SOLO se dispara en el forjado 1317654 (el que tiene forma irregular + el hueco añadido a mano) — las otras 2 losas (rectángulos simples, sin huecos) crean sus 4 cierres perimetrales sin ningún problema. Un hueco, por definición, es más probable que produzca aristas cortas que caen en esta misma rama de "lazo cerrado" — si es así, este MISMO fix resuelve también el hueco sin necesidad de ningún cambio adicional. Pendiente de confirmar en la próxima ejecución.
+  - Añadido diagnóstico (`print` + `debug_failed_edges`) en ambas ramas de fallback a lazo cerrado, con la longitud real de la arista y de la pata — para saber, si el problema persiste, si es una arista genuinamente corta o un `nominal_leg_mm` calculado mal.
+
+**F7.13 (2026-09-02) — F7.12 confirmado por el usuario (clasificación 56/56, marcado 38 posiciones, cierres perimetrales exteriores ya se crean); 2 hallazgos más, uno corregido y verificado por tests, el otro con diagnóstico en vez de un tercer fix a ciegas:**
+
+- **Bug real de diseño, corregido — los U-bars de cierre en huecos pequeños salían como un lazo cerrado PARALELO a la cara del hueco, en vez de U-bars perpendiculares hacia el material:** reportado con imagen (un "marco" azul rodeando un hueco de losa) y confirmado con los propios mensajes INFO del log ("edge... length 580mm, fell back to ONE closed link — edge shorter than 2x its own leg length (400mm)"). Causa: cuando una arista es demasiado corta para caber varias U-bars espaciadas con su inset de esquina, el código saltaba DIRECTAMENTE a `_link_loop_edge` (un rectángulo cerrado corriendo A LO LARGO de la arista) — aunque la arista siga siendo perfectamente válida para UNA sola U-bar centrada, con sus patas perpendiculares hacia el material (que es exactamente la función estructural de un cierre perimetral: anclar la armadura cortada en el hormigón de alrededor). Corregido en `floor_rebar._build_edge_ubars`: ahora intenta primero UNA U-bar abierta centrada en la arista (con el mismo chequeo `leg_tips_ok` de material, evaluado solo en esa posición) y únicamente cae al lazo cerrado si NI SIQUIERA una pata centrada cabe dentro de material real (el caso de una costilla genuinamente estrecha, p.ej. entre dos huecos). Actualizado `tests/test_floor_rebar_phase23.py` (el test anterior afirmaba explícitamente lo contrario — las 4 aristas de un hueco pequeño DEBÍAN cerrar en lazo — se ha invertido el criterio para reflejar el comportamiento correcto, verificado con el mismo hueco de 500×500mm: las 4 aristas ahora dan U-bar abierta centrada, ninguna en lazo cerrado, cada pata con la longitud nominal completa).
+
+- **Vigas — "sigue sin meter las barras principales dentro de la viga", confirmado en vivo que DOS fixes distintos (bbox nativo, luego `get_isolated_solid_bbox`) han dado el MISMO resultado exacto, cifra a cifra, en la viga real (1318407):** demasiada coincidencia para ser un bug de lógica distinto cada vez — el sospechoso principal es que `beam_rebar.py` no se está recargando en pyRevit entre pruebas (el propio patrón de caché de módulos ya documentado en esta sesión para las columnas circulares). En vez de arriesgar un TERCER fix a ciegas, se ha añadido un diagnóstico real: `build_beam_rebar_curves` ahora devuelve la longitud del eje ANTES y DESPUÉS de `_clamp_axis_to_bbox` como aviso visible en el panel de resultados de `ui.py` — la próxima ejecución dirá con certeza si el código se está ejecutando y qué calcula, sin necesidad de conjeturar más.
+
 - **"En los huecos de los forjados no coloca Ubars como debería" — causa raíz real encontrada y mitigada:** confirmada como el propio límite YA documentado en `slab_topology.py` (módulo docstring, "POLYGON OFFSET — DISCLOSED LIMITATION"): al crecer un hueco HACIA AFUERA por el cover, una entrante/forma estrecha puede autointersectarse en un polígono "bow-tie", que `polygon_edges_mm` reduce a menos de 3 aristas válidas tras su propio filtro de longitud mínima — CERO U-bars de cierre para ese hueco, solo un `print` de warning en consola, nunca un error visible. Corregido en `floor_rebar._build_edge_ubars`: ahora recibe también los huecos SIN offsetear (`raw_holes`, mismo orden/índice que `large_holes`) y, si un hueco degenera a <3 aristas tras el offset, reintenta con el propio contorno crudo de ESE hueco (geometría real de Revit tesela­da, no puede autointersectarse de esa forma) en vez de quedarse sin ninguna arista — el lomo del U-bar de cierre queda entonces exactamente sobre el borde real del hueco (sin margen de cover para esa barra concreta), con un warning explícito en consola avisando del trade-off, en vez de no colocar ningún U-bar. **Pendiente de verdad:** no verificado aún contra un hueco real que reproduzca el bow-tie (el forjado de prueba disponible ahora mismo no tiene huecos suficientemente estrechos para forzarlo) — lógica revisada por lectura + `ast.parse` + suite de tests existente sin regresión, pero el smoke real con un hueco geométricamente conflictivo queda pendiente.
+
+**F7.14 (2026-09-02, ronda 2) — F7.13 confirmado por el usuario (huecos ya centran su U-bar; cierres exteriores 56 creados); 2 hallazgos nuevos, uno con diagnóstico ampliado (vigas) y otro corregido con decisión explícita del usuario (Shape 00 en huecos):**
+
+- **Vigas — el diagnóstico de F7.13 confirmó que el eje NO es el problema** (`DIAGNOSTIC: beam axis length before clamp = 10300.0mm, after _clamp_axis_to_bbox = 10300.0mm — unchanged`), pero la armadura creada real (viga 1318407, verificada en vivo) sigue saliendo 20mm más larga en CADA extremo (span combinado de los 2 segmentos: 10340mm vs 10300mm del eje). Releído `compute_longitudinal_bar_lines`/`_cross_section_point`: su matemática es puramente transversal, sin ningún mecanismo de extensión axial — descarta esa función como origen directo. Siguiendo el mismo patrón "diagnóstico en vez de un tercer fix a ciegas", se ha añadido un SEGUNDO diagnóstico, más preciso, en `build_beam_rebar_curves`: compara la longitud del eje ya recortado contra la longitud de la PRIMERA línea de barra devuelta por `compute_longitudinal_bar_lines`, **antes** de que `split_long_bars`/`rebar_engine.split_rebar_by_stock_length` entre en juego — aislará si los 20mm/extremo se originan construyendo la línea de la barra o en el split/lap-offset posterior. **Pendiente:** re-ejecutar el armado de vigas (con Reload) y revisar la nueva línea `DIAGNOSTIC: clamped axis = ...mm, first TOP bar line (pre-split...) = ...mm (...)`.
+
+- **Huecos — Shape Code 00 en vez de 21, causa confirmada por código (no era un bug nuevo):** los U-bars centrados de huecos (fix de F7.13) se crean como entradas sueltas `style=None`; con 2+ de ellas, `ui.py::_create_grouped_bars` las agrupa vía `create_freeform_group` — mecanismo que, según el propio docstring de esa función ("PHASE 3.5 REVERSAL"), **siempre** reporta Shape 00 a cambio de mantenerlas agrupables por MRA/schedule. Es la MISMA decisión de compromiso ya tomada explícitamente en una fase anterior, aplicada sin querer también a los huecos. **Decisión del usuario, tomada explícitamente hoy:** para los U-bars de huecos (`is_hole=True`), forzar Shape real (`create_from_curves` individual) en vez de agrupar por FreeForm, aunque se pierda la agrupación MRA en esos huecos concretos — el resto del plugin (perímetro exterior, zapatas, muros) mantiene la prioridad "agrupación > nombre de forma" sin cambios. Implementado: `floor_rebar._build_edge_ubars` etiqueta cada entrada de cierre (`sets` y `bars`) con `'is_hole': is_hole` (True para aristas de huecos, False para el perímetro exterior — se propaga sin cambios a través de `footing_rebar.build_perimeter_closure_ubars_topology`, que ya delegaba directamente en esta función); `ui.py::_create_grouped_bars` separa los candidatos a FreeForm en huecos vs no-huecos — los de hueco NUNCA entran en el bundle FreeForm (ni como `set` ni como `bars` sueltas), van siempre por `create_from_curves` individual.
+  - **Segunda petición del usuario ("solo una por cada lado del hueco... quiero más de uno si el lado es largo, igual que las distancias entre Ubars del contorno del forjado"):** confirmado que SÍ era una petición de mejora, no solo una observación. La rama "arista demasiado corta para el espaciado con inset de esquina completo del perímetro" ahora prueba primero un margen RELAJADO (`nominal_leg_mm / 2`, sigue dejando espacio libre de la esquina compartida) al MISMO `spacing_mm` que usa el perímetro principal — si eso cabe con 2+ posiciones (cada punta de pata comprobada contra material real), se crean como un Set de varias U-bars en vez de una sola centrada; solo si ni siquiera cabe 1 posición así, cae a la única U-bar centrada de F7.13, y solo si ni eso cabe, al lazo cerrado.
+  - Verificado con la suite de tests existente: `tests/test_floor_rebar_phase23.py` (Test 13) actualizado — para el hueco de prueba de 500×500mm (aristas de 550mm tras el cover), el margen relajado cabe con 3 posiciones a 200mm de espaciado (230mm de tramo útil > 200mm) — cada arista pasa de "1 U-bar centrada" a "Set de 3 U-bars", con nuevas aserciones sobre `is_hole=True` y `materialized_bars` de longitud 3. Las 19 suites de test, sin regresión (`python tests/test_X.py`, exit 0 cada una).
+  - **Pendiente:** confirmación en vivo contra el modelo real (Shape Code esperado 21 en vez de 00 para los U-bars de huecos; recuento de U-bars por arista de hueco según su longitud real).
+
+**F7.15 (2026-09-02, ronda 3) — F7.14 confirmado por el usuario (Shape 21 correcto en huecos) con un flequillo pendiente; vigas: la investigación cambia de eje por completo tras conectar de nuevo con HuskyBIM:**
+
+- **Huecos — "solo un ubar por cada cara del hueco" seguía pasando tras F7.14, causa real: un SEGUNDO hueco en la cascada nunca se reintentó con el margen relajado.** El fix de F7.14 solo reintentaba el margen relajado (`nominal_leg_mm/2`, mismo `spacing_mm` del contorno) dentro de la rama "arista demasiado corta para el inset de esquina completo" — pero una arista que SÍ supera ese umbral (`usable_hi > usable_lo`) puede aun así caer en `footing_mod._evenly_spaced` devolviendo un único punto medio, cuando el tramo útil entre los dos insets completos es <= `spacing_mm` — esa rama nunca reintentaba nada, se conformaba directamente con 1 barra. Corregido en `floor_rebar._build_edge_ubars`: factorizado `_relaxed_spaced_positions`/`_make_set` como helpers compartidos, usados AHORA en ambas ramas (la de "demasiado corta" Y la del camino normal cuando solo cabe 1 posición). Verificado con un nuevo Test 13b (hueco de 650×650mm, aristas de 700mm — el caso exacto que antes se quedaba en 1 barra): ahora da un Set de 3 barras por arista. 19/19 suites en verde.
+- **Vigas — la investigación se REORIENTA por completo: NO es un problema de longitud axial, es un desplazamiento TRANSVERSAL (ancho) real, confirmado en vivo con HuskyBIM sobre la viga 1318407:** el diagnóstico de F7.14 (longitud pre-split = eje recortado, coinciden exactamente) obligaba a mirar más allá — se volvió a conectar con Revit 2026 y se leyeron los parámetros REALES `Bar Length`/`Length of each bar` de los 2 segmentos partidos: **8000mm y 3100mm exactos** (8000+3100−800mm de solape = 10300mm, EXACTO al eje recortado) — es decir, la longitud SIEMPRE fue correcta; la lectura anterior de "20mm de más en cada extremo" era un artefacto de cómo `get_bounding_box`/`element_geometry` miden el SÓLIDO redondeado de una barra (radio 10mm en una H20), no un error real de longitud. El verdadero problema, encontrado comparando bounding boxes: la viga real ocupa X=[19165, 19465] (300mm de ancho), pero SUS PROPIAS barras longitudinales (top Y bottom, mismo desplazamiento en ambas) ocupan X=[19391, 19589] — **desplazadas ~175mm fuera del centro de una sección de solo 300mm de ancho, sobresaliendo claramente por el lado.** Esto explica "sigue saliendo la armadura principal fuera de las vigas" mucho mejor que cualquier teoría de sobre-longitud axial. Pista adicional: el tipo de esta viga (`RC Beam: 300x600mm`) reporta `Section Shape: Not Defined` en Revit — es una familia cargable personalizada, no un perfil paramétrico estándar, lo que hace sospechar de la detección de caras laterales (`_beam_faces`) o del punto de referencia usado por `engine.compute_cover_point` sobre `side_a`/`side_b` para ESTA familia en concreto. Añadido un tercer diagnóstico en `build_beam_rebar_curves` (antes de calcular las líneas de barra) que surge la posición transversal real de `edge_a`/`edge_b` respecto al eje, y los normales de `side_a`/`side_b` — la próxima ejecución dirá si las caras detectadas son las correctas o no, sin más conjeturas. **Pendiente de verdad:** re-ejecutar el armado de vigas y revisar la nueva línea `DIAGNOSTIC: side_a/side_b width offsets from axis...`.
+
+**F7.16 (2026-09-02, ronda 4) — VIGAS: causa raíz encontrada, reproducida y corregida en vivo (no solo por lectura de código); huecos: aclarada la causa de "siguen saliendo individuales" (no es un bug nuevo):**
+
+- **Vigas — causa raíz real: `create_rebar_set`'s `SetLayoutAsMaximumSpacing` no "rellena entre" la primera y la última barra dadas — propaga las copias adicionales DESDE la barra semilla, MÁS ALLÁ, en la dirección de `+normal`.** El diagnóstico de F7.15 (`side_a/side_b width offsets = 92.0 / -92.0`) demostró que la detección de caras y el cálculo de cover eran correctos — la pista real era que `_beam_faces` añade `side_a`/`side_b` en el orden que sea que `cover_mgr.faces` los enumere (arbitrario), pero `compute_longitudinal_bar_lines` siempre camina de `edge_a` a `edge_b` sin importar cuál cayó en qué lado — así que la barra semilla (`top_lines[0]`, la que `create_rebar_set` usa como plantilla) podía caer en el lado `+normal`. Confirmado EN VIVO con una reproducción manual contra la viga real 1318407 usando `revit_create_rebar_by_curves` + `revit_set_rebar_layout` (los mismos parámetros que usa el plugin, `spacing=92mm, array_length=184mm`): sembrada en el lado `+normal` (X=19407mm, viga de 300mm de ancho X=[19165,19465]) → el Set completo acaba en X=[19391,19589], **totalmente fuera de la sección**; sembrada en el lado `-normal` (X=19223mm) → el MISMO `SetLayoutAsMaximumSpacing` da X=[19219,19417], **exactamente dentro de la sección**. Corregido en `compute_longitudinal_bar_lines`: nuevo parámetro `seed_side_normal` (el mismo `long_bar_normal_vec` compartido entre las llamadas de top Y bottom — usar el `width_dir` local de cada llamada habría arreglado solo una de las dos, ya que su signo se invierte entre `top.normal` y `bottom.normal`) — `edge_a`/`edge_b` se reordenan para que la barra semilla caiga SIEMPRE en el lado `-normal`, sin importar qué cara detectó `_beam_faces` como `side_a`. Reproducido de nuevo en vivo tras el fix: mismo resultado correcto (X=[19219,19417]). 19/19 suites de test en verde.
+- **Huecos — "siguen saliendo individuales" aclarado, no es un bug nuevo:** las 8 aristas reportadas (2 huecos × 4 lados, 580mm cada una, pata de anclaje 400mm) SÍ pasan por el margen relajado de F7.15 (`_relaxed_spaced_positions`), pero con margen relajado (200mm) el tramo útil es de solo 180mm — si el `spacing_mm` configurado para el contorno es >= 180mm (razonable, coherente con "misma distancia que el contorno"), la función `_evenly_spaced` devuelve correctamente UNA sola posición, no dos — no hay más margen para meter una segunda barra sin violar el propio `spacing_mm` que el usuario pidió respetar, y sin reducir la longitud de anclaje (400mm, ya calculada por normativa) por debajo de lo estructuralmente necesario. Esto es matemáticamente correcto dado el par (arista 580mm, pata 400mm, spacing del contorno) — no un bug de código.
+
+**F7.17 (2026-09-02, ronda 5) — huecos: decisión explícita del usuario implementada (mínimo 3 U-bars por lado en huecos pequeños, con margen de esquina más ajustado SOLO para huecos):**
+
+- El usuario confirmó su razonamiento: para un hueco de 500×500mm, quiere **al menos 3 U-bars por lado**, aunque eso signifique un margen de esquina más ajustado que el usado en el resto del perímetro (sacrificando la consistencia "misma distancia que el contorno" pedida en F7.14/F7.15, solo para huecos donde haga falta). Implementado en `floor_rebar._build_edge_ubars`: nueva constante `_HOLE_MIN_BARS = 3` y helper `_hole_min_bar_positions`/`_try_hole_min_bars` — SOLO para `is_hole=True`, cuando ni el espaciado estándar ni el margen relajado (F7.15) dan 2+ posiciones, se reintenta con un margen de esquina mucho más ajustado (`nominal_leg_mm / 4`, en vez de `/2`) apuntando directamente a un mínimo de 3 posiciones — cada punta de pata se sigue comprobando individualmente contra material real (`point_in_material_mm`), y la longitud de la pata de anclaje (400mm, ya calculada por normativa) **nunca se reduce** — solo se ajusta la distancia ENTRE barras a lo largo de la arista. Verificado con un nuevo Test 13c que reproduce EXACTAMENTE el caso reportado (hueco 500×500mm, anclaje 10mm→400mm, arista 550mm): ahora da 3 U-bars por arista, cada una con su pata completa de 400mm. 19/19 suites en verde. **Pendiente de confirmar en vivo.**
 
 ---
 
@@ -770,4 +960,4 @@ Part-time: **10–14 semanas**.
 
 ---
 
-**Última actualización:** F7 en smoke real del usuario (F7.1→F7.11) — F3/F4 tenían bugs de firma/import que los rompían desde siempre, corregidos hoy; único punto abierto sin verificar: huecos de losa/zapata (falta un caso real estrecho). Nada commiteado desde `9df02d7` (2026-09-02)
+**Última actualización:** F7 en smoke real del usuario (F7.1→F7.17) — F3/F4 tenían bugs de firma/import que los rompían desde siempre, corregidos; huecos: Shape 21 confirmado correcto, mínimo 3 U-bars por lado en huecos pequeños implementado por decisión explícita del usuario. Vigas: causa raíz real encontrada y CORREGIDA — `SetLayoutAsMaximumSpacing` propagaba el Set entero fuera de la sección por la barra semilla estar en el lado equivocado de `normal`; verificado en vivo antes/después con reproducción manual. Pendiente de que el usuario confirme ambas cosas con el botón real. Aviso pendiente de investigar: crashes ocasionales de Revit al recargar pyRevit. Nada commiteado desde `9df02d7` (2026-09-02)
