@@ -33,7 +33,10 @@ def launch_nosa_window(window_class, *args, **kwargs):
     try:
         win = window_class(*args, **kwargs)
     except TypeError as e:
-        msg = unicode(e)
+        try:
+            msg = unicode(e)  # IronPython 2.7
+        except NameError:
+            msg = str(e)  # CPython 3
         if u'2 given' in msg and (u'3 arguments' in msg or u'3 argument' in msg):
             try:
                 from pyrevit import revit
@@ -53,8 +56,16 @@ def launch_nosa_window(window_class, *args, **kwargs):
                 title=u'NOSA — Window Error')
             return None
     except Exception as e:
+        # Prefer full traceback — IronPython NameError often shows only
+        # the bare name (e.g. "Name"), which is useless alone.
+        detail = u'{}'.format(e)
+        try:
+            import traceback
+            detail = u'{}\n\n{}'.format(e, traceback.format_exc())
+        except Exception:
+            pass
         forms.alert(
-            u'{} failed to initialise:\n{}'.format(name, e),
+            u'{} failed to initialise:\n{}'.format(name, detail),
             title=u'NOSA — Window Error')
         return None
     if not getattr(win, '_init_ok', True):
