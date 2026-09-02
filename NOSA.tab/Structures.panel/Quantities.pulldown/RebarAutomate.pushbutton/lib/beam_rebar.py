@@ -81,6 +81,79 @@ def get_beam_axis(host):
     return curve
 
 
+def _clamp_axis_to_bbox(axis, host):
+    """
+    BUG FIX (2026-09-01) — reported live: "la armadura principal sale
+    fuera de las vigas" — confirmed on a real beam (id 1318407): the
+    longitudinal bars ran exactly to `axis.GetEndPoint(0)/(1)` (the
+    beam's raw LocationCurve), which measured 10340.0mm, while the
+    beam's own SOLID (host.get_BoundingBox(None)) only spans
+    10325.4mm — the LocationCurve overshoots the actual (mitred/
+    joined, e.g. against a supporting column) solid by ~7.3mm at EACH
+    end. Every longitudinal bar (which uses the raw axis endpoints
+    with zero inset in the length direction — see
+    compute_longitudinal_bar_lines) inherited that exact overshoot.
+
+    Clamps `axis`'s own endpoints to the host's real bounding box
+    extent along the axis direction, projecting all 8 bbox corners
+    onto that direction to find its tightest reach (works for any
+    beam orientation, not just axis-aligned ones) — a NO-OP whenever
+    the LocationCurve already sits inside the solid (the ordinary
+    case), so this only ever shortens, never lengthens, an overshoot.
+
+    Returns:
+        DB.Line — the clamped axis, or `axis` unchanged if no bbox is
+        available or clamping would degenerate to a zero-length line.
+    """
+    try:
+        bbox = host.get_BoundingBox(None)
+    except Exception:
+        bbox = None
+    if bbox is None:
+        return axis
+    direction = axis.Direction
+    p0 = axis.GetEndPoint(0)
+    p1 = axis.GetEndPoint(1)
+    corners = [DB.XYZ(x, y, z)
+               for x in (bbox.Min.X, bbox.Max.X)
+               for y in (bbox.Min.Y, bbox.Max.Y)
+               for z in (bbox.Min.Z, bbox.Max.Z)]
+    projections = [(c - p0).DotProduct(direction) for c in corners]
+    lo, hi = min(projections), max(projections)
+    t1 = (p1 - p0).DotProduct(direction)
+    new_t0 = max(0.0, lo)
+    new_t1 = min(t1, hi)
+    if new_t1 - new_t0 < 1.0 / _MM_PER_FT:
+        return axis
+    new_p0 = p0 + direction.Multiply(new_t0)
+    new_p1 = p0 + direction.Multiply(new_t1)
+    return DB.Line.CreateBound(new_p0, new_p1)
+
+
+def get_beam_section_mm(doc, host, cover_mm, bar_diameter_mm=20.0):
+    """
+    Representative beam width / height (mm) from host solid faces.
+    Used by the WPF section preview — not for placement geometry.
+    """
+    engine = _ensure_engine()
+    axis = get_beam_axis(host)
+    cover_mgr = engine.CoverGeometryManager(doc, host)
+    top, bottom, side_a, side_b = _beam_faces(cover_mgr, axis.Direction)
+    height_dir = top.normal.Normalize()
+    width_dir = axis.Direction.CrossProduct(height_dir).Normalize()
+    p_start = axis.GetEndPoint(0)
+    inset_mm = cover_mm + bar_diameter_mm
+    top_pt = engine.compute_cover_point(top, inset_mm)
+    bottom_pt = engine.compute_cover_point(bottom, inset_mm)
+    side_a_pt = engine.compute_cover_point(side_a, inset_mm)
+    side_b_pt = engine.compute_cover_point(side_b, inset_mm)
+    half_h = abs((top_pt - p_start).DotProduct(height_dir)
+                 - (bottom_pt - p_start).DotProduct(height_dir)) / 2.0 * _MM_PER_FT
+    half_w = abs((side_a_pt - p_start).DotProduct(width_dir)
+                 - (side_b_pt - p_start).DotProduct(width_dir)) / 2.0 * _MM_PER_FT
+    return max(half_w * 2.0 + 2.0 * inset_mm, 100.0), max(half_h * 2.0 + 2.0 * inset_mm, 150.0)
+
+
 def _beam_faces(cover_mgr, axis_dir):
     """
     Classify a beam host's planar faces into (top, bottom, side_a,
@@ -169,16 +242,38 @@ def _cross_section_point(p_ref, width_dir, height_dir, transverse_pt, vertical_p
 
 
 def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
-                                    cover_mm, n_bars, bar_diameter_mm=0.0):
+                                    cover_mm, n_bars, bar_diameter_mm=0.0,
+                                    stirrup_diameter_mm=0.0):
     """
     Generate `n_bars` parallel longitudinal bar Lines along the beam's
     axis, offset inward from `face_info` (the beam's top or bottom
-    face) by cover_mm, and evenly distributed across the beam's width
-    between side_a and side_b (each inset by cover_mm +
+    face) by cover_mm + stirrup_diameter_mm (the stirrup leg sits
+    BETWEEN the cover line and the main bar — see BUG FIX note below),
+    and evenly distributed across the beam's width between side_a and
+    side_b (each inset by cover_mm + stirrup_diameter_mm +
     bar_diameter_mm/2 from its own face) — same even-distribution
     philosophy as footing_rebar._evenly_spaced / rebar_engine's
     stock-length splitting, so bars are spread across the full usable
     width rather than packed to one side.
+
+    BUG FIX (2026-09-01, confirmed live against a real project): this
+    function's own inset never accounted for stirrup_diameter_mm at
+    all (it defaulted to 0 — old callers get IDENTICAL behaviour to
+    before if they still omit it). Meanwhile build_beam_rebar_curves
+    computed the STIRRUP rectangle's own half-extents from
+    `cover_mm + bar_diameter_mm` (the full LONGITUDINAL bar diameter,
+    not the stirrup's own radius) — a LARGER inset than this function's
+    `cover_mm + bar_diameter_mm/2` side inset, which put the stirrup
+    FURTHER FROM the face than the main bars, i.e. INSIDE the bar cage
+    instead of wrapping around it (the live symptom reported: "cercos
+    por dentro de las barras"). Correct RC convention is the reverse:
+    cover is measured to the OUTERMOST reinforcement (the stirrup), so
+    the stirrup sits at cover + its own half-diameter, and the main
+    bars sit further in, behind the stirrup's full diameter. Passing
+    stirrup_diameter_mm here (now added by build_beam_rebar_curves) and
+    reducing the stirrup's own inset (see that function) together fix
+    the nesting order for any bar/stirrup diameter combination — not
+    just the common case where the stirrup happens to be thinner.
 
     n_bars <= 1 places a single bar centred on the width.
 
@@ -191,6 +286,9 @@ def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
         cover_mm         (float): nominal cover, mm.
         n_bars           (int): number of bars to place across the width.
         bar_diameter_mm  (float): used for the side inset.
+        stirrup_diameter_mm (float): the stirrup leg this bar sits
+                         behind, mm — 0.0 (the default) reproduces this
+                         function's pre-fix behaviour exactly.
 
     Returns:
         list[DB.Line], length n_bars (or empty if n_bars <= 0).
@@ -206,8 +304,8 @@ def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
     height_dir = face_info.normal.Normalize()
     width_dir = axis_dir.CrossProduct(height_dir).Normalize()
 
-    vertical_pt = engine.compute_cover_point(face_info, cover_mm)
-    side_inset_mm = cover_mm + bar_diameter_mm / 2.0
+    vertical_pt = engine.compute_cover_point(face_info, cover_mm + stirrup_diameter_mm)
+    side_inset_mm = cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0
     edge_a = engine.compute_cover_point(side_a, side_inset_mm)
     edge_b = engine.compute_cover_point(side_b, side_inset_mm)
 
@@ -256,6 +354,84 @@ def split_long_bars(bar_lines, stock_length_mm, lap_length_mm, lap_offset_mm=25.
     return chains
 
 
+def group_parallel_bar_chains_into_sets(chains, spacing_mm, normal, label):
+    """
+    Group N parallel, IDENTICALLY-SHAPED longitudinal bar chains (one
+    per compute_longitudinal_bar_lines position, each optionally
+    lap-split by split_long_bars) into Rebar-Set-ready groups instead
+    of N individual elements — same optimisation stirrups already had,
+    now extended to top/bottom longitudinal bars.
+
+    Every chain here is a plain parallel translate of every other one
+    across the beam's width (split_long_bars runs the SAME
+    stock_length_mm/lap_length_mm/lap_offset_mm through
+    rebar_engine.split_rebar_by_stock_length for each line
+    independently, on lines of identical length — so all chains come
+    out with the same segment count and the same relative split
+    positions; only their fixed spacing_mm apart differs). This lets
+    ONE representative chain, propagated `count` times, stand in for
+    the whole set — exactly how build_beam_rebar_curves already groups
+    stirrup zones and wall_rebar.py groups its mesh sets.
+
+    Args:
+        chains      (list[list[DB.Curve]]): one chain per parallel bar
+                    position, from compute_longitudinal_bar_lines (each
+                    a 1-curve chain) or split_long_bars (each possibly
+                    multi-segment) — all the SAME length.
+        spacing_mm  (float): centre-to-centre spacing between adjacent
+                    positions, mm (0.0 or chains with < 2 entries mean
+                    no propagation — each bar stays individual).
+        normal      (DB.XYZ): the plane normal for these bars (this
+                    module's width_dir convention).
+        label       (unicode): base label for created elements.
+
+    Returns:
+        list[dict]: one entry per SEGMENT INDEX, each
+        {'curves', 'count', 'spacing_mm', 'array_length_mm', 'normal',
+         'label', 'all_curves'} — 'all_curves' lists every parallel
+        bar's own curve at that segment index, for a caller's fallback
+        path if Rebar Set creation itself fails (mirrors stirrup_sets'
+        own 'all_curves' key). Falls back to one entry per (bar,
+        segment) — count=1, i.e. genuinely individual elements, never
+        silently dropping a bar — if the chains aren't uniformly
+        shaped (should not happen given split_long_bars' own
+        determinism, but this function never assumes it blindly) or
+        there's nothing to group (< 2 bars, or spacing_mm <= 0).
+    """
+    if not chains:
+        return []
+    n_bars = len(chains)
+    n_segments = len(chains[0])
+    uniform = n_segments > 0 and all(len(c) == n_segments for c in chains)
+
+    if n_bars < 2 or spacing_mm <= 0 or not uniform:
+        groups = []
+        for chain in chains:
+            for seg in chain:
+                groups.append({
+                    'curves': [seg], 'all_curves': [[seg]], 'count': 1,
+                    'spacing_mm': 0.0, 'array_length_mm': 0.0,
+                    'normal': normal, 'label': label,
+                })
+        return groups
+
+    array_length_mm = (n_bars - 1) * spacing_mm
+    groups = []
+    for seg_idx in range(n_segments):
+        seg_label = (u'{} (segment {})'.format(label, seg_idx + 1)
+                     if n_segments > 1 else label)
+        groups.append({
+            'curves': [chains[0][seg_idx]],
+            'all_curves': [[chain[seg_idx]] for chain in chains],
+            'count': n_bars,
+            'spacing_mm': spacing_mm,
+            'array_length_mm': array_length_mm,
+            'normal': normal,
+            'label': seg_label,
+        })
+    return groups
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Stirrups
 # ══════════════════════════════════════════════════════════════════════════
@@ -297,29 +473,81 @@ def generate_stirrup_positions(axis_curve, spacing_mm, start_offset_mm=50.0, end
     return _evenly_spaced(lo, hi, spacing_mm)
 
 
-def build_stirrup_rectangle(axis_curve, dist_mm, width_dir, height_dir,
-                             half_width_mm, half_height_mm):
+def generate_stirrup_positions_densified(axis_curve, spacing_mm, dense_spacing_mm,
+                                          confine_length_mm,
+                                          start_offset_mm=50.0, end_offset_mm=50.0):
     """
-    A closed 4-segment rectangular stirrup curve chain, centred on the
-    beam axis at dist_mm from its start, in the plane perpendicular to
-    the axis (spanned by width_dir/height_dir), sized by the given
-    (already cover-inset) half-width / half-height.
-
-    Args:
-        axis_curve       (DB.Line): the beam's centreline.
-        dist_mm          (float): distance along the axis from its start.
-        width_dir, height_dir (DB.XYZ): the beam's local cross-section
-                         axes (same ones used for longitudinal bars —
-                         see compute_longitudinal_bar_lines).
-        half_width_mm, half_height_mm (float): stirrup leg half-extents,
-                         mm — typically the cover-inset distance from
-                         the beam centreline to each side/top-bottom
-                         face.
+    Stirrup positions with denser spacing in end confinement zones
+    (support regions) and normal spacing in the middle span.
 
     Returns:
-        list[DB.Line] — 4 segments forming a closed rectangle.
+        list[dict]: each {'zone': 'start'|'middle'|'end',
+                          'spacing_mm': float,
+                          'positions': list[float]}
+        Empty list if the beam is too short.
     """
-    p_start = axis_curve.GetEndPoint(0)
+    length_mm = axis_curve.Length * _MM_PER_FT
+    lo = start_offset_mm
+    hi = length_mm - end_offset_mm
+    if hi <= lo:
+        return []
+
+    dense = dense_spacing_mm if dense_spacing_mm and dense_spacing_mm > 0 else spacing_mm
+    if dense > spacing_mm:
+        dense = spacing_mm  # denser = smaller spacing
+    confine = max(confine_length_mm or 0.0, 0.0)
+
+    usable = hi - lo
+    # Cap each end zone so middle still has room when beam is short
+    max_each = usable * 0.4
+    confine_each = min(confine, max_each) if confine > 0 else 0.0
+
+    groups = []
+    if confine_each > dense * 0.5:
+        start_hi = lo + confine_each
+        end_lo = hi - confine_each
+        if start_hi > lo:
+            groups.append({
+                'zone': u'start',
+                'spacing_mm': dense,
+                'positions': _evenly_spaced(lo, start_hi, dense),
+            })
+        if end_lo > start_hi + spacing_mm * 0.5:
+            groups.append({
+                'zone': u'middle',
+                'spacing_mm': spacing_mm,
+                'positions': _evenly_spaced(start_hi, end_lo, spacing_mm),
+            })
+        if hi > end_lo:
+            groups.append({
+                'zone': u'end',
+                'spacing_mm': dense,
+                'positions': _evenly_spaced(end_lo, hi, dense),
+            })
+    else:
+        groups.append({
+            'zone': u'middle',
+            'spacing_mm': spacing_mm,
+            'positions': _evenly_spaced(lo, hi, spacing_mm),
+        })
+
+    # Drop empty groups
+    return [g for g in groups if g['positions']]
+
+
+def build_stirrup_rectangle(axis_curve, dist_mm, width_dir, height_dir,
+                             half_width_mm, half_height_mm,
+                             section_origin=None):
+    """
+    A closed 4-segment rectangular stirrup curve chain at dist_mm along
+    the beam axis, in the plane perpendicular to the axis.
+
+    section_origin: point on the start section that is the TRUE geometric
+    centre of the (cover-inset) stirrup — NOT the LocationCurve start,
+    which on most Revit beams sits on the top face. If None, falls back
+    to the LocationCurve start (legacy / incorrect for top-centred axes).
+    """
+    p_start = section_origin if section_origin is not None else axis_curve.GetEndPoint(0)
     center = p_start + axis_curve.Direction.Multiply(dist_mm / _MM_PER_FT)
     w = width_dir.Multiply(half_width_mm / _MM_PER_FT)
     h = height_dir.Multiply(half_height_mm / _MM_PER_FT)
@@ -340,7 +568,9 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              stirrup_spacing_mm, stirrup_bar_diameter_mm=8.0,
                              stirrup_start_offset_mm=50.0, stirrup_end_offset_mm=50.0,
                              stock_length_mm=12000.0, lap_length_mm=None,
-                             lap_offset_mm=25.0):
+                             lap_offset_mm=25.0,
+                             densify_ends=False, dense_spacing_mm=None,
+                             confine_length_mm=None):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -350,53 +580,39 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
          (compute_longitudinal_bar_lines), splitting any that exceed
          stock_length_mm via rebar_engine.split_rebar_by_stock_length
          (split_long_bars).
-      4. Build stirrup rectangles at every generate_stirrup_positions()
-         position, sized from the cover-inset cross-section.
-
-    Args:
-        doc                     (DB.Document)
-        host                    (DB.Element): the beam.
-        cover_mm                (float): nominal cover, mm — applied to
-                                top, bottom, and both sides alike.
-        bar_diameter_mm         (float): longitudinal bar diameter, mm.
-        n_top_bars, n_bottom_bars (int): bars across the width, top and
-                                bottom.
-        stirrup_spacing_mm      (float): max stirrup spacing, mm.
-        stirrup_bar_diameter_mm (float): stirrup leg bar diameter, mm —
-                                used only to inset the stirrup rectangle
-                                one more radius inside the longitudinal-
-                                bar cover line (stirrups sit just inside
-                                the main bars, not on top of them).
-        stirrup_start_offset_mm, stirrup_end_offset_mm (float): see
-                                generate_stirrup_positions.
-        stock_length_mm         (float): max commercial bar length —
-                                see rebar_engine.split_rebar_by_stock_length.
-        lap_length_mm           (float or None): REQUIRED if any
-                                longitudinal bar ends up longer than
-                                stock_length_mm — see Raises below.
-        lap_offset_mm            (float): transverse lap separation, mm.
+      4. Build stirrup rectangles — uniform spacing, or densified at
+         end confinement zones when densify_ends is True.
 
     Returns:
         {
-          'top_bars':    list[list[DB.Curve]],
-          'bottom_bars': list[list[DB.Curve]],
-          'stirrups':    list[list[DB.Curve]],  # each a closed 4-segment chain
+          'top_bars':    list[list[DB.Curve]],  # flat list (compat)
+          'bottom_bars': list[list[DB.Curve]],  # flat list (compat)
+          'top_bar_sets': list[dict],    # grouped for Set creation —
+          'bottom_bar_sets': list[dict], # see group_parallel_bar_
+                                          # chains_into_sets
+          'stirrups':    list[list[DB.Curve]],  # flat list (compat)
+          'stirrup_sets': list[dict],  # grouped by zone for Set creation
+          'beam_height_mm': float,
+          'confine_length_mm': float,
         }
-
-    Raises:
-        ValueError: from get_beam_axis / _beam_faces (see their
-        docstrings), or if a longitudinal bar exceeds stock_length_mm
-        while lap_length_mm was not supplied.
     """
     engine = _ensure_engine()
     axis = get_beam_axis(host)
+    # BUG FIX (2026-09-01) — see _clamp_axis_to_bbox's own docstring:
+    # the raw LocationCurve can run past the beam's actual (mitred)
+    # solid at each end; every downstream use of `axis` (longitudinal
+    # bars AND stirrup zones) needs the clamped version, so this
+    # happens once, immediately, before anything else derives from it.
+    axis = _clamp_axis_to_bbox(axis, host)
     cover_mgr = engine.CoverGeometryManager(doc, host)
     top, bottom, side_a, side_b = _beam_faces(cover_mgr, axis.Direction)
 
     top_lines = compute_longitudinal_bar_lines(
-        axis, top, side_a, side_b, cover_mm, n_top_bars, bar_diameter_mm)
+        axis, top, side_a, side_b, cover_mm, n_top_bars, bar_diameter_mm,
+        stirrup_diameter_mm=stirrup_bar_diameter_mm)
     bottom_lines = compute_longitudinal_bar_lines(
-        axis, bottom, side_a, side_b, cover_mm, n_bottom_bars, bar_diameter_mm)
+        axis, bottom, side_a, side_b, cover_mm, n_bottom_bars, bar_diameter_mm,
+        stirrup_diameter_mm=stirrup_bar_diameter_mm)
 
     needs_split = any(l.Length * _MM_PER_FT > stock_length_mm
                        for l in (top_lines + bottom_lines))
@@ -413,29 +629,108 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         top_chains = [[l] for l in top_lines]
         bottom_chains = [[l] for l in bottom_lines]
 
-    # Stirrup cross-section: cover-inset from top/bottom/sides, then one
-    # more half-diameter in from the LONGITUDINAL bar's own diameter so
-    # the stirrup leg sits just inside the main bars, not overlapping them.
+    # Optimisation: n parallel, identically-shaped longitudinal bars
+    # (top_lines/bottom_lines are plain parallel translates of each
+    # other across the width) become ONE Rebar Set instead of n
+    # individual elements wherever possible — see
+    # group_parallel_bar_chains_into_sets' own docstring. Spacing is
+    # read straight off the real bar geometry (works whether n_bars
+    # ended up evenly or unevenly distributed).
+    long_bar_normal_vec = axis.Direction.CrossProduct(top.normal.Normalize()).Normalize()
+    top_spacing_mm = (top_lines[1].GetEndPoint(0).DistanceTo(top_lines[0].GetEndPoint(0))
+                       * _MM_PER_FT) if len(top_lines) > 1 else 0.0
+    bottom_spacing_mm = (bottom_lines[1].GetEndPoint(0).DistanceTo(bottom_lines[0].GetEndPoint(0))
+                          * _MM_PER_FT) if len(bottom_lines) > 1 else 0.0
+    top_bar_sets = group_parallel_bar_chains_into_sets(
+        top_chains, top_spacing_mm, long_bar_normal_vec, u'Beam Top Bars')
+    bottom_bar_sets = group_parallel_bar_chains_into_sets(
+        bottom_chains, bottom_spacing_mm, long_bar_normal_vec, u'Beam Bottom Bars')
+
+    # BUG FIX (2026-09-01, confirmed live): the stirrup rectangle used
+    # to be inset by cover + FULL longitudinal bar diameter — LARGER
+    # than the main bars' own inset (cover + bar_dia/2, now cover +
+    # stirrup_dia + bar_dia/2 — see compute_longitudinal_bar_lines'
+    # own fix above), which put the stirrup INSIDE the bar cage instead
+    # of wrapping around it ("cercos por dentro de las barras"). Cover
+    # is measured to the OUTERMOST reinforcement — the stirrup itself —
+    # so its own rectangle sits at cover + ITS OWN half-diameter, always
+    # closer to the face than the main bars behind it, for any bar/
+    # stirrup diameter combination (not just the common case where the
+    # stirrup happens to be thinner than the main bars).
     height_dir = top.normal.Normalize()
     width_dir = axis.Direction.CrossProduct(height_dir).Normalize()
     p_start = axis.GetEndPoint(0)
 
-    inset_mm = cover_mm + bar_diameter_mm
+    inset_mm = cover_mm + stirrup_bar_diameter_mm / 2.0
     top_pt = engine.compute_cover_point(top, inset_mm)
     bottom_pt = engine.compute_cover_point(bottom, inset_mm)
     side_a_pt = engine.compute_cover_point(side_a, inset_mm)
     side_b_pt = engine.compute_cover_point(side_b, inset_mm)
 
-    half_height_mm = abs((top_pt - p_start).DotProduct(height_dir)
-                          - (bottom_pt - p_start).DotProduct(height_dir)) / 2.0 * _MM_PER_FT
+    h_top_ft = (top_pt - p_start).DotProduct(height_dir)
+    h_bot_ft = (bottom_pt - p_start).DotProduct(height_dir)
+    half_height_mm = abs(h_top_ft - h_bot_ft) / 2.0 * _MM_PER_FT
     half_width_mm = abs((side_a_pt - p_start).DotProduct(width_dir)
                          - (side_b_pt - p_start).DotProduct(width_dir)) / 2.0 * _MM_PER_FT
 
-    stirrup_positions = generate_stirrup_positions(
-        axis, stirrup_spacing_mm, stirrup_start_offset_mm, stirrup_end_offset_mm)
-    stirrups = [
-        build_stirrup_rectangle(axis, d, width_dir, height_dir, half_width_mm, half_height_mm)
-        for d in stirrup_positions
-    ]
+    # LocationCurve is often on the TOP of the beam — offset to the
+    # geometric mid-height of the cover-inset stirrup section.
+    mid_h_ft = (h_top_ft + h_bot_ft) / 2.0
+    section_origin = p_start + height_dir.Multiply(mid_h_ft)
 
-    return {'top_bars': top_chains, 'bottom_bars': bottom_chains, 'stirrups': stirrups}
+    beam_height_mm = half_height_mm * 2.0 + 2.0 * inset_mm
+    # Default confine length = 2 * effective depth (approx beam height)
+    if confine_length_mm is None or confine_length_mm <= 0:
+        confine_length_mm = 2.0 * beam_height_mm
+
+    if densify_ends:
+        dens = dense_spacing_mm if dense_spacing_mm else max(stirrup_spacing_mm * 0.5, 75.0)
+        zone_groups = generate_stirrup_positions_densified(
+            axis, stirrup_spacing_mm, dens, confine_length_mm,
+            stirrup_start_offset_mm, stirrup_end_offset_mm)
+    else:
+        positions = generate_stirrup_positions(
+            axis, stirrup_spacing_mm, stirrup_start_offset_mm, stirrup_end_offset_mm)
+        zone_groups = [{
+            'zone': u'middle',
+            'spacing_mm': stirrup_spacing_mm,
+            'positions': positions,
+        }] if positions else []
+
+    stirrups = []
+    stirrup_sets = []
+    for zg in zone_groups:
+        zone_curves = [
+            build_stirrup_rectangle(axis, d, width_dir, height_dir,
+                                    half_width_mm, half_height_mm,
+                                    section_origin=section_origin)
+            for d in zg['positions']
+        ]
+        stirrups.extend(zone_curves)
+        if not zone_curves:
+            continue
+        n = len(zone_curves)
+        spacing = zg['spacing_mm']
+        array_mm = (n - 1) * spacing if n > 1 else 0.0
+        stirrup_sets.append({
+            'zone': zg['zone'],
+            'curves': zone_curves[0],
+            'all_curves': zone_curves,
+            'spacing_mm': spacing,
+            'array_length_mm': array_mm,
+            'count': n,
+            'normal': axis.Direction.Normalize(),
+        })
+
+    return {
+        'top_bars': top_chains,
+        'bottom_bars': bottom_chains,
+        'top_bar_sets': top_bar_sets,
+        'bottom_bar_sets': bottom_bar_sets,
+        'stirrups': stirrups,
+        'stirrup_sets': stirrup_sets,
+        'beam_height_mm': beam_height_mm,
+        'beam_width_mm': half_width_mm * 2.0 + 2.0 * inset_mm,
+        'confine_length_mm': confine_length_mm if densify_ends else 0.0,
+        'long_bar_normal': width_dir,
+    }
