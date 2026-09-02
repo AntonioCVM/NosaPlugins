@@ -73,7 +73,8 @@ def compute_section_preview(width_mm, thickness_mm,
                              dots_per_layer=6,
                              include_perimeter_ubars=False,
                              x_anchor_dia_mm=None, y_anchor_dia_mm=None,
-                             side_cover_mm=None):
+                             side_cover_mm=None,
+                             bottom_hooks=False, top_hooks=False):
     """
     Cross-section preview data for a two-way mat (footing or floor): a
     rectangle (width x thickness) with a row of dots per reinforcement
@@ -131,6 +132,16 @@ def compute_section_preview(width_mm, thickness_mm,
                           margin insetting both `bars` and `lines` from
                           the section's own left/right edges. Defaults
                           to bottom_cover_mm (see module docstring).
+        bottom_hooks, top_hooks (bool): PHASE 2.6 (2026-09-02, live
+                          report — "Include 90° Hooks" checkbox had no
+                          visible effect on the preview at all) —
+                          whether the bottom/top mat's B2/T2 in-plane
+                          line (the only element actually VISIBLE from
+                          this cross-section's own cut angle — B1/T1 are
+                          dots, looking straight down the bar's own
+                          axis, so a hook there wouldn't show as extra
+                          geometry) gets a short 90°-bend stub drawn at
+                          each of its two ends — see 'hooks' below.
 
     Returns:
         {
@@ -159,6 +170,15 @@ def compute_section_preview(width_mm, thickness_mm,
                           to visualise the two directions crossing at
                           the corner without clashing — always empty if
                           include_perimeter_ubars is False.
+          ],
+          'hooks': [
+              {'x0_mm': float, 'y0_mm': float, 'x1_mm': float, 'y1_mm': float,
+               'diameter_mm': float, 'layer': 'B2'|'T2'},   # a short stub
+                          bent perpendicular off each end of the B2/T2
+                          line — bottom hooks bend DOWN (toward the
+                          nearest free face), top hooks bend UP — empty
+                          unless bottom_hooks/top_hooks is True for that
+                          mat.
           ],
         }
 
@@ -208,14 +228,40 @@ def compute_section_preview(width_mm, thickness_mm,
     b2_y = bottom_cover_mm + bottom_dia_x_mm
     t1_y = t2_y = None
 
+    def _hook_stubs(line, bend_up):
+        # A short 90°-bend stub off EACH end of an in-plane (B2/T2) line
+        # — the only element in this dots-vs-lines convention actually
+        # visible from this cut angle (see docstring). Length is
+        # illustrative (8x the bar's own diameter, a common rough hook-
+        # leg proportion), never the real normative hook length —
+        # matches this module's established "illustrative only" scope.
+        d = line['diameter_mm']
+        hook_len = max(8.0 * d, 40.0)
+        sign = 1.0 if bend_up else -1.0
+        return [
+            {'x0_mm': line['x0_mm'], 'y0_mm': line['y_mm'],
+             'x1_mm': line['x0_mm'], 'y1_mm': line['y_mm'] + sign * hook_len,
+             'diameter_mm': d, 'layer': line['layer']},
+            {'x0_mm': line['x1_mm'], 'y0_mm': line['y_mm'],
+             'x1_mm': line['x1_mm'], 'y1_mm': line['y_mm'] + sign * hook_len,
+             'diameter_mm': d, 'layer': line['layer']},
+        ]
+
     bars = _row(b1_y, bottom_dia_x_mm, 'B1')
-    lines = [_line(b2_y, bottom_dia_y_mm, 'B2')]
+    b2_line = _line(b2_y, bottom_dia_y_mm, 'B2')
+    lines = [b2_line]
+    hooks = []
+    if bottom_hooks:
+        hooks.extend(_hook_stubs(b2_line, bend_up=False))
 
     if include_top_mat:
         t1_y = thickness_mm - top_cover_mm - top_dia_x_mm
         t2_y = thickness_mm - top_cover_mm - top_dia_x_mm - top_dia_y_mm
         bars.extend(_row(t1_y, top_dia_x_mm, 'T1'))
-        lines.append(_line(t2_y, top_dia_y_mm, 'T2'))
+        t2_line = _line(t2_y, top_dia_y_mm, 'T2')
+        lines.append(t2_line)
+        if top_hooks:
+            hooks.extend(_hook_stubs(t2_line, bend_up=True))
 
     perimeter_ubars = []
     if include_perimeter_ubars:
@@ -252,6 +298,7 @@ def compute_section_preview(width_mm, thickness_mm,
         'lines': lines,
         'stirrups': [],
         'perimeter_ubars': perimeter_ubars,
+        'hooks': hooks,
     }
 
 
@@ -722,25 +769,149 @@ def _build_elevation_bar_segments(x_mm, height_mm, splits_mm, lap_mm, include_st
 def compute_beam_section_preview(width_mm, height_mm, cover_mm,
                                   bar_dia_mm, n_top, n_bottom,
                                   stirrup_dia_mm):
-    """Cross-section preview for a rectangular beam (dots + stirrup outline)."""
+    """
+    Cross-section preview for a rectangular beam (dots + stirrup outline).
+
+    BUG FIX (2026-09-02, live report — "las barras mostradas... ahora
+    parece que chocan") — bar dots used to be centred EXACTLY ON the
+    stirrup rectangle's own outline (both used the SAME single inset),
+    so half of each dot visually poked outside the stirrup line instead
+    of nesting cleanly behind it, especially at the 2 corner bars, whose
+    dot straddled the rectangle's actual corner point on both axes at
+    once. Mirrors compute_column_section_preview/compute_column_
+    elevation_preview's own established two-inset convention (already
+    correct there): the STIRRUP outline sits at cover + its own half-
+    diameter; the BAR dots sit FURTHER IN, behind the stirrup's FULL
+    diameter plus their own half-diameter — cover is measured to the
+    OUTERMOST reinforcement (the stirrup), the main bars nest inside it.
+    """
     if width_mm <= 0 or height_mm <= 0 or cover_mm < 0:
         raise ValueError(u'Invalid beam section dimensions.')
     hw, hh = width_mm / 2.0, height_mm / 2.0
-    inset = cover_mm + (stirrup_dia_mm or 0) / 2.0 + (bar_dia_mm or 0) / 2.0
-    iw, ih = max(hw - inset, 1.0), max(hh - inset, 1.0)
+    stirrup_inset = cover_mm + (stirrup_dia_mm or 0) / 2.0
+    bar_inset = cover_mm + (stirrup_dia_mm or 0) + (bar_dia_mm or 0) / 2.0
+    iw, ih = max(hw - stirrup_inset, 1.0), max(hh - stirrup_inset, 1.0)
+    bar_iw, bar_ih = max(hw - bar_inset, 1.0), max(hh - bar_inset, 1.0)
 
     def _row(n, y):
         if n <= 0:
             return []
         if n == 1:
             return [{'x_mm': 0.0, 'y_mm': y, 'diameter_mm': bar_dia_mm}]
-        xs = [-iw + i * (2.0 * iw) / float(n - 1) for i in range(n)]
+        xs = [-bar_iw + i * (2.0 * bar_iw) / float(n - 1) for i in range(n)]
         return [{'x_mm': x, 'y_mm': y, 'diameter_mm': bar_dia_mm} for x in xs]
 
     return {
         'section': {'width_mm': width_mm, 'height_mm': height_mm, 'shape': 'rect'},
         'stirrup': {'half_w_mm': iw, 'half_h_mm': ih, 'diameter_mm': stirrup_dia_mm or 8.0},
-        'bars': _row(int(n_top), ih) + _row(int(n_bottom), -ih),
+        'bars': _row(int(n_top), bar_ih) + _row(int(n_bottom), -bar_ih),
+    }
+
+
+def compute_beam_elevation_preview(length_mm, height_mm, cover_mm,
+                                    top_dia_mm, bottom_dia_mm,
+                                    stirrup_dia_mm, stirrup_spacing_mm,
+                                    end_offset_mm=50.0,
+                                    densify_ends=False, dense_spacing_mm=None,
+                                    confine_length_mm=None):
+    """
+    PHASE 2.6 (2026-09-02, explicit live request — "sería interesante
+    ver un alzado [de la viga]") — beam ELEVATION preview (side view):
+    top and bottom longitudinal bars as full-length horizontal lines,
+    stirrups as evenly-spaced vertical tick marks — denser near each end
+    (over confine_length_mm) if densify_ends, exactly mirroring
+    beam_rebar.generate_stirrup_positions' own even-distribution +
+    end-densification convention in plain arithmetic (this module's
+    established independence from beam_rebar.py — see module docstring
+    — and the SAME zone-splitting shape already used by
+    compute_column_elevation_preview's own joint-zone logic).
+
+    Args:
+        length_mm, height_mm  (float): representative beam length/
+                              section height, mm — illustrative unless a
+                              real beam is selected (ui.py resolves
+                              those from the live host when possible).
+        cover_mm               (float): nominal cover, mm.
+        top_dia_mm, bottom_dia_mm (float): top/bottom bar diameters, mm.
+        stirrup_dia_mm          (float): stirrup diameter, mm.
+        stirrup_spacing_mm      (float): normal-zone spacing, mm.
+        end_offset_mm           (float): distance from each end to the
+                              first stirrup, mm.
+        densify_ends            (bool): whether to show 3 zones (denser
+                              at both ends) or one uniform zone.
+        dense_spacing_mm        (float or None): spacing inside each end
+                              zone — required if densify_ends is True.
+        confine_length_mm       (float or None): length of each end
+                              zone, mm — defaults to 2 x height_mm,
+                              matching this same default already
+                              documented in ui.xaml's own caption text
+                              ("Auto confine length = 2 x beam height").
+
+    Returns:
+        {
+          'section': {'width_mm': length_mm, 'height_mm': height_mm, 'shape': 'rect'},
+          'bars': [{'x0_mm', 'y0_mm', 'x1_mm', 'y1_mm', 'diameter_mm',
+                     'layer': 'top'|'bottom'}, ...],   # one full-length
+                     line each — real bar COUNT doesn't change what's
+                     visible in an elevation (they all overlap on this
+                     face), matching how a real elevation drawing shows
+                     one representative line per layer.
+          'stirrups': [{'x_mm', 'y0_mm', 'y1_mm', 'diameter_mm'}, ...],
+          'confine_length_mm': float,   # echoed, for drawing the zone
+                     boundary reference lines.
+        }
+
+    Raises:
+        ValueError: if length_mm/height_mm aren't positive, or if the
+        section is too shallow for the given cover to fit both a top
+        and a bottom bar without overlapping.
+    """
+    if length_mm <= 0 or height_mm <= 0:
+        raise ValueError(u'length_mm and height_mm must both be positive.')
+
+    top_bar_inset = cover_mm + (stirrup_dia_mm or 0) + (top_dia_mm or 0) / 2.0
+    bottom_bar_inset = cover_mm + (stirrup_dia_mm or 0) + (bottom_dia_mm or 0) / 2.0
+    y_top = height_mm - top_bar_inset
+    y_bottom = bottom_bar_inset
+    if y_top <= y_bottom:
+        raise ValueError(u'Beam section is too shallow for the given cover/diameters.')
+
+    bars = [
+        {'x0_mm': 0.0, 'y0_mm': y_top, 'x1_mm': length_mm, 'y1_mm': y_top,
+         'diameter_mm': top_dia_mm, 'layer': 'top'},
+        {'x0_mm': 0.0, 'y0_mm': y_bottom, 'x1_mm': length_mm, 'y1_mm': y_bottom,
+         'diameter_mm': bottom_dia_mm, 'layer': 'bottom'},
+    ]
+
+    confine_mm = confine_length_mm if confine_length_mm else 2.0 * height_mm
+    lo, hi = end_offset_mm, length_mm - end_offset_mm
+    usable = hi - lo
+    stirrup_x_positions = []
+    if usable > 0:
+        if not densify_ends or 2.0 * confine_mm >= usable:
+            spacing = (dense_spacing_mm if (densify_ends and 2.0 * confine_mm >= usable
+                                             and dense_spacing_mm)
+                       else stirrup_spacing_mm)
+            stirrup_x_positions = _evenly_spaced_preview(lo, hi, spacing)
+        else:
+            start_zone = _evenly_spaced_preview(lo, lo + confine_mm, dense_spacing_mm)
+            end_zone = _evenly_spaced_preview(hi - confine_mm, hi, dense_spacing_mm)
+            mid_zone = _evenly_spaced_preview(
+                lo + confine_mm, hi - confine_mm, stirrup_spacing_mm)
+            stirrup_x_positions = sorted(set(start_zone + mid_zone + end_zone))
+
+    stirrup_inset = cover_mm + (stirrup_dia_mm or 0) / 2.0
+    stirrup_half_h = max(1.0, height_mm / 2.0 - stirrup_inset)
+    stirrup_y0 = height_mm / 2.0 - stirrup_half_h
+    stirrup_y1 = height_mm / 2.0 + stirrup_half_h
+    stirrups = [{'x_mm': x, 'y0_mm': stirrup_y0, 'y1_mm': stirrup_y1,
+                 'diameter_mm': stirrup_dia_mm or 8.0} for x in stirrup_x_positions]
+
+    return {
+        'section': {'width_mm': length_mm, 'height_mm': height_mm, 'shape': 'rect'},
+        'bars': bars,
+        'stirrups': stirrups,
+        'confine_length_mm': confine_mm,
     }
 
 
@@ -797,10 +968,20 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
                                     horiz_spacing_mm, both_faces=True,
                                     include_top_ubars=False,
                                     include_end_ubars=False,
-                                    end_clear_mm=50.0):
+                                    end_clear_mm=50.0,
+                                    horiz_dia_mm=None):
     """
     Wall elevation preview (front view): vertical mesh as line segments,
     horizontal mesh as lines, optional top/end U-bar polylines.
+
+    BUG FIX (2026-09-02, "cualquier cambio... visible en la
+    previsualización") — horiz_dia_mm (the horizontal mesh's OWN
+    diameter, e.g. TxtWallHorizDia) used to have NO effect at all on
+    this preview: horizontal lines always drew at vert_dia_mm * 0.85, a
+    fake derived value with no connection to the field the user actually
+    typed. Now defaults to that same fallback ONLY when horiz_dia_mm is
+    omitted (preserving any existing caller's behaviour), but uses the
+    REAL value whenever one is given.
     """
     if length_mm <= 0 or height_mm <= 0:
         raise ValueError(u'Invalid wall elevation dimensions.')
@@ -827,6 +1008,7 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
                 'diameter_mm': vert_dia_mm,
             })
 
+    resolved_horiz_dia_mm = horiz_dia_mm if horiz_dia_mm else vert_dia_mm * 0.85
     horizontals = []
     clear = end_clear_mm
     for y in horiz_y_positions:
@@ -834,7 +1016,7 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
             horizontals.append({
                 'x0_mm': clear + x_off, 'y0_mm': y,
                 'x1_mm': length_mm - clear + x_off, 'y1_mm': y,
-                'diameter_mm': vert_dia_mm * 0.85,
+                'diameter_mm': resolved_horiz_dia_mm,
             })
 
     ubars = []
