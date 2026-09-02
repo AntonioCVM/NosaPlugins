@@ -190,6 +190,22 @@ _MM_PER_FT = 304.8
 # _round_mm's own docstring below).
 _COORD_ROUND_NDIGITS = 6
 
+# BUG FIX (2026-09-01, confirmed live: "The minimum length of rebar
+# shape is 25 mm", floor generation aborted with NO reinforcement
+# created at all): Revit's own Rebar/RebarShape API enforces a hard
+# 25mm minimum segment length, separate from DB.Line.CreateBound's own
+# much smaller tolerance — a Line this short is perfectly valid, a
+# Rebar built from it is not. A non-rectangular floor boundary (a
+# notch, an angled corner, a hole close to the edge) can produce a
+# material interval this thin from real topology; _build_direction_bars
+# only ever filtered narrow intervals when Perimeter Closure U-Bars was
+# active (narrow_threshold_mm), so with that checkbox off a genuinely
+# tiny interval reached DB.Line.CreateBound/Rebar.CreateFromCurves
+# unfiltered and the exception aborted the WHOLE floor before anything
+# was created. This floor is a real, non-rectangular example (~11%
+# less area than its own bounding box).
+_MIN_REBAR_SEGMENT_MM = 26.0
+
 
 def _round_mm(value_mm):
     """
@@ -376,7 +392,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
                            own_dia_mm, perp_dia_mm, row_spacing_mm,
                            xmin_mm, xmax_mm, ymin_mm, ymax_mm, own_z_ft,
                            max_stock_length_mm, use_legs, leg_length_mm, leg_direction,
-                           narrow_threshold_mm=None):
+                           narrow_threshold_mm=None, std=None):
     """
     Every bar for ONE main-grid direction ('x' = along_x/Layer 1,
     running in X, one row per Y; 'y' = along_y/Layer 2, running in Y,
@@ -420,7 +436,9 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
         bar_direction = DB.XYZ(0.0, 1.0, 0.0)
         propagation_reference = DB.XYZ(1.0, 0.0, 0.0)
     rows_mm = footing_mod._evenly_spaced(row_lo, row_hi, row_spacing_mm)
-    lap_length_mm = footing_mod.default_anchorage_length_mm(own_dia_mm)
+    # PHASE F2.5 — main-mat bar lap/anchorage for stock-length splicing;
+    # std=None reproduces exactly the pre-F2.5 default multiplier.
+    lap_length_mm = footing_mod.default_anchorage_length_mm(own_dia_mm, std=std)
     # PHASE 2.6 FIX ("flying bars") — bar_direction x global-Z has a
     # FIXED rotational handedness (see
     # rebar_engine.compute_vertical_hook_plane_normal's own Phase 5.6
@@ -439,6 +457,17 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     rows_with_ivs = []
     for row in rows_mm:
         ivs = topo.material_intervals(outer, large_holes, row, axis=own_axis, inset_mm=own_inset_mm)
+        # BUG FIX — ALWAYS drop an interval Revit's own Rebar API could
+        # never build a shape from, not just when Perimeter Closure
+        # U-Bars is on (that check is a SEPARATE, usually-larger
+        # threshold for "this narrow zone gets a closed link instead of
+        # a redundant main bar" — see this function's own docstring —
+        # and was the ONLY filter applied before this fix, so with that
+        # checkbox off a genuinely tiny interval from irregular
+        # topology reached DB.Line.CreateBound/Rebar.CreateFromCurves
+        # unfiltered and aborted the whole floor. See _MIN_REBAR_
+        # SEGMENT_MM's own module-level comment.
+        ivs = [iv for iv in ivs if (iv[1] - iv[0]) >= _MIN_REBAR_SEGMENT_MM]
         if narrow_threshold_mm is not None:
             ivs = [iv for iv in ivs if (iv[1] - iv[0]) >= narrow_threshold_mm]
         rows_with_ivs.append((row, ivs))
@@ -633,7 +662,8 @@ def _link_loop_edge(DB, p0_mm, p1_mm, bottom_z_ft, top_z_ft):
 
 def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                        x_leg_mm, x_spacing_mm, b1_z_ft, t1_z_ft,
-                       y_leg_mm, y_spacing_mm, b2_z_ft, t2_z_ft):
+                       y_leg_mm, y_spacing_mm, b2_z_ft, t2_z_ft,
+                       raw_holes=None):
     """
     PHASE 3.5 item 5 — STRUCTURAL REWRITE: perimeter closure U-bars are
     no longer derived from the main grid's scanline (which fragmented a
@@ -704,6 +734,31 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
         y_leg_mm, y_spacing_mm  (float): same, for Y-anchoring edges
                                 (B2/T2).
         b2_z_ft, t2_z_ft        (float): Z, ft, for Y-anchoring edges.
+        raw_holes               (list[list[(float,float)]] or None):
+                                BUG FIX (2026-09-01) — the SAME holes as
+                                `large_holes`, BEFORE the cover offset,
+                                same order/count. Reported live: "en los
+                                huecos de los forjados no coloca Ubars
+                                como debería" — root cause is this
+                                module's own disclosed self-intersection
+                                limit (see module docstring's POLYGON
+                                OFFSET note): growing a hole OUTWARD by
+                                cover can fold a narrow/irregular opening
+                                into a bow-tied polygon, which
+                                polygon_edges_mm's own length filter then
+                                reduces to < 3 valid edges — silently
+                                ZERO closure U-bars for that hole, with
+                                only a console warning, never a UI error.
+                                When that happens for one hole, this
+                                function now falls back to that hole's
+                                OWN raw (un-offset) boundary instead of
+                                leaving it with no edges at all — the
+                                closure bar's back then sits exactly ON
+                                the hole's real edge (no cover margin for
+                                THIS bar only) rather than not existing.
+                                Pass None (the old behaviour) only from a
+                                caller that genuinely has no raw loops on
+                                hand.
 
     Returns:
         {'x_bars': {'sets':[...],'bars':[...]},
@@ -725,8 +780,11 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
     y_sets, y_bars_out = [], []
     debug_failed_edges = []
 
-    loops = [(False, outer)] + [(True, h) for h in large_holes]
-    for is_hole, loop in loops:
+    raw_holes_list = list(raw_holes) if raw_holes is not None else [None] * len(large_holes)
+    loops = [(False, outer, None)] + [
+        (True, h, raw_holes_list[i] if i < len(raw_holes_list) else None)
+        for i, h in enumerate(large_holes)]
+    for is_hole, loop, raw_loop in loops:
         edges = topo.polygon_edges_mm(loop)
         # PHASE 3.5.6 item 3 — offset_polygon_mm's own disclosed
         # limitation (slab_topology.py module docstring): a narrow
@@ -739,15 +797,38 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
         # a real "large" opening (by area) can end up with NO
         # perimeter closure U-bars at all with no error anywhere.
         # Flagged here as the earliest point this is detectable.
+        #
+        # BUG FIX (2026-09-01) — reported live as "en los huecos de los
+        # forjados no coloca Ubars como debería": rather than leaving
+        # this hole with whatever handful of degenerate edges survived
+        # (often zero), retry with the hole's OWN raw, un-offset
+        # boundary — real Revit tessellation, so it cannot self-
+        # intersect the way an outward-grown offset can. The closure
+        # bar's back then sits exactly on the hole's true edge for this
+        # one opening (no cover margin from THIS bar to the void) —
+        # disclosed via the warning below — instead of getting no
+        # closure U-bars at all.
         if is_hole and len(edges) < 3:
             cx = sum(p[0] for p in loop) / len(loop)
             cy = sum(p[1] for p in loop) / len(loop)
+            offset_edge_count = len(edges)
+            retried = False
+            if raw_loop is not None:
+                raw_edges = topo.polygon_edges_mm(raw_loop)
+                if len(raw_edges) >= 3:
+                    edges = raw_edges
+                    retried = True
             print(u'WARNING [floor_rebar]: a large interior opening near '
                   u'({:.0f}, {:.0f}) mm produced only {} valid edge(s) after the '
                   u'cover offset — it likely self-intersected (a narrow notch '
-                  u'offset outward by more than ~2x the cover) and will get FEW '
-                  u'OR NO perimeter closure U-bars around it. Verify this opening '
-                  u'manually, or widen the narrow notch.'.format(cx, cy, len(edges)))
+                  u'offset outward by more than ~2x the cover). {}'.format(
+                      cx, cy, offset_edge_count,
+                      u'Falling back to this opening\'s own raw (un-offset) '
+                      u'boundary for its closure U-bars — no cover margin on '
+                      u'this one edge run, verify manually.' if retried else
+                      u'No raw fallback boundary was available either — this '
+                      u'opening will get FEW OR NO perimeter closure U-bars. '
+                      u'Verify this opening manually, or widen the narrow notch.'))
         for (p0, p1, unit_dir, raw_inward_normal, length_mm) in edges:
             # PHASE 3.5.3 FIX — no longer derived from winding/CW-CCW
             # convention at all (see _resolve_inward_normal_mm's own
@@ -876,7 +957,7 @@ def build_floor_reinforcement(doc, host,
                                include_perimeter_closure_ubars=False,
                                x_anchor_ubar_dia_mm=None, x_anchor_ubar_spacing_mm=None,
                                y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
-                               max_stock_length_mm=12000.0):
+                               max_stock_length_mm=12000.0, std=None):
     """
     Phase 2.3 pipeline for one floor/slab host. See module docstring
     for the four hardening fixes over Phase 2.2. Real cover is applied
@@ -889,6 +970,13 @@ def build_floor_reinforcement(doc, host,
     Args:
         (unchanged from Phase 2.2 — see that revision's docstring for
         the full parameter list.)
+        std (dict or None): PHASE F2.5 — a resolved nosa_utils.standards
+                        profile, threaded into every
+                        default_anchorage_length_mm call below (closure
+                        U-bar legs and each main-mat direction's own
+                        splice length via _build_direction_bars).
+                        Omitting std (the default, None) reproduces
+                        exactly this function's pre-F2.5 behaviour.
 
     Returns:
         {
@@ -957,8 +1045,8 @@ def build_floor_reinforcement(doc, host,
                               u'x_anchor_ubar_dia_mm, x_anchor_ubar_spacing_mm, '
                               u'y_anchor_ubar_dia_mm and y_anchor_ubar_spacing_mm '
                               u'to all be given.')
-        x_leg_mm = footing_mod.default_anchorage_length_mm(x_anchor_ubar_dia_mm)
-        y_leg_mm = footing_mod.default_anchorage_length_mm(y_anchor_ubar_dia_mm)
+        x_leg_mm = footing_mod.default_anchorage_length_mm(x_anchor_ubar_dia_mm, std=std)
+        y_leg_mm = footing_mod.default_anchorage_length_mm(y_anchor_ubar_dia_mm, std=std)
 
     # PHASE 3.5.8 item 1 FIX — the PLAN (X/Y) boundary offset is a
     # LATERAL cover, not the bottom/top mat's own Z-direction FACE
@@ -1005,7 +1093,8 @@ def build_floor_reinforcement(doc, host,
         use_legs=bottom_hooks,
         leg_length_mm=(abs(bottom_target_z_ft - b1_z_ft) * _MM_PER_FT) if bottom_hooks else 0.0,
         leg_direction=DB.XYZ.BasisZ if bottom_hooks else None,
-        narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None)
+        narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None,
+        std=std)
     along_y_bottom = _build_direction_bars(
         topo, footing_mod, engine, DB, bottom_outer, bottom_holes, 'y',
         bottom_dia_y_mm, bottom_dia_x_mm, bottom_spacing_mm,
@@ -1013,7 +1102,8 @@ def build_floor_reinforcement(doc, host,
         use_legs=bottom_hooks,
         leg_length_mm=(abs(bottom_target_z_ft - b2_z_ft) * _MM_PER_FT) if bottom_hooks else 0.0,
         leg_direction=DB.XYZ.BasisZ if bottom_hooks else None,
-        narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None)
+        narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None,
+        std=std)
 
     result = {
         'bottom_mat': {'along_x': along_x_bottom, 'along_y': along_y_bottom},
@@ -1054,7 +1144,8 @@ def build_floor_reinforcement(doc, host,
             use_legs=top_hooks,
             leg_length_mm=(abs(top_target_z_ft - t1_z_ft) * _MM_PER_FT) if top_hooks else 0.0,
             leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
-            narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None)
+            narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None,
+            std=std)
         along_y_top = _build_direction_bars(
             topo, footing_mod, engine, DB, top_outer, top_holes, 'y',
             top_dia_y_mm, top_dia_x_mm, top_spacing_mm,
@@ -1062,7 +1153,8 @@ def build_floor_reinforcement(doc, host,
             use_legs=top_hooks,
             leg_length_mm=(abs(top_target_z_ft - t2_z_ft) * _MM_PER_FT) if top_hooks else 0.0,
             leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
-            narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None)
+            narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None,
+            std=std)
         result['top_mat'] = {'along_x': along_x_top, 'along_y': along_y_top}
 
     if include_perimeter_closure_ubars:
@@ -1074,6 +1166,7 @@ def build_floor_reinforcement(doc, host,
         result['perimeter_closure_ubars'] = _build_edge_ubars(
             topo, footing_mod, DB, bottom_outer, bottom_holes,
             x_leg_mm, x_anchor_ubar_spacing_mm, b1_z_ft, t1_z_ft,
-            y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft)
+            y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
+            raw_holes=raw_holes)
 
     return result
