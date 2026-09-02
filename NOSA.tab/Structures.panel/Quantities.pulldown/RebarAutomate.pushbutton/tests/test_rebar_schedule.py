@@ -13,7 +13,31 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from rebar_schedule import SchedulePosition, get_summary_stats
+from rebar_schedule import SchedulePosition, get_summary_stats, mass_per_length_kg_m, \
+    generate_schedule_data
+
+
+def test_mass_per_length_kg_m_matches_known_ehe08_table_values():
+    """The universal density formula should match data/rebar_standards'
+    own tabulated steel.mass_per_length_kg_m within normal rounding —
+    see mass_per_length_kg_m's own docstring for why this project uses
+    the formula instead of threading a `std` object through here."""
+    assert abs(mass_per_length_kg_m(16.0) - 1.578) < 0.01
+    assert abs(mass_per_length_kg_m(20.0) - 2.466) < 0.02
+    assert abs(mass_per_length_kg_m(8.0) - 0.395) < 0.01
+    print('[PASS] mass_per_length_kg_m() matches EHE-08 table values')
+
+
+def test_get_summary_stats_includes_total_weight_kg():
+    schedule_data = [
+        {'mark': u'A', 'diameter_mm': 16, 'count': 2, 'total_length_mm': 4000.0,
+         'total_weight_kg': (4000.0 / 1000.0) * mass_per_length_kg_m(16.0)},
+    ]
+    stats = get_summary_stats(schedule_data)
+    expected = 4.0 * mass_per_length_kg_m(16.0)
+    assert abs(stats['total_weight_kg'] - expected) < 0.01
+    assert abs(stats['by_diameter'][16]['weight_kg'] - expected) < 0.01
+    print('[PASS] get_summary_stats() includes total_weight_kg')
 
 
 def test_schedule_position_init():
@@ -153,4 +177,6 @@ if __name__ == '__main__':
     test_schedule_position_compute_totals()
     test_get_summary_stats()
     test_export_csv_creates_file()
-    print('\n[SUCCESS] All rebar_schedule tests passed (5/5)')
+    test_mass_per_length_kg_m_matches_known_ehe08_table_values()
+    test_get_summary_stats_includes_total_weight_kg()
+    print('\n[SUCCESS] All rebar_schedule tests passed (7/7)')

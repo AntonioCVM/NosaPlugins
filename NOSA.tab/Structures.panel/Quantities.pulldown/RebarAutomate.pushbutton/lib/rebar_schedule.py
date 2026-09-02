@@ -20,6 +20,47 @@ import csv
 _FT_TO_MM = 304.8
 
 
+# BUG FIX (2026-09-02) — same signature mismatch found in rebar_marking.py
+# and rebar_shape_classifier.py: every read in this file called
+# shared_params.read(doc, rid, name), but the real signature is
+# read(elem, guid_or_name, default=None) — no `doc` at all. This one is
+# the WORST of the three: read() never raises (it's designed not to), so
+# `doc` silently failed to resolve as `elem`, and the field NAME string
+# ("NOSA_Rebar_Batch_Id" etc.) got bound to the `default` parameter —
+# every read here SILENTLY returned its own field name as if it were the
+# real value, never None or empty. Concretely: `stored_batch` was always
+# the truthy string "NOSA_Rebar_Batch_Id" (never empty), so `collect_
+# rebars`'s "is this a NOSA bar" filter never excluded anything (EVERY
+# Rebar in the document was treated as a NOSA bar), and a batch_id filter
+# always excluded EVERYTHING (stored_batch could never equal a real
+# batch_id) — the schedule/BBS export (F5) has been reading garbage since
+# it was written.
+def _read(doc, rebar_id, name, default=None):
+    elem = doc.GetElement(rebar_id)
+    if elem is None:
+        return default
+    return shared_params.read(elem, name, default)
+
+
+def mass_per_length_kg_m(diameter_mm):
+    """
+    Nominal steel rebar mass per metre, kg/m — the universal
+    density-and-cross-section formula (mass_per_m = pi/4 * d^2 * rho,
+    rho = 7850 kg/m^3 for structural steel), NOT tied to any one
+    normative code (EHE-08/BS-8666/EN-ISO's own steel.mass_per_length_
+    kg_m tables in data/rebar_standards/*.json all match this formula
+    to within rounding — e.g. it gives 1.580 kg/m for a 16mm bar,
+    EHE-08's own table says 1.578). Used here instead of threading a
+    `std` object through the schedule module purely for this one
+    figure — every normative code agrees on it, it's just physics.
+
+    Matches SOFiSTiK Reinforcement's own "Rebar Weight Schedule" output
+    (Total Weight [kg] column) — see the reference flyer this feature
+    was modelled on.
+    """
+    return (diameter_mm ** 2) / 162.0
+
+
 class SchedulePosition(object):
     """Representa una posición (Mark) en el despiece, con todas sus barras."""
     
@@ -67,7 +108,7 @@ def collect_rebars(doc, batch_id=None, include_finalized=False):
     filtered = []
     for rid in all_rebars:
         # Verificar que tenga NOSA_Rebar_Batch_Id (es una barra NOSA)
-        stored_batch = shared_params.read(doc, rid, "NOSA_Rebar_Batch_Id")
+        stored_batch = _read(doc, rid, "NOSA_Rebar_Batch_Id")
         if not stored_batch:
             continue
         
@@ -77,7 +118,7 @@ def collect_rebars(doc, batch_id=None, include_finalized=False):
         
         # Filtrar finalizadas si no se incluyen
         if not include_finalized:
-            finalized = shared_params.read(doc, rid, "NOSA_Rebar_Finalized")
+            finalized = _read(doc, rid, "NOSA_Rebar_Finalized")
             if finalized == 1 or finalized == "1":
                 continue
         
@@ -96,7 +137,7 @@ def group_by_position(doc, rebar_ids):
     positions = {}
     
     for rid in rebar_ids:
-        mark = shared_params.read(doc, rid, "NOSA_Rebar_Mark")
+        mark = _read(doc, rid, "NOSA_Rebar_Mark")
         if not mark:
             mark = u"?"
         
@@ -117,13 +158,13 @@ def group_by_position(doc, rebar_ids):
                         except AttributeError:
                             pos.diameter_mm = 0
             
-            pos.shape_code = shared_params.read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
-            pos.shape_params = shared_params.read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
-            pos.layer = shared_params.read(doc, rid, "NOSA_Rebar_Layer") or u""
-            pos.unit_length_mm = shared_params.read(doc, rid, "NOSA_Rebar_Total_Length") or 0.0
+            pos.shape_code = _read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
+            pos.shape_params = _read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
+            pos.layer = _read(doc, rid, "NOSA_Rebar_Layer") or u""
+            pos.unit_length_mm = _read(doc, rid, "NOSA_Rebar_Total_Length") or 0.0
             
             # Host mark
-            host_id = shared_params.read(doc, rid, "NOSA_Rebar_Host_Element_Id")
+            host_id = _read(doc, rid, "NOSA_Rebar_Host_Element_Id")
             if host_id:
                 try:
                     from Autodesk.Revit.DB import ElementId, BuiltInParameter
@@ -151,15 +192,16 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
     Returns:
         list[dict] con una entrada por posición, campos:
         - mark, host_mark, layer, diameter_mm, shape_code, shape_params,
-          count, unit_length_mm, total_length_mm
+          count, unit_length_mm, total_length_mm, total_weight_kg
     """
     rebars = collect_rebars(doc, batch_id, include_finalized)
     positions = group_by_position(doc, rebars)
-    
+
     # Convertir a lista de dicts, ordenada por mark
     schedule = []
     for mark in sorted(positions.keys()):
         pos = positions[mark]
+        weight_kg = (pos.total_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm)
         schedule.append({
             'mark': pos.mark,
             'host_mark': pos.host_mark,
@@ -169,9 +211,10 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
             'shape_params': pos.shape_params,
             'count': pos.count,
             'unit_length_mm': pos.unit_length_mm,
-            'total_length_mm': pos.total_length_mm
+            'total_length_mm': pos.total_length_mm,
+            'total_weight_kg': weight_kg
         })
-    
+
     return schedule
 
 
@@ -203,7 +246,8 @@ def export_csv(schedule_data, output_path):
             # Cabeceras
             fieldnames = [
                 'mark', 'host_mark', 'layer', 'diameter_mm', 'shape_code',
-                'shape_params', 'count', 'unit_length_mm', 'total_length_mm'
+                'shape_params', 'count', 'unit_length_mm', 'total_length_mm',
+                'total_weight_kg'
             ]
             
             writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator='\n')
@@ -260,10 +304,11 @@ def export_xlsx(schedule_data, output_path):
         # Cabeceras (en inglés británico)
         headers = [
             'Mark', 'Host', 'Layer', 'Diameter (mm)', 'Shape Code',
-            'Shape Parameters', 'Quantity', 'Unit Length (mm)', 'Total Length (mm)'
+            'Shape Parameters', 'Quantity', 'Unit Length (mm)', 'Total Length (mm)',
+            'Total Weight (kg)'
         ]
         ws.append(headers)
-        
+
         # Datos
         for row in schedule_data:
             ws.append([
@@ -275,7 +320,8 @@ def export_xlsx(schedule_data, output_path):
                 row['shape_params'],
                 row['count'],
                 round(row['unit_length_mm'], 1),
-                round(row['total_length_mm'], 1)
+                round(row['total_length_mm'], 1),
+                round(row.get('total_weight_kg', 0.0), 2)
             ])
         
         # Formato: bold headers, auto-width
@@ -292,7 +338,26 @@ def export_xlsx(schedule_data, output_path):
                 except:
                     pass
             ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
-        
+
+        # Second sheet — "Rebar Weight Schedule" summary by diameter,
+        # matching SOFiSTiK Reinforcement's own summary sheet layout
+        # (Sizes used / Number of Bars / Total Length / Total Weight,
+        # plus a TOTALS row).
+        stats = get_summary_stats(schedule_data)
+        ws2 = wb.create_sheet(title=u'Weight Summary')
+        ws2.append([u'Diameter (mm)', u'Number of Bars', u'Total Length (m)', u'Total Weight (kg)'])
+        for dia in sorted(stats['by_diameter'].keys()):
+            d = stats['by_diameter'][dia]
+            ws2.append([dia, d['count'], round(d['length_m'], 2), round(d['weight_kg'], 2)])
+        ws2.append([u'TOTALS', stats['total_bars'], stats['total_length_m'], stats['total_weight_kg']])
+        for cell in ws2[1]:
+            cell.font = cell.font.copy(bold=True)
+        for cell in ws2[ws2.max_row]:
+            cell.font = cell.font.copy(bold=True)
+        for col in ws2.columns:
+            max_length = max((len(str(c.value)) for c in col if c.value), default=0)
+            ws2.column_dimensions[col[0].column_letter].width = min(max_length + 2, 30)
+
         wb.save(output_path)
         return True
     
@@ -306,25 +371,31 @@ def get_summary_stats(schedule_data):
     Calcula estadísticas sumarias del despiece.
     
     Returns:
-        dict con total_positions, total_bars, total_length_m, by_diameter
+        dict con total_positions, total_bars, total_length_m,
+        total_weight_kg, by_diameter (count/length_m/weight_kg cada uno)
+        — mismo desglose que la "Rebar Weight Schedule" de SOFiSTiK
+        Reinforcement (por diámetro + fila de totales).
     """
     total_positions = len(schedule_data)
     total_bars = sum(row['count'] for row in schedule_data)
     total_length_mm = sum(row['total_length_mm'] for row in schedule_data)
     total_length_m = total_length_mm / 1000.0
-    
+    total_weight_kg = sum(row.get('total_weight_kg', 0.0) for row in schedule_data)
+
     # Agrupar por diámetro
     by_diameter = {}
     for row in schedule_data:
         dia = row['diameter_mm']
         if dia not in by_diameter:
-            by_diameter[dia] = {'count': 0, 'length_m': 0.0}
+            by_diameter[dia] = {'count': 0, 'length_m': 0.0, 'weight_kg': 0.0}
         by_diameter[dia]['count'] += row['count']
         by_diameter[dia]['length_m'] += row['total_length_mm'] / 1000.0
-    
+        by_diameter[dia]['weight_kg'] += row.get('total_weight_kg', 0.0)
+
     return {
         'total_positions': total_positions,
         'total_bars': total_bars,
         'total_length_m': round(total_length_m, 2),
+        'total_weight_kg': round(total_weight_kg, 2),
         'by_diameter': by_diameter
     }
