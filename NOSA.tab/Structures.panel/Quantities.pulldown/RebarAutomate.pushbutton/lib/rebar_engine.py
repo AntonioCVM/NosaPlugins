@@ -401,6 +401,7 @@ _COVER_BIP_BY_FACE = {
     u'Top': u'CLEAR_COVER_TOP',
     u'Bottom': u'CLEAR_COVER_BOTTOM',
     u'Exterior': u'CLEAR_COVER_OTHER',
+    u'Other': u'CLEAR_COVER_OTHER',
 }
 
 
@@ -847,6 +848,39 @@ class RebarWrapper(object):
         start_hook_orientation = start_hook_orientation or default_orient
         end_hook_orientation = end_hook_orientation or default_orient
 
+        if normal is None:
+            # Revit 2024+ rejects a null norm. Infer a plane normal from
+            # the first curve (any unit vector perpendicular to it) —
+            # a LAST-RESORT safety net for a caller that forgot to supply
+            # its own normal; every typology module in this plugin
+            # (footing/column/beam/wall) computes and passes its own
+            # correct normal from real cross-section geometry, which
+            # this generic fallback has no access to.
+            try:
+                c0 = curves[0]
+                d = (c0.GetEndPoint(1) - c0.GetEndPoint(0)).Normalize()
+                if abs(d.Z) < 0.95:
+                    # Near-horizontal bar (beam/footing/wall bar) → plane
+                    # is approximately horizontal, normal ≈ Z.
+                    normal = DB.XYZ.BasisZ
+                else:
+                    # Near-vertical bar (column/dowel) needing a
+                    # horizontal-plane normal: compute_vertical_hook_
+                    # plane_normal(d) is explicitly documented as
+                    # UNDEFINED here (bar_direction x BasisZ degenerates
+                    # to a zero vector as d approaches pure vertical —
+                    # exactly this branch's whole input range). A generic
+                    # fallback with no cross-section context cannot pick
+                    # the column's real face direction anyway, so use a
+                    # fixed, always-well-defined horizontal reference
+                    # instead of a formula that blows up on its own input.
+                    normal = DB.XYZ.BasisX
+                if normal is None or normal.GetLength() < 1e-9:
+                    normal = DB.XYZ.BasisZ
+            except Exception as e:
+                self.last_error = u'Could not infer rebar plane normal: {}'.format(e)
+                return None
+
         curve_list = List[DB.Curve](curves)
 
         try:
@@ -856,6 +890,18 @@ class RebarWrapper(object):
                     host, normal, curve_list,
                     start_hook_orientation, end_hook_orientation,
                     use_existing_shape_if_possible, create_new_shape)
+                # BUG FIX (2026-09-01) — CreateFromCurves can reject a
+                # shape by returning None WITHOUT raising, which this
+                # branch never checked: self.last_error was left at its
+                # initial None, so every caller's own error message
+                # rendered the literal text "— None" (reported live for
+                # footing/floor perimeter closure U-bars — a genuine
+                # Rebar.CreateFromCurves rejection with zero diagnostic
+                # information, previously indistinguishable from "no
+                # error occurred"). create_rebar_set already had this
+                # exact check; create_from_curves did not.
+                if rebar is None:
+                    self.last_error = u'Rebar.CreateFromCurves returned None.'
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
@@ -1325,12 +1371,34 @@ def split_rebar_by_stock_length(curve, stock_length_mm, lap_length_mm,
        (stock_length - lap_length) of NEW length, so
            n_segments = ceil((total_length - stock_length)
                               / (stock_length - lap_length)) + 1
-    3. The segment start positions are then spaced EVENLY across the
-       bar (not greedily maxed out one at a time) so that any "slack"
-       from the ceil() rounding is spread across every splice equally,
-       rather than leaving one oddly short segment at the end. This
-       means the ACTUAL lap length at every splice is >= lap_length_mm
-       by construction, typically slightly more.
+    3. BUG FIX (2026-09-01, superseded by the GREEDY fix below) — every
+       segment used to be given the SAME (shorter, <= stock_length)
+       length, chosen so consecutive segments overlap by EXACTLY
+       lap_length_mm — this fixed the far worse original bug (a 4m
+       overlap on a 12m bar split at 8m stock with a ~480mm intended
+       lap), but distributed the SHORTFALL evenly across every segment,
+       producing N non-standard bar lengths for the schedule instead of
+       N-1 full stock bars + one short remainder.
+    3'. GREEDY FIX (2026-09-01, per explicit user preference) — every
+       segment except the LAST is now exactly stock_length_mm long
+       (the maximum allowed); only the final segment is shorter,
+       absorbing whatever remains:
+           advance    = stock_length - lap_length        (fixed step)
+           segment[i].start = i * advance                for i < n-1
+           segment[i].end   = segment[i].start + stock_length
+           segment[n-1].start = (n-1) * advance
+           segment[n-1].end   = total_length              (remainder)
+       This is the SAME n_segments as step 2 (that formula already IS
+       the greedy step size) — algebraically guaranteed: the last
+       segment's own length (total_length - (n-1)*advance) is > 0 and
+       <= stock_length by the minimality of n_segments (see the
+       derivation kept in the implementation below), and every
+       consecutive pair still overlaps by EXACTLY lap_length_mm (full-
+       stock segments step by `advance` = stock-lap; the last segment's
+       own start is placed the same way). Fewer distinct bar lengths on
+       the BBS, at the cost of one asymmetric "remainder" bar instead of
+       N equal ones — a deliberate fabrication-friendliness trade the
+       user asked for explicitly over the previous even split.
     4. For each segment, extract its Line and — if it has a lap at
        either end — shift it transversely by +-lap_offset_mm/2,
        alternating direction by segment index (even segments shift one
@@ -1397,9 +1465,26 @@ def split_rebar_by_stock_length(curve, stock_length_mm, lap_length_mm,
     if total_length_ft <= stock_ft + 1e-6:
         return [RebarSegment(0, curve, total_length_ft * _MM_PER_FT, False, False)]
 
-    usable_advance = stock_ft - lap_ft
-    n_segments = int(math.ceil((total_length_ft - stock_ft) / usable_advance)) + 1
-    advance = (total_length_ft - stock_ft) / float(n_segments - 1)
+    advance = stock_ft - lap_ft
+    n_segments = int(math.ceil((total_length_ft - stock_ft) / advance)) + 1
+    # GREEDY FIX (2026-09-01, per explicit user preference over the
+    # previous equal-length distribution) — every segment except the
+    # last is exactly stock_ft long (the maximum); the last absorbs the
+    # remainder. Correctness of "the last segment's own length lands in
+    # (0, stock_ft]" follows directly from n_segments' own minimality:
+    # let k = n_segments - 1. By definition of ceil, k is the SMALLEST
+    # integer with k*advance >= total_length_ft - stock_ft, i.e.
+    #   total_length_ft - k*advance <= stock_ft         (last seg fits)
+    # and (k-1) does NOT satisfy that inequality (whenever k >= 1), i.e.
+    #   (k-1)*advance < total_length_ft - stock_ft
+    #   k*advance      < total_length_ft - stock_ft + advance
+    #                  = total_length_ft - lap_ft
+    #   total_length_ft - k*advance > lap_ft > 0          (last seg > 0)
+    # so the last segment's length is guaranteed in (lap_ft, stock_ft].
+    # Every consecutive pair (including the last) still overlaps by
+    # EXACTLY lap_ft: full-stock segments start advance_ft apart by
+    # construction, and the last segment's own start is placed the same
+    # advance_ft after the second-to-last segment's start.
 
     is_line = isinstance(curve, DB.Line)
     direction = None
@@ -1421,7 +1506,7 @@ def split_rebar_by_stock_length(curve, stock_length_mm, lap_length_mm,
     segments = []
     for i in range(n_segments):
         start_ft = i * advance
-        end_ft = start_ft + stock_ft
+        end_ft = total_length_ft if i == n_segments - 1 else start_ft + stock_ft
         p0 = _point_at(start_ft)
         p1 = _point_at(end_ft)
 
