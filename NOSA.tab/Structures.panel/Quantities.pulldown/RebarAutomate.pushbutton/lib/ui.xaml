@@ -587,8 +587,19 @@
 
         <!-- ═══ BEAMS (Phase F7) ═══ -->
         <TabItem Header="Beams">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="24,20,24,20">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+        <!-- LEFT COLUMN — controls, scrollable. Normalised (2026-09-02) to
+             the same 2-column layout as Footings/Slabs and Columns — see
+             ROADMAP.md's "Normalización de ventanas" backlog entry: only
+             the layout/Style attributes below changed, every x:Name/Click
+             is untouched. -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,16,20">
 
                     <TextBlock Text="Select one or more Structural Framing (beams) in the model, set the parameters below, then run. Straight rectangular beams only in v1."
                                FontSize="11" TextWrapping="Wrap"
@@ -651,7 +662,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtBeamStirrupSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtBeamStirrupSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                         TextChanged="BeamPreview_Changed"/>
                             </Grid>
 
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -660,7 +672,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="End offset (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtBeamEndOffset" Text="50" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtBeamEndOffset" Text="50" Style="{StaticResource RA_NumField}"
+                                         TextChanged="BeamPreview_Changed"/>
                             </Grid>
 
                             <CheckBox Name="ChkBeamDensify" Content="Densify stirrups at support ends"
@@ -674,7 +687,8 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Dense spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtBeamDenseSpacing" Text="100" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtBeamDenseSpacing" Text="100" Style="{StaticResource RA_NumField}"
+                                             TextChanged="BeamPreview_Changed"/>
                                 </Grid>
                                 <Grid Style="{StaticResource RA_FieldRow}">
                                     <Grid.ColumnDefinitions>
@@ -682,7 +696,8 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Confine length (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtBeamConfineLength" Text="0" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtBeamConfineLength" Text="0" Style="{StaticResource RA_NumField}"
+                                             TextChanged="BeamPreview_Changed"/>
                                 </Grid>
                                 <TextBlock Text="Auto confine length = 2 × beam height. Dense zones at each end; middle uses normal spacing."
                                            FontSize="10" TextWrapping="Wrap"
@@ -705,31 +720,83 @@
                         </StackPanel>
                     </Border>
 
-                    <Button Name="BtnRunBeamReinforcement" Content="Generate Beam Reinforcement..."
-                            Click="RunBeamReinforcement_Click"
-                            HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,12"
-                            FontWeight="Bold"/>
-
-                    <TextBox Name="TxtBeamResult" Text="" FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
-                             IsReadOnly="True" BorderThickness="0" Background="Transparent"
-                             Foreground="{DynamicResource TextColor}" Opacity="0.85"
-                             Margin="0,0,0,12"/>
+                    <Button Name="BtnRunBeamReinforcement" Content="GENERATE REINFORCEMENT"
+                            Click="RunBeamReinforcement_Click" Style="{DynamicResource ActionButton}"
+                            HorizontalAlignment="Stretch" Height="52" FontSize="14" FontWeight="Bold"
+                            Margin="0,4,0,16"/>
 
                     <Border Style="{DynamicResource Card}">
                         <StackPanel>
-                            <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
-                            <Canvas Name="BeamPreviewCanvas" Width="700" Height="220"
-                                    Background="{DynamicResource PanelColor}"/>
+                            <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBox Name="TxtBeamResult" Text="No run yet."
+                                     FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                                     IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                     Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
                         </StackPanel>
                     </Border>
-                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- RIGHT COLUMN — Section Preview, fixed in view (normalised to
+             the same Viewbox-scaled pattern as Footings/Columns; the
+             Canvas's own Width/Height stay unchanged — _draw_simple_
+             section_preview reads canvas.Width/.Height directly, never
+             ActualWidth/.ActualHeight, so wrapping in a Viewbox is a pure
+             visual change). -->
+        <Border Grid.Column="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,20,20,20">
+                <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="240">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="BeamPreviewCanvas" Width="700" Height="220"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Illustrative only — a representative rectangular section, not the real model geometry."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,16"/>
+
+                <!-- Elevation Preview (2026-09-02, explicit live request
+                     — "sería interesante ver un alzado de la viga"),
+                     mirroring the Columns tab's own Section+Elevation
+                     pair. -->
+                <TextBlock Text="Elevation Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="220">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="BeamElevationCanvas" Width="700" Height="220"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Shows the top and bottom longitudinal bars along the beam's length and the stirrup spacing, including end densification if enabled."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"/>
+            </StackPanel>
             </ScrollViewer>
+        </Border>
+
+        </Grid>
         </TabItem>
 
         <!-- ═══ WALLS (Phase F7) ═══ -->
         <TabItem Header="Walls">
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <StackPanel Margin="24,20,24,20">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+        <!-- LEFT COLUMN — controls, scrollable. Normalised (2026-09-02) to
+             the same 2-column layout as Footings/Slabs, Columns and Beams
+             — see ROADMAP.md's "Normalización de ventanas" backlog entry:
+             only layout/Style attributes changed, every x:Name/Click is
+             untouched. -->
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,16,20">
 
                     <TextBlock Text="Select one or more Walls in the model, set the mesh parameters below, then run. Straight walls only in v1 (opening U-bars come later)."
                                FontSize="11" TextWrapping="Wrap"
@@ -746,7 +813,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtWallVertDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtWallVertDia" Text="12" Style="{StaticResource RA_NumField}"
+                                         TextChanged="WallPreview_Changed"/>
                             </Grid>
 
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -755,7 +823,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtWallVertSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtWallVertSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                         TextChanged="WallPreview_Changed"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -770,7 +839,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtWallHorizDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtWallHorizDia" Text="12" Style="{StaticResource RA_NumField}"
+                                         TextChanged="WallPreview_Changed"/>
                             </Grid>
 
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -779,7 +849,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtWallHorizSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtWallHorizSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                         TextChanged="WallPreview_Changed"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -822,7 +893,8 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Tie diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtWallTieDia" Text="8" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallTieDia" Text="8" Style="{StaticResource RA_NumField}"
+                                             TextChanged="WallPreview_Changed"/>
                                 </Grid>
                                 <Grid Style="{StaticResource RA_FieldRow}">
                                     <Grid.ColumnDefinitions>
@@ -830,7 +902,8 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Tie spacing along wall (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtWallTieSpacing" Text="400" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallTieSpacing" Text="400" Style="{StaticResource RA_NumField}"
+                                             TextChanged="WallPreview_Changed"/>
                                 </Grid>
                             </StackPanel>
                             <CheckBox Name="ChkWallEndUBars" Content="Add end U-bars (wrap thickness at free ends)"
@@ -844,7 +917,8 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="U-bar diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtWallUBarDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallUBarDia" Text="12" Style="{StaticResource RA_NumField}"
+                                             TextChanged="WallPreview_Changed"/>
                                 </Grid>
                                 <Grid Style="{StaticResource RA_FieldRow}">
                                     <Grid.ColumnDefinitions>
@@ -852,7 +926,8 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="U-bar vertical spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtWallUBarSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallUBarSpacing" Text="200" Style="{StaticResource RA_NumField}"
+                                             TextChanged="WallPreview_Changed"/>
                                 </Grid>
                             </StackPanel>
                             <CheckBox Name="ChkWallStarters" Content="Starter bars into foundation (extend below base)"
@@ -889,25 +964,70 @@
                         </StackPanel>
                     </Border>
 
-                    <Button Name="BtnRunWallReinforcement" Content="Generate Wall Reinforcement..."
-                            Click="RunWallReinforcement_Click"
-                            HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,12"
-                            FontWeight="Bold"/>
-
-                    <TextBox Name="TxtWallResult" Text="" FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
-                             IsReadOnly="True" BorderThickness="0" Background="Transparent"
-                             Foreground="{DynamicResource TextColor}" Opacity="0.85"
-                             Margin="0,0,0,12"/>
+                    <Button Name="BtnRunWallReinforcement" Content="GENERATE REINFORCEMENT"
+                            Click="RunWallReinforcement_Click" Style="{DynamicResource ActionButton}"
+                            HorizontalAlignment="Stretch" Height="52" FontSize="14" FontWeight="Bold"
+                            Margin="0,4,0,16"/>
 
                     <Border Style="{DynamicResource Card}">
                         <StackPanel>
-                            <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
-                            <Canvas Name="WallPreviewCanvas" Width="700" Height="220"
-                                    Background="{DynamicResource PanelColor}"/>
+                            <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBox Name="TxtWallResult" Text="No run yet."
+                                     FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                                     IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                     Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
                         </StackPanel>
                     </Border>
-                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- RIGHT COLUMN — Section + Elevation Preview, fixed in view.
+             BUG FIX (2026-09-02, live report — "la vista de los walls
+             preview no está centrada, también sería conveniente que se
+             viese una sección, el nombre... dice Section Preview cuando
+             es un alzado") — this panel used to hold ONE canvas, drawn
+             by _draw_wall_elevation_preview (a front-view ELEVATION),
+             mislabelled "Section Preview". Split into two, mirroring the
+             Columns tab's own Section+Elevation pair: a genuine
+             cross-section (horizontal cut through the wall's own
+             thickness — rebar_preview.compute_wall_section_preview,
+             already written, never wired into the UI until now) first,
+             then the existing front-view canvas correctly relabelled
+             "Elevation Preview" (kept as WallPreviewCanvas — same
+             x:Name, only its own TextBlock label text changed). -->
+        <Border Grid.Column="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,20,20,20">
+                <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="240">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="WallSectionCanvas" Width="400" Height="320"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Horizontal cut through the wall's own thickness — vertical bars as dots on each face, plus tie/U-bar if enabled."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,16"/>
+
+                <TextBlock Text="Elevation Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="220">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="WallPreviewCanvas" Width="700" Height="220"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Text="Illustrative only — a representative wall front view, not the real model geometry."
+                           FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"/>
+            </StackPanel>
             </ScrollViewer>
+        </Border>
+
+        </Grid>
         </TabItem>
 
         <!-- ═══ DETAILING & TOOLS (Dashboard — placeholders, Phase 5) ═══ -->
