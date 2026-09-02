@@ -718,3 +718,153 @@ def _build_elevation_bar_segments(x_mm, height_mm, splits_mm, lap_mm, include_st
             segments.append({'x0_mm': cur_x, 'y0_mm': z1, 'x1_mm': cur_x, 'y1_mm': z1 + lap_mm,
                               'diameter_mm': bar_diameter_mm})
     return segments
+
+def compute_beam_section_preview(width_mm, height_mm, cover_mm,
+                                  bar_dia_mm, n_top, n_bottom,
+                                  stirrup_dia_mm):
+    """Cross-section preview for a rectangular beam (dots + stirrup outline)."""
+    if width_mm <= 0 or height_mm <= 0 or cover_mm < 0:
+        raise ValueError(u'Invalid beam section dimensions.')
+    hw, hh = width_mm / 2.0, height_mm / 2.0
+    inset = cover_mm + (stirrup_dia_mm or 0) / 2.0 + (bar_dia_mm or 0) / 2.0
+    iw, ih = max(hw - inset, 1.0), max(hh - inset, 1.0)
+
+    def _row(n, y):
+        if n <= 0:
+            return []
+        if n == 1:
+            return [{'x_mm': 0.0, 'y_mm': y, 'diameter_mm': bar_dia_mm}]
+        xs = [-iw + i * (2.0 * iw) / float(n - 1) for i in range(n)]
+        return [{'x_mm': x, 'y_mm': y, 'diameter_mm': bar_dia_mm} for x in xs]
+
+    return {
+        'section': {'width_mm': width_mm, 'height_mm': height_mm, 'shape': 'rect'},
+        'stirrup': {'half_w_mm': iw, 'half_h_mm': ih, 'diameter_mm': stirrup_dia_mm or 8.0},
+        'bars': _row(int(n_top), ih) + _row(int(n_bottom), -ih),
+    }
+
+
+def compute_wall_section_preview(thickness_mm, cover_mm, vert_dia_mm,
+                                  both_faces=True, include_edge=True,
+                                  include_ubars=False, include_ties=False):
+    """Horizontal cut through a wall — dots on each face + optional U/tie."""
+    if thickness_mm <= 0 or cover_mm < 0:
+        raise ValueError(u'Invalid wall section dimensions.')
+    ht = thickness_mm / 2.0
+    inset = cover_mm + (vert_dia_mm or 0) / 2.0
+    face_x = max(ht - inset, 1.0)
+    bars = [{'x_mm': -face_x, 'y_mm': 0.0, 'diameter_mm': vert_dia_mm}]
+    if both_faces:
+        bars.append({'x_mm': face_x, 'y_mm': 0.0, 'diameter_mm': vert_dia_mm})
+    # Illustrative extra edge dots near top/bottom of the cut
+    if include_edge:
+        bars.append({'x_mm': -face_x, 'y_mm': face_x * 0.6, 'diameter_mm': vert_dia_mm})
+        if both_faces:
+            bars.append({'x_mm': face_x, 'y_mm': face_x * 0.6, 'diameter_mm': vert_dia_mm})
+    ties = []
+    if include_ties and both_faces:
+        ties.append({'x0_mm': -face_x, 'y0_mm': 0.0, 'x1_mm': face_x, 'y1_mm': 0.0})
+    ubars = []
+    if include_ubars and both_faces:
+        leg = face_x * 0.8
+        ubars.append({
+            'points': [(-face_x, -leg), (-face_x, 0.0), (face_x, 0.0), (face_x, -leg)]
+        })
+    return {
+        'section': {'width_mm': thickness_mm, 'height_mm': thickness_mm * 1.2, 'shape': 'rect'},
+        'bars': bars,
+        'ties': ties,
+        'ubars': ubars,
+    }
+
+
+def _evenly_spaced_wall_preview(lo, hi, spacing_mm):
+    """Illustrative positions along a wall span."""
+    span = hi - lo
+    if span <= 0 or spacing_mm <= 0:
+        return []
+    if span <= spacing_mm:
+        return [(lo + hi) / 2.0]
+    n = int(span / spacing_mm) + 1
+    if n < 2:
+        return [lo + span / 2.0]
+    step = span / float(n - 1)
+    return [lo + i * step for i in range(n)]
+
+
+def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
+                                    vert_dia_mm, vert_spacing_mm,
+                                    horiz_spacing_mm, both_faces=True,
+                                    include_top_ubars=False,
+                                    include_end_ubars=False,
+                                    end_clear_mm=50.0):
+    """
+    Wall elevation preview (front view): vertical mesh as line segments,
+    horizontal mesh as lines, optional top/end U-bar polylines.
+    """
+    if length_mm <= 0 or height_mm <= 0:
+        raise ValueError(u'Invalid wall elevation dimensions.')
+
+    inset = cover_mm + (vert_dia_mm or 0) / 2.0
+    vert_bottom = inset
+    vert_top = height_mm - inset
+    if vert_top <= vert_bottom:
+        raise ValueError(u'Wall is too short for the given cover.')
+
+    vert_x_positions = _evenly_spaced_wall_preview(
+        end_clear_mm, length_mm - end_clear_mm, vert_spacing_mm)
+    horiz_y_positions = _evenly_spaced_wall_preview(
+        end_clear_mm, height_mm - end_clear_mm, horiz_spacing_mm)
+
+    face_offsets = [-inset * 0.35] if not both_faces else [-inset * 0.35, inset * 0.35]
+
+    bars = []
+    for x in vert_x_positions:
+        for x_off in face_offsets:
+            bars.append({
+                'x0_mm': x + x_off, 'y0_mm': vert_bottom,
+                'x1_mm': x + x_off, 'y1_mm': vert_top,
+                'diameter_mm': vert_dia_mm,
+            })
+
+    horizontals = []
+    clear = end_clear_mm
+    for y in horiz_y_positions:
+        for x_off in face_offsets:
+            horizontals.append({
+                'x0_mm': clear + x_off, 'y0_mm': y,
+                'x1_mm': length_mm - clear + x_off, 'y1_mm': y,
+                'diameter_mm': vert_dia_mm * 0.85,
+            })
+
+    ubars = []
+    leg_mm = min(max(15.0 * vert_dia_mm, 300.0), height_mm * 0.25)
+    if include_top_ubars:
+        u_positions = _evenly_spaced_wall_preview(
+            end_clear_mm, length_mm - end_clear_mm, horiz_spacing_mm)
+        for x in u_positions:
+            pts = [
+                (x - inset * 0.35, vert_top - leg_mm),
+                (x - inset * 0.35, vert_top),
+                (x + inset * 0.35, vert_top),
+                (x + inset * 0.35, vert_top - leg_mm),
+            ]
+            ubars.append({'points': pts, 'kind': u'top'})
+    if include_end_ubars:
+        for x in (end_clear_mm, length_mm - end_clear_mm):
+            leg_len = min(max(15.0 * vert_dia_mm, 300.0), length_mm * 0.2)
+            inward = 1.0 if x < length_mm / 2.0 else -1.0
+            pts = [
+                (x, vert_top * 0.35),
+                (x + inward * leg_len, vert_top * 0.35),
+                (x + inward * leg_len, vert_top * 0.35 + inset * 0.6),
+                (x, vert_top * 0.35 + inset * 0.6),
+            ]
+            ubars.append({'points': pts, 'kind': u'end'})
+
+    return {
+        'section': {'width_mm': length_mm, 'height_mm': height_mm, 'shape': 'rect'},
+        'bars': bars,
+        'horizontals': horizontals,
+        'ubars': ubars,
+    }
