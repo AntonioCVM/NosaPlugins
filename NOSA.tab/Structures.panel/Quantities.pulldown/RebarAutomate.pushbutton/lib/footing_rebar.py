@@ -1168,9 +1168,13 @@ def build_perimeter_closure_ubar_sets(host,
             span1 = global_bbox.Max.Y - inset_ft
             if span1 <= span0:
                 return None
-            p_bottom = DB.XYZ(fixed_coord, span0, bottom_z_ft)
-            p_top = DB.XYZ(fixed_coord, span0, top_z_ft)
             normal = DB.XYZ(0.0, 1.0, 0.0)
+
+            def _curves_at(moving_ft):
+                p_bottom = DB.XYZ(fixed_coord, moving_ft, bottom_z_ft)
+                p_top = DB.XYZ(fixed_coord, moving_ft, top_z_ft)
+                return add_end_hooks(DB.Line.CreateBound(p_bottom, p_top),
+                                      leg_len_mm, leg_dir, at_start=True, at_end=True)
         else:
             if edge_side == 'min':
                 fixed_coord = global_bbox.Min.Y + inset_ft
@@ -1182,17 +1186,37 @@ def build_perimeter_closure_ubar_sets(host,
             span1 = global_bbox.Max.X - inset_ft
             if span1 <= span0:
                 return None
-            p_bottom = DB.XYZ(span0, fixed_coord, bottom_z_ft)
-            p_top = DB.XYZ(span0, fixed_coord, top_z_ft)
             normal = DB.XYZ(1.0, 0.0, 0.0)
 
-        back = DB.Line.CreateBound(p_bottom, p_top)
-        curves = add_end_hooks(back, leg_len_mm, leg_dir, at_start=True, at_end=True)
+            def _curves_at(moving_ft):
+                p_bottom = DB.XYZ(moving_ft, fixed_coord, bottom_z_ft)
+                p_top = DB.XYZ(moving_ft, fixed_coord, top_z_ft)
+                return add_end_hooks(DB.Line.CreateBound(p_bottom, p_top),
+                                      leg_len_mm, leg_dir, at_start=True, at_end=True)
+
+        # BUG FIX (2026-09-01) — this used to return a Set entry with NO
+        # 'materialized_bars' key at all. ui.py's _create_grouped_bars
+        # treats a missing/short materialized_bars list as "nothing to
+        # fall back to" and gives up entirely (logs "(set) — {error}"
+        # with no bars created) whenever create_rebar_set's own Set
+        # propagation fails for this hook-bearing open shape — reported
+        # live as "— None" with zero footing closure U-bars created.
+        # Every individual position along the span is now materialized
+        # up front, mirroring floor_rebar._build_edge_ubars' own
+        # pattern for the identical hook/back/hook topology, so the
+        # FreeForm-group (then individual-bar) fallback can actually run.
+        positions_mm = _evenly_spaced(
+            span0 * _MM_PER_FT, span1 * _MM_PER_FT, spacing_mm)
+        positions_ft = [p / _MM_PER_FT for p in positions_mm]
+        if not positions_ft:
+            return None
+        materialized = [{'curves': _curves_at(pos), 'normal': normal} for pos in positions_ft]
         return {
-            'curves': curves,
+            'curves': materialized[0]['curves'],
             'normal': normal,
             'array_length_mm': (span1 - span0) * _MM_PER_FT,
             'spacing_mm': spacing_mm,
+            'materialized_bars': materialized,
         }
 
     return {
@@ -1556,7 +1580,8 @@ def build_perimeter_closure_ubars_topology(doc, host,
                                             bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm,
                                             top_cover_mm, top_dia_x_mm, top_dia_y_mm,
                                             x_anchor_dia_mm, x_anchor_spacing_mm,
-                                            y_anchor_dia_mm, y_anchor_spacing_mm):
+                                            y_anchor_dia_mm, y_anchor_spacing_mm,
+                                            std=None):
     """
     PHASE 3.5.7 item 3 — topology-aware counterpart of
     build_perimeter_closure_ubar_sets: walks the footing's REAL
@@ -1610,8 +1635,12 @@ def build_perimeter_closure_ubars_topology(doc, host,
     t1_z_ft = top_z_ft - (top_cover_mm + top_dia_x_mm) / _MM_PER_FT
     t2_z_ft = top_z_ft - (top_cover_mm + top_dia_x_mm + top_dia_y_mm) / _MM_PER_FT
 
-    x_leg_mm = default_anchorage_length_mm(x_anchor_dia_mm)
-    y_leg_mm = default_anchorage_length_mm(y_anchor_dia_mm)
+    # PHASE F2.5 — a closure U-bar's leg is a "good bond, tension" anchorage
+    # into the opposite mat (not a lap, not compression) — matches
+    # default_anchorage_length_mm's own defaults (good_bond=True,
+    # in_compression=False), just now sourced from `std` when resolved.
+    x_leg_mm = default_anchorage_length_mm(x_anchor_dia_mm, std=std)
+    y_leg_mm = default_anchorage_length_mm(y_anchor_dia_mm, std=std)
 
     return floor_mod._build_edge_ubars(
         topo, sys.modules[__name__], DB, bottom_outer, bottom_holes,
@@ -1633,7 +1662,7 @@ def build_footing_reinforcement(doc, host,
                                  include_perimeter_closure_ubars=False,
                                  x_anchor_ubar_dia_mm=None, x_anchor_ubar_spacing_mm=None,
                                  y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
-                                 max_stock_length_mm=12000.0):
+                                 max_stock_length_mm=12000.0, std=None):
     """
     Full pipeline for one footing host: bottom mat (always), optional
     top mat, optional dowel cage, optional side/skin reinforcement.
@@ -1711,6 +1740,16 @@ def build_footing_reinforcement(doc, host,
         y_anchor_ubar_dia_mm, y_anchor_ubar_spacing_mm (float or None):
                             required if include_perimeter_closure_ubars
                             is True — see build_perimeter_closure_ubar_sets.
+        std                 (dict or None): PHASE F2.5 — a resolved
+                            nosa_utils.standards profile. Only affects
+                            the perimeter closure U-bars' anchorage leg
+                            length today (build_perimeter_closure_ubars_
+                            topology's own default_anchorage_length_mm
+                            call) — dowel anchor/splice length are always
+                            explicit UI values (ui.py never omits them),
+                            so std has nothing to default there yet.
+                            Omitting std (the default, None) reproduces
+                            exactly this function's pre-F2.5 behaviour.
 
     Returns:
         {
@@ -1828,6 +1867,6 @@ def build_footing_reinforcement(doc, host,
             doc, host, bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm,
             top_cover_mm, top_dia_x_mm, top_dia_y_mm,
             x_anchor_ubar_dia_mm, x_anchor_ubar_spacing_mm,
-            y_anchor_ubar_dia_mm, y_anchor_ubar_spacing_mm)
+            y_anchor_ubar_dia_mm, y_anchor_ubar_spacing_mm, std=std)
 
     return result
