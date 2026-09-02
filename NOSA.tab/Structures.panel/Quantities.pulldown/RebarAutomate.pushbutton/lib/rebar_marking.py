@@ -24,6 +24,35 @@ from nosa_utils.compat import text_type
 _FT_TO_MM = 304.8
 
 
+# BUG FIX (2026-09-01) — every call site in this file called
+# shared_params.read/write as (doc, rebar_id, name[, value]), but the
+# real signatures are read(elem, guid_or_name, default=None) and
+# write(elem, guid_or_name, value) — an ELEMENT first, no `doc` at all.
+# `read(doc, id, name)` silently bound `doc` to `elem` (wrong) and the
+# field name to `default` (wrong) without raising — read calls never
+# actually worked, just returned wrong values with no visible error.
+# `write(doc, id, name, value)` — 4 args against a 3-arg signature —
+# raised outright: "Marking failed: write() takes exactly 3 arguments
+# (4 given)" on every single batch run, live-reported, aborting F3
+# marking entirely (NOSA_Rebar_Mark/Number/Layer/Total_Length never
+# actually got stamped). These two thin wrappers keep every call site
+# in this file at its existing (doc, rebar_id, name[, value]) shape —
+# only replacing shared_params.read(/write( with _read(/_write( below —
+# while routing to the real element-first API underneath.
+def _read(doc, rebar_id, name, default=None):
+    elem = doc.GetElement(rebar_id)
+    if elem is None:
+        return default
+    return shared_params.read(elem, name, default)
+
+
+def _write(doc, rebar_id, name, value):
+    elem = doc.GetElement(rebar_id)
+    if elem is None:
+        return False
+    return shared_params.write(elem, name, value)
+
+
 def _round_to_tolerance(value_mm, tolerance_mm):
     """Redondea value_mm al múltiplo más cercano de tolerance_mm."""
     if tolerance_mm <= 0:
@@ -64,7 +93,7 @@ def _get_dedup_key(doc, rebar_id, std, tolerance_mm):
     from Autodesk.Revit import DB  # Lazy import
     
     # Leer shared params
-    is_variable = shared_params.read(doc, rebar_id, "NOSA_Rebar_Is_Variable")
+    is_variable = _read(doc, rebar_id, "NOSA_Rebar_Is_Variable")
     if is_variable == 1 or is_variable == "1":
         # Barras variables no deduplicam
         return (rebar_id,)
@@ -74,12 +103,12 @@ def _get_dedup_key(doc, rebar_id, std, tolerance_mm):
         return (rebar_id,)
     
     bar_type_id = rebar.GetTypeId()
-    shape_code = shared_params.read(doc, rebar_id, "NOSA_Rebar_Shape_Code") or "99"
-    shape_params_str = shared_params.read(doc, rebar_id, "NOSA_Rebar_Shape_Params") or ""
-    start_hook = shared_params.read(doc, rebar_id, "NOSA_Rebar_Start_Hook_Type") or ""
-    end_hook = shared_params.read(doc, rebar_id, "NOSA_Rebar_End_Hook_Type") or ""
-    layer = shared_params.read(doc, rebar_id, "NOSA_Rebar_Layer") or "uncategorized"
-    host_id = shared_params.read(doc, rebar_id, "NOSA_Rebar_Host_Element_Id")
+    shape_code = _read(doc, rebar_id, "NOSA_Rebar_Shape_Code") or "99"
+    shape_params_str = _read(doc, rebar_id, "NOSA_Rebar_Shape_Params") or ""
+    start_hook = _read(doc, rebar_id, "NOSA_Rebar_Start_Hook_Type") or ""
+    end_hook = _read(doc, rebar_id, "NOSA_Rebar_End_Hook_Type") or ""
+    layer = _read(doc, rebar_id, "NOSA_Rebar_Layer") or "uncategorized"
+    host_id = _read(doc, rebar_id, "NOSA_Rebar_Host_Element_Id")
     
     shape_params_tuple = _parse_shape_params(shape_params_str, tolerance_mm)
     
@@ -125,7 +154,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
             return ("", 0, 0)
         
         first_id = ids[0]
-        layer = shared_params.read(doc, first_id, "NOSA_Rebar_Layer") or "zzz"
+        layer = _read(doc, first_id, "NOSA_Rebar_Layer") or "zzz"
         rebar = doc.GetElement(first_id)
         if rebar:
             bar_type = doc.GetElement(rebar.GetTypeId())
@@ -143,7 +172,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
             diameter_mm = 0.0
         
         # Primer parámetro A (si existe)
-        shape_params_str = shared_params.read(doc, first_id, "NOSA_Rebar_Shape_Params") or ""
+        shape_params_str = _read(doc, first_id, "NOSA_Rebar_Shape_Params") or ""
         first_param = 0.0
         if shape_params_str and 'A=' in shape_params_str:
             try:
@@ -172,7 +201,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
         
         # Obtener host_mark del primer elemento
         first_id = ids[0]
-        host_id = shared_params.read(doc, first_id, "NOSA_Rebar_Host_Element_Id")
+        host_id = _read(doc, first_id, "NOSA_Rebar_Host_Element_Id")
         host_mark = ""
         if host_id:
             try:
@@ -186,7 +215,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
                 pass
         
         # Leer layer del primer elemento
-        layer_key = shared_params.read(doc, first_id, "NOSA_Rebar_Layer") or "uncategorized"
+        layer_key = _read(doc, first_id, "NOSA_Rebar_Layer") or "uncategorized"
         layer_name = marking_cfg.get("layer_names", {}).get(layer_key, layer_key)
         
         # Leer diámetro
@@ -218,9 +247,9 @@ def deduplicate_and_mark(doc, rebars, ctx):
         
         # Asignar a todas las barras del cluster
         for pos_idx, rebar_id in enumerate(ids, start=1):
-            shared_params.write(doc, rebar_id, "NOSA_Rebar_Mark", mark)
-            shared_params.write(doc, rebar_id, "NOSA_Rebar_Number", position_number)
-            shared_params.write(doc, rebar_id, "NOSA_Rebar_Position_In_Host", pos_idx)
+            _write(doc, rebar_id, "NOSA_Rebar_Mark", mark)
+            _write(doc, rebar_id, "NOSA_Rebar_Number", position_number)
+            _write(doc, rebar_id, "NOSA_Rebar_Position_In_Host", pos_idx)
         
         position_number += 1
     
@@ -253,14 +282,14 @@ def assign_layers_and_lengths(doc, rebars, ctx):
     - Calcula y sella NOSA_Rebar_Total_Length
     """
     for rebar_id in rebars:
-        layer = shared_params.read(doc, rebar_id, "NOSA_Rebar_Layer")
+        layer = _read(doc, rebar_id, "NOSA_Rebar_Layer")
         if not layer or not isinstance(layer, text_type) or layer.strip() == "":
-            shared_params.write(doc, rebar_id, "NOSA_Rebar_Layer", "uncategorized")
+            _write(doc, rebar_id, "NOSA_Rebar_Layer", "uncategorized")
         
         rebar = doc.GetElement(rebar_id)
         if rebar:
             total_length = compute_total_length_mm(rebar)
-            shared_params.write(doc, rebar_id, "NOSA_Rebar_Total_Length", total_length)
+            _write(doc, rebar_id, "NOSA_Rebar_Total_Length", total_length)
 
 
 def renumber_batch(doc, batch_id, ctx):
@@ -277,8 +306,8 @@ def renumber_batch(doc, batch_id, ctx):
     # Filtrar por batch_id y Finalized != 1
     batch_rebars = []
     for rid in all_rebars:
-        stored_batch = shared_params.read(doc, rid, "NOSA_Rebar_Batch_Id")
-        finalized = shared_params.read(doc, rid, "NOSA_Rebar_Finalized")
+        stored_batch = _read(doc, rid, "NOSA_Rebar_Batch_Id")
+        finalized = _read(doc, rid, "NOSA_Rebar_Finalized")
         
         if stored_batch == batch_id and finalized != 1 and finalized != "1":
             batch_rebars.append(rid)
