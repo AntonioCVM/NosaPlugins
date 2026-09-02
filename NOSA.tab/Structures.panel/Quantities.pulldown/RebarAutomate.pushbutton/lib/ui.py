@@ -808,12 +808,21 @@ class RebarAutomateWindow(NOSAWindow):
             except (TypeError, ValueError):
                 include_ubars = False
 
+        # BUG FIX (2026-09-02, live report — "cuando selecciono hooks de
+        # 90º... no se ven en el preview") — these checkboxes were
+        # already wired to trigger a redraw (Preview_Changed), but
+        # nothing downstream ever read their state — compute_section_
+        # preview simply had no hooks concept at all until now.
+        bottom_hooks = self.ChkBottomHooks.IsChecked == True
+        top_hooks = include_top and self.ChkTopHooks.IsChecked == True
+
         try:
             data = rebar_preview.compute_section_preview(
                 width_mm, thickness_mm, cover, dia_x, dia_y,
                 include_top, top_cover, top_dia_x, top_dia_y,
                 include_perimeter_ubars=include_ubars,
-                x_anchor_dia_mm=x_anchor_dia, y_anchor_dia_mm=y_anchor_dia)
+                x_anchor_dia_mm=x_anchor_dia, y_anchor_dia_mm=y_anchor_dia,
+                bottom_hooks=bottom_hooks, top_hooks=top_hooks)
         except ValueError:
             return
 
@@ -881,6 +890,19 @@ class RebarAutomateWindow(NOSAWindow):
             seg = SWS.Line()
             seg.X1, seg.Y1 = sx(line_data['x0_mm']), sy(line_data['y_mm'])
             seg.X2, seg.Y2 = sx(line_data['x1_mm']), sy(line_data['y_mm'])
+            seg.Stroke = _PREVIEW_BAR_FILL
+            seg.StrokeThickness = thickness
+            canvas.Children.Add(seg)
+
+        # 90° hooks (Phase 2.6, 2026-09-02, live report — "Include 90°
+        # Hooks" had no visible effect) — a short bend stub off each end
+        # of the B2/T2 line (see compute_section_preview's own docstring
+        # for why B1/T1's dots have nothing to show here).
+        for hook in data.get('hooks', []):
+            thickness = max(2.0, hook['diameter_mm'] * scale)
+            seg = SWS.Line()
+            seg.X1, seg.Y1 = sx(hook['x0_mm']), sy(hook['y0_mm'])
+            seg.X2, seg.Y2 = sx(hook['x1_mm']), sy(hook['y1_mm'])
             seg.Stroke = _PREVIEW_BAR_FILL
             seg.StrokeThickness = thickness
             canvas.Children.Add(seg)
@@ -1251,7 +1273,17 @@ class RebarAutomateWindow(NOSAWindow):
                     pass
 
             materialized = s.get('materialized_bars', [])
-            if len(materialized) >= 2:
+            # PHASE 3.5.8 (2026-09-02, explicit user request) — hole-closure
+            # U-bars must report their real Shape (e.g. 21), never generic
+            # "Shape 00": for a `set` FLAGGED is_hole, skip the FreeForm
+            # fallback entirely and go straight to individual
+            # create_from_curves bars if the Set itself didn't propagate —
+            # losing MRA/schedule grouping for just this hole's run, in
+            # exchange for a correctly-named shape, per explicit user
+            # choice over the codebase's general "grouping > shape name"
+            # default (still used everywhere else — outer perimeter sets
+            # included).
+            if len(materialized) >= 2 and not s.get('is_hole'):
                 curve_groups = [b['curves'] for b in materialized]
                 ff_rebar = wrapper.create_freeform_group(
                     host, curve_groups, bar_type,
@@ -1274,13 +1306,41 @@ class RebarAutomateWindow(NOSAWindow):
                     else:
                         self._stamp_layer(rb, layer)
                         created_rebars.append(rb)
+            elif materialized:
+                # is_hole Set whose propagation failed — per explicit user
+                # choice above, go straight to individual create_from_curves
+                # (real Shape code, e.g. 21) instead of FreeForm (Shape 00).
+                errors.append(u'Host {}: {} (set, hole closure) — Set '
+                              u'propagation failed ({}); creating individual '
+                              u'bars to keep the real Shape code (not '
+                              u'MRA-groupable).'.format(
+                                  get_id_value(host.Id), label, wrapper.last_error))
+                for b in materialized:
+                    rb = wrapper.create_from_curves(
+                        host, b['curves'], bar_type, normal=b['normal'], style=style,
+                        transaction_name=u'NOSA — Create {}'.format(label))
+                    if rb is None:
+                        errors.append(u'Host {}: {} — {}'.format(
+                            get_id_value(host.Id), label, wrapper.last_error))
+                    else:
+                        self._stamp_layer(rb, layer)
+                        created_rebars.append(rb)
             else:
                 errors.append(u'Host {}: {} (set) — {}'.format(
                     get_id_value(host.Id), label, wrapper.last_error))
 
         loose_bars = grouped.get('bars', [])
-        freeform_candidates = [b for b in loose_bars if b.get('style') is None]
-        fallback_bars = [b for b in loose_bars if b.get('style') is not None]
+        # PHASE 3.5.8 (2026-09-02) — hole-closure U-bars (is_hole=True)
+        # never enter the FreeForm bundle, even when there are 2+ of them:
+        # per explicit user choice, they always go through create_from_curves
+        # below so they report their real Shape (e.g. 21) instead of the
+        # generic "Shape 00" FreeForm produces. Only non-hole loose bars
+        # (irregular perimeter transition rows) keep the original
+        # grouping-over-shape-name trade-off.
+        freeform_candidates = [b for b in loose_bars
+                                if b.get('style') is None and not b.get('is_hole')]
+        fallback_bars = [b for b in loose_bars
+                          if b.get('style') is not None or b.get('is_hole')]
 
         if len(freeform_candidates) >= 2:
             curve_groups = [b['curves'] for b in freeform_candidates]
@@ -2329,42 +2389,187 @@ class RebarAutomateWindow(NOSAWindow):
         except Exception:
             return
         self._draw_simple_section_preview(canvas, data, draw_stirrup=True)
+        self._update_beam_elevation_preview()
 
-    def _update_wall_preview(self):
+    def _update_beam_elevation_preview(self):
+        """
+        PHASE 2.6 (2026-09-02, explicit live request — "sería
+        interesante ver un alzado de la viga") — companion elevation
+        (side view) beside the existing section preview, mirroring the
+        Columns tab's own Section+Elevation pair. Silently skipped
+        (never raises to the caller) if the elevation canvas doesn't
+        exist yet in ui.xaml, or if any input is invalid/mid-typing —
+        same defensive convention as every other _update_*_preview.
+        """
         try:
-            canvas = self.WallPreviewCanvas
+            canvas = self.BeamElevationCanvas
         except Exception:
             return
+        try:
+            bar_dia = float(self.TxtBeamBarDia.Text)
+            st_dia = float(self.TxtBeamStirrupDia.Text)
+            st_spacing = float(self.TxtBeamStirrupSpacing.Text)
+            end_offset = float(self.TxtBeamEndOffset.Text)
+        except (TypeError, ValueError):
+            return
+
+        densify = self.ChkBeamDensify.IsChecked == True
+        dense_spacing = confine_length = None
+        if densify:
+            try:
+                dense_spacing = float(self.TxtBeamDenseSpacing.Text)
+                confine_txt = float(self.TxtBeamConfineLength.Text)
+                confine_length = confine_txt if confine_txt > 0 else None
+            except (TypeError, ValueError):
+                return
+            if dense_spacing <= 0:
+                return
+
+        beams = self._selected_beams()
+        beam_host = beams[0] if beams else None
+        cover = self._preview_cover_mm(beam_host, u'Other', u'beam') if beam_host else \
+            self._standard_default_cover_mm(u'beam')
+        length_mm, height_mm = 6000.0, 500.0
+        if beam_host is not None:
+            try:
+                _, height_mm = beam_rebar.get_beam_section_mm(self.doc, beam_host, cover, bar_dia)
+            except Exception:
+                pass
+            try:
+                length_mm = beam_rebar.get_beam_axis(beam_host).Length * 304.8
+            except Exception:
+                pass
+
+        try:
+            data = rebar_preview.compute_beam_elevation_preview(
+                length_mm, height_mm, cover, bar_dia, bar_dia, st_dia, st_spacing,
+                end_offset_mm=end_offset, densify_ends=densify,
+                dense_spacing_mm=dense_spacing, confine_length_mm=confine_length)
+        except Exception:
+            return
+        self._draw_beam_elevation_preview(canvas, data)
+
+    def _draw_beam_elevation_preview(self, canvas, data):
+        canvas.Children.Clear()
+        section = data.get('section') or {}
+        w_mm = float(section.get('width_mm') or 6000.0)
+        h_mm = float(section.get('height_mm') or 500.0)
+        cw = canvas.Width or 700.0
+        ch = canvas.Height or 220.0
+        margin = 16.0
+        scale = min((cw - 2 * margin) / w_mm, (ch - 2 * margin) / h_mm)
+        # Centred exactly like _draw_column_elevation_preview — this
+        # function's own coordinate system spans x in [0, w_mm], so
+        # centring means offsetting by however much blank canvas space
+        # the SCALED beam doesn't fill, split evenly on both sides
+        # (never a fixed small margin — see _draw_wall_elevation_preview's
+        # own BUG FIX note for the "stuck flush-left" failure mode this
+        # avoids from the start).
+        off_x = (cw - w_mm * scale) / 2.0
+        off_y = ch / 2.0
+
+        def sx(x_mm):
+            return off_x + x_mm * scale
+
+        def sy(y_mm):
+            return off_y - (y_mm - h_mm / 2.0) * scale
+
+        outline = SWS.Rectangle()
+        outline.Width = w_mm * scale
+        outline.Height = h_mm * scale
+        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.StrokeThickness = 2.0
+        outline.Fill = _PREVIEW_SECTION_FILL
+        SWC.Canvas.SetLeft(outline, sx(0.0))
+        SWC.Canvas.SetTop(outline, sy(h_mm))
+        canvas.Children.Add(outline)
+
+        for st in data.get('stirrups', []):
+            line = SWS.Line()
+            line.X1 = line.X2 = sx(st['x_mm'])
+            line.Y1 = sy(st['y0_mm'])
+            line.Y2 = sy(st['y1_mm'])
+            line.Stroke = _PREVIEW_BAR_FILL
+            line.StrokeThickness = max(1.0, float(st.get('diameter_mm') or 8.0) * scale * 0.6)
+            canvas.Children.Add(line)
+
+        for bar in data.get('bars', []):
+            line = SWS.Line()
+            line.X1, line.Y1 = sx(bar['x0_mm']), sy(bar['y0_mm'])
+            line.X2, line.Y2 = sx(bar['x1_mm']), sy(bar['y1_mm'])
+            line.Stroke = _PREVIEW_BAR_FILL
+            line.StrokeThickness = max(1.5, float(bar.get('diameter_mm') or 16.0) * scale)
+            canvas.Children.Add(line)
+
+    def _update_wall_preview(self):
+        cover = self._standard_default_cover_mm(u'wall')
+        walls = self._selected_walls()
+        wall_host = walls[0] if walls else None
+        thickness_mm = 250.0
+        length_mm, height_mm = 6000.0, 3000.0
+        if wall_host is not None:
+            try:
+                cover = re_engine.get_native_cover_mm(
+                    self.doc, wall_host, u'Exterior', cover)
+            except Exception:
+                pass
+            try:
+                length_mm, height_mm = wall_rebar.get_wall_elevation_mm(wall_host)
+            except Exception:
+                pass
+            try:
+                thickness_mm = wall_host.Width * 304.8
+            except Exception:
+                pass
+
         try:
             vert_dia = float(self.TxtWallVertDia.Text)
             vert_sp = float(self.TxtWallVertSpacing.Text)
+            horiz_dia = float(self.TxtWallHorizDia.Text)
             horiz_sp = float(self.TxtWallHorizSpacing.Text)
         except (TypeError, ValueError):
             return
-        cover = self._standard_default_cover_mm(u'wall')
-        walls = self._selected_walls()
-        length_mm, height_mm = 6000.0, 3000.0
-        if walls:
-            try:
-                cover = re_engine.get_native_cover_mm(
-                    self.doc, walls[0], u'Exterior', cover)
-            except Exception:
-                pass
-            try:
-                length_mm, height_mm = wall_rebar.get_wall_elevation_mm(walls[0])
-            except Exception:
-                pass
+        both_faces = self.ChkWallBothFaces.IsChecked == True
+
         try:
-            data = rebar_preview.compute_wall_elevation_preview(
-                length_mm=length_mm, height_mm=height_mm, cover_mm=cover,
-                vert_dia_mm=vert_dia, vert_spacing_mm=vert_sp,
-                horiz_spacing_mm=horiz_sp,
-                both_faces=self.ChkWallBothFaces.IsChecked == True,
-                include_top_ubars=self.ChkWallEndUBars.IsChecked == True,
-                include_end_ubars=self.ChkWallEndUBars.IsChecked == True)
+            elevation_canvas = self.WallPreviewCanvas
+        except Exception:
+            elevation_canvas = None
+        if elevation_canvas is not None:
+            try:
+                data = rebar_preview.compute_wall_elevation_preview(
+                    length_mm=length_mm, height_mm=height_mm, cover_mm=cover,
+                    vert_dia_mm=vert_dia, vert_spacing_mm=vert_sp,
+                    horiz_spacing_mm=horiz_sp, horiz_dia_mm=horiz_dia,
+                    both_faces=both_faces,
+                    include_top_ubars=self.ChkWallEndUBars.IsChecked == True,
+                    include_end_ubars=self.ChkWallEndUBars.IsChecked == True)
+            except Exception:
+                pass
+            else:
+                self._draw_wall_elevation_preview(elevation_canvas, data)
+
+        # PHASE 2.6 (2026-09-02, explicit live request — "sería
+        # conveniente que se viese una sección, el nombre... dice
+        # Section Preview cuando es un alzado") — genuine cross-section
+        # (horizontal cut through the wall's own THICKNESS), alongside
+        # the elevation above, using rebar_preview.compute_wall_section_
+        # preview — already written, never actually wired into the UI
+        # until now. Reuses _draw_simple_section_preview as-is: its
+        # 'section'/'bars'/'ties'/'ubars' shape already matches this
+        # function's own return exactly.
+        try:
+            section_canvas = self.WallSectionCanvas
         except Exception:
             return
-        self._draw_wall_elevation_preview(canvas, data)
+        try:
+            section_data = rebar_preview.compute_wall_section_preview(
+                thickness_mm, cover, vert_dia, both_faces=both_faces,
+                include_ubars=self.ChkWallEndUBars.IsChecked == True,
+                include_ties=self.ChkWallTies.IsChecked == True)
+        except Exception:
+            return
+        self._draw_simple_section_preview(section_canvas, section_data)
 
     def _draw_simple_section_preview(self, canvas, data, draw_stirrup=False):
         canvas.Children.Clear()
@@ -2450,7 +2655,15 @@ class RebarAutomateWindow(NOSAWindow):
         margin_x = 24.0
         margin_y = 16.0
         scale = min((cw - 2 * margin_x) / w_mm, (ch - 2 * margin_y) / h_mm)
-        off_x = margin_x
+        # BUG FIX (2026-09-02, live report — "la vista de los walls
+        # preview no está centrada") — off_x used to be the fixed left
+        # MARGIN itself, so the wall was always drawn flush against the
+        # left edge with all the leftover canvas width (whenever the
+        # wall's own scaled length was shorter than the canvas, e.g. a
+        # short wall or a wide window) going unused on the right. Centre
+        # the ACTUAL scaled wall width within the canvas instead — same
+        # fix shape as _draw_beam_elevation_preview's own centring.
+        off_x = (cw - w_mm * scale) / 2.0
         off_y = ch - margin_y
 
         def sx(x_mm):
@@ -2550,6 +2763,9 @@ class RebarAutomateWindow(NOSAWindow):
             densify_ends=values.get('densify_ends', False),
             dense_spacing_mm=values.get('dense_spacing'),
             confine_length_mm=values.get('confine_length'))
+
+        for w in curves.get('warnings', []):
+            errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
 
         bar_type_long = bar_types.get(values['bar_dia'])
         long_normal = curves.get('long_bar_normal') or DB.XYZ.BasisZ
@@ -2785,6 +3001,7 @@ class RebarAutomateWindow(NOSAWindow):
         if not getattr(self, '_is_loaded', False):
             return
         self.PanelWallStarters.IsEnabled = self.ChkWallStarters.IsChecked == True
+        self._update_wall_preview()
 
     def WallPreview_Changed(self, sender, args):
         if not getattr(self, '_is_loaded', False):
