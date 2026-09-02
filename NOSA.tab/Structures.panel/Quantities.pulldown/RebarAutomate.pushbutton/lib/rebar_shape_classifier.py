@@ -154,7 +154,11 @@ def classify_and_stamp(doc, rebar_id, standard_code):
     
     Retorna tuple (shape_code, shape_params_str) o (None, None) si falla.
     """
-    from Autodesk.Revit.DB import Rebar  # Lazy import
+    # BUG FIX (2026-09-01) — Rebar lives in Autodesk.Revit.DB.Structure,
+    # NOT Autodesk.Revit.DB. Reported live as "Shape classification
+    # failed: Cannot import name Rebar" on EVERY batch run, silently
+    # skipping F4 shape classification entirely.
+    from Autodesk.Revit.DB.Structure import Rebar  # Lazy import
     from nosa_utils import shared_params
 
     rebar = doc.GetElement(rebar_id)
@@ -183,8 +187,16 @@ def classify_and_stamp(doc, rebar_id, standard_code):
         shape_params = _compute_shape_params(shape_code, analysis)
 
         # Sellar parámetros compartidos
-        shared_params.write(doc, rebar_id, "NOSA_Rebar_Shape_Code", shape_code)
-        shared_params.write(doc, rebar_id, "NOSA_Rebar_Shape_Params", shape_params)
+        # BUG FIX (2026-09-02) — same signature mismatch as
+        # rebar_marking.py: shared_params.write(elem, name, value) takes
+        # an ELEMENT first, not (doc, id) — this called it as (doc,
+        # rebar_id, name, value), 4 args against a 3-arg signature,
+        # raising on every single bar ("write() takes exactly 3
+        # arguments (4 given)"), reported live for beams/walls/floors —
+        # F4 classified 0 bars in every run despite `rebar` already
+        # being the resolved element right here.
+        shared_params.write(rebar, "NOSA_Rebar_Shape_Code", shape_code)
+        shared_params.write(rebar, "NOSA_Rebar_Shape_Params", shape_params)
 
         return (shape_code, shape_params)
 
