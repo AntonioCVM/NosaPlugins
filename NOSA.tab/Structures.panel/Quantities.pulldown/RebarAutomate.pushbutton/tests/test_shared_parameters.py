@@ -244,7 +244,7 @@ def test_read_returns_default_when_parameter_not_found():
 # rebar_batch.new_batch_id / make_ctx (pure, no Revit)
 # ══════════════════════════════════════════════════════════════════════════
 
-_BATCH_ID_PATTERN = re.compile(r'^RA-\d{8}-\d{6}-[0-9a-f]{4}$')
+_BATCH_ID_PATTERN = re.compile(r'^RA-\d{8}-\d{6}-\d{6}-[0-9a-f]{8}$')
 
 
 def test_new_batch_id_matches_the_documented_format():

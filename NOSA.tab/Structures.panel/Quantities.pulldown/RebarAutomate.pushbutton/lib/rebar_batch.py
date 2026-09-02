@@ -51,16 +51,18 @@ _OST_REBAR_LIKE_CATEGORY_NAMES = (
 
 def new_batch_id():
     """
-    Format: "RA-{YYYYMMDD}-{HHMMSS}-{4 hex chars}" — matches the
-    blueprint's own example ("RA-20260827-153012-a1b2"). Pure Python,
-    no Revit dependency — the timestamp component alone isn't
-    guaranteed unique within the same second across two runs (unlikely
-    but possible in a scripted/test context), so a short random hex
-    suffix is appended.
+    Format: "RA-{YYYYMMDD}-{HHMMSS}-{6-digit microseconds}-{8 hex chars}"
+    — e.g. "RA-20260827-153012-004271-a1b2c3d4". Pure Python, no Revit
+    dependency. The date/time prefix keeps batch ids sorting
+    chronologically (see list_batches); the microsecond field plus an
+    8-hex-char random suffix (2**32 space) keep them unique even when
+    hundreds are minted in the same second inside a scripted/test
+    context.
     """
     now = datetime.datetime.now()
-    suffix = uuid.uuid4().hex[:4]
-    return u'RA-{}-{}'.format(now.strftime('%Y%m%d-%H%M%S'), suffix)
+    suffix = uuid.uuid4().hex[:8]
+    return u'RA-{}-{:06d}-{}'.format(
+        now.strftime('%Y%m%d-%H%M%S'), now.microsecond, suffix)
 
 
 def make_ctx(doc, standard, generator_version, standard_code=u'EHE-08'):
