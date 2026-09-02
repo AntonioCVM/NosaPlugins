@@ -4,20 +4,44 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## Estado actual
+## Estado actual (actualizado 2026-09-02)
 
 | Fase | Descripción | Estado | Rama | Commits |
 |---|---|---|---|---|
 | **F0** | Revit 2024–2027 compat facade + tooling migration | ✅ **DONE** | `feat/rebar-F0-compat` | 3cfa461 |
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
-| **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** (partial) | `feat/rebar-F2-standards` | 02d2a65 |
-| **F3** | Numeración y marcado | ✅ **DONE** | `feat/rebar-F3-marking` | f695eda, [pending] |
-| **F4** | Catálogo de formas + clasificador | ✅ **DONE** | `feat/rebar-F4-shapes` | 1f45111, next |
-| **F5** | Despiece (BBS) + export CSV/XLSX | ✅ **DONE** | `feat/rebar-F5-schedule` | c5fdc8e, next |
-| **F6** | Detallado completo (tags, MRA, secciones) | ⏳ Pending | — | — |
-| **F7** | Vigas + muros completos | ⏳ Pending | — | — |
-| **F8** | Export BVBS (máquinas ferralla) | ⏳ Pending | — | — |
-| **F9** | Losas + endurecimiento + release 1.0.0 | ⏳ Pending | — | — |
+| **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** | `feat/rebar-F2-standards` | 02d2a65 |
+| **F2.5** | Lap/mandrel/confinamiento/anclaje conectados a la normativa | ✅ **DONE** | `main` (sin commitear) | — |
+| **F3** | Numeración y marcado | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (firma `shared_params` incorrecta), corregido | `main` (sin commitear) | — |
+| **F4** | Catálogo de formas + clasificador | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (`import Rebar` del módulo equivocado), corregido | `main` (sin commitear) | — |
+| **F5** | Despiece (BBS) + export CSV/XLSX + peso | ✅ **DONE** | `main` (sin commitear) | — |
+| **F6** | Detallado completo (tags, MRA, secciones) | ✅ Code-complete — tagging tenía un bug real (vista 3D sin bloquear), corregido; smoke 4 versiones sigue pendiente | `main` (sin commitear) | 72ad5be, 0eba562 |
+| **F7** | Vigas + muros + pilares circulares + losas/zapatas (cierres perimetrales) | 🚧 **En smoke real del usuario, F7.1→F7.11** — la mayoría de la geometría reportada YA verificada en vivo contra el modelo real; 2 puntos siguen abiertos (huecos de losa/zapata, ver abajo). Commit PENDIENTE | `main` (sin commitear) | 9df02d7 + working tree |
+| **F8** | Export BVBS (máquinas ferralla) | 🚧 Código+tests escritos; formato BF2D/checksum explícitamente SIN validar contra un `.abs` real | `main` (sin commitear) | — |
+| **F9** | Losas + endurecimiento + release 1.0.0 | ⏳ El motor de losas (`floor_rebar.py`) ya existe y se está probando dentro de F7 — falta la matriz de humo 4 versiones y el empaquetado de release | — | — |
+
+**Tests:** 19 ficheros en `tests/`, todos en verde (`python tests/test_X.py`, exit 0 cada uno).
+
+**Nada está commiteado desde `9df02d7`** — todo el trabajo de F2.5 a F7.11 vive sin commitear en el working tree (confirmado: `git status` sobre 21 ficheros modificados + 4 nuevos). Sigue la regla de "no commit sin petición explícita".
+
+---
+
+## 🎯 Dónde estamos y cómo avanzar
+
+**Resumen de una línea:** las 5 tipologías (zapata, pilar, viga, muro, losa) generan armado real contra el modelo del usuario; el ciclo de esta sesión ha sido "el usuario prueba con el botón real → reporta con capturas/element IDs → se verifica en vivo vía HuskyBIM → se corrige → se repite", y ha sacado a la luz (y corregido) bugs que llevaban ahí desde el principio, no solo geometría nueva de F7 — incluido que **F3 (marcado) y F4 (clasificación de formas) no habían funcionado NUNCA** hasta hoy.
+
+**Para cerrar F7 formalmente, en orden:**
+
+1. **Confirmar en vivo, con el botón real, los 2 fixes más recientes** (vigas: barras ya no salen fuera del sólido; muro: edge bars eliminadas) — el usuario ya validó parte de esto en su último mensaje, falta la vuelta de confirmación final.
+2. **Huecos en losas/zapatas — el único punto realmente abierto sin verificar:** el fix de `floor_rebar._build_edge_ubars` (fallback al contorno crudo del hueco cuando el offset se autointersecta) no se ha podido probar contra un hueco real que reproduzca el bow-tie — el forjado de prueba actual no tiene un hueco lo bastante estrecho. Necesita un caso real del usuario (o crear uno de prueba) para cerrarlo.
+3. **`NOSA_Rebar_Layer` sin stampar en los generadores** (deuda conocida desde F3, confirmada de nuevo por el análisis de brecha SOFiSTiK) — ahora que F3 realmente funciona (bug de firma corregido hoy), vale la pena cerrarla: sin esto, todo sale con `Layer="uncategorized"`.
+4. **Decisión de commit:** hay ~21 ficheros modificados + 4 nuevos sin commitear desde F2.5. Cuando el usuario dé el visto bueno final de este ciclo de smoke, toca dividir esto en commits lógicos (por fase o por bug) en vez de uno solo gigante — pendiente de que el usuario lo pida explícitamente.
+5. **Matriz de humo en 2024/2025/2026/2027** — todo lo probado hasta ahora es sobre Revit 2026 real del usuario; **obligatoria antes de mergear F7** según la Matriz de validación más abajo. Sin fecha todavía.
+
+**Después de cerrar F7:**
+- **F8 (BVBS):** conseguir un fichero `.abs` real o el spec oficial y contrastar `bar_to_bvbs_line`/`_compute_checksum` — es lo único que falta para pasar de "código escrito" a "cerrado".
+- **F9:** con el motor de losas ya maduro dentro de F7, lo que realmente queda de F9 es la matriz de humo completa + `docs/USER_GUIDE.md` + el tag de release `1.0.0` — menos trabajo de motor del que sugiere la tabla de fases original.
+- Ítems 3 y 6 del análisis de brecha SOFiSTiK (esquineras 45° en huecos de losa, `NOSA_Rebar_Layer`) — el ítem 6 ya está en el punto 3 de arriba; el ítem 3 (geometría de esquinera a 45°, no solo U-bar recto) queda para cuando el punto 2 de arriba esté cerrado.
 
 ---
 
@@ -65,12 +89,28 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 **Criterio de éxito:** Cambiar de EHE-08 a BS-8666 en UI cambia cover/lap/mandrel en siguiente generación. Tests puros verdes.
 
-**Desviaciones documentadas:**
-- **COVER: conectado end-to-end** — preview y generación real usan el mismo helper `_standard_default_cover_mm()`
-- **LAP/MANDREL/STOCK_LENGTH: wrappers listos pero NO conectados** — `column_rebar.default_lap_length_mm(..., std=None)`, `footing_rebar.default_anchorage_length_mm(..., std=None)` existen con backward-compat (std=None reproduce pre-F2), pero NO están llamados desde `build_column_reinforcement`/`build_footing_reinforcement` (cambio de firma >2000 líneas, riesgo alto de romper geometría ya testada en fases 4/5)
-- **Consecuencia honesta**: hoy, cambiar "Standard:" en UI SOLO cambia cover (preview + real). Lap/mandrel/stock siguen fijos, coherentes entre sí, pero no gobernados por normativa aún. Conexión completa diferida a fase posterior (F2.5 o F3).
+**Desviaciones documentadas (F2, cerradas en F2.5 — ver más abajo):**
+- **COVER: conectado end-to-end** desde F2 — preview y generación real usan el mismo helper `_standard_default_cover_mm()`
+- ~~LAP/MANDREL/STOCK_LENGTH: wrappers listos pero NO conectados~~ — **cerrado en F2.5, ver abajo**
 
 **Bug corregido:** column_rebar.py/footing_rebar.py faltaban sys.path para `import nosa_utils` — los 9 scripts legacy ahora corren standalone sin ModuleNotFoundError.
+
+---
+
+## F2.5 — Lap/mandrel/confinamiento/anclaje conectados a la normativa ✅ DONE (2026-09-01)
+
+**Lo que se conectó de verdad (con `std=None` por defecto, retrocompatible, verificado con 8 tests numéricos nuevos que comparan CON std vs. SIN std):**
+- `column_rebar.build_column_reinforcement` (rectangular) y `_build_circular_column_reinforcement` (circular — ver corrección importante más abajo): la longitud de esperas usa `default_lap_length_mm(..., std=std, in_compression=True)` — **decisión de diseño explícita**: se asume que las esperas de pilar empalman en compresión (el caso convencional para armadura principal de pilar bajo carga gravitatoria); un caso de tracción real seguiría necesitando un `starter_bar_length_mm` explícito. La longitud de la zona de confinamiento usa `default_joint_zone_length_mm(..., std=std)` (factor `stirrups.confinement_zone_factor_h` de la normativa).
+- `footing_rebar.build_footing_reinforcement` → `build_perimeter_closure_ubars_topology`: la pata de anclaje de los cierres perimetrales usa `default_anchorage_length_mm(..., std=std)` (buen contacto, tracción — el caso por defecto de la función).
+- `floor_rebar.build_floor_reinforcement` → `_build_direction_bars` (×4, malla inferior/superior × X/Y) y sus propios cierres perimetrales: mismo `default_anchorage_length_mm(..., std=std)` — descubierto durante el cableado que floor_rebar.py YA reutilizaba este wrapper de footing_rebar.py, así que quedó conectado igual, sin trabajo extra.
+- `ui.py`: los 3 puntos de llamada (`_process_footing`, `_process_floor`, `_process_column`) pasan `std=getattr(self, 'ra_standard', None)`.
+- **Explícitamente NO conectado todavía** (alcance real, no un descuido): el anclaje/empalme de esperas de zapata (`dowel_anchor_length_mm`/`dowel_splice_length_mm`) y el `max_stock_length_mm` de todas las tipologías son siempre valores explícitos que la UI ya pasa desde sus propios campos de texto — conectar ESTOS a la normativa significaría cambiar el VALOR POR DEFECTO que esos campos de texto muestran al cargar la ventana (trabajo de UI, no de motor), no una llamada de función. Queda como mejora de UI, no como bug.
+
+**Corrección importante descubierta durante F2.5** (verificar antes de "arreglar" — Regla de Oro): el backlog de este documento afirmaba *"Columnas circulares — preview circular OK, generación trata como rectangulares"*. **Es falso.** `build_column_reinforcement` ya detecta el parámetro `Diameter` y delega en `_build_circular_column_reinforcement` (barras radiales + cercos poligonales de 24 cuerdas, Phase 3.5.7/3.5.9) — ya trata las columnas circulares como circulares, con su propia geometría, desde antes de esta sesión. Se retira esa entrada del backlog de "Bugs legacy columnas" más abajo.
+
+**Tests:** `tests/test_f25_standards_wiring.py` (8 tests nuevos, verdes) — comprueban que CON std el resultado es numéricamente distinto del valor fijo pre-F2.5, y que SIN std (`std=None`) el resultado es EXACTAMENTE igual al de antes de F2.5 (cero pérdida de funcionalidad). Los 9 scripts de fase legacy + toda la suite pytest siguen en verde tras el cableado.
+
+**Pendiente de verdad:** como con F7, esto está verificado por tests numéricos puros (sin Revit) — el smoke con la UI real sigue siendo quien confirma que, por ejemplo, cambiar a BS-8666-2020 cambia de verdad la longitud de esperas de un pilar generado en un modelo real.
 
 **Deps:** F0 (compat), F1 (provenance)
 
@@ -283,17 +323,16 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan a F0-F5. Se documentan aquí para priorización futura:
 
-1. **Geometría de columnas circulares:** Refuerzan como si fueran cuadradas.
-   - Origen: `lib/rebar_generators/column_rebar.py` (legacy)
-   - Prioridad: Alta (fix en fase post-F9)
+1. ~~**Geometría de columnas circulares:** Refuerzan como si fueran cuadradas.~~
+   - **FALSO — verificado y corregido en el documento durante F2.5 (2026-09-01).** `column_rebar.build_column_reinforcement` detecta el parámetro `Diameter` y delega en `_build_circular_column_reinforcement` (barras radiales + cercos poligonales de 24 cuerdas, Phase 3.5.7/3.5.9) desde antes de esta sesión. La ruta de fichero citada (`lib/rebar_generators/column_rebar.py`) tampoco existe — la real es `lib/column_rebar.py`. Esta entrada llevaba tiempo obsoleta.
 
-2. **Density at nodes en columnas continuas:** Solo se aplica en parte superior/inferior, no en plantas intermedias.
-   - Origen: `lib/rebar_generators/column_rebar.py` (legacy)
+2. **Density at nodes en columnas continuas:** Solo se aplica en parte superior/inferior de TODA la columna, no en cada planta intermedia que atraviesa.
+   - **Confirmado real, verificado en código (2026-09-01):** `generate_column_stirrup_zones` calcula sus 3 zonas (extremo denso/medio/extremo denso) sobre el `clear_height_mm` TOTAL de la columna; `_subtract_floor_bands` solo RECORTA el tramo que atraviesa cada losa (para no cruzar el hormigón de la losa), pero no añade una zona de confinamiento nueva en cada nudo intermedio. Para una columna de 3 plantas, solo la base absoluta y la coronación absoluta densifican — los nudos intermedios quedan a espaciado normal.
+   - Origen: `lib/column_rebar.py`, `generate_column_stirrup_zones`
    - Prioridad: Media (fix en fase post-F9)
 
-3. **Crank bars en columnas:** No se generan. Las esperas de la siguiente planta quedan rectas.
-   - Origen: `lib/rebar_generators/column_rebar.py` (legacy)
-   - Prioridad: Alta (fix en fase post-F9)
+3. ~~**Crank bars en columnas:** No se generan. Las esperas de la siguiente planta quedan rectas.~~
+   - **FALSO — verificado en código (2026-09-01).** `build_cranked_starter` (Phase 3.2/3.3) ya genera el doblez diagonal + tramo recto de solape en cada split, con la opción de UI real "Use Cranked Laps (1:6 slope)" (`values['cranked_laps']`, cableada en `ui.py`). El desplazamiento se resuelve por defecto contra la columna real de la planta de arriba (`resolve_crank_offset_mm`), no un valor asumido. Esta entrada también llevaba tiempo obsoleta.
 
 4. **Mínimo 25mm en losas no cuadradas:** Error "The minimum length of rebar shape is 25 mm" en algunos casos no rectangulares.
    - Origen: `lib/rebar_generators/floor_rebar.py` (legacy)
@@ -313,9 +352,12 @@ Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan
 ## F7 — Vigas + muros 🚧 In Progress
 
 **Entregables:**
-- **Vigas:** pestaña UI cableada, long. sup/inf, cercos, preview — F7.1
-- **Muros:** `lib/wall_rebar.py` + UI, mallas vert.+horiz. — F7.2
-- Ties / borde / huecos / esperas muro — F7.3 (si cabe; si no → post-F7)
+- **Vigas:** pestaña UI cableada, long. sup/inf, cercos, preview — F7.1 ✅
+- **Muros:** `lib/wall_rebar.py` + UI, mallas vert.+horiz. — F7.2 ✅
+- Densificación extremos viga + edge bars / ties muro — F7.3 ✅
+- U-bars extremos, starters, stock-split, preview WPF — F7.4 ✅ (código)
+- Huecos en muros (opening U-bars) → F9
+- **Humo 4 versiones** — pendiente (bloquea cierre F7)
 
 **Criterio de éxito:** 5 tipologías (zapata, pilar, viga, muro, losa) generan armado válido, marcado y clasificado. **Humo obligatorio 4 versiones.**
 
@@ -329,23 +371,321 @@ Los siguientes issues provienen de **código legacy (fases 3.5.x)** y NO afectan
 - Pestaña Beams cableada (long. top/bottom, stirrups, stock/laps) → `beam_rebar.build_beam_rebar_curves`
 - Pestaña Walls cableada (mesh vert./horiz., both faces) → nuevo `lib/wall_rebar.py`
 - ExternalEvent modes `beams` / `walls` + RebarBatch provenance
-- Pendiente: densificación extremos viga, ties/huecos muro, preview WPF, smoke 4 versiones
+
+**F7.3 (2026-09-01):**
+- Viga: densificación de cercos en extremos; UI densify + confine length
+- Muro: edge bars + through-wall ties
+
+**F7.4 (2026-09-01) — smoke fixes + wall completeness:**
+- **Bug critical:** longitudinal bars failed with `norm` null → `create_from_curves` now infers plane normal; beams pass `BasisZ`
+- **Bug:** stirrups floated above beam (LocationCurve on top face) → stirrup section origin offset to mid-height of cover-inset section
+- **Bug:** confine length `0` rejected by `_read_number` → `0 = auto` (2 × beam height)
+- Muro: end U-bars (wrap thickness), starter bars below base, stock-length split with normative laps
+- Preview WPF section canvases on Beams + Walls tabs
+
+**F7.5 (2026-09-01, revisión Claude Code de los cambios F7.4 sin commitear) — 2 bugs reales encontrados y corregidos, verificados por lectura de código + `py_compile`, NO AÚN por smoke en Revit:**
+- **Bug (alta confianza):** `wall_rebar.py` — el `normal` del Top U-bar se calculaba como `na.CrossProduct(axis_dir)` (≈ eje Z), cuando las 3 curvas del propio U-bar solo varían en Z y en la dirección de espesor del muro a una posición axial fija — su plano real tiene como normal `axis_dir`, no `na×axis_dir`. Con el valor antiguo, `Rebar.CreateFromCurves` habría recibido un plano incoherente con las curvas (fallo probable en el smoke, silencioso — solo aparece como un error en la lista, fácil de pasar por alto). Corregido a `normal: axis_dir`.
+- **Bug (latente/defensivo, no disparado hoy):** la inferencia de `normal=None` en `rebar_engine.create_from_curves` tenía una rama interna inalcanzable (`if abs(d.DotProduct(BasisZ)) > 0.98` dentro de un bloque que ya exige `abs(d.Z) < 0.95` — matemáticamente nunca se cumple) y, para barras casi verticales, llamaba a `compute_vertical_hook_plane_normal(d)` — función cuyo propio docstring dice que es indefinida quando `bar_direction` es paralela a Z (el propio caso que esa rama maneja). Ningún llamante actual dispara esto (todos pasan su propio `normal` ya calculado), pero si algún día lo hiciera con una barra de pilar exactamente vertical, `CrossProduct` daría vector cero y `Normalize()` lanzaría excepción. Corregido: rama muerta eliminada; caso vertical usa `DB.XYZ.BasisX` (siempre bien definido) en vez de la fórmula que se indefine justo en su propio rango de entrada.
+- 2 limpiezas cosméticas sin cambio de comportamiento: variable `inward` calculada dos veces en el bucle de End U-bars (la primera asignación quedaba siempre sobrescrita); expresión `y + x_off * 0.0` en `rebar_preview.py` (siempre igual a `y`).
+- **Pendiente de verdad:** estos 2 fixes NO se han probado dentro de Revit — sigue bloqueando el cierre de F7 el smoke test descrito arriba. Nada de esto se ha commiteado.
+
+**F7.6 (2026-09-01) — validación empírica de los 2 fixes de F7.5, en vivo contra Revit 2026 real (`Rebar test.rvt` del usuario, vía HuskyBIM MCP — no se pudo disparar el botón real de RebarAutomate, Dynamo no está instalado; se probó la geometría exacta con `Rebar.CreateFromCurves` directamente):**
+- **Top U-bar de muro:** con el `normal` corregido (`axis_dir`), Revit crea el elemento sin problema. Con el `normal` antiguo (`na×axis_dir` ≈ Z), Revit lanza `NullReferenceException` — bug confirmado, no solo razonado.
+- **Fallback vertical de `rebar_engine.py`:** con `DB.XYZ.BasisX` (el fix), Revit crea una barra exactamente vertical sin problema en el pilar redondo real del modelo (id 1316885). Con un `normal` de longitud cero (lo que producía la fórmula antigua para una dirección exactamente vertical), Revit devuelve literalmente **"norm has zero length"** — la causa raíz confirmada palabra por palabra.
+- Los 2 elementos de prueba se crearon y se borraron en la misma sesión; el modelo del usuario queda exactamente como estaba (0 rebar).
+- **Esto NO sustituye el smoke test completo** (flujo real de la UI, provenance, marcado, 4 versiones de Revit) — sigue pendiente y sigue bloqueando el cierre formal de F7. Sí es prueba directa, no solo por lectura de código, de que los 2 bugs de F7.5 eran reales y de que las correcciones son válidas en la API de Revit.
+
+**F7.7 (2026-09-01) — barrido geométrico del resto de la geometría F7 nunca antes probada, mismo método (curvas reales + `Rebar.CreateFromCurves` vía HuskyBIM, sobre los hosts reales de `Rebar test.rvt`, cada elemento de prueba creado y borrado en el acto):**
+
+| Geometría | Host real | Resultado |
+|---|---|---|
+| Viga — cerco centrado en la sección (fix de mid-altura) | Viga 300×600mm (id 1318407) | ✅ Creado; `centerZ` del bounding box = **-300mm exacto**, la mitad exacta de los 600mm — confirma objetivamente que ya NO flota pegado a la cara superior |
+| Viga — barra longitudinal (normal = dirección de ancho) | misma viga | ✅ Creada sin error |
+| Muro — malla horizontal (normal = Z) | Muro 13.8m (id 1318503) | ✅ Creada sin error |
+| Muro — barra de borde (edge bar) | mismo muro | ✅ Creada sin error |
+| Muro — atado pasante (tie, normal = eje del muro) | mismo muro | ✅ Creado sin error |
+| Muro — espera bajo la base (starter, extiende por debajo de Z=0) | mismo muro | ✅ Creada; bounding box confirma `min.z = -500mm` exacto, extendiéndose bajo la base como se pretende |
+| Muro — End U-bar (distinto del Top U-bar ya probado en F7.6) | mismo muro | ✅ Creado; bounding box confirma Z prácticamente constante (plano horizontal correcto) |
+| Pilar rectangular — crosstie/atado interior (450×600mm, geometría distinta al pilar redondo de F7.6) | Pilar rectangular (id 1317167) | ✅ Creado sin error |
+
+**Conclusión F7.7:** todos los tipos de curva que F7.3/F7.4 introdujeron (nunca antes ejecutados en Revit, ni siquiera antes del smoke) se comprueban válidos a nivel de API con geometría real del modelo del usuario. **Lo que este barrido NO puede probar** (limitación de la herramienta, no del código): el propagado real de un Rebar SET (array con separación — `create_rebar_by_curves` crea un elemento suelto, no un Set; `create_rebar_set`/el flujo de lotes/provenance/marcado siguen sin probarse en vivo), y los ganchos reales vía `RebarHookType` (p.ej. las esperas en L de zapata, ya confirmadas por lectura de código en la sesión anterior pero no por esta vía). El smoke completo con la UI real sigue siendo el único paso que cierra F7 formalmente.
 
 **Familias de tags:** NO bloquean F7 — ver backlog post-F7 arriba.
 
+**F7.8 (2026-09-01) — feedback real del usuario tras armar el modelo completo (muros funcionando, 2 bugs reales encontrados y corregidos):**
+
+- **Bug crítico — solape de barras al partir por longitud de suministro (`rebar_engine.split_rebar_by_stock_length`):** reportado por el usuario con un caso exacto: barra de muro de 12 m, stock 8 m, solape esperado ~480 mm → el plugin colocaba 2 Rebar Sets de 8 m cada uno, dando un solape real de **4000 mm** (el stock menos el avance calculado), no ~480 mm. Verificado numéricamente offline ANTES de tocar código: la fórmula antigua forzaba cada segmento a medir exactamente `stock_ft`, con un `advance = (total-stock)/(n_segments-1)` que no tenía relación con el lap pedido. Corregido: cada segmento mide ahora `segment_length_ft = (total + (n-1)*lap) / n` (garantizado ≤ stock por construcción), con `advance = segment_length_ft - lap` — el mismo `n_segments` de antes (fórmula sin cambios), pero cada solape consecutivo es EXACTAMENTE `lap_ft`. Esta función es COMPARTIDA — la usan vigas (`beam_rebar.split_long_bars`), muros (`wall_rebar._split_template_curve`/`_split_mesh_sets`), zapatas y losas (`floor_rebar._build_direction_bars`) — así que el fix resuelve el solape incorrecto en las 4 tipologías a la vez, no solo en muros. `rebar_engine.py` no tenía NINGÚN test previo para esta función crítica — se creó `tests/test_rebar_engine_stock_split.py` (5 tests nuevos, incluyendo una regresión exacta del caso 12 m/8 m/480 mm reportado por el usuario) con un stub mínimo de `Autodesk.Revit.DB`/`System`; los 5 pasan, y la suite completa sigue en verde.
+
+- **Bug — End/Top U-bars de muro creados como barras individuales, no como Rebar Sets:** reportado ("los ubars ... los hace individuales, cuando deberían ser rebar sets"). Causa: cada altura (End U-bars) o posición (Top U-bars) generaba su propio `create_from_curves` suelto, aun siendo geometría IDÉNTICA salvo la traslación. Corregido en `wall_rebar.py`: `build_wall_reinforcement` ahora devuelve `end_ubars`/`top_ubars` como `{'sets':[...], 'bars':[...]}` — el MISMO formato que ya usan los U-bars de cierre perimetral de losas/zapatas (`floor_rebar._build_edge_ubars`, `footing_rebar.build_perimeter_closure_ubars_topology`) — agrupando todas las alturas de un mismo extremo (o todas las posiciones de coronación) en UN solo Rebar Set vía `SetLayoutAsMaximumSpacing`, con fallback a bar individual si alguna altura/posición degenera (cara coincidente) y rompe la uniformidad del array. `ui.py` ahora enruta estos U-bars por el helper genérico `_create_grouped_bars` (Set → FreeForm group → bar individual, el mismo camino ya probado para U-bars de losa/zapata), en vez del bucle plano anterior. `style` se deja en `None` (Standard) en vez del `StirrupTie` que usaba la creación individual antigua — decisión deliberada, alineada con el precedente ya en producción de `_build_edge_ubars` (la MISMA topología abierta pata–travesaño–pata usa `style: None` ahí; `StirrupTie` está documentado en `rebar_engine.create_rebar_set` como reservado para lazo CERRADO, no para este U abierto).
+  - **Pendiente de verdad:** el propagado real del Set (`SetLayoutAsMaximumSpacing` sobre esta forma abierta concreta) NO se ha podido disparar vía el botón real de pyRevit desde esta sesión (Dynamo no instalado, sin forma de invocar el comando de la extensión por MCP) — la lógica de agrupación se verificó por lectura + `ast.parse` + suite de tests existente (sin regresión), pero el smoke real con Walls tab queda como el siguiente paso del usuario.
+
+- Muros irregulares (no rectos): sigue sin soporte — `get_wall_axis` sigue exigiendo `DB.Line` y rechaza cualquier `LocationCurve` curva. Marcado como prioridad 2 explícita por el propio usuario ("en caso de ser necesario"); no abordado esta vuelta.
+
+**F7.9 (2026-09-01) — segunda vuelta de feedback real tras confirmar los Rebar Sets de muro: 5 fixes más, algunos confirmados por lectura de código, uno (el gap de 440mm en losas) queda abierto:**
+
+- **Capas (armadura principal/secundaria) en muros — confirmado por el usuario: vertical = capa exterior (toca cover), horizontal = capa interior:** `wall_rebar.py` calculaba la malla vertical Y horizontal con la MISMA `depth` (una sola profundidad derivada de `cover_mm + vert_dia_mm/2.0`, reutilizada sin cambio para las horizontales) — física mente imposible, ambas mallas coplanares. Corregido: horizontal usa ahora su propia `cover_mm + vert_dia_mm + horiz_dia_mm/2.0` (capa 2, detrás del diámetro COMPLETO de la vertical), el mismo patrón B1/B2 que `footing_rebar.py` ya usa para along_x/along_y. El mismo bug existía, IDÉNTICO, entre los End U-bars (cierran la malla vertical, capa 1, sin cambios) y los Top U-bars (cierran la horizontal): ambos usaban `cover_mm + u_dia/2.0` — ahora los Top U-bars usan `cover_mm + vert_dia_mm + u_dia/2.0` (capa 2), eliminando la colisión de esquina reportada.
+
+- **Solape — reparto "greedy" en vez de longitud igual (confirmado por el usuario) + diámetro por dirección:** `rebar_engine.split_rebar_by_stock_length` repartía la longitud total EN PARTES IGUALES entre todos los tramos (fix de la vuelta anterior); ahora todos los tramos excepto el último miden exactamente `stock_length_mm` (el máximo), y solo el último absorbe el resto — para 12 m/8 m/480 mm: 8000 mm + 4480 mm (antes: 6240 mm + 6240 mm), mismo número de tramos, mismo solape exacto de 480 mm en cada unión (demostrado algebraicamente en el propio código y con 2 tests nuevos). Además, se encontró y corrigió un bug real de diámetro: `wall_rebar.py` calculaba UN solo `lap_mm` (a partir de `vert_dia`) y lo reutilizaba sin cambio para partir TANTO las verticales COMO las horizontales — empalmando barras de `horiz_dia` con un solape pensado para `vert_dia`. Ahora `build_wall_reinforcement` acepta `horiz_lap_length_mm` por separado, y `ui.py` calcula ambos valores (`standards.lap_length_mm` con `vert_dia` y con `horiz_dia` respectivamente) antes de la llamada. Zapatas y losas ya calculaban el lap correctamente por dirección propia (`default_anchorage_length_mm(own_dia_mm, ...)` dentro de `_build_direction_bars`) — auditado, sin bug ahí.
+
+- **Bug real encontrado y corregido — `RebarWrapper.create_from_curves` podía dejar `self.last_error` en `None` tras un fallo genuino:** si `Rebar.CreateFromCurves` devolvía `None` SIN lanzar excepción (comportamiento válido de la API), el código nunca comprobaba ese `None` — a diferencia de `create_rebar_set`/`create_freeform_group`, que sí lo hacían. Esto explica exactamente el mensaje "— None" reportado en pantalla ("Footing/Floor Perimeter Closure U-Bar (X/Y-anchor) — None") para las 4 aristas de cierre perimetral, en ambos hosts (zapata y losa): la creación INDIVIDUAL (fallback) fallaba sin ningún diagnóstico. Corregido para que siempre reporte `'Rebar.CreateFromCurves returned None.'` como mínimo.
+
+- **Bug real encontrado y corregido — `footing_rebar.build_perimeter_closure_ubars_topology`'s `_one_edge_set` nunca incluía `materialized_bars`:** a diferencia de `floor_rebar._build_edge_ubars` (que sí construye una entrada por cada posición a lo largo del borde), la versión de zapatas devolvía un único `curves`/`array_length_mm`/`spacing_mm` SIN la lista de posiciones individuales — así que si el Set fallaba, `ui.py._create_grouped_bars` no tenía ningún dato con el que reconstruir vía FreeForm ni barras individuales, y directamente no creaba NADA para esa arista (coincide con los "— None" sin ninguna barra resultante). Corregido: `_one_edge_set` ahora calcula cada posición a lo largo del borde (`_evenly_spaced`) y materializa su propia geometría, igual que losas.
+
+- **"Los Ubars están a 440mm de la cara lateral del forjado" — investigado a fondo, SIN causa raíz encontrada todavía; queda abierto:** releída la construcción completa de `_build_edge_ubars`/`_chain_at` — las posiciones de cada U-bar de cierre en losas se derivan directamente del polígono YA offseteado por `side_cover_mm` (el cover lateral real, ver F7.8), así que el "lomo" del U-bar debería quedar a ~cover mm del canto real, no a 440mm. Una comprobación en vivo sobre un elemento real de esta MISMA losa (id 1320717, ejecución anterior a este fix) dio un gap de 35mm para 40mm de cover — correcto. No se pudo reproducir el bug por lectura de código ni con ese dato en vivo. **Pendiente:** el usuario debe reportar el Element ID exacto de la barra mostrada en la imagen (visible en la barra de estado de Revit al seleccionarla, o en el Panel de Propiedades) para inspeccionar su geometría real directamente, o volver a probar tras estos fixes y confirmar si el gap sigue apareciendo.
+
+- **Huecos de forjado sin Ubars — la investigación de esta vuelta apunta a un rechazo real de `Rebar.CreateFromCurves`, no solo a un fallo de `_create_grouped_bars`:** con el fix del `last_error` de arriba, la próxima ejecución debería mostrar un mensaje mucho más informativo que "— None" y decir si el problema es la creación inicial de la barra en sí (probable, dado que las 4 aristas EXTERIORES de zapata y losa fallan igual) o la propagación del Set. Pendiente del próximo test para confirmar.
+
+**F7.10 (2026-09-01) — capas de muro flippable (selector real, no solo la fórmula) + panel de resultados sin truncar en las 4 pestañas:**
+
+- **Selector de capa vertical/horizontal en muros:** confirmé numéricamente contra el muro real (id 1318503) que la fórmula de F7.9 SÍ coloca la vertical más superficial (50mm de cara, cover+Ø/2 exacto) y la horizontal detrás (66mm base); no encontré ningún bug de signo. Aun así, añadido el checkbox pedido — **"Vertical bars in the outer layer"** en la pestaña Walls (`ChkWallVertOuter`, marcado por defecto) — que controla malla principal Y ambos U-bars de forma consistente vía el nuevo parámetro `vert_is_outer` en `build_wall_reinforcement`.
+
+- **Panel "Result" (las 4 pestañas: Footings/Floors, Columns, Beams, Walls) truncaba a 12 líneas — reportado como imposible de revisar un run largo:** `TxtResult`/`TxtColumnResult` cortaban a 12 issues + "...and N more"; `TxtBeamResult`/`TxtWallResult` cortaban a 12 SIN siquiera avisar que había más. Los 4 eran además `TextBlock` (no seleccionable/copiable). Cambiados los 4 a `TextBox` de solo lectura (misma `ScrollViewer` de la columna izquierda que ya existía — ahora crece con todo el contenido en vez de recortarlo) y eliminado el límite de 12 líneas en los 4 sitios de `ui.py`. Esto también resuelve de forma indirecta la petición pendiente de "pégame la lista completa de issues" del punto de los huecos — la próxima ejecución ya la mostrará entera sin pedir nada más.
+
+- **Bugs vistos de paso, NO corregidos aún (fuera de alcance de esta petición concreta):** el panel de resultados de muros mostró "Shape classification failed: Cannot import name Rebar" y "Marking failed: write() takes exactly 3 arguments (4 given)" — errores reales de las fases F3/F4 (marcado/clasificación de forma), no relacionados con la geometría de esta sesión. Pendientes de investigar si el usuario lo pide.
+
+**F7.11 (2026-09-02) — con el log completo ya visible, 3 bugs de F3/F4/tagging reales encontrados y corregidos, más 2 bugs de geometría live-verificados (vigas, capas):**
+
+- **F4 (clasificación de formas) rota en TODAS las ejecuciones desde siempre:** `rebar_shape_classifier.py` hacía `from Autodesk.Revit.DB import Rebar` — `Rebar` vive en `Autodesk.Revit.DB.Structure`, no ahí. Corregido.
+
+- **F3 (marcado) roto en TODAS las ejecuciones desde siempre:** `rebar_marking.py` llamaba `shared_params.read/write(doc, rebar_id, campo, ...)` en absolutamente todos sus usos (11 sitios), pero la firma real es `read(elem, nombre, default)`/`write(elem, nombre, valor)` — un ELEMENTO primero, sin `doc`. Corregido con dos wrappers `_read`/`_write` que resuelven `doc.GetElement(rebar_id)` antes de delegar, sin tocar el resto del fichero.
+
+- **~30 "The 3D view ownerDBViewId is not locked" por ejecución:** no es un bug nuestro — Revit exige la vista 3D bloqueada para poder etiquetar y el plugin nunca lo comprobaba antes de intentarlo, fallando igual para cada barra. Ahora comprueba `View3D.IsLocked` antes y, si no está bloqueada, salta el etiquetado entero con UN mensaje explicando cómo arreglarlo.
+
+- **Bug real de geometría en vigas — "la armadura principal sale fuera de las vigas" (confirmado en vivo, viga 1318407):** las barras longitudinales usaban `axis.GetEndPoint(0)/(1)` (la LocationCurve cruda) sin ningún inset en la dirección de longitud. La LocationCurve mide 10340.0mm; el sólido REAL de la viga (`get_BoundingBox`, tras el mitrado/unión con la columna de apoyo en cada extremo) mide solo 10325.4mm — 7.3mm de más en CADA extremo. Confirmado NO relacionado con el split (la viga mide ~10.3m, muy por debajo del stock de 12m). Corregido: nueva `_clamp_axis_to_bbox()` recorta el eje al bounding box real del sólido (proyectando las 8 esquinas del bbox sobre la dirección del eje — funciona para cualquier orientación), aplicada una sola vez antes de que nada más derive del eje (barras longitudinales Y zonas de cercos).
+
+- **Capas de muro — confirmado en vivo que mi fórmula anterior SÍ era correcta** (vertical a 50mm de cara = cover+Ø/2 exacto, horizontal a 66mm detrás), pero el selector `ChkWallVertOuter` añadido en F7.10 sigue ahí por si el usuario lo necesita en otro muro/orientación.
+
+- **Edge bars eliminadas del todo (petición explícita — "ya tenemos rebar sets, no es necesario"):** quitado `include_edge_bars`/`edge_dia_mm` de `wall_rebar.build_wall_reinforcement` (parámetros, bloque de generación, split, dict de retorno), su wiring en `ui.py` (`_read_wall_inputs`, `_process_wall`, `_run_wall_reinforcement`, `WallEdge_Click`) y el checkbox/panel correspondiente en `ui.xaml` (la card "Edge Bars & Ties" pasa a llamarse simplemente "Ties"). Esto también explicaba el "2 barras al principio y 2 al final" que veía el usuario — exactamente 2 caras × 1 posición por extremo × 2 extremos.
+
+- **"Los ubars paran muy lejos del borde de la losa" — investigado, parece YA corregido en una fase anterior:** el propio código (`floor_rebar.py`, comentario "PHASE 3.5.8 item 1 FIX") ya sustituyó el cover vertical del mat (`bottom_cover_mm`/`top_cover_mm`) por el cover lateral REAL del elemento (`side_cover_mm`, leído de `get_native_cover_mm(doc, host, 'Exterior', ...)`) para el offset en planta (X/Y) de `bottom_outer`/`bottom_holes` — la MISMA fuente que usan tanto el mat principal como `_build_edge_ubars`. Esto es exactamente la causa descrita por el usuario (usar un cover ajeno/vertical como si fuera el lateral, dejando el U-bar "muy lejos" del canto real). El suelo de prueba del modelo (id 1317654) no tiene armado activo ahora mismo para verificarlo en vivo con esta build concreta — probable que la imagen del usuario mostrara barras de una ejecución ANTERIOR a este fix. **Pendiente:** que el usuario vuelva a armar ese forjado desde cero y confirme si el gap persiste; si persiste, es un bug distinto (p.ej. el propio leg length/anclaje, que SÍ debe ser largo por normativa y no es un bug).
+
+- **"En los huecos de los forjados no coloca Ubars como debería" — causa raíz real encontrada y mitigada:** confirmada como el propio límite YA documentado en `slab_topology.py` (módulo docstring, "POLYGON OFFSET — DISCLOSED LIMITATION"): al crecer un hueco HACIA AFUERA por el cover, una entrante/forma estrecha puede autointersectarse en un polígono "bow-tie", que `polygon_edges_mm` reduce a menos de 3 aristas válidas tras su propio filtro de longitud mínima — CERO U-bars de cierre para ese hueco, solo un `print` de warning en consola, nunca un error visible. Corregido en `floor_rebar._build_edge_ubars`: ahora recibe también los huecos SIN offsetear (`raw_holes`, mismo orden/índice que `large_holes`) y, si un hueco degenera a <3 aristas tras el offset, reintenta con el propio contorno crudo de ESE hueco (geometría real de Revit tesela­da, no puede autointersectarse de esa forma) en vez de quedarse sin ninguna arista — el lomo del U-bar de cierre queda entonces exactamente sobre el borde real del hueco (sin margen de cover para esa barra concreta), con un warning explícito en consola avisando del trade-off, en vez de no colocar ningún U-bar. **Pendiente de verdad:** no verificado aún contra un hueco real que reproduzca el bow-tie (el forjado de prueba disponible ahora mismo no tiene huecos suficientemente estrechos para forzarlo) — lógica revisada por lectura + `ast.parse` + suite de tests existente sin regresión, pero el smoke real con un hueco geométricamente conflictivo queda pendiente.
+
 ---
 
-## F8 — Export BVBS ⏳ Pending
+## Competitive notes — SOFiSTiK Reinforcement (verificado en disco 2026-09-01)
+
+KS Digital Studio / KennySTRUCT: **no está instalado en esta máquina** — se buscó en
+`Program Files`, `Program Files (x86)`, `ProgramData` y todo el AppData del usuario,
+más los manifiestos `.addin` de Revit 2024–2027; cero coincidencias. Cualquier
+comparación anterior con "KS Digital Studio" en este documento era especulativa,
+no verificada — se retira hasta que el usuario confirme dónde está instalado.
+
+SOFiSTiK Reinforcement 2026 (v5.0.313) SÍ está instalado como ApplicationPlugin
+de Revit (`C:\ProgramData\Autodesk\ApplicationPlugins\sofistik_reinforcement_2026.bundle`).
+Hechos verificados directamente en disco (no interpretación de marketing):
+
+- **Catálogo de formas real** en `Contents\shape_catalogs\{code}\`: 5 normativas
+  (BS_8666_2005 — 36 formas, **BS_8666_2020 — 40 formas**, EN_ISO_3766 — 26 formas,
+  SANS_282_2011 — 31 formas, SSHV_2014 — 190 formas). Cada forma es un JSON
+  declarativo: `shape_detail_family` (mapea a una familia Revit tipo
+  `SOFiSTiK_Detail_RebarShape_11`), `constraints` por segmento (`geom_type`,
+  `fixed_length`, `angle`/`angle_min`/`angle_max`, `relation`) y `parameters`
+  (`displayed_name`, `calculation_type`) — un esquema paramétrico declarativo,
+  separado del renderizado geométrico. Cada catálogo tiene un `options.json`
+  (`default_shape_code`, `precision_decimals`, `include_hooks_in_shape_definition`,
+  `default_shape_detail_family`). **Directamente comparable con
+  `data/rebar_standards/_schema.json`/`data/shape_catalogs/` de NOSA** — vale la
+  pena contrastar campo a campo antes de F4/F9.
+- **BVBS real, confirmado por DLLs**: `Bvbs_bond_mgd_rc.dll`,
+  `Bvbs_rpc_mgd_rc.dll`/`Bvbs_rpc_rc.dll`. Sistema de despiece/BBS SEPARADO del
+  catálogo de formas: scripts Lua por normativa en
+  `analysis_bin\data\cad\schedule\codes\{bs,bs_2020,din,iso,sans,sshv}\{shapes,hooks,end_treatment,coupler}\*.lua`
+  que dibujan cada glifo procedimentalmente, más `units.json` por normativa con
+  columnas de tabla de despiece y precisión — referencia útil para el diseño de
+  `rebar_schedule.py`/F8.
+- **"Rebar Templates" reales** en `Contents\content\reinforcement\runtime\RebarTemplates\`:
+  plantillas `.rvt` con `content.json` por tipo de host — Vigas EU (cercos 2/3/4
+  ramas), Pilares EU (redondo/cuadrado/rectangular, 2–6 ramas, espiral), Zapatas
+  EU (Pad S/M/L, Cup, Sleeve), Muros de cortante EU (básico), Bordes de losa EU
+  (basado en cara, no en host — Inner/Outer Edge 1ª/2ª capa, hueco rectangular
+  2ª capa). Confirma el flujo real: categoría → plantilla con nombre por
+  host/cara → set paramétrico generado — más cercano a "recetas por tipo de
+  elemento" que a un catálogo de formas suelto.
+- Override de catálogo por usuario en
+  `%APPDATA%\SOFiSTiK\SOFiSTiK Reinforcement 2026\shape_catalogs\` — mismo
+  patrón que el `NOSA_Configs/rebar_standards/` override de F2.
+- No se encontró manual/ayuda offline (.chm/.pdf) — la ayuda se sirve vía un
+  control de navegador embebido; no se pudo leer el texto real del flujo de
+  la "Rebar Wizard". Tampoco se encontraron tablas de cover/lap/mandrel como
+  ficheros externos — probablemente compiladas dentro de las DLLs de análisis,
+  no verificable sin decompilar (no se ha intentado).
+
+**Prioridad inmediata derivada de esto (reemplaza la tabla anterior, no verificada):**
+El bug de `normal=None` de F7.4/F7.5 es exactamente la clase de error que
+SOFiSTiK nunca expone al usuario, porque restringe el plano desde sus propias
+plantillas paramétricas en vez de inferirlo genéricamente — confirma que
+resolver el `normal` desde geometría de CARAS real (no desde `LocationCurve`)
+es la única vía robusta, y ya es el camino que sigue este código.
+
+**El siguiente paso de valor real** sería replicar la ESTRUCTURA declarativa
+`constraints`/`parameters` de SOFiSTiK para el propio `data/shape_catalogs/`
+de NOSA (F4/F9) en vez de la comparación genérica de la tabla anterior — un
+formato ya usado por 5 normativas reales, con 40 formas solo para BS 8666:2020.
+
+---
+
+## Análisis de brecha — manual de SOFiSTiK Reinforcement (aportado por el usuario, 2026-09-01)
+
+El usuario compartió un manual de especificaciones técnicas de SOFiSTiK
+Reinforcement (documento comercial/funcional, NO verificado en disco como
+la sección anterior — se trata como referencia de producto, no como hecho
+comprobado). Contrastado contra el código REAL de NOSA (leído, no asumido)
+antes de listar cada brecha:
+
+**Ya cubierto en NOSA, mejor de lo que parecía a primera vista:**
+- *Numeración inteligente + agrupación + tolerancia de longitud* — el manual
+  lo presenta como diferenciador, pero `rebar_marking.py` YA tiene
+  `number_scope` (`per_host`/`per_project`/`per_view`) y
+  `dedup_tolerance_mm` configurable por normativa. No es brecha; como mucho,
+  falta un modo `per_sheet`/`per_phase` literal si algún cliente lo pide.
+- *"Freeze" de marcas aprobadas* — YA EXISTE: `NOSA_Rebar_Finalized=1` y
+  `rebar_marking.renumber_batch` lo respeta explícitamente (visto en
+  `rebar_batch.py` desde F1). Falta solo exponerlo con un botón/checkbox en
+  el Gestor de lotes si no lo tiene ya — verificar UI, no motor.
+- *Shape Details 2D asociativos* — Revit ya ofrece `RebarShape`/Bending
+  Detail NATIVO con asociatividad bidireccional 3D↔2D de fábrica (por eso
+  la Decisión 7.A del blueprint F2 fue "usar Bending Detail nativo" en vez
+  de construir un sistema propio). El "diferencial" de SOFiSTiK aquí es
+  automatizar la COLOCACIÓN de esas vistas nativas, no inventar la
+  asociatividad — coincide con el alcance ya previsto en F6, no es una
+  capacidad nueva a construir desde cero.
+
+**Brechas reales, priorizadas:**
+
+| # | Capacidad (manual) | Estado NOSA verificado | Prioridad |
+|---|---|---|---|
+| 1 | Vigas continuas multi-vano (detecta apoyos, recorta en punto de momento nulo) | Vigas aisladas — decisión explícita v1 (línea 329 de este documento) | Alta, pero requiere detectar vanos adyacentes — fase propia post-F7, no un fix menor |
+| 2 | Esperas de pilar dobladas en el nudo si cambia de sección | `column_rebar.py`: esperas rectas únicamente | Ya en backlog legacy §7 de este documento — confirma prioridad |
+| 3 | Huecos en losa con esquineras a 45° | `floor_rebar.py` corta la malla pero no arma el hueco (deuda ya documentada) | El manual da la solución concreta a implementar en F9: esquineras 45° + perimetrales, no solo "ignorar/armar por tamaño" |
+| 4 | Punzonamiento (stud rails / estribos en cesta) | No existe | Post-1.0 — SOLO la parte geométrica (colocar un patrón de armado dado por el usuario) está al alcance de NOSA; la parte "calcula desde el FEA" queda fuera de alcance porque NOSA no tiene motor de cálculo propio |
+| 5 | Motor de "cobertura de Aₛ" leyendo resultados FEA (.cdb) | No existe — NOSA genera desde parámetros de usuario, no desde análisis | **Fuera de alcance de NOSA**: sería integrar o sustituir un solver estructural, una categoría de esfuerzo distinta a un plugin de generación geométrica. No añadir al roadmap salvo decisión explícita del usuario de ampliar el alcance del producto |
+| 6 | `NOSA_Rebar_Layer` alimenta filtros de color automáticos | Parámetro existe, pero generadores de viga/muro/pilar no lo stampan aún (deuda ya documentada F2/F3) | El manual confirma que es alto valor real (no solo cosmético) — subir prioridad de esta deuda ya conocida |
+| 7 | `Create Views`: alzado + plantas + secciones + plantilla de vista en un clic por elemento | F6 ya crea secciones/MRA/tags por separado; no hay un comando único "paquete de vistas" con View Template aplicada | Mejora F6 polish / post-F7, esfuerzo medio (orquestar comandos ya existentes, no inventar geometría nueva) |
+| 8 | `Tag All` sin cruces de leader (anti-colisión) | F6.3 ya tiene Auto Tag; sin garantía anti-colisión de leaders | Mejora F6, esfuerzo medio-alto (geometría de colisión 2D) |
+| 9 | Ocultar barras intermedias repetitivas, mantener recuento en la etiqueta | No existe | Post-1.0, esfuerzo alto (filtros de vista dinámicos por elemento) |
+| 10 | BBS con miniatura gráfica de doblado por fila | F5 exporta CSV/XLSX sin gráficos | Mejora F5/F8, esfuerzo medio SI se reutiliza la vista de Bending Detail nativa como fuente de la miniatura en vez de dibujar desde cero |
+| 11 | Export PXML (ERP/prefabricado) | No existe | Post-1.0, prioridad baja salvo petición de un cliente real |
+| 12 | Esperas de zapata en L/U apoyadas sobre la limpia | Verificado: `footing_rebar.build_dowel_curves` ya usa `RebarHookType`/`get_hook_type_by_angle` — los dowels YA llevan un doblez tipo L en el extremo, no son barras rectas | No es brecha real; a lo sumo, confirmar en smoke que el doblez apoya sobre la cara de limpia y no queda suspendido |
+
+**Recomendación de secuencia** (mantiene "cero pérdida de funcionalidad" y
+diff quirúrgico — no reordena F7/F8 ya en curso):
+1. Cerrar F7 (smoke real, commit) — ya en curso, no tocar por esto.
+2. Antes de F9: ítems 3 y 6 (huecos con esquineras 45°, stamp de
+   `NOSA_Rebar_Layer`) — ya eran deuda conocida, el manual solo confirma
+   prioridad y aporta el diseño concreto del ítem 3.
+3. F8 sin cambios (BVBS ya planeado).
+4. Post-1.0, en orden de valor/esfuerzo: ítem 7 (Create Views), ítem 2
+   (esperas dobladas pilar), ítem 1 (vigas continuas), ítem 10 (miniatura
+   BBS), ítem 8 (anti-colisión tags), ítems 4/9/11 (punzonamiento
+   geométrico, ocultar barras, PXML) según demanda real.
+5. Ítem 5 (motor de cobertura desde FEA) — NO planificar sin que el usuario
+   decida explícitamente ampliar el alcance del producto; es un cambio de
+   categoría, no una función más.
+
+**Flyer visual de SOFiSTiK Reinforcement (aportado por el usuario, 2026-09-01)** —
+2 páginas reales (no 55; la mayoría del PDF original eran imágenes, extraídas
+con pdftotext+pymupdf). Confirma con IMÁGENES, no solo texto de marketing:
+- Cinta de comandos real: `Shape Detail`, `Split Rebars`, `Copy`, `Mark`,
+  `Align`, `Stagger`, `Group`, `Explode`, `Openings`, `Distribute`, `Spacer`,
+  `From Line`, `Tag All`, `Bar End`, `Hide/Unhide`, `Layer`, `To Face`,
+  `Bent`, `Custom`, `Insert Fabric`, `Update`, `Check`/`Warnings`, `Schedule`.
+- Tabla de despiece REAL con columnas: Bar mark, Bar diameter, Length of
+  each bar, Total number, Total length, dbr (mandril), Shape code,
+  End-hook, Bending A/B/C — y una **miniatura del doblado dibujada en cada
+  fila** (no solo texto). Esto es exactamente el ítem 10 del análisis de
+  brecha anterior, ahora con la prueba visual de que es así como se hace.
+- Una segunda tabla separada **"Rebar Weight Schedule"**: por diámetro,
+  nº de barras, longitud total, peso total (kg), con fila de TOTALES —
+  **NOSA no tenía ningún campo de peso hasta hoy** (ver F5 más abajo,
+  cerrado en esta misma sesión).
+- Render 3D de una viga con cerco correctamente ENVOLVIENDO las barras
+  longitudinales (confirma visualmente la convención RC correcta que se
+  arregló hoy en `beam_rebar.py`).
+
+**F5 — peso de armado añadido (2026-09-01):** `rebar_schedule.py` gana
+`mass_per_length_kg_m(diameter_mm)` (fórmula universal densidad×sección,
+coincide con las tablas de las 3 normativas propias a menos de 0.02kg/m —
+ver la función para el razonamiento de por qué NO se hizo depender de
+`std`), `total_weight_kg` en cada posición del despiece, CSV/XLSX con
+columna de peso, y una segunda hoja "Weight Summary" en el XLSX por
+diámetro + fila de TOTALES — mismo formato que la "Rebar Weight Schedule"
+del flyer. 2 tests nuevos, 7/7 en `test_rebar_schedule.py`.
+
+**Bugs reales encontrados y corregidos hoy contra el modelo real del
+usuario (smoke manual del usuario, no el mío):**
+- **Viga — cerco dentro de las barras, confirmado y corregido.** El
+  rectángulo del cerco usaba `cover + diámetro COMPLETO de la barra
+  longitudinal` (inset MAYOR = más adentro) mientras la barra usaba
+  `cover + mitad de su propio diámetro` (inset MENOR = más afuera) — al
+  revés de la convención real (el recubrimiento se mide hasta la
+  armadura más exterior, el cerco). Corregido en
+  `compute_longitudinal_bar_lines`/`build_beam_rebar_curves` para
+  cualquier combinación de diámetros.
+- **Losa — "The minimum length of rebar shape is 25 mm", losa entera sin
+  armar.** Una losa genuinamente no rectangular (~11% menos área que su
+  bounding box) generaba un intervalo de material degenerado que solo se
+  filtraba cuando "Perimeter Closure U-Bars" estaba activo. Añadido un
+  filtro de longitud mínima (`_MIN_REBAR_SEGMENT_MM = 26mm`) que se aplica
+  siempre en `_build_direction_bars`.
+- **Vigas — barras longitudinales optimizadas a Rebar Set.** Nueva
+  `group_parallel_bar_chains_into_sets` en `beam_rebar.py`; `ui.py`
+  intenta el Set primero, cae a barras individuales si falla — mismo
+  patrón que los cercos.
+- **Columnas circulares — CONFIRMADO Y CORREGIDO (2026-09-01, con
+  traceback real del propio Revit del usuario).** La instrumentación de
+  diagnóstico funcionó a la primera: `TypeError: unsupported operand
+  type(s) for *: 'indexer#' and 'float'` en
+  `_find_cylindrical_face_diameter_mm`, línea `radius_ft * 2.0 *
+  _MM_PER_FT`. Causa raíz: `DB.CylindricalFace.Radius` (y su accesor
+  `get_Radius()`) NO se comporta como un `float` simple en este binding
+  de pythonnet — se resuelve como un objeto envoltorio "indexer#". Esto
+  explica por qué el fix de detección anterior (que SÍ identificaba
+  correctamente la columna como circular) producía 0 armado sin ningún
+  error visible hasta que el traceback completo lo sacó a la luz.
+  **Corregido evitando `.Radius` por completo**: una vez confirmado que
+  existe una `CylindricalFace` real (prueba de circularidad genuina), el
+  diámetro se calcula desde el bounding box del propio host
+  (`X-extent == Y-extent == diámetro`, exacto para una sección
+  circular) — el mismo cálculo que esta función YA usaba como último
+  recurso para círculos facetados, solo que ahora se activa antes.
+  Verificado dos veces: (1) `test_column_rebar_phase3.py`'s propio test
+  de columna circular fallaba tras el cambio porque su fixture nunca
+  necesitó un bbox (usaba `.Radius` del stub directamente, que en Python
+  puro SÍ es un float normal) — corregido el fixture con un bbox real
+  de 400mm y el test vuelve a pasar; (2) el bounding box REAL del pilar
+  1316885 del usuario (600×600mm, ya consultado en una ronda anterior de
+  esta sesión) confirma que el cálculo dará 600mm de diámetro, no un
+  valor degenerado.
+
+  **CONFIRMADO EN VIVO por el usuario (2026-09-01) — capturas + datos
+  objetivos vía la API tras su propio Reload + regenerar:** pilar
+  1316885 (atraviesa el forjado de "First floor" a media altura) → 12
+  barras H20 individuales (verticales, nunca Sets en circulares, por
+  diseño) + **2 Sets de cercos H10** (15 y 14 — exactamente las 2 zonas
+  esperadas por el cruce con el forjado); pilar 1318255 (sin forjado que
+  cruzar) → 6 H20 + **1 Set de cercos H10** (16). **0 warnings de
+  Revit.** Bug cerrado del todo — columnas circulares ya funcionan
+  correctamente, incluida la lógica multi-planta.
+
+---
+
+## F8 — Export BVBS 🚧 Código escrito, formato SIN validar (2026-09-01)
 
 **Entregables:**
-- `lib/rebar_export_bvbs.py` (bar_to_bvbs: cabecera + geometría + checksum)
-- Acción "Export BVBS" en Gestor de lotes
+- `lib/rebar_export_bvbs.py` (bar_to_bvbs_line: cabecera + geometría + checksum) — ✅ escrito
+- Acción "Export BVBS" en el dashboard de Detailing & Tools (junto a Generate Schedule) — ✅ cableada
+- `tests/test_rebar_export_bvbs.py` — 11 tests puros, verifican invariantes estructurales (parseo de `shape_params`, presencia de campos, determinismo, escritura de fichero) — ✅ verdes
 
-**Criterio de éxito:** Fichero `.abs` fixture pasa validador BVBS externo. Checksum correcto. Longitudes coinciden con tabla F5.
+**⚠️ NO se cumple el criterio de éxito original todavía — decisión explícita del usuario (2026-09-01):**
+No había fichero `.abs` de ejemplo ni el spec oficial de BVBS disponibles; el usuario autorizó implementar "con el mejor conocimiento disponible" en vez de bloquear la fase. Consecuencia: el formato de línea BF2D (anchos de campo exactos, unidades del diámetro, y sobre todo **el algoritmo de checksum**) es un **best-effort explícitamente marcado como no verificado** — `rebar_export_bvbs.BVBS_FORMAT_VERIFIED = False`, con un test que falla si alguien lo cambia a `True` sin querer. La UI muestra una alerta de aviso cada vez que se exporta. **Lo que SÍ está garantizado:** la extracción de datos desde Revit (marca, diámetro, forma, segmentos, cantidades vía `rebar_schedule.generate_schedule_data`) es 100% responsabilidad de NOSA y ya se apoya en F5, probado.
+
+**Pendiente real para cerrar F8:**
+1. Conseguir un fichero `.abs` real (de un ferrallista, de SOFiSTiK, o el spec oficial BVBS) y contrastar campo a campo — el propio `bar_to_bvbs_line`/`_compute_checksum` están aislados a propósito para que corregirlos sea un cambio pequeño, no una reescritura.
+2. Validar contra un validador BVBS externo o una máquina real antes de dar el criterio de éxito original por cumplido.
+3. Fix de paso (2026-09-01): `rebar_schedule` se cargaba con `imp.load_source(...)` dentro de `BtnGenerateSchedule_Click` en cada click (comentario decía "load_module" pero no lo era) — movido a la carga única a nivel de módulo, igual que el resto de hermanos.
 
 **Deps:** F4 (forma), F5 (despiece)
-
-**Timeline:** 3–4 días
 
 ---
 
@@ -430,4 +770,4 @@ Part-time: **10–14 semanas**.
 
 ---
 
-**Última actualización:** F1 cerrado, F2 arrancando (2026-08-27)
+**Última actualización:** F7 en smoke real del usuario (F7.1→F7.11) — F3/F4 tenían bugs de firma/import que los rompían desde siempre, corregidos hoy; único punto abierto sin verificar: huecos de losa/zapata (falta un caso real estrecho). Nada commiteado desde `9df02d7` (2026-09-02)
