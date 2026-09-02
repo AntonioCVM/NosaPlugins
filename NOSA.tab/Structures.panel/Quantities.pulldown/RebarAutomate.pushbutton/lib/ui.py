@@ -53,6 +53,14 @@ rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.
 rebar_batch = load_module('rebar_batch', os.path.join(_HERE, 'rebar_batch.py'))
 rebar_project = load_module('rebar_project', os.path.join(_HERE, 'rebar_project.py'))
 _version_mod = load_module('rebarautomate_version', os.path.join(_HERE, '_version.py'))
+# PHASE F5/F8 — rebar_schedule was previously loaded ad-hoc with a raw
+# imp.load_source(...) inside BtnGenerateSchedule_Click's own body
+# (mislabelled in a comment there as "load_module ... IronPython
+# compatible"), every time the button was clicked, unlike every other
+# sibling module above. Moved here to match the established convention —
+# load once, at import time, via the real bootstrap.load_module facade.
+rebar_schedule = load_module('rebar_schedule', os.path.join(_HERE, 'rebar_schedule.py'))
+rebar_export_bvbs = load_module('rebar_export_bvbs', os.path.join(_HERE, 'rebar_export_bvbs.py'))
 
 _FOUNDATION_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFoundation))
 _FLOOR_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Floors))
@@ -392,6 +400,8 @@ class RebarAutomateWindow(NOSAWindow):
 
         self._update_preview()
         self._update_column_preview()
+        self._update_beam_preview()
+        self._update_wall_preview()
         # PHASE 3.5 item 3 — re-read the CURRENT Revit selection once
         # the window is fully shown (Canvas layout/measurement hasn't
         # necessarily settled at construction time) and again every
@@ -433,6 +443,8 @@ class RebarAutomateWindow(NOSAWindow):
         if args.Source is not self.MainTabControl:
             return
         self._update_column_preview()
+        self._update_beam_preview()
+        self._update_wall_preview()
 
     # ── normativa (rebar standard) — PHASE F2 ───────────────────────────
 
@@ -507,6 +519,7 @@ class RebarAutomateWindow(NOSAWindow):
         
         # Cablear botón Generate Schedule (F5)
         self.BtnGenerateSchedule.Click += self.BtnGenerateSchedule_Click
+        self.BtnExportBvbs.Click += self.BtnExportBvbs_Click
 
     def BtnSaveProjectHeader_Click(self, sender, args):
         """Guarda prefijo de marca, revisión y estado en rebar_project.json."""
@@ -524,12 +537,10 @@ class RebarAutomateWindow(NOSAWindow):
             return
         
         try:
-            # Cargar rebar_schedule con load_module (IronPython compatible)
-            import imp
-            import os
-            rebar_schedule = imp.load_source('rebar_schedule',
-                os.path.join(os.path.dirname(__file__), 'rebar_schedule.py'))
-            
+            # rebar_schedule is loaded once at module level (top of this
+            # file), matching every other sibling module's convention —
+            # no per-click reload needed.
+
             # Generar schedule de todas las barras NOSA
             schedule_data = rebar_schedule.generate_schedule_data(
                 self.doc, batch_id=None, include_finalized=False
@@ -547,17 +558,20 @@ class RebarAutomateWindow(NOSAWindow):
             summary_msg = u'Bar Bending Schedule Summary:\n\n'
             summary_msg += u'Total positions: {}\n'.format(stats['total_positions'])
             summary_msg += u'Total bars: {}\n'.format(stats['total_bars'])
-            summary_msg += u'Total length: {:.2f} m\n\n'.format(stats['total_length_m'])
+            summary_msg += u'Total length: {:.2f} m\n'.format(stats['total_length_m'])
+            summary_msg += u'Total weight: {:.1f} kg\n\n'.format(stats.get('total_weight_kg', 0.0))
             summary_msg += u'By diameter:\n'
             for dia in sorted(stats['by_diameter'].keys()):
                 dia_stats = stats['by_diameter'][dia]
-                summary_msg += u'  Ø{} mm: {} bars, {:.2f} m\n'.format(
-                    dia, dia_stats['count'], dia_stats['length_m']
+                summary_msg += u'  Ø{} mm: {} bars, {:.2f} m, {:.1f} kg\n'.format(
+                    dia, dia_stats['count'], dia_stats['length_m'],
+                    dia_stats.get('weight_kg', 0.0)
                 )
             
             # Mostrar summary en UI
-            self.TxtScheduleSummary.Text = u'{} positions, {} bars, {:.1f} m total'.format(
-                stats['total_positions'], stats['total_bars'], stats['total_length_m']
+            self.TxtScheduleSummary.Text = u'{} positions, {} bars, {:.1f} m total, {:.1f} kg total'.format(
+                stats['total_positions'], stats['total_bars'], stats['total_length_m'],
+                stats.get('total_weight_kg', 0.0)
             )
             
             # Preguntar formato de export
@@ -613,6 +627,57 @@ class RebarAutomateWindow(NOSAWindow):
         
         except Exception as e:
             forms.alert(u'Schedule generation failed:\n{}'.format(e),
+                       title=u'Error', warn_icon=True)
+
+    def BtnExportBvbs_Click(self, sender, args):
+        """
+        PHASE F8 — export BVBS (.abs), the interchange format CNC
+        bending machines read directly. See rebar_export_bvbs.py's own
+        module docstring: the byte-level format has NOT been checked
+        against an official BVBS validator or a real machine — the
+        alert below repeats that warning to whoever exports the file, so
+        it never silently reaches a fabricator as if it were verified.
+        """
+        if not getattr(self, '_is_loaded', False):
+            return
+        try:
+            schedule_data = rebar_schedule.generate_schedule_data(
+                self.doc, batch_id=None, include_finalized=False)
+            if not schedule_data:
+                forms.alert(u'No NOSA rebars found in the project.',
+                           title=u'Export BVBS')
+                return
+
+            proceed = forms.alert(
+                u'BVBS (.abs) export format has NOT been validated against an '
+                u'official BVBS validator or a real bending machine (see '
+                u'rebar_export_bvbs.py). Do NOT send this file to a fabricator '
+                u'without confirming the format first.\n\n'
+                u'Continue and export anyway?',
+                title=u'Export BVBS — Unverified Format',
+                yes=True, no=True, warn_icon=True)
+            if not proceed:
+                return
+
+            from System.Windows.Forms import SaveFileDialog, DialogResult
+            doc_name = self.doc.Title or u'RebarExport'
+            dlg = SaveFileDialog()
+            dlg.Filter = 'BVBS files (*.abs)|*.abs'
+            dlg.FileName = u'{}.abs'.format(doc_name)
+            if dlg.ShowDialog() != DialogResult.OK:
+                return
+            output_path = dlg.FileName
+
+            count = rebar_export_bvbs.export_bvbs_file(schedule_data, output_path)
+            forms.alert(
+                u'{} BVBS record(s) written to:\n{}\n\n'
+                u'Remember: format not yet validated — see the warning above.'.format(
+                    count, output_path),
+                title=u'Export Complete')
+            import subprocess
+            subprocess.Popen(['explorer', '/select,', output_path])
+        except Exception as e:
+            forms.alert(u'BVBS export failed:\n{}'.format(e),
                        title=u'Error', warn_icon=True)
 
     # ── section enable/disable ───────────────────────────────────────────
@@ -1003,9 +1068,11 @@ class RebarAutomateWindow(NOSAWindow):
         if summary['errors']:
             lines.append(u'')
             lines.append(u'{} issue(s):'.format(len(summary['errors'])))
-            lines.extend(summary['errors'][:12])
-            if len(summary['errors']) > 12:
-                lines.append(u'... and {} more.'.format(len(summary['errors']) - 12))
+            # BUG FIX (2026-09-01) — used to cap at 12 + "...and N more",
+            # reported live as making a longer run's own tracking log
+            # impossible to review in full. TxtResult is now a scrollable,
+            # read-only TextBox (see ui.xaml) — no reason left to truncate.
+            lines.extend(summary['errors'])
         self.TxtResult.Text = u'\n'.join(lines)
 
     # ── bar type resolution ───────────────────────────────────────────────
@@ -1069,6 +1136,7 @@ class RebarAutomateWindow(NOSAWindow):
         if rebar is None:
             errors.append(u'Footing {}: side rebar — {}'.format(get_id_value(host.Id), wrapper.last_error))
         else:
+            self._stamp_layer(rebar, u'side')
             created_rebars.append(rebar)
             if wrapper.last_error:
                 errors.append(u'Footing {}: side rebar — {}'.format(get_id_value(host.Id), wrapper.last_error))
@@ -1093,9 +1161,33 @@ class RebarAutomateWindow(NOSAWindow):
             if rebar is None:
                 errors.append(u'Footing {}: dowel — {}'.format(get_id_value(host.Id), wrapper.last_error))
             else:
+                self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
 
-    def _create_grouped_bars(self, wrapper, host, grouped, bar_type, errors, created_rebars, label):
+    def _stamp_layer(self, rebar, layer):
+        """
+        FEATURE (2026-09-02, explicit request) — F3's own known gap
+        since it was written: generators never stamped
+        `NOSA_Rebar_Layer` after creating a Rebar, so every bar fell
+        back to "uncategorized" in `rebar_marking.assign_layers_and_
+        lengths` regardless of what it actually was (vertical mesh,
+        stirrup, top mat, closure U-bar, ...). Called right after each
+        creation call across every typology below, with a short code
+        identifying what that specific bar/Set is — never raises (same
+        "fail warning, not exploding" contract as shared_params.write
+        itself); a failed stamp is silently skipped, matching how a
+        failed create_from_curves is handled elsewhere in this file
+        (the Rebar itself is still valid, only the label is missing).
+        """
+        if rebar is None or not layer:
+            return
+        try:
+            shared_params.write(rebar, u'NOSA_Rebar_Layer', layer)
+        except Exception:
+            pass
+
+    def _create_grouped_bars(self, wrapper, host, grouped, bar_type, errors, created_rebars, label,
+                              layer=None):
         """
         Phase 2.3 — floors' main-grid bars and perimeter closure U-bars
         come back from floor_rebar.py as {'sets': [...], 'bars': [...]}:
@@ -1143,6 +1235,7 @@ class RebarAutomateWindow(NOSAWindow):
             propagated = rebar is not None and not (
                 wrapper.last_error and u'propagation failed' in wrapper.last_error)
             if propagated:
+                self._stamp_layer(rebar, layer)
                 created_rebars.append(rebar)
                 continue
 
@@ -1164,6 +1257,7 @@ class RebarAutomateWindow(NOSAWindow):
                     host, curve_groups, bar_type,
                     transaction_name=u'NOSA — Create {} (FreeForm fallback)'.format(label))
                 if ff_rebar is not None:
+                    self._stamp_layer(ff_rebar, layer)
                     created_rebars.append(ff_rebar)
                     continue
                 errors.append(u'Host {}: {} (set) — Set propagation failed and the '
@@ -1178,6 +1272,7 @@ class RebarAutomateWindow(NOSAWindow):
                         errors.append(u'Host {}: {} — {}'.format(
                             get_id_value(host.Id), label, wrapper.last_error))
                     else:
+                        self._stamp_layer(rb, layer)
                         created_rebars.append(rb)
             else:
                 errors.append(u'Host {}: {} (set) — {}'.format(
@@ -1193,6 +1288,7 @@ class RebarAutomateWindow(NOSAWindow):
                 host, curve_groups, bar_type,
                 transaction_name=u'NOSA — Create {} (FreeForm)'.format(label))
             if rebar is not None:
+                self._stamp_layer(rebar, layer)
                 created_rebars.append(rebar)
             else:
                 errors.append(u'Host {}: {} — FreeForm grouping unavailable ({}); '
@@ -1211,6 +1307,7 @@ class RebarAutomateWindow(NOSAWindow):
                 errors.append(u'Host {}: {} — {}'.format(
                     get_id_value(host.Id), label, wrapper.last_error))
             else:
+                self._stamp_layer(rebar, layer)
                 created_rebars.append(rebar)
 
     # ── detail sections ───────────────────────────────────────────────────
@@ -1281,7 +1378,8 @@ class RebarAutomateWindow(NOSAWindow):
             x_anchor_ubar_spacing_mm=values.get('x_anchor_ubar_spacing'),
             y_anchor_ubar_dia_mm=values.get('y_anchor_ubar_dia'),
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
-            max_stock_length_mm=values['max_stock_length'])
+            max_stock_length_mm=values['max_stock_length'],
+            std=getattr(self, 'ra_standard', None))
 
         # PHASE 3.5.7 item 3 — bottom_mat/top_mat/perimeter_closure_ubars
         # now come from footing_rebar's topology-aware builders (real
@@ -1295,28 +1393,30 @@ class RebarAutomateWindow(NOSAWindow):
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(
             wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
-            errors, created_rebars, u'Footing Bottom Mat (B1)')
+            errors, created_rebars, u'Footing Bottom Mat (B1)', layer=u'bottom_x')
         self._create_grouped_bars(
             wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
-            errors, created_rebars, u'Footing Bottom Mat (B2)')
+            errors, created_rebars, u'Footing Bottom Mat (B2)', layer=u'bottom_y')
 
         if reinforcement['top_mat'] is not None:
             top = reinforcement['top_mat']
             self._create_grouped_bars(
                 wrapper, host, top['along_x'], bar_types.get(values['top_dia_x']),
-                errors, created_rebars, u'Footing Top Mat (T1)')
+                errors, created_rebars, u'Footing Top Mat (T1)', layer=u'top_x')
             self._create_grouped_bars(
                 wrapper, host, top['along_y'], bar_types.get(values['top_dia_y']),
-                errors, created_rebars, u'Footing Top Mat (T2)')
+                errors, created_rebars, u'Footing Top Mat (T2)', layer=u'top_y')
 
         if reinforcement.get('perimeter_closure_ubars') is not None:
             closure = reinforcement['perimeter_closure_ubars']
             self._create_grouped_bars(
                 wrapper, host, closure['x_bars'], bar_types.get(values.get('x_anchor_ubar_dia')),
-                errors, created_rebars, u'Footing Perimeter Closure U-Bar (X-anchor)')
+                errors, created_rebars, u'Footing Perimeter Closure U-Bar (X-anchor)',
+                layer=u'closure_x')
             self._create_grouped_bars(
                 wrapper, host, closure['y_bars'], bar_types.get(values.get('y_anchor_ubar_dia')),
-                errors, created_rebars, u'Footing Perimeter Closure U-Bar (Y-anchor)')
+                errors, created_rebars, u'Footing Perimeter Closure U-Bar (Y-anchor)',
+                layer=u'closure_y')
             debug_failed_edges = closure.get('debug_failed_edges')
             if debug_failed_edges:
                 errors.append(u'Footing {}: {} perimeter closure U-bar edge(s) failed — '
@@ -1368,33 +1468,36 @@ class RebarAutomateWindow(NOSAWindow):
             x_anchor_ubar_spacing_mm=values.get('x_anchor_ubar_spacing'),
             y_anchor_ubar_dia_mm=values.get('y_anchor_ubar_dia'),
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
-            max_stock_length_mm=values['max_stock_length'])
+            max_stock_length_mm=values['max_stock_length'],
+            std=getattr(self, 'ra_standard', None))
 
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(
             wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
-            errors, created_rebars, u'Floor Bottom Mat (B1)')
+            errors, created_rebars, u'Floor Bottom Mat (B1)', layer=u'bottom_x')
         self._create_grouped_bars(
             wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
-            errors, created_rebars, u'Floor Bottom Mat (B2)')
+            errors, created_rebars, u'Floor Bottom Mat (B2)', layer=u'bottom_y')
 
         if reinforcement['top_mat'] is not None:
             top = reinforcement['top_mat']
             self._create_grouped_bars(
                 wrapper, host, top['along_x'], bar_types.get(values['top_dia_x']),
-                errors, created_rebars, u'Floor Top Mat (T1)')
+                errors, created_rebars, u'Floor Top Mat (T1)', layer=u'top_x')
             self._create_grouped_bars(
                 wrapper, host, top['along_y'], bar_types.get(values['top_dia_y']),
-                errors, created_rebars, u'Floor Top Mat (T2)')
+                errors, created_rebars, u'Floor Top Mat (T2)', layer=u'top_y')
 
         if reinforcement.get('perimeter_closure_ubars') is not None:
             closure = reinforcement['perimeter_closure_ubars']
             self._create_grouped_bars(
                 wrapper, host, closure['x_bars'], bar_types.get(values.get('x_anchor_ubar_dia')),
-                errors, created_rebars, u'Floor Perimeter Closure U-Bar (X-anchor)')
+                errors, created_rebars, u'Floor Perimeter Closure U-Bar (X-anchor)',
+                layer=u'closure_x')
             self._create_grouped_bars(
                 wrapper, host, closure['y_bars'], bar_types.get(values.get('y_anchor_ubar_dia')),
-                errors, created_rebars, u'Floor Perimeter Closure U-Bar (Y-anchor)')
+                errors, created_rebars, u'Floor Perimeter Closure U-Bar (Y-anchor)',
+                layer=u'closure_y')
             debug_failed_edges = closure.get('debug_failed_edges')
             if debug_failed_edges:
                 # PHASE 3.5.4 item 2 FIX — no longer draws ModelCurve
@@ -1463,14 +1566,36 @@ class RebarAutomateWindow(NOSAWindow):
         tags_created = 0
         if created_rebars:
             view = self.doc.ActiveView
+            # BUG FIX (2026-09-01) — reported live: tagging in a 3D view
+            # requires that view to be LOCKED (a real Revit requirement,
+            # nothing to do with this plugin's own code) — with no check
+            # here, every single bar failed identically ("The 3D view
+            # ownerDBViewId is not locked."), flooding the result log
+            # with one near-duplicate line per bar (~30 for a modest
+            # run) instead of ONE clear, actionable message. Skip
+            # tagging outright with a single explanation instead of
+            # attempting (and failing) it per bar.
+            skip_reason = None
             try:
-                with revit.Transaction(u'NOSA — Tag Rebar'):
-                    tags, tag_errors = rebar_detailing.create_rebar_tags(
-                        self.doc, view, created_rebars)
-                tags_created = len(tags)
-                errors.extend(tag_errors)
-            except Exception as e:
-                errors.append(u'Tagging failed: {}'.format(e))
+                if isinstance(view, DB.View3D) and not view.IsLocked:
+                    skip_reason = (u'active 3D view "{}" is not locked — lock it '
+                                    u'(View tab → Lock 3D View, or right-click the '
+                                    u'view cube) or switch to a 2D/plan view before '
+                                    u'running, then tag manually.').format(view.Name)
+            except Exception:
+                pass
+            if skip_reason is not None:
+                errors.append(u'Tagging skipped for all {} bar(s) — {}'.format(
+                    len(created_rebars), skip_reason))
+            else:
+                try:
+                    with revit.Transaction(u'NOSA — Tag Rebar'):
+                        tags, tag_errors = rebar_detailing.create_rebar_tags(
+                            self.doc, view, created_rebars)
+                    tags_created = len(tags)
+                    errors.extend(tag_errors)
+                except Exception as e:
+                    errors.append(u'Tagging failed: {}'.format(e))
 
         sections_created = 0
         if values['generate_sections'] and footings:
@@ -1831,6 +1956,28 @@ class RebarAutomateWindow(NOSAWindow):
                 columns.append(elem)
         return columns
 
+    def _selected_beams(self):
+        ids = self.uidoc.Selection.GetElementIds()
+        beams = []
+        for eid in ids:
+            elem = self.doc.GetElement(eid)
+            if elem is None or elem.Category is None:
+                continue
+            if get_id_value(elem.Category.Id) == _FRAMING_CAT_ID:
+                beams.append(elem)
+        return beams
+
+    def _selected_walls(self):
+        ids = self.uidoc.Selection.GetElementIds()
+        walls = []
+        for eid in ids:
+            elem = self.doc.GetElement(eid)
+            if elem is None or elem.Category is None:
+                continue
+            if get_id_value(elem.Category.Id) == _WALL_CAT_ID:
+                walls.append(elem)
+        return walls
+
     def _read_column_inputs(self):
         errors = []
         values = {}
@@ -1881,9 +2028,8 @@ class RebarAutomateWindow(NOSAWindow):
         if summary['errors']:
             lines.append(u'')
             lines.append(u'{} issue(s):'.format(len(summary['errors'])))
-            lines.extend(summary['errors'][:12])
-            if len(summary['errors']) > 12:
-                lines.append(u'... and {} more.'.format(len(summary['errors']) - 12))
+            # BUG FIX (2026-09-01) — same fix as _show_reinforcement_result.
+            lines.extend(summary['errors'])
         self.TxtColumnResult.Text = u'\n'.join(lines)
 
     def _process_column(self, host, values, wrapper, bar_types, errors, created_rebars):
@@ -1925,10 +2071,31 @@ class RebarAutomateWindow(NOSAWindow):
             include_starter_bars=values['starter_bars'],
             use_cranked_laps=values['cranked_laps'],
             include_crossties=values['crossties'],
-            crosstie_layout=values['crosstie_layout'])
+            crosstie_layout=values['crosstie_layout'],
+            std=getattr(self, 'ra_standard', None))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))
+
+        # DIAGNOSTIC HARDENING (2026-09-01) — a circular column was
+        # reported creating ZERO rebar with NO error at all, which
+        # should be impossible if a caught exception was the cause (see
+        # this file's outer try/except in _run_column_reinforcement).
+        # The remaining explanation is build_column_reinforcement
+        # itself returning normally with every list empty — nothing to
+        # create, nothing to fail, hence silence. Surface that
+        # explicitly so it is never silent again.
+        if not any(reinforcement.get(k) for k in (
+                'vertical_bars', 'vertical_bar_sets', 'stirrup_sets',
+                'interior_stirrup_sets', 'crosstie_sets')):
+            errors.append(
+                u'Column {}: build_column_reinforcement returned with NO curves '
+                u'at all (no exception, no warnings) — nothing to create. This '
+                u'points at generate_column_stirrup_zones/_subtract_floor_bands '
+                u'or build_story_segment_chains producing empty output for this '
+                u'host\'s specific geometry (e.g. a multi-storey split); please '
+                u'report this exact column/model to investigate further.'.format(
+                    get_id_value(host.Id)))
 
         bar_type_vert = bar_types.get(values['bar_dia'])
         if bar_type_vert is not None:
@@ -1941,6 +2108,7 @@ class RebarAutomateWindow(NOSAWindow):
                     errors.append(u'Column {}: vertical bars (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
                 else:
+                    self._stamp_layer(rebar, u'vertical')
                     created_rebars.append(rebar)
                     if wrapper.last_error:
                         errors.append(u'Column {}: vertical bars (set) — {}'.format(
@@ -1953,6 +2121,7 @@ class RebarAutomateWindow(NOSAWindow):
                     errors.append(u'Column {}: vertical bar — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
                 else:
+                    self._stamp_layer(rebar, u'vertical')
                     created_rebars.append(rebar)
 
         bar_type_link = bar_types.get(values['link_dia'])
@@ -1967,6 +2136,7 @@ class RebarAutomateWindow(NOSAWindow):
                     errors.append(u'Column {}: links (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
                 else:
+                    self._stamp_layer(rebar, u'stirrup')
                     created_rebars.append(rebar)
                     if wrapper.last_error:
                         errors.append(u'Column {}: links (set) — {}'.format(
@@ -1985,6 +2155,7 @@ class RebarAutomateWindow(NOSAWindow):
                     errors.append(u'Column {}: interior stirrup (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
                 else:
+                    self._stamp_layer(rebar, u'interior_stirrup')
                     created_rebars.append(rebar)
                     if wrapper.last_error:
                         errors.append(u'Column {}: interior stirrup (set) — {}'.format(
@@ -2015,6 +2186,7 @@ class RebarAutomateWindow(NOSAWindow):
                         errors.append(u'Column {}: crosstie — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
                         continue
+                    self._stamp_layer(rebar, u'crosstie')
                     created_rebars.append(rebar)
 
     def _run_column_reinforcement(self, columns, values):
@@ -2047,7 +2219,22 @@ class RebarAutomateWindow(NOSAWindow):
             try:
                 self._process_column(host, values, wrapper, bar_types, errors, created_rebars)
             except Exception as e:
-                errors.append(u'Column {}: {}'.format(get_id_value(host.Id), e))
+                # DIAGNOSTIC HARDENING (2026-09-01) — a circular column
+                # was reported creating ZERO rebar with NO error message
+                # at all, which should be impossible if an exception is
+                # what stopped it (this except already appends one).
+                # Capture the full traceback so a genuine silent-failure
+                # report always has an exact line to act on next time —
+                # a bare `{}`.format(e) can render as an empty string
+                # for some exception types, which would itself look like
+                # "no error" even though this branch DID run.
+                import traceback
+                detail = u'{}'.format(e) or u'(empty exception message)'
+                try:
+                    detail = u'{}\n{}'.format(detail, traceback.format_exc())
+                except Exception:
+                    pass
+                errors.append(u'Column {}: {}'.format(get_id_value(host.Id), detail))
 
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
 
@@ -2079,12 +2266,239 @@ class RebarAutomateWindow(NOSAWindow):
             self.TxtBeamEndOffset.Text, u'End offset', errors)
         values['stock_length'] = self._read_number(
             self.TxtBeamStockLength.Text, u'Max stock length', errors)
+        if values.get('stock_length') is not None and values['stock_length'] < 1000.0:
+            errors.append(u'"Max stock length" must be at least 1000 mm.')
+        values['densify_ends'] = self.ChkBeamDensify.IsChecked == True
+        if values['densify_ends']:
+            values['dense_spacing'] = self._read_number(
+                self.TxtBeamDenseSpacing.Text, u'Dense spacing', errors)
+            # 0 = auto (2 × beam height); allow zero without failing validation
+            try:
+                conf = float(self.TxtBeamConfineLength.Text)
+            except (TypeError, ValueError):
+                errors.append(u'"Confine length" must be a number (0 = auto).')
+                conf = None
+            if conf is not None and conf < 0:
+                errors.append(u'"Confine length" cannot be negative.')
+                conf = None
+            values['confine_length'] = conf if (conf and conf > 0) else None
         if values.get('n_top') == 0 and values.get('n_bottom') == 0:
             errors.append(u'At least one top or bottom bar is required.')
         if errors:
             forms.alert(u'\n'.join(errors))
             return None
         return values
+
+    def BeamDensify_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelBeamDensify.IsEnabled = self.ChkBeamDensify.IsChecked == True
+        self._update_beam_preview()
+
+    def BeamPreview_Changed(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._update_beam_preview()
+
+    def _update_beam_preview(self):
+        try:
+            canvas = self.BeamPreviewCanvas
+        except Exception:
+            return
+        try:
+            bar_dia = float(self.TxtBeamBarDia.Text)
+            n_top = int(float(self.TxtBeamTopCount.Text))
+            n_bottom = int(float(self.TxtBeamBottomCount.Text))
+            st_dia = float(self.TxtBeamStirrupDia.Text)
+        except (TypeError, ValueError):
+            return
+        beams = self._selected_beams()
+        beam_host = beams[0] if beams else None
+        cover = self._preview_cover_mm(beam_host, u'Other', u'beam') if beam_host else \
+            self._standard_default_cover_mm(u'beam')
+        width_mm, height_mm = 300.0, 500.0
+        if beam_host is not None:
+            try:
+                width_mm, height_mm = beam_rebar.get_beam_section_mm(
+                    self.doc, beam_host, cover, bar_dia)
+            except Exception:
+                pass
+        try:
+            data = rebar_preview.compute_beam_section_preview(
+                width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
+        except Exception:
+            return
+        self._draw_simple_section_preview(canvas, data, draw_stirrup=True)
+
+    def _update_wall_preview(self):
+        try:
+            canvas = self.WallPreviewCanvas
+        except Exception:
+            return
+        try:
+            vert_dia = float(self.TxtWallVertDia.Text)
+            vert_sp = float(self.TxtWallVertSpacing.Text)
+            horiz_sp = float(self.TxtWallHorizSpacing.Text)
+        except (TypeError, ValueError):
+            return
+        cover = self._standard_default_cover_mm(u'wall')
+        walls = self._selected_walls()
+        length_mm, height_mm = 6000.0, 3000.0
+        if walls:
+            try:
+                cover = re_engine.get_native_cover_mm(
+                    self.doc, walls[0], u'Exterior', cover)
+            except Exception:
+                pass
+            try:
+                length_mm, height_mm = wall_rebar.get_wall_elevation_mm(walls[0])
+            except Exception:
+                pass
+        try:
+            data = rebar_preview.compute_wall_elevation_preview(
+                length_mm=length_mm, height_mm=height_mm, cover_mm=cover,
+                vert_dia_mm=vert_dia, vert_spacing_mm=vert_sp,
+                horiz_spacing_mm=horiz_sp,
+                both_faces=self.ChkWallBothFaces.IsChecked == True,
+                include_top_ubars=self.ChkWallEndUBars.IsChecked == True,
+                include_end_ubars=self.ChkWallEndUBars.IsChecked == True)
+        except Exception:
+            return
+        self._draw_wall_elevation_preview(canvas, data)
+
+    def _draw_simple_section_preview(self, canvas, data, draw_stirrup=False):
+        canvas.Children.Clear()
+        section = data.get('section') or {}
+        w_mm = float(section.get('width_mm') or 300.0)
+        h_mm = float(section.get('height_mm') or 500.0)
+        cw = canvas.Width or 700.0
+        ch = canvas.Height or 220.0
+        margin = 16.0
+        scale = min((cw - 2 * margin) / w_mm, (ch - 2 * margin) / h_mm)
+        off_x = cw / 2.0
+        off_y = ch / 2.0
+
+        def sx(x_mm):
+            return off_x + x_mm * scale
+
+        def sy(y_mm):
+            return off_y - y_mm * scale
+
+        outline = SWS.Rectangle()
+        outline.Width = w_mm * scale
+        outline.Height = h_mm * scale
+        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.StrokeThickness = 2.0
+        outline.Fill = _PREVIEW_SECTION_FILL
+        SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
+        SWC.Canvas.SetTop(outline, sy(h_mm / 2.0))
+        canvas.Children.Add(outline)
+
+        if draw_stirrup and data.get('stirrup'):
+            st = data['stirrup']
+            hw, hh = st['half_w_mm'], st['half_h_mm']
+            rect = SWS.Rectangle()
+            rect.Width = 2.0 * hw * scale
+            rect.Height = 2.0 * hh * scale
+            rect.Stroke = _PREVIEW_BAR_FILL
+            rect.StrokeThickness = 1.5
+            rect.Fill = None
+            try:
+                rect.Fill = SWM.Brushes.Transparent
+            except Exception:
+                pass
+            SWC.Canvas.SetLeft(rect, sx(-hw))
+            SWC.Canvas.SetTop(rect, sy(hh))
+            canvas.Children.Add(rect)
+
+        for bar in data.get('bars', []):
+            d = max(float(bar.get('diameter_mm') or 12.0), 6.0)
+            r = (d * scale) / 2.0
+            dot = SWS.Ellipse()
+            dot.Width = r * 2.0
+            dot.Height = r * 2.0
+            dot.Fill = _PREVIEW_BAR_FILL
+            SWC.Canvas.SetLeft(dot, sx(bar['x_mm']) - r)
+            SWC.Canvas.SetTop(dot, sy(bar['y_mm']) - r)
+            canvas.Children.Add(dot)
+
+        for tie in data.get('ties', []):
+            line = SWS.Line()
+            line.X1, line.Y1 = sx(tie['x0_mm']), sy(tie['y0_mm'])
+            line.X2, line.Y2 = sx(tie['x1_mm']), sy(tie['y1_mm'])
+            line.Stroke = _PREVIEW_BAR_FILL
+            line.StrokeThickness = 1.5
+            canvas.Children.Add(line)
+
+        for ub in data.get('ubars', []):
+            pts = ub.get('points') or []
+            for i in range(len(pts) - 1):
+                line = SWS.Line()
+                line.X1, line.Y1 = sx(pts[i][0]), sy(pts[i][1])
+                line.X2, line.Y2 = sx(pts[i + 1][0]), sy(pts[i + 1][1])
+                line.Stroke = _PREVIEW_UBAR_WEAVE_STROKE
+                line.StrokeThickness = 1.5
+                canvas.Children.Add(line)
+
+    def _draw_wall_elevation_preview(self, canvas, data):
+        canvas.Children.Clear()
+        section = data.get('section') or {}
+        w_mm = float(section.get('width_mm') or 6000.0)
+        h_mm = float(section.get('height_mm') or 3000.0)
+        cw = canvas.Width or 700.0
+        ch = canvas.Height or 220.0
+        margin_x = 24.0
+        margin_y = 16.0
+        scale = min((cw - 2 * margin_x) / w_mm, (ch - 2 * margin_y) / h_mm)
+        off_x = margin_x
+        off_y = ch - margin_y
+
+        def sx(x_mm):
+            return off_x + x_mm * scale
+
+        def sy(y_mm):
+            return off_y - y_mm * scale
+
+        outline = SWS.Rectangle()
+        outline.Width = w_mm * scale
+        outline.Height = h_mm * scale
+        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.StrokeThickness = 2.0
+        outline.Fill = _PREVIEW_SECTION_FILL
+        SWC.Canvas.SetLeft(outline, sx(0.0))
+        SWC.Canvas.SetTop(outline, sy(h_mm))
+        canvas.Children.Add(outline)
+
+        for bar in data.get('bars', []):
+            line = SWS.Line()
+            line.X1 = sx(bar['x0_mm'])
+            line.X2 = sx(bar['x1_mm'])
+            line.Y1 = sy(bar['y0_mm'])
+            line.Y2 = sy(bar['y1_mm'])
+            line.Stroke = _PREVIEW_BAR_FILL
+            line.StrokeThickness = max(1.5, float(bar.get('diameter_mm') or 12.0) * scale * 0.5)
+            canvas.Children.Add(line)
+
+        for hz in data.get('horizontals', []):
+            line = SWS.Line()
+            line.X1 = sx(hz['x0_mm'])
+            line.X2 = sx(hz['x1_mm'])
+            line.Y1 = sy(hz['y0_mm'])
+            line.Y2 = sy(hz['y1_mm'])
+            line.Stroke = _PREVIEW_BAR_FILL
+            line.StrokeThickness = max(1.0, float(hz.get('diameter_mm') or 10.0) * scale * 0.4)
+            canvas.Children.Add(line)
+
+        for ub in data.get('ubars', []):
+            pts = ub.get('points') or []
+            stroke = _PREVIEW_UBAR_WEAVE_STROKE
+            for i in range(len(pts) - 1):
+                seg = SWS.Line()
+                seg.X1, seg.Y1 = sx(pts[i][0]), sy(pts[i][1])
+                seg.X2, seg.Y2 = sx(pts[i + 1][0]), sy(pts[i + 1][1])
+                seg.Stroke = stroke
+                seg.StrokeThickness = 1.5
+                canvas.Children.Add(seg)
 
     def RunBeamReinforcement_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -2104,13 +2518,16 @@ class RebarAutomateWindow(NOSAWindow):
         if summary.get('errors'):
             lines.append(u'')
             lines.append(u'{} issue(s):'.format(len(summary['errors'])))
-            lines.extend(summary['errors'][:12])
+            # BUG FIX (2026-09-01) — used to silently cap at 12 with no
+            # "...and N more" indicator at all — worse than the other
+            # tabs' truncation, since there was no sign more existed.
+            # TxtBeamResult is now a scrollable, read-only TextBox.
+            lines.extend(summary['errors'])
         self.TxtBeamResult.Text = u'\n'.join(lines)
 
     def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
-        # Lap length from standard when stock split is needed
         lap_mm = None
         try:
             lap_mm = standards.lap_length_mm(
@@ -2129,70 +2546,158 @@ class RebarAutomateWindow(NOSAWindow):
             stirrup_start_offset_mm=values['end_offset'],
             stirrup_end_offset_mm=values['end_offset'],
             stock_length_mm=values['stock_length'],
-            lap_length_mm=lap_mm)
-
-        axis = beam_rebar.get_beam_axis(host)
-        axis_dir = axis.Direction.Normalize()
+            lap_length_mm=lap_mm,
+            densify_ends=values.get('densify_ends', False),
+            dense_spacing_mm=values.get('dense_spacing'),
+            confine_length_mm=values.get('confine_length'))
 
         bar_type_long = bar_types.get(values['bar_dia'])
+        long_normal = curves.get('long_bar_normal') or DB.XYZ.BasisZ
+
+        def _create_bar_group_or_fallback(group, label, layer):
+            """
+            One entry from top_bar_sets/bottom_bar_sets: try ONE Rebar
+            Set for `count` parallel bars (the optimisation — n
+            individual elements become 1 countable Set), falling back
+            to individual create_from_curves calls (all_curves) if the
+            Set attempt fails, matching the same try/fallback shape
+            already established for stirrup_sets above.
+            """
+            n = group.get('count', 1)
+            if n > 1 and group.get('array_length_mm', 0) > 0:
+                rebar = wrapper.create_rebar_set(
+                    host, group['curves'], bar_type_long, group['spacing_mm'],
+                    group['array_length_mm'], normal=group.get('normal', long_normal),
+                    transaction_name=u'NOSA — Create {}'.format(group.get('label', label)))
+                if rebar is None:
+                    for chain in group.get('all_curves', [group['curves']]):
+                        if not chain:
+                            continue
+                        rb = wrapper.create_from_curves(
+                            host, chain, bar_type_long, normal=group.get('normal', long_normal),
+                            transaction_name=u'NOSA — Create {}'.format(label))
+                        if rb is None:
+                            errors.append(u'Beam {}: {} — {}'.format(
+                                get_id_value(host.Id), label, wrapper.last_error))
+                        else:
+                            self._stamp_layer(rb, layer)
+                            created_rebars.append(rb)
+                else:
+                    self._stamp_layer(rebar, layer)
+                    created_rebars.append(rebar)
+                    if wrapper.last_error:
+                        errors.append(u'Beam {}: {} — {}'.format(
+                            get_id_value(host.Id), label, wrapper.last_error))
+            else:
+                for chain in group.get('all_curves', [group.get('curves')]):
+                    if not chain:
+                        continue
+                    rb = wrapper.create_from_curves(
+                        host, chain, bar_type_long, normal=group.get('normal', long_normal),
+                        transaction_name=u'NOSA — Create {}'.format(label))
+                    if rb is None:
+                        errors.append(u'Beam {}: {} — {}'.format(
+                            get_id_value(host.Id), label, wrapper.last_error))
+                    else:
+                        self._stamp_layer(rb, layer)
+                        created_rebars.append(rb)
+
         if bar_type_long is not None:
-            for chain in curves.get('top_bars', []):
-                for segment in chain:
+            top_bar_sets = curves.get('top_bar_sets')
+            if top_bar_sets:
+                for group in top_bar_sets:
+                    _create_bar_group_or_fallback(group, u'Beam Top Bar', u'top')
+            else:
+                # Legacy fallback — no grouped sets returned (e.g. an
+                # older beam_rebar.py without this optimisation).
+                for chain in curves.get('top_bars', []):
+                    if not chain:
+                        continue
                     rebar = wrapper.create_from_curves(
-                        host, [segment], bar_type_long,
+                        host, chain, bar_type_long, normal=long_normal,
                         transaction_name=u'NOSA — Create Beam Top Bar')
                     if rebar is None:
                         errors.append(u'Beam {}: top bar — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
                     else:
+                        self._stamp_layer(rebar, u'top')
                         created_rebars.append(rebar)
-            for chain in curves.get('bottom_bars', []):
-                for segment in chain:
+
+            bottom_bar_sets = curves.get('bottom_bar_sets')
+            if bottom_bar_sets:
+                for group in bottom_bar_sets:
+                    _create_bar_group_or_fallback(group, u'Beam Bottom Bar', u'bottom')
+            else:
+                for chain in curves.get('bottom_bars', []):
+                    if not chain:
+                        continue
                     rebar = wrapper.create_from_curves(
-                        host, [segment], bar_type_long,
+                        host, chain, bar_type_long, normal=long_normal,
                         transaction_name=u'NOSA — Create Beam Bottom Bar')
                     if rebar is None:
                         errors.append(u'Beam {}: bottom bar — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
                     else:
+                        self._stamp_layer(rebar, u'bottom')
                         created_rebars.append(rebar)
 
         bar_type_st = bar_types.get(values['stirrup_dia'])
-        stirrups = curves.get('stirrups', [])
-        if bar_type_st is not None and stirrups:
-            first = stirrups[0]
-            n = len(stirrups)
-            array_mm = (n - 1) * values['stirrup_spacing'] if n > 1 else 0.0
-            if n > 1 and array_mm > 0:
-                rebar = wrapper.create_rebar_set(
-                    host, first, bar_type_st, values['stirrup_spacing'], array_mm,
-                    normal=axis_dir, style=DBS.RebarStyle.StirrupTie,
-                    transaction_name=u'NOSA — Create Beam Stirrups')
-                if rebar is None:
-                    # Fallback: individual stirrups
-                    for st_curves in stirrups:
-                        rb = wrapper.create_from_curves(
-                            host, st_curves, bar_type_st,
-                            style=DBS.RebarStyle.StirrupTie,
-                            transaction_name=u'NOSA — Create Beam Stirrup')
-                        if rb is None:
-                            errors.append(u'Beam {}: stirrup — {}'.format(
-                                get_id_value(host.Id), wrapper.last_error))
-                        else:
-                            created_rebars.append(rb)
+        stirrup_sets = curves.get('stirrup_sets') or []
+        if bar_type_st is not None and stirrup_sets:
+            for sset in stirrup_sets:
+                n = sset.get('count', 1)
+                if n > 1 and sset.get('array_length_mm', 0) > 0:
+                    rebar = wrapper.create_rebar_set(
+                        host, sset['curves'], bar_type_st, sset['spacing_mm'],
+                        sset['array_length_mm'], normal=sset['normal'],
+                        style=DBS.RebarStyle.StirrupTie,
+                        transaction_name=u'NOSA — Create Beam Stirrups ({})'.format(
+                            sset.get('zone', u'')))
+                    if rebar is None:
+                        for st_curves in sset.get('all_curves', [sset['curves']]):
+                            rb = wrapper.create_from_curves(
+                                host, st_curves, bar_type_st,
+                                normal=sset.get('normal'),
+                                style=DBS.RebarStyle.StirrupTie,
+                                transaction_name=u'NOSA — Create Beam Stirrup')
+                            if rb is None:
+                                errors.append(u'Beam {}: stirrup — {}'.format(
+                                    get_id_value(host.Id), wrapper.last_error))
+                            else:
+                                self._stamp_layer(rb, u'stirrup')
+                                created_rebars.append(rb)
+                    else:
+                        self._stamp_layer(rebar, u'stirrup')
+                        created_rebars.append(rebar)
+                        if wrapper.last_error:
+                            errors.append(u'Beam {}: stirrups {} — {}'.format(
+                                get_id_value(host.Id), sset.get('zone', u''),
+                                wrapper.last_error))
                 else:
-                    created_rebars.append(rebar)
-                    if wrapper.last_error:
-                        errors.append(u'Beam {}: stirrups (set) — {}'.format(
+                    rebar = wrapper.create_from_curves(
+                        host, sset['curves'], bar_type_st,
+                        normal=sset.get('normal'),
+                        style=DBS.RebarStyle.StirrupTie,
+                        transaction_name=u'NOSA — Create Beam Stirrup')
+                    if rebar is None:
+                        errors.append(u'Beam {}: stirrup — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
-            else:
+                    else:
+                        self._stamp_layer(rebar, u'stirrup')
+                        created_rebars.append(rebar)
+        elif bar_type_st is not None:
+            # Legacy flat list fallback
+            stirrup_normal = curves.get('long_bar_normal') or DB.XYZ.BasisZ
+            for st_curves in curves.get('stirrups', []):
                 rebar = wrapper.create_from_curves(
-                    host, first, bar_type_st, style=DBS.RebarStyle.StirrupTie,
+                    host, st_curves, bar_type_st, normal=stirrup_normal,
+                    style=DBS.RebarStyle.StirrupTie,
                     transaction_name=u'NOSA — Create Beam Stirrup')
                 if rebar is None:
                     errors.append(u'Beam {}: stirrup — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
                 else:
+                    self._stamp_layer(rebar, u'stirrup')
                     created_rebars.append(rebar)
 
     def _run_beam_reinforcement(self, beams, values):
@@ -2228,10 +2733,63 @@ class RebarAutomateWindow(NOSAWindow):
         values['horiz_spacing'] = self._read_number(
             self.TxtWallHorizSpacing.Text, u'Horizontal spacing', errors)
         values['both_faces'] = self.ChkWallBothFaces.IsChecked == True
+        # BUG FIX (2026-09-01) — reported live: End/Top U-bars (and the
+        # main mesh) always assumed vertical = outer layer, no way to
+        # flip it. This selector controls both.
+        values['vert_is_outer'] = self.ChkWallVertOuter.IsChecked == True
+        values['include_ties'] = self.ChkWallTies.IsChecked == True
+        if values['include_ties']:
+            values['tie_dia'] = self._read_number(
+                self.TxtWallTieDia.Text, u'Tie diameter', errors)
+            values['tie_spacing'] = self._read_number(
+                self.TxtWallTieSpacing.Text, u'Tie spacing', errors)
+        values['include_end_ubars'] = self.ChkWallEndUBars.IsChecked == True
+        if values['include_end_ubars']:
+            values['ubar_dia'] = self._read_number(
+                self.TxtWallUBarDia.Text, u'U-bar diameter', errors)
+            values['ubar_spacing'] = self._read_number(
+                self.TxtWallUBarSpacing.Text, u'U-bar spacing', errors)
+        values['include_starter_bars'] = self.ChkWallStarters.IsChecked == True
+        if values['include_starter_bars']:
+            try:
+                sl = float(self.TxtWallStarterLength.Text)
+            except (TypeError, ValueError):
+                errors.append(u'"Starter length" must be a number (0 = auto).')
+                sl = None
+            if sl is not None and sl < 0:
+                errors.append(u'"Starter length" cannot be negative.')
+                sl = None
+            values['starter_length'] = sl if (sl and sl > 0) else None
+        values['stock_length'] = self._read_number(
+            self.TxtWallStockLength.Text, u'Max stock length', errors)
+        if values.get('stock_length') is not None and values['stock_length'] < 1000.0:
+            errors.append(u'"Max stock length" must be at least 1000 mm.')
         if errors:
             forms.alert(u'\n'.join(errors))
             return None
         return values
+
+    def WallTies_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelWallTies.IsEnabled = self.ChkWallTies.IsChecked == True
+        self._update_wall_preview()
+
+    def WallEndUBars_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelWallEndUBars.IsEnabled = self.ChkWallEndUBars.IsChecked == True
+        self._update_wall_preview()
+
+    def WallStarters_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelWallStarters.IsEnabled = self.ChkWallStarters.IsChecked == True
+
+    def WallPreview_Changed(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._update_wall_preview()
 
     def RunWallReinforcement_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -2251,12 +2809,29 @@ class RebarAutomateWindow(NOSAWindow):
         if summary.get('errors'):
             lines.append(u'')
             lines.append(u'{} issue(s):'.format(len(summary['errors'])))
-            lines.extend(summary['errors'][:12])
+            # BUG FIX (2026-09-01) — same fix as _show_beam_result.
+            lines.extend(summary['errors'])
         self.TxtWallResult.Text = u'\n'.join(lines)
 
     def _process_wall(self, host, values, wrapper, bar_types, errors, created_rebars):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'wall'))
+        lap_mm = None
+        try:
+            lap_mm = standards.lap_length_mm(
+                self.ra_standard, values['vert_dia'], in_compression=False)
+        except Exception:
+            lap_mm = max(40.0 * values['vert_dia'], 200.0)
+        # BUG FIX (2026-09-01) — horiz_dia's own lap, not vert_dia's
+        # reused unchanged (see wall_rebar.build_wall_reinforcement's
+        # own docstring note on horiz_lap_length_mm).
+        horiz_lap_mm = None
+        try:
+            horiz_lap_mm = standards.lap_length_mm(
+                self.ra_standard, values['horiz_dia'], in_compression=False)
+        except Exception:
+            horiz_lap_mm = max(40.0 * values['horiz_dia'], 200.0)
+
         reinforcement = wall_rebar.build_wall_reinforcement(
             self.doc, host,
             cover_mm=cover_mm,
@@ -2264,10 +2839,36 @@ class RebarAutomateWindow(NOSAWindow):
             vert_spacing_mm=values['vert_spacing'],
             horiz_dia_mm=values['horiz_dia'],
             horiz_spacing_mm=values['horiz_spacing'],
-            both_faces=values['both_faces'])
+            both_faces=values['both_faces'],
+            include_ties=values.get('include_ties', False),
+            tie_dia_mm=values.get('tie_dia'),
+            tie_spacing_mm=values.get('tie_spacing', 400.0),
+            include_end_ubars=values.get('include_end_ubars', False),
+            ubar_dia_mm=values.get('ubar_dia'),
+            ubar_spacing_mm=values.get('ubar_spacing'),
+            include_top_ubars=values.get('include_end_ubars', False),
+            include_starter_bars=values.get('include_starter_bars', False),
+            starter_length_mm=values.get('starter_length'),
+            stock_length_mm=values.get('stock_length', 12000.0),
+            lap_length_mm=lap_mm,
+            horiz_lap_length_mm=horiz_lap_mm,
+            vert_is_outer=values.get('vert_is_outer', True))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))
+
+        def _create_curves(curves, bar_type, normal, label, style=None, layer=None):
+            if bar_type is None or not curves:
+                return
+            rebar = wrapper.create_from_curves(
+                host, curves, bar_type, normal=normal, style=style,
+                transaction_name=u'NOSA — Create {}'.format(label))
+            if rebar is None:
+                errors.append(u'Wall {}: {} — {}'.format(
+                    get_id_value(host.Id), label, wrapper.last_error))
+            else:
+                self._stamp_layer(rebar, layer)
+                created_rebars.append(rebar)
 
         bar_type_v = bar_types.get(values['vert_dia'])
         if bar_type_v is not None:
@@ -2277,15 +2878,15 @@ class RebarAutomateWindow(NOSAWindow):
                         host, vs['curves'], bar_type_v, vs['spacing_mm'],
                         vs['array_length_mm'], normal=vs['normal'],
                         transaction_name=u'NOSA — Create Wall Vertical Mesh')
+                    if rebar is None:
+                        errors.append(u'Wall {}: vertical — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+                    else:
+                        self._stamp_layer(rebar, u'vertical')
+                        created_rebars.append(rebar)
                 else:
-                    rebar = wrapper.create_from_curves(
-                        host, vs['curves'], bar_type_v, normal=vs['normal'],
-                        transaction_name=u'NOSA — Create Wall Vertical Bar')
-                if rebar is None:
-                    errors.append(u'Wall {}: vertical — {}'.format(
-                        get_id_value(host.Id), wrapper.last_error))
-                else:
-                    created_rebars.append(rebar)
+                    _create_curves(vs['curves'], bar_type_v, vs.get('normal'),
+                                   vs.get('label', u'Wall Vertical'), layer=u'vertical')
 
         bar_type_h = bar_types.get(values['horiz_dia'])
         if bar_type_h is not None:
@@ -2295,19 +2896,49 @@ class RebarAutomateWindow(NOSAWindow):
                         host, hs['curves'], bar_type_h, hs['spacing_mm'],
                         hs['array_length_mm'], normal=hs['normal'],
                         transaction_name=u'NOSA — Create Wall Horizontal Mesh')
+                    if rebar is None:
+                        errors.append(u'Wall {}: horizontal — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+                    else:
+                        self._stamp_layer(rebar, u'horizontal')
+                        created_rebars.append(rebar)
                 else:
-                    rebar = wrapper.create_from_curves(
-                        host, hs['curves'], bar_type_h, normal=hs['normal'],
-                        transaction_name=u'NOSA — Create Wall Horizontal Bar')
-                if rebar is None:
-                    errors.append(u'Wall {}: horizontal — {}'.format(
-                        get_id_value(host.Id), wrapper.last_error))
-                else:
-                    created_rebars.append(rebar)
+                    _create_curves(hs['curves'], bar_type_h, hs.get('normal'),
+                                   hs.get('label', u'Wall Horizontal'), layer=u'horizontal')
+
+        tie_dia = values.get('tie_dia') or values['horiz_dia']
+        bar_type_t = bar_types.get(tie_dia)
+        if bar_type_t is not None:
+            for tie in reinforcement.get('ties', []):
+                _create_curves(tie['curves'], bar_type_t, tie.get('normal'),
+                               tie.get('label', u'Wall Tie'),
+                               style=DBS.RebarStyle.StirrupTie, layer=u'tie')
+
+        # BUG FIX (2026-09-01) — End/Top U-bars now come back from
+        # wall_rebar.py as {'sets':[...],'bars':[...]} (grouped by end/
+        # position — every height/position along one end or the wall
+        # head shares an identical shape), routed through the same
+        # _create_grouped_bars helper footings/floors already use for
+        # this exact open leg-back-leg U topology: Set first, FreeForm-
+        # group fallback, individual bars only as the true last resort
+        # — instead of always creating N loose individual elements.
+        ubar_dia = values.get('ubar_dia') or values['vert_dia']
+        bar_type_u = bar_types.get(ubar_dia)
+        if bar_type_u is not None:
+            self._create_grouped_bars(
+                wrapper, host, reinforcement.get('end_ubars', {'sets': [], 'bars': []}),
+                bar_type_u, errors, created_rebars, u'Wall End U-Bar', layer=u'end_ubar')
+            self._create_grouped_bars(
+                wrapper, host, reinforcement.get('top_ubars', {'sets': [], 'bars': []}),
+                bar_type_u, errors, created_rebars, u'Wall Top U-Bar', layer=u'top_ubar')
 
     def _run_wall_reinforcement(self, walls, values):
         errors = []
         diameters = {values['vert_dia'], values['horiz_dia']}
+        if values.get('include_ties'):
+            diameters.add(values.get('tie_dia') or values['horiz_dia'])
+        if values.get('include_end_ubars'):
+            diameters.add(values.get('ubar_dia') or values['vert_dia'])
         bar_types = {}
         for dia_mm in diameters:
             bt = re_engine.get_bar_type_by_diameter(self.doc, dia_mm)
@@ -2473,9 +3104,13 @@ class RebarAutomateWindow(NOSAWindow):
             item.IsEnabled = False
             self.CmbRebarTagType.Items.Add(item)
         else:
-            for tt in sorted(tag_types, key=lambda t: t.Name or u''):
+            # IronPython: do NOT use lambda t: t.Name — free-var lookup
+            # raises NameError: Name. Use getattr / explicit helper.
+            def _type_name(el):
+                return getattr(el, 'Name', None) or u''
+            for tt in sorted(tag_types, key=_type_name):
                 item = SWC.ComboBoxItem()
-                item.Content = tt.Name
+                item.Content = _type_name(tt)
                 item.Tag = tt.Id
                 self.CmbRebarTagType.Items.Add(item)
             self.CmbRebarTagType.SelectedIndex = 0
@@ -2493,9 +3128,11 @@ class RebarAutomateWindow(NOSAWindow):
             item.IsEnabled = False
             self.CmbMraType.Items.Add(item)
         else:
-            for mt in sorted(mra_types, key=lambda t: t.Name or u''):
+            def _mra_name(el):
+                return getattr(el, 'Name', None) or u''
+            for mt in sorted(mra_types, key=_mra_name):
                 item = SWC.ComboBoxItem()
-                item.Content = mt.Name
+                item.Content = _mra_name(mt)
                 item.Tag = mt.Id
                 self.CmbMraType.Items.Add(item)
             self.CmbMraType.SelectedIndex = 0

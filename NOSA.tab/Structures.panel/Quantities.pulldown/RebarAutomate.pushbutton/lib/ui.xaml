@@ -341,9 +341,20 @@
                 <Border Style="{DynamicResource Card}">
                     <StackPanel>
                         <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
-                        <TextBlock Name="TxtResult" Text="No run yet."
-                                   FontSize="11" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
+                        <!-- BUG FIX (2026-09-01) — a plain TextBlock can't be
+                             selected/copied, and the code-behind used to
+                             truncate to 12 issues + "...and N more" so a long
+                             run's own tracking log never fit on screen at
+                             all. Now a read-only, full-log TextBox (still
+                             inside this column's own outer ScrollViewer, so
+                             it just grows with its content — no truncation,
+                             every created/skipped item is listed and can be
+                             selected/copied). Same fix applied identically
+                             to TxtColumnResult/TxtBeamResult/TxtWallResult. -->
+                        <TextBox Name="TxtResult" Text="No run yet."
+                                 FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                                 IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                 Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
                     </StackPanel>
                 </Border>
 
@@ -526,9 +537,10 @@
                 <Border Style="{DynamicResource Card}">
                     <StackPanel>
                         <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
-                        <TextBlock Name="TxtColumnResult" Text="No run yet."
-                                   FontSize="11" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
+                        <TextBox Name="TxtColumnResult" Text="No run yet."
+                                 FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                                 IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                 Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
                     </StackPanel>
                 </Border>
 
@@ -593,7 +605,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Bar diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtBeamBarDia" Text="20" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtBeamBarDia" Text="20" Style="{StaticResource RA_NumField}"
+                                         TextChanged="BeamPreview_Changed"/>
                             </Grid>
 
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -602,7 +615,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Top bars (count)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtBeamTopCount" Text="3" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtBeamTopCount" Text="3" Style="{StaticResource RA_NumField}"
+                                         TextChanged="BeamPreview_Changed"/>
                             </Grid>
 
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -611,7 +625,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Bottom bars (count)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtBeamBottomCount" Text="3" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtBeamBottomCount" Text="3" Style="{StaticResource RA_NumField}"
+                                         TextChanged="BeamPreview_Changed"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -626,7 +641,8 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Stirrup diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtBeamStirrupDia" Text="8" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtBeamStirrupDia" Text="8" Style="{StaticResource RA_NumField}"
+                                         TextChanged="BeamPreview_Changed"/>
                             </Grid>
 
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -646,6 +662,32 @@
                                 <TextBlock Grid.Column="0" Text="End offset (mm)" Style="{StaticResource RA_FieldLabel}"/>
                                 <TextBox Grid.Column="1" Name="TxtBeamEndOffset" Text="50" Style="{StaticResource RA_NumField}"/>
                             </Grid>
+
+                            <CheckBox Name="ChkBeamDensify" Content="Densify stirrups at support ends"
+                                      IsChecked="True" Margin="0,8,0,4"
+                                      Click="BeamDensify_Click"
+                                      Foreground="{DynamicResource TextColor}"/>
+                            <StackPanel Name="PanelBeamDensify">
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Dense spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtBeamDenseSpacing" Text="100" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Confine length (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtBeamConfineLength" Text="0" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                                <TextBlock Text="Auto confine length = 2 × beam height. Dense zones at each end; middle uses normal spacing."
+                                           FontSize="10" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource TextColor}" Opacity="0.55" Margin="0,0,0,4"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -668,8 +710,18 @@
                             HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,12"
                             FontWeight="Bold"/>
 
-                    <TextBlock Name="TxtBeamResult" Text="" FontSize="11" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextColor}" Opacity="0.85"/>
+                    <TextBox Name="TxtBeamResult" Text="" FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                             IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                             Foreground="{DynamicResource TextColor}" Opacity="0.85"
+                             Margin="0,0,0,12"/>
+
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                            <Canvas Name="BeamPreviewCanvas" Width="700" Height="220"
+                                    Background="{DynamicResource PanelColor}"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
@@ -679,7 +731,7 @@
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="24,20,24,20">
 
-                    <TextBlock Text="Select one or more Walls in the model, set the mesh parameters below, then run. Straight walls only in v1 (openings / boundary ties come later)."
+                    <TextBlock Text="Select one or more Walls in the model, set the mesh parameters below, then run. Straight walls only in v1 (opening U-bars come later)."
                                FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextColor}" Opacity="0.65"
                                Margin="0,0,0,16"/>
@@ -737,8 +789,101 @@
                             <TextBlock Text="Layers" Style="{StaticResource RA_SectionTitle}"/>
                             <CheckBox Name="ChkWallBothFaces" Content="Place mesh on both faces"
                                       IsChecked="True" Margin="0,0,0,4"
+                                      Click="WallPreview_Changed"
                                       Foreground="{DynamicResource TextColor}"/>
                             <TextBlock Text="When unchecked, mesh is placed on the exterior face only."
+                                       FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.55"/>
+                            <CheckBox Name="ChkWallVertOuter" Content="Vertical bars in the outer layer (touching cover)"
+                                      IsChecked="True" Margin="0,8,0,4"
+                                      Click="WallPreview_Changed"
+                                      Foreground="{DynamicResource TextColor}"/>
+                            <TextBlock Text="When unchecked, horizontal bars sit in the outer layer instead (vertical goes behind). End/Top U-bars follow the same layer assignment as the mesh they anchor."
+                                       FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.55"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Ties" Style="{StaticResource RA_SectionTitle}"/>
+                            <!-- Edge bars removed 2026-09-02 (explicit
+                                 request — "ya tenemos rebar sets, no
+                                 es necesario") — see wall_rebar.py's
+                                 own history for the removed feature. -->
+                            <CheckBox Name="ChkWallTies" Content="Add through-wall ties (both faces)"
+                                      IsChecked="False" Margin="0,8,0,4"
+                                      Click="WallTies_Click"
+                                      Foreground="{DynamicResource TextColor}"/>
+                            <StackPanel Name="PanelWallTies" IsEnabled="False">
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Tie diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallTieDia" Text="8" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Tie spacing along wall (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallTieSpacing" Text="400" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                            </StackPanel>
+                            <CheckBox Name="ChkWallEndUBars" Content="Add end U-bars (wrap thickness at free ends)"
+                                      IsChecked="True" Margin="0,8,0,4"
+                                      Click="WallEndUBars_Click"
+                                      Foreground="{DynamicResource TextColor}"/>
+                            <StackPanel Name="PanelWallEndUBars">
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="U-bar diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallUBarDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="U-bar vertical spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallUBarSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                            </StackPanel>
+                            <CheckBox Name="ChkWallStarters" Content="Starter bars into foundation (extend below base)"
+                                      IsChecked="False" Margin="0,8,0,4"
+                                      Click="WallStarters_Click"
+                                      Foreground="{DynamicResource TextColor}"/>
+                            <StackPanel Name="PanelWallStarters" IsEnabled="False">
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Starter / lap length (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallStarterLength" Text="0" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Stock / Laps" Style="{StaticResource RA_SectionTitle}"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Max stock length (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtWallStockLength" Text="12000" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <TextBlock Text="Bars longer than stock length are split with normative laps (required for complete bending schedules and steel tonnage)."
                                        FontSize="10" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.55"/>
                         </StackPanel>
@@ -749,8 +894,18 @@
                             HorizontalAlignment="Stretch" Height="36" Margin="0,0,0,12"
                             FontWeight="Bold"/>
 
-                    <TextBlock Name="TxtWallResult" Text="" FontSize="11" TextWrapping="Wrap"
-                               Foreground="{DynamicResource TextColor}" Opacity="0.85"/>
+                    <TextBox Name="TxtWallResult" Text="" FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                             IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                             Foreground="{DynamicResource TextColor}" Opacity="0.85"
+                             Margin="0,0,0,12"/>
+
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                            <Canvas Name="WallPreviewCanvas" Width="700" Height="220"
+                                    Background="{DynamicResource PanelColor}"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
         </TabItem>
@@ -828,9 +983,21 @@
                                        Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
                             <Button Name="BtnGenerateSchedule" Content="Generate Schedule..."
                                     HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
-                            <TextBlock Name="TxtScheduleSummary" Text="" FontSize="11" 
+                            <TextBlock Name="TxtScheduleSummary" Text="" FontSize="11"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.8"
                                        TextWrapping="Wrap" Margin="0,0,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- PHASE F8 — BVBS export (CNC bending machines) -->
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="BVBS Export" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBlock Text="Export all NOSA rebars as a .abs file for CNC bending machines. Format not yet validated against an official BVBS validator or a real machine — confirm before sending to fabrication."
+                                       FontSize="11" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                            <Button Name="BtnExportBvbs" Content="Export BVBS (.abs)..."
+                                    HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Border>
 
