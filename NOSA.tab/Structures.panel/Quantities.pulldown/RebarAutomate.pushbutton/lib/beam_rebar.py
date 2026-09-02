@@ -83,32 +83,49 @@ def get_beam_axis(host):
 
 def _clamp_axis_to_bbox(axis, host):
     """
-    BUG FIX (2026-09-01) — reported live: "la armadura principal sale
-    fuera de las vigas" — confirmed on a real beam (id 1318407): the
-    longitudinal bars ran exactly to `axis.GetEndPoint(0)/(1)` (the
-    beam's raw LocationCurve), which measured 10340.0mm, while the
-    beam's own SOLID (host.get_BoundingBox(None)) only spans
-    10325.4mm — the LocationCurve overshoots the actual (mitred/
-    joined, e.g. against a supporting column) solid by ~7.3mm at EACH
-    end. Every longitudinal bar (which uses the raw axis endpoints
-    with zero inset in the length direction — see
-    compute_longitudinal_bar_lines) inherited that exact overshoot.
+    BUG FIX (2026-09-01, ROUND 2 2026-09-02) — reported live: "la
+    armadura principal sale fuera de las vigas". ROUND 1 clamped to
+    `host.get_BoundingBox(None)`, reasoning the LocationCurve (10340.0mm
+    on the real beam, id 1318407) overshoots the beam's actual, mitred/
+    joined solid (10325.4mm). Confirmed live to be a NO-OP: re-tested
+    after that fix, the exact same 7.3mm-per-end overshoot was still
+    there, bit-for-bit identical. Root cause of the NO-OP:
+    `host.get_BoundingBox(None)` does NOT shrink to reflect an end join/
+    miter for a framing element the way the VISIBLE solid does — a
+    documented-in-this-codebase Revit quirk (see
+    rebar_engine.get_isolated_solid_bbox's own docstring for the
+    analogous pile-cap case: "host.get_BoundingBox(None)... reflects
+    the combined extent of the WHOLE family instance", not the real
+    trimmed geometry). Switched to that SAME already-proven utility
+    (derives a bbox from the host's own top-level Solid.Edges — which
+    DOES reflect the join, since CoverGeometryManager/get_host_solid
+    read geometry via get_Geometry(), which incorporates joins) instead
+    of writing a second, beam-specific fix for the identical class of
+    bug; falls back to get_BoundingBox(None) only if that utility finds
+    no usable solid, unchanged from ROUND 1 in that fallback case.
 
-    Clamps `axis`'s own endpoints to the host's real bounding box
-    extent along the axis direction, projecting all 8 bbox corners
-    onto that direction to find its tightest reach (works for any
-    beam orientation, not just axis-aligned ones) — a NO-OP whenever
-    the LocationCurve already sits inside the solid (the ordinary
-    case), so this only ever shortens, never lengthens, an overshoot.
+    Clamps `axis`'s own endpoints to that bbox's extent along the axis
+    direction, projecting all 8 bbox corners onto that direction to
+    find its tightest reach (works for any beam orientation, not just
+    axis-aligned ones) — a NO-OP whenever the LocationCurve already
+    sits inside the solid (the ordinary case), so this only ever
+    shortens, never lengthens, an overshoot.
 
     Returns:
         DB.Line — the clamped axis, or `axis` unchanged if no bbox is
         available or clamping would degenerate to a zero-length line.
     """
+    engine = _ensure_engine()
+    bbox = None
     try:
-        bbox = host.get_BoundingBox(None)
+        bbox = engine.get_isolated_solid_bbox(host)
     except Exception:
         bbox = None
+    if bbox is None:
+        try:
+            bbox = host.get_BoundingBox(None)
+        except Exception:
+            bbox = None
     if bbox is None:
         return axis
     direction = axis.Direction
@@ -243,7 +260,7 @@ def _cross_section_point(p_ref, width_dir, height_dir, transverse_pt, vertical_p
 
 def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
                                     cover_mm, n_bars, bar_diameter_mm=0.0,
-                                    stirrup_diameter_mm=0.0):
+                                    stirrup_diameter_mm=0.0, seed_side_normal=None):
     """
     Generate `n_bars` parallel longitudinal bar Lines along the beam's
     axis, offset inward from `face_info` (the beam's top or bottom
@@ -289,6 +306,27 @@ def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
         stirrup_diameter_mm (float): the stirrup leg this bar sits
                          behind, mm — 0.0 (the default) reproduces this
                          function's pre-fix behaviour exactly.
+        seed_side_normal (DB.XYZ or None): the SAME propagation normal
+                         that create_rebar_set will be called with for
+                         these bars (see the round-4 BUG FIX note below)
+                         — bars[0] is ordered onto the side FACING AWAY
+                         from this vector, so that
+                         ShapeDrivenAccessor.SetLayoutAsMaximumSpacing(
+                         ..., bars_on_normal_side=True) — which extends
+                         the OTHER (n_bars-1) copies FROM bars[0] FURTHER
+                         in the +normal direction, not "fills between" a
+                         start and end bar — lands the whole set back
+                         inside the section instead of propagating
+                         straight through one side face. None (the
+                         default) falls back to this function's own
+                         local `width_dir`, which is only a safe choice
+                         when the caller does not also share ONE fixed
+                         normal across multiple calls with DIFFERENT
+                         face_info (width_dir's sign flips with
+                         face_info.normal, e.g. between a top and a
+                         bottom call) — build_beam_rebar_curves always
+                         passes its own single, shared long_bar_normal_vec
+                         here for exactly that reason.
 
     Returns:
         list[DB.Line], length n_bars (or empty if n_bars <= 0).
@@ -308,6 +346,38 @@ def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
     side_inset_mm = cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0
     edge_a = engine.compute_cover_point(side_a, side_inset_mm)
     edge_b = engine.compute_cover_point(side_b, side_inset_mm)
+
+    # BUG FIX (2026-09-02, round 4) — reported live and confirmed with a
+    # live reproduction against a real beam (1318407): `_beam_faces`
+    # appends side_a/side_b in whatever order `cover_mgr.faces` happens
+    # to enumerate them (arbitrary, not tied to +/-width_dir), but this
+    # function always walks t=0..1 from edge_a to edge_b regardless —
+    # so `top_lines[0]` (fed as the FIRST/seed bar into
+    # group_parallel_bar_chains_into_sets -> create_rebar_set) can land
+    # on the +normal side. Revit's own
+    # ShapeDrivenAccessor.SetLayoutAsMaximumSpacing(..., bars_on_normal_
+    # side=True) propagates the OTHER (n_bars-1) copies STARTING FROM
+    # that seed bar and extending FURTHER in the +normal direction — it
+    # does not "fill between" two given bars, confirmed live via
+    # revit_set_rebar_layout on a manually-created single bar: seeded at
+    # the +normal-side edge (X=19407mm on a beam whose 300mm width spans
+    # X=[19165,19465]), propagating array_length_mm=184mm pushed the
+    # WHOLE set to X=[19391,19589] — entirely outside the section;
+    # seeded at the -normal-side edge instead, the SAME propagation
+    # landed exactly on X=[19219,19417], correctly spanning the section.
+    # Fixed by always starting the walk from whichever of edge_a/edge_b
+    # sits on the -normal side, regardless of which one _beam_faces
+    # happened to call "side_a" — bars[0] (and therefore the Set's own
+    # seed curve) is now guaranteed on the correct side for Revit's own
+    # propagation convention. Uses `seed_side_normal` (the SAME shared
+    # normal create_rebar_set will actually be called with — see this
+    # function's own docstring) rather than the local `width_dir`, which
+    # flips sign between a top and a bottom call and would silently fix
+    # only one of the two.
+    _ordering_normal = seed_side_normal if seed_side_normal is not None else width_dir
+    if ((edge_a - p_start).DotProduct(_ordering_normal)
+            > (edge_b - p_start).DotProduct(_ordering_normal)):
+        edge_a, edge_b = edge_b, edge_a
 
     if n_bars == 1:
         fractions = [0.5]
@@ -598,21 +668,113 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     """
     engine = _ensure_engine()
     axis = get_beam_axis(host)
+    _raw_axis_len_mm = axis.Length * _MM_PER_FT
     # BUG FIX (2026-09-01) — see _clamp_axis_to_bbox's own docstring:
     # the raw LocationCurve can run past the beam's actual (mitred)
     # solid at each end; every downstream use of `axis` (longitudinal
     # bars AND stirrup zones) needs the clamped version, so this
     # happens once, immediately, before anything else derives from it.
     axis = _clamp_axis_to_bbox(axis, host)
+    # DIAGNOSTIC (2026-09-02) — two different clamp strategies
+    # (get_BoundingBox, then get_isolated_solid_bbox) both reportedly
+    # produced NO visible change live. Rather than guess a third one
+    # blindly, this makes the clamp's own before/after effect visible
+    # in ui.py's (now unlimited) result log — settles definitively
+    # whether this code path is even running (pyRevit module caching —
+    # a Reload is required after every lib/*.py edit — is the leading
+    # suspect given two different fixes produced byte-identical
+    # "unchanged" results) and, if it IS running, exactly what it
+    # computed.
+    _clamped_axis_len_mm = axis.Length * _MM_PER_FT
+    warnings = [u'DIAGNOSTIC: beam axis length before clamp = {:.1f}mm, '
+                u'after _clamp_axis_to_bbox = {:.1f}mm ({})'.format(
+                    _raw_axis_len_mm, _clamped_axis_len_mm,
+                    u'unchanged — LocationCurve already fits the solid, or no '
+                    u'bbox was available' if abs(_raw_axis_len_mm - _clamped_axis_len_mm) < 0.5
+                    else u'shortened by {:.1f}mm total'.format(
+                        _raw_axis_len_mm - _clamped_axis_len_mm))]
     cover_mgr = engine.CoverGeometryManager(doc, host)
     top, bottom, side_a, side_b = _beam_faces(cover_mgr, axis.Direction)
 
+    # DIAGNOSTIC (2026-09-02, round 3) — reported live: the LENGTH
+    # diagnostic above confirmed the bar's own axial length is exact
+    # (matches the clamped axis), yet the CREATED rebar still visibly
+    # sits outside the beam. Live bounding-box comparison (beam
+    # 1318407: X=[19165,19465], 300mm wide vs its own bar rows:
+    # X=[19391,19589]) showed the bars are NOT extending past the beam's
+    # ENDS — they are offset ~175mm sideways, off the beam's own
+    # centreline, on a 300mm-wide section — pushing most/all of the row
+    # outside the WIDTH of the beam instead. This surfaces exactly where
+    # `side_a`/`side_b` (this beam's own detected long-side faces) and
+    # their cover-offset points land relative to the axis, in the
+    # WIDTH direction only — isolating whether _beam_faces picked the
+    # wrong faces (e.g. this beam's Family is a custom "RC Beam" with
+    # Revit's own Section Shape reported as "Not Defined" — its
+    # geometry may not expose 2 simple rectangular side faces the way
+    # a standard parametric framing type would) or whether
+    # engine.compute_cover_point's own offset is the culprit.
+    try:
+        _height_dir_dbg = top.normal.Normalize()
+        _width_dir_dbg = axis.Direction.CrossProduct(_height_dir_dbg).Normalize()
+        _p0_dbg = axis.GetEndPoint(0)
+        _side_inset_dbg = cover_mm + stirrup_bar_diameter_mm + bar_diameter_mm / 2.0
+        _edge_a_dbg = engine.compute_cover_point(side_a, _side_inset_dbg)
+        _edge_b_dbg = engine.compute_cover_point(side_b, _side_inset_dbg)
+        _w_a_mm = (_edge_a_dbg - _p0_dbg).DotProduct(_width_dir_dbg) * _MM_PER_FT
+        _w_b_mm = (_edge_b_dbg - _p0_dbg).DotProduct(_width_dir_dbg) * _MM_PER_FT
+        _n_a_dbg = side_a.normal
+        _n_b_dbg = side_b.normal
+        warnings.append(
+            u'DIAGNOSTIC: side_a/side_b width offsets from axis (mm) = '
+            u'{:.1f} / {:.1f} (span {:.1f}mm; should straddle 0 — i.e. '
+            u'opposite signs — and span roughly the beam\'s own width '
+            u'minus 2x cover+stirrup+half-bar-dia); side_a.normal=({:.2f},'
+            u'{:.2f},{:.2f}), side_b.normal=({:.2f},{:.2f},{:.2f}) '
+            u'(should be near-opposite unit vectors, each roughly '
+            u'perpendicular to the axis).'.format(
+                _w_a_mm, _w_b_mm, abs(_w_b_mm - _w_a_mm),
+                _n_a_dbg.X, _n_a_dbg.Y, _n_a_dbg.Z,
+                _n_b_dbg.X, _n_b_dbg.Y, _n_b_dbg.Z))
+    except Exception as _dbg_exc:
+        warnings.append(u'DIAGNOSTIC: side_a/side_b width-offset check itself '
+                         u'failed ({}) — see console for the original '
+                         u'traceback.'.format(_dbg_exc))
+
+    # Computed here (not after, as before the round-4 fix) so BOTH the
+    # top and the bottom compute_longitudinal_bar_lines calls below can
+    # share this ONE fixed normal as their seed_side_normal — see that
+    # function's own docstring/BUG FIX note for why using each call's
+    # own local width_dir (which flips sign between a top and a bottom
+    # face_info) would only fix one of the two.
+    long_bar_normal_vec = axis.Direction.CrossProduct(top.normal.Normalize()).Normalize()
+
     top_lines = compute_longitudinal_bar_lines(
         axis, top, side_a, side_b, cover_mm, n_top_bars, bar_diameter_mm,
-        stirrup_diameter_mm=stirrup_bar_diameter_mm)
+        stirrup_diameter_mm=stirrup_bar_diameter_mm,
+        seed_side_normal=long_bar_normal_vec)
     bottom_lines = compute_longitudinal_bar_lines(
         axis, bottom, side_a, side_b, cover_mm, n_bottom_bars, bar_diameter_mm,
-        stirrup_diameter_mm=stirrup_bar_diameter_mm)
+        stirrup_diameter_mm=stirrup_bar_diameter_mm,
+        seed_side_normal=long_bar_normal_vec)
+
+    # DIAGNOSTIC (2026-09-02, round 2) — the axis-clamp diagnostic above
+    # proved the clamp is a no-op for this beam (axis already fits the
+    # solid), yet the CREATED rebar still overshoots the solid by 20mm at
+    # EACH end. This checks the bar line's own length immediately after
+    # compute_longitudinal_bar_lines returns, BEFORE split_long_bars runs —
+    # isolating whether the 40mm (20mm/end) extension is introduced by bar
+    # construction itself or by the stock-length split/lap-offset transform.
+    if top_lines:
+        _first_top_len_mm = top_lines[0].Length * _MM_PER_FT
+        warnings.append(
+            u'DIAGNOSTIC: clamped axis = {:.1f}mm, first TOP bar line '
+            u'(pre-split, from compute_longitudinal_bar_lines) = {:.1f}mm '
+            u'({})'.format(
+                _clamped_axis_len_mm, _first_top_len_mm,
+                u'matches axis' if abs(_first_top_len_mm - _clamped_axis_len_mm) < 0.5
+                else u'DIFFERS by {:.1f}mm — extension introduced in '
+                     u'compute_longitudinal_bar_lines'.format(
+                         _first_top_len_mm - _clamped_axis_len_mm)))
 
     needs_split = any(l.Length * _MM_PER_FT > stock_length_mm
                        for l in (top_lines + bottom_lines))
@@ -635,8 +797,9 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     # individual elements wherever possible — see
     # group_parallel_bar_chains_into_sets' own docstring. Spacing is
     # read straight off the real bar geometry (works whether n_bars
-    # ended up evenly or unevenly distributed).
-    long_bar_normal_vec = axis.Direction.CrossProduct(top.normal.Normalize()).Normalize()
+    # ended up evenly or unevenly distributed). long_bar_normal_vec was
+    # already computed above (shared with the seed_side_normal passed
+    # into compute_longitudinal_bar_lines).
     top_spacing_mm = (top_lines[1].GetEndPoint(0).DistanceTo(top_lines[0].GetEndPoint(0))
                        * _MM_PER_FT) if len(top_lines) > 1 else 0.0
     bottom_spacing_mm = (bottom_lines[1].GetEndPoint(0).DistanceTo(bottom_lines[0].GetEndPoint(0))
@@ -733,4 +896,5 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'beam_width_mm': half_width_mm * 2.0 + 2.0 * inset_mm,
         'confine_length_mm': confine_length_mm if densify_ends else 0.0,
         'long_bar_normal': width_dir,
+        'warnings': warnings,
     }
