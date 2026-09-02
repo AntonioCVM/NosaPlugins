@@ -190,6 +190,14 @@ _MM_PER_FT = 304.8
 # _round_mm's own docstring below).
 _COORD_ROUND_NDIGITS = 6
 
+# PHASE 3.5.9 (2026-09-02, round 5, explicit user request) — for a small
+# hole (e.g. 500x500mm), the user's own structural judgement is that each
+# edge should carry AT LEAST this many closure U-bars, even if that means
+# a tighter corner margin than the "same spacing as the main perimeter"
+# rule (F7.14/F7.15) would otherwise allow — see
+# _hole_min_bar_positions's own docstring in _build_edge_ubars.
+_HOLE_MIN_BARS = 3
+
 # BUG FIX (2026-09-01, confirmed live: "The minimum length of rebar
 # shape is 25 mm", floor generation aborted with NO reinforcement
 # created at all): Revit's own Rebar/RebarShape API enforces a hard
@@ -874,11 +882,224 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
             # pop-up — a single stray micro-edge must not interrupt the
             # user) and move on to the next edge, keeping every other
             # edge's reinforcement intact.
+            # BUG FIX (2026-09-02, round 3) — reported live: even after the
+            # round-2 fix, a hole edge that DOES clear the standard
+            # corner-inset span (usable_hi > usable_lo, so it never enters
+            # the "too short" branch below at all) can still end up with
+            # only ONE U-bar, because `footing_mod._evenly_spaced` itself
+            # returns a single midpoint whenever the *usable* span between
+            # the two full-corner-inset margins is <= spacing_mm — round 2
+            # only retried the relaxed margin inside the "too short"
+            # branch, never for this case. Factored out as one helper so
+            # BOTH call sites (the "too short" branch below, and the
+            # normal branch's own single-position case further down) can
+            # retry the SAME relaxed margin (nominal_leg_mm / 2, still
+            # clear of the shared corner) at the SAME spacing_mm the main
+            # perimeter runs at, per explicit user request ("igual que la
+            # distancia entre barras... del contorno del forjado").
+            def _relaxed_spaced_positions(margin_mm):
+                """Returns (dists_mm, positions) — both [] if the margin
+                doesn't leave a usable span, or if any resulting leg tip
+                would land outside real material."""
+                lo, hi = margin_mm, length_mm - margin_mm
+                if hi <= lo:
+                    return [], []
+                dists = footing_mod._evenly_spaced(lo, hi, spacing_mm)
+                candidates = [(p0[0] + unit_dir[0] * d, p0[1] + unit_dir[1] * d)
+                              for d in dists]
+                if all(topo.point_in_material_mm(
+                        pos[0] + inward_normal[0] * nominal_leg_mm,
+                        pos[1] + inward_normal[1] * nominal_leg_mm,
+                        outer, large_holes) for pos in candidates):
+                    return dists, candidates
+                return [], []
+
+            # BUG FIX (2026-09-02, round 5) — explicit user request: for a
+            # small hole (500x500mm, 580mm edges after cover growth, 400mm
+            # anchorage leg), the relaxed margin above (leg/2 = 200mm)
+            # only leaves 180mm of usable span — never enough for a
+            # second bar at the main perimeter's own spacing_mm, so every
+            # such edge kept getting exactly 1 bar. The user's own
+            # structural judgement: this specific hole should get AT
+            # LEAST _HOLE_MIN_BARS U-bars per edge — worth a genuinely
+            # TIGHTER corner margin than the perimeter's own convention,
+            # for hole edges only. Only used for is_hole edges, and only
+            # once the SAME-spacing relaxed attempt above has already
+            # failed to produce _HOLE_MIN_BARS bars — every leg tip is
+            # still individually checked against real material via
+            # point_in_material_mm, so this never places a bar that
+            # would poke through a rib or the outer boundary.
+            def _hole_min_bar_positions(min_bars, margin_mm):
+                """Returns (dists_mm, positions) evenly distributing
+                exactly `min_bars` positions between margin_mm and
+                length_mm - margin_mm — [] if that margin leaves no
+                usable span, or if any leg tip would land outside real
+                material."""
+                lo, hi = margin_mm, length_mm - margin_mm
+                if hi <= lo:
+                    return [], []
+                if min_bars <= 1:
+                    dists = [(lo + hi) / 2.0]
+                else:
+                    step = (hi - lo) / float(min_bars - 1)
+                    dists = [lo + i * step for i in range(min_bars)]
+                candidates = [(p0[0] + unit_dir[0] * d, p0[1] + unit_dir[1] * d)
+                              for d in dists]
+                if all(topo.point_in_material_mm(
+                        pos[0] + inward_normal[0] * nominal_leg_mm,
+                        pos[1] + inward_normal[1] * nominal_leg_mm,
+                        outer, large_holes) for pos in candidates):
+                    return dists, candidates
+                return [], []
+
+            def _try_hole_min_bars():
+                """Only for is_hole edges: a tighter corner margin
+                (nominal_leg_mm / 4) aimed at fitting _HOLE_MIN_BARS
+                evenly-spaced bars. Returns (dists_mm, positions), both
+                [] if not applicable/not achievable."""
+                if not is_hole:
+                    return [], []
+                return _hole_min_bar_positions(_HOLE_MIN_BARS, nominal_leg_mm / 4.0)
+
+            def _make_set(dists, candidates):
+                array_length_mm = abs(dists[-1] - dists[0])
+                materialized = [{'curves': _chain_at(pos), 'normal': normal_vec}
+                                for pos in candidates]
+                return {
+                    'curves': materialized[0]['curves'], 'normal': normal_vec,
+                    'array_length_mm': array_length_mm, 'spacing_mm': spacing_mm,
+                    'materialized_bars': materialized, 'style': None,
+                    'is_hole': is_hole,
+                }
+
             try:
                 usable_lo, usable_hi = nominal_leg_mm, length_mm - nominal_leg_mm
                 if usable_hi <= usable_lo:
+                    # BUG FIX (2026-09-02) — reported live against a real
+                    # small floor opening (580mm edges): this branch used
+                    # to go STRAIGHT to a closed link (a rectangle running
+                    # ALONG the edge, in the SAME vertical plane as the
+                    # opening's own face) whenever the edge was too short
+                    # to fit evenly-SPACED U-bars with corner insets —
+                    # even though the edge is often still long enough for
+                    # exactly ONE open U-bar centred on it, whose legs run
+                    # PERPENDICULAR into the surrounding material (the
+                    # anchorage a closure U-bar exists for in the first
+                    # place — "deberían ser Ubars en perpendicular a esa
+                    # cara, no links en paralelo"). Now tries a single
+                    # centred U-bar first, using the SAME material check
+                    # (leg_tips_ok, below) at just that one position —
+                    # only falling back to the closed link if even a
+                    # CENTRED leg would land outside real material (a
+                    # genuinely narrow rib, e.g. between two openings,
+                    # where no perpendicular leg fits at all).
+                    # BUG FIX (2026-09-02, round 2) — reported live: hole
+                    # edges long enough for more than one U-bar were still
+                    # only getting ONE, centred, because this whole branch
+                    # only fires when the edge is too short for the main
+                    # perimeter's own CORNER-INSET spacing (margin =
+                    # nominal_leg_mm at each end). Per explicit user
+                    # request ("igual que la distancia entre Ubars del
+                    # contorno del forjado"), try a RELAXED margin
+                    # (nominal_leg_mm / 2 — still clear of the shared
+                    # corner, just not the full corner-inset the main
+                    # perimeter uses) and the SAME spacing_mm the main
+                    # perimeter runs at; if that fits >= 1 position with
+                    # every leg tip landing in real material, use it
+                    # (multiple bars become a Set, same as the main
+                    # perimeter's own multi-position path) — only falling
+                    # back to the single full-corner-inset centred bar (and
+                    # ultimately the closed link) if even the relaxed
+                    # margin doesn't fit.
+                    relaxed_dists, relaxed_positions = _relaxed_spaced_positions(
+                        nominal_leg_mm / 2.0)
+
+                    if len(relaxed_positions) >= 2:
+                        target_sets.append(_make_set(relaxed_dists, relaxed_positions))
+                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                              u'{:.0f}mm, too short for the main perimeter\'s own '
+                              u'corner-inset spacing but fit {} open U-bars at the '
+                              u'same {:.0f}mm spacing, relaxed corner margin.'.format(
+                                  p0[0], p0[1], length_mm, len(relaxed_positions), spacing_mm))
+                        continue
+
+                    hole_dists, hole_positions = _try_hole_min_bars()
+                    if len(hole_positions) >= 2:
+                        target_sets.append(_make_set(hole_dists, hole_positions))
+                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                              u'{:.0f}mm, too short for {} open U-bars even at a '
+                              u'relaxed margin — fit {} at a TIGHTER hole-only '
+                              u'corner margin instead (leg {:.0f}mm).'.format(
+                                  p0[0], p0[1], length_mm, _HOLE_MIN_BARS,
+                                  len(hole_positions), nominal_leg_mm))
+                        continue
+                    if len(relaxed_positions) == 1:
+                        target_bars.append({'curves': _chain_at(relaxed_positions[0]),
+                                             'normal': normal_vec, 'style': None,
+                                             'is_hole': is_hole})
+                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                              u'{:.0f}mm, too short for spaced U-bars (leg {:.0f}mm) '
+                              u'— placed ONE open U-bar centred on the edge '
+                              u'instead.'.format(p0[0], p0[1], length_mm, nominal_leg_mm))
+                        continue
+
+                    mid_pos = (p0[0] + unit_dir[0] * (length_mm / 2.0),
+                               p0[1] + unit_dir[1] * (length_mm / 2.0))
+                    centred_leg_ok = topo.point_in_material_mm(
+                        mid_pos[0] + inward_normal[0] * nominal_leg_mm,
+                        mid_pos[1] + inward_normal[1] * nominal_leg_mm,
+                        outer, large_holes)
+                    if centred_leg_ok:
+                        target_bars.append({'curves': _chain_at(mid_pos),
+                                             'normal': normal_vec, 'style': None,
+                                             'is_hole': is_hole})
+                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                              u'{:.0f}mm, too short for spaced U-bars (leg {:.0f}mm) '
+                              u'— placed ONE open U-bar centred on the edge '
+                              u'instead.'.format(p0[0], p0[1], length_mm, nominal_leg_mm))
+                        continue
+
                     chain = _link_loop_edge(DB, p0, p1, bz, tz)
-                    target_bars.append({'curves': chain, 'normal': normal_vec, 'style': 'StirrupTie'})
+                    # BUG FIX (2026-09-02) — reported live as "Rebar.
+                    # CreateFromCurves returned None" for every outer
+                    # edge, footing AND floor alike; confirmed with a
+                    # live NullReferenceException against a real
+                    # footing (id 1317591) using the exact geometry
+                    # this branch builds. _link_loop_edge's own closed
+                    # rectangle lies in the plane spanned by the EDGE
+                    # direction (unit_dir) and Z — the open U-bar
+                    # shape's `normal_vec` (= unit_dir) was being reused
+                    # here unchanged, but THIS shape's own plane normal
+                    # must be perpendicular to unit_dir instead, i.e.
+                    # the inward/leg direction — the exact same class
+                    # of "curves' own plane vs a normal that's actually
+                    # IN that plane" bug already fixed once this session
+                    # for the wall Top U-bar. Confirmed live: the same
+                    # rectangle with `leg_dir` as normal creates fine
+                    # (Shape 31); with `normal_vec` it throws a real
+                    # NullReferenceException, not just "returned None".
+                    target_bars.append({'curves': chain, 'normal': leg_dir, 'style': 'StirrupTie',
+                                         'is_hole': is_hole})
+                    # DIAGNOSTIC (2026-09-02) — surfaces WHY an edge fell
+                    # back to a single closed link instead of open,
+                    # evenly-spaced U-bars, so a next run can tell
+                    # "genuinely short edge" apart from "nominal_leg_mm
+                    # computed too large" without guessing. Printed
+                    # AND recorded — debug_failed_edges is already
+                    # returned to the caller and its count surfaced in
+                    # ui.py's error list.
+                    print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                          u'{:.0f}mm, fell back to ONE closed link — even a CENTRED '
+                          u'leg ({:.0f}mm) would land outside material (genuinely '
+                          u'narrow rib).'.format(
+                              p0[0], p0[1], length_mm, nominal_leg_mm))
+                    debug_failed_edges.append({
+                        'p0_mm': p0, 'p1_mm': p1, 'bz_ft': bz, 'tz_ft': tz,
+                        'inward_normal': inward_normal,
+                        'error': u'even a centred leg ({:.0f}mm, {:.0f}mm edge) would '
+                                 u'land outside material — closed link used instead of '
+                                 u'open U-bars'.format(nominal_leg_mm, length_mm),
+                    })
                     continue
 
                 dists_mm = footing_mod._evenly_spaced(usable_lo, usable_hi, spacing_mm)
@@ -892,20 +1113,50 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                     for pos in positions)
                 if not leg_tips_ok:
                     chain = _link_loop_edge(DB, p0, p1, bz, tz)
-                    target_bars.append({'curves': chain, 'normal': normal_vec, 'style': 'StirrupTie'})
+                    # Same normal fix as the "too short" branch above.
+                    target_bars.append({'curves': chain, 'normal': leg_dir, 'style': 'StirrupTie',
+                                         'is_hole': is_hole})
+                    # Same diagnostic purpose as above — this branch
+                    # means the edge itself is long enough, but at least
+                    # one U-bar leg tip would land outside real material.
+                    print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                          u'{:.0f}mm, fell back to ONE closed link — at least one '
+                          u'U-bar leg tip ({:.0f}mm) would land outside material.'.format(
+                              p0[0], p0[1], length_mm, nominal_leg_mm))
+                    debug_failed_edges.append({
+                        'p0_mm': p0, 'p1_mm': p1, 'bz_ft': bz, 'tz_ft': tz,
+                        'inward_normal': inward_normal,
+                        'error': u'U-bar leg tip ({:.0f}mm) would land outside material '
+                                 u'— closed link used instead of open U-bars'.format(
+                                     nominal_leg_mm),
+                    })
                     continue
 
                 if len(positions) == 1:
-                    target_bars.append({'curves': _chain_at(positions[0]),
-                                         'normal': normal_vec, 'style': None})
+                    # BUG FIX (2026-09-02, round 3) — see
+                    # _relaxed_spaced_positions's own comment above: this
+                    # edge clears the standard corner-inset span but
+                    # `_evenly_spaced` still only fit ONE position within
+                    # it (usable span <= spacing_mm) — retry with the
+                    # relaxed margin before settling for a single bar, so
+                    # a hole edge long enough for 2+ U-bars at the main
+                    # perimeter's own spacing actually gets them.
+                    relaxed_dists, relaxed_positions = _relaxed_spaced_positions(
+                        nominal_leg_mm / 2.0)
+                    if len(relaxed_positions) >= 2:
+                        target_sets.append(_make_set(relaxed_dists, relaxed_positions))
+                    else:
+                        # Same hole-only, tighter-margin, minimum-bar-count
+                        # fallback as the "too short" branch above.
+                        hole_dists, hole_positions = _try_hole_min_bars()
+                        if len(hole_positions) >= 2:
+                            target_sets.append(_make_set(hole_dists, hole_positions))
+                        else:
+                            target_bars.append({'curves': _chain_at(positions[0]),
+                                                 'normal': normal_vec, 'style': None,
+                                                 'is_hole': is_hole})
                 else:
-                    array_length_mm = abs(dists_mm[-1] - dists_mm[0])
-                    materialized = [{'curves': _chain_at(pos), 'normal': normal_vec} for pos in positions]
-                    target_sets.append({
-                        'curves': materialized[0]['curves'], 'normal': normal_vec,
-                        'array_length_mm': array_length_mm, 'spacing_mm': spacing_mm,
-                        'materialized_bars': materialized, 'style': None,
-                    })
+                    target_sets.append(_make_set(dists_mm, positions))
             except _EDGE_EXCEPTION_TYPES as e:
                 # PHASE 3.5.4/3.5.5 item 2 — `except Exception` alone
                 # already catches .NET exceptions too (IronPython

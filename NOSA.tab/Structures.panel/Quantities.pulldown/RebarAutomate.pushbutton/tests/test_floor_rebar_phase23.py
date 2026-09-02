@@ -476,12 +476,26 @@ assert along_x_collapsed['sets'] == [] and along_x_collapsed['bars'] == []
 print("build_floor_reinforcement: an interval collapsed to empty by its own "
       "inset produces ZERO sets/bars, never a ghost Set with an empty shape: OK")
 
-# ── Test 13 (Phase 3.5 item 5 regression): edge-based leg is STILL binary ──
+# ── Test 13 (Phase 3.5 item 5 / 2026-09-02, round 2 — explicit user
+# request "igual que la distancia entre Ubars del contorno del
+# forjado"): leg length is STILL binary ──
 # A single short rectangular hole whose own edges are shorter than
-# 2 x nominal_leg_mm (320mm) must fall back to a closed link on those
-# edges, never a shrunk leg — the SAME binary guarantee as before,
-# now enforced by _build_edge_ubars' edge-length check instead of
-# _closure_treatments' interval-width check.
+# 2 x nominal_leg_mm (320mm) used to fall back to a closed link on
+# every one of those edges. ROUND 1 fix (2026-09-02, reported live —
+# "deberían ser Ubars en perpendicular a esa cara, no links en
+# paralelo"): tries ONE open U-bar centred on the edge first — a closed
+# link is the LAST resort, only when even a centred leg would land
+# outside material. ROUND 2 fix (same day, "solo una por cada lado del
+# hueco" + explicit follow-up "quiero más de uno si el lado es largo,
+# igual que... el contorno del forjado"): before settling for that ONE
+# centred bar, a RELAXED margin (nominal_leg_mm / 2, still clear of the
+# shared corner) is tried at the SAME spacing_mm the main perimeter
+# itself uses — for THIS hole's 550mm edges that fits 3 positions
+# (550 - 320 = 230mm span > 200mm spacing), so every edge now becomes a
+# 3-bar Set, not a single centred bar. The leg length itself is still
+# strictly binary — FULL nominal_leg_mm or a closed link, never a
+# shrunk fraction — this test confirms that binary guarantee under the
+# new "prefer spaced, then centred, then a closed link" cascade.
 tiny_hole_host = make_rect_floor(
     width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0,
     holes_mm=[[(2000, 1500), (2500, 1500), (2500, 2000), (2000, 2000)]])  # 500x500mm hole
@@ -497,16 +511,25 @@ tiny_closure = result_tiny_hole['perimeter_closure_ubars']
 tiny_hole_entries = (tiny_closure['x_bars']['sets'] + tiny_closure['x_bars']['bars']
                      + tiny_closure['y_bars']['sets'] + tiny_closure['y_bars']['bars'])
 # every edge of this 500mm hole (each side ~550mm after cover growth)
-# is shorter than 2*320=640mm -> ALL 4 of its own edges must be
-# closed links, and every OPEN entry anywhere (from the outer
-# boundary, which is plenty large) must carry the FULL nominal leg,
-# never a fraction of it.
+# is shorter than 2*320=640mm -> all 4 of its own edges hit the "too
+# short for the main perimeter's own CORNER-INSET spacing" branch —
+# but the RELAXED margin (160mm) leaves a 230mm usable span, which fits
+# 3 positions at the same 200mm spacing_mm the main perimeter uses
+# (230mm > 200mm spacing -> ceil(230/200)+1 = 3), so every edge becomes
+# a 3-bar Set, not a single centred bar or a closed link.
 hole_area_entries = [e for e in tiny_hole_entries
-                      if e.get('style') == 'StirrupTie' and
-                      any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2600.0
-                          for c in e['curves'] for i in (0, 1))]
+                      if any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2600.0
+                             for c in e['curves'] for i in (0, 1))]
 assert len(hole_area_entries) == 4, \
-    "all 4 edges of a hole smaller than 2x the nominal leg must become closed links"
+    "all 4 edges of this hole should each get one closure entry (a 3-bar Set)"
+assert all(e.get('style') is None for e in hole_area_entries), \
+    "a centred/relaxed-spaced leg fits in material on every edge of this hole " \
+    "— none should fall back to a closed link"
+assert all(e.get('is_hole') is True for e in hole_area_entries), \
+    "every closure entry around this hole must carry is_hole=True, so ui.py " \
+    "routes it to create_from_curves (real Shape code) instead of FreeForm"
+assert all(len(e.get('materialized_bars', [])) == 3 for e in hole_area_entries), \
+    "the relaxed-margin/spacing fix should fit 3 U-bars per edge here, not 1"
 for e in tiny_hole_entries:
     if e.get('style') == 'StirrupTie':
         continue
@@ -514,9 +537,103 @@ for e in tiny_hole_entries:
     leg_len_mm = leg0.GetEndPoint(0).DistanceTo(leg0.GetEndPoint(1)) * _MM_PER_FT
     assert abs(leg_len_mm - 320.0) < 1e-3, \
         "every non-link U-bar leg must be the FULL nominal length, never shrunk"
-print("_build_edge_ubars: leg length is still strictly binary (full nominal_leg_mm "
-      "or closed link) under the edge-based rewrite — a hole smaller than 2x the "
-      "leg length closes entirely with links, no shrunk legs anywhere: OK")
+print("_build_edge_ubars: a hole too short for the main perimeter's own corner-"
+      "inset spacing now tries a relaxed margin at the SAME spacing_mm first — "
+      "fitting multiple open U-bars per edge (full nominal_leg_mm each), each "
+      "entry tagged is_hole=True for ui.py's real-Shape-code routing — a closed "
+      "link is still the last resort when not even a centred leg fits: OK")
+
+# ── Test 13b (round 3, 2026-09-02 — reported live: Shape 21 confirmed, but
+# "sigue creando solo un ubar por cada cara del hueco... debería ser un
+# multi rebar, con la misma distancia entre barras que los Ubars del
+# contorno de la losa") — a hole edge that clears the STANDARD corner-inset
+# span (never enters the "too short" branch Test 13 exercises) but whose
+# usable span between full corner insets is still <= spacing_mm, so
+# `_evenly_spaced` itself returns exactly ONE midpoint bar — round 2 never
+# retried the relaxed margin here, only inside the "too short" branch.
+bigger_hole_host = make_rect_floor(
+    width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0,
+    holes_mm=[[(2000, 1500), (2650, 1500), (2650, 2150), (2000, 2150)]])  # 650x650mm hole
+result_bigger_hole = floor_rebar.build_floor_reinforcement(
+    doc, bigger_hole_host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=25.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0,
+    include_perimeter_closure_ubars=True,
+    x_anchor_ubar_dia_mm=8.0, x_anchor_ubar_spacing_mm=200.0,
+    y_anchor_ubar_dia_mm=8.0, y_anchor_ubar_spacing_mm=200.0)
+bigger_closure = result_bigger_hole['perimeter_closure_ubars']
+bigger_hole_entries = (bigger_closure['x_bars']['sets'] + bigger_closure['x_bars']['bars']
+                       + bigger_closure['y_bars']['sets'] + bigger_closure['y_bars']['bars'])
+# each edge is ~700mm after cover growth: usable_lo=usable_hi margins of
+# 320mm leave only a 60mm usable span (<= 200mm spacing) -> the STANDARD
+# path's own _evenly_spaced returns exactly 1 position (usable_hi >
+# usable_lo, so this never even reaches the "too short" branch) — the
+# round-3 fix must retry the relaxed (160mm) margin here too, which leaves
+# a 380mm span (> 200mm spacing) -> 3 positions.
+bigger_hole_area_entries = [e for e in bigger_hole_entries
+                            if any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2750.0
+                                   for c in e['curves'] for i in (0, 1))]
+assert len(bigger_hole_area_entries) == 4, \
+    "all 4 edges of this hole should each get one closure entry (a multi-bar Set)"
+assert all(e.get('style') is None for e in bigger_hole_area_entries), \
+    "a relaxed-spaced leg fits in material on every edge of this hole"
+assert all(e.get('is_hole') is True for e in bigger_hole_area_entries), \
+    "every closure entry around this hole must carry is_hole=True"
+assert all(len(e.get('materialized_bars', [])) >= 2 for e in bigger_hole_area_entries), \
+    "an edge that clears the standard corner-inset span but whose usable span " \
+    "is still <= spacing_mm must retry the relaxed margin and get a MULTI-bar " \
+    "Set, not silently settle for the standard path's own single midpoint bar"
+print("_build_edge_ubars: a hole edge that clears the standard corner-inset "
+      "span but whose usable span between insets is still <= spacing_mm now "
+      "also retries the relaxed margin (not just the 'too short' branch) — "
+      "fixes 'solo un ubar por cada cara del hueco' for edges long enough to "
+      "clear standard insets but not long enough for standard spacing: OK")
+
+# ── Test 13c (round 5, 2026-09-02 — explicit user request: "si los huecos
+# son de 500x500mm al menos debería haber 3 Ubars en cada lado") — the EXACT
+# scenario reported live: a 500x500mm hole, 10mm anchor dia (leg=400mm,
+# 40x diameter), edges ~550mm after cover growth. Even the round-3 relaxed
+# margin (leg/2=200mm) only leaves a 150mm usable span (<= 200mm spacing) —
+# not enough for a 2nd bar at the main perimeter's own spacing. The user's
+# own structural judgement, applied here: worth a genuinely TIGHTER,
+# hole-only corner margin (leg/4=100mm) to guarantee _HOLE_MIN_BARS (3).
+min3_hole_host = make_rect_floor(
+    width_mm=6000.0, depth_mm=4000.0, thickness_mm=200.0,
+    holes_mm=[[(2000, 1500), (2500, 1500), (2500, 2000), (2000, 2000)]])  # 500x500mm hole
+result_min3_hole = floor_rebar.build_floor_reinforcement(
+    doc, min3_hole_host, bottom_cover_mm=25.0, bottom_dia_x_mm=10.0, bottom_dia_y_mm=10.0,
+    bottom_spacing_mm=200.0,
+    include_top_mat=True, top_cover_mm=25.0, top_dia_x_mm=10.0, top_dia_y_mm=10.0,
+    top_spacing_mm=200.0,
+    include_perimeter_closure_ubars=True,
+    x_anchor_ubar_dia_mm=10.0, x_anchor_ubar_spacing_mm=200.0,
+    y_anchor_ubar_dia_mm=10.0, y_anchor_ubar_spacing_mm=200.0)
+min3_closure = result_min3_hole['perimeter_closure_ubars']
+min3_hole_entries = (min3_closure['x_bars']['sets'] + min3_closure['x_bars']['bars']
+                     + min3_closure['y_bars']['sets'] + min3_closure['y_bars']['bars'])
+min3_hole_area_entries = [e for e in min3_hole_entries
+                          if any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2600.0
+                                 for c in e['curves'] for i in (0, 1))]
+assert len(min3_hole_area_entries) == 4, \
+    "all 4 edges of this hole should each get one closure entry"
+assert all(e.get('is_hole') is True for e in min3_hole_area_entries), \
+    "every closure entry around this hole must carry is_hole=True"
+assert all(len(e.get('materialized_bars', [])) >= floor_rebar._HOLE_MIN_BARS
+           for e in min3_hole_area_entries), \
+    "a 500x500mm hole must get AT LEAST _HOLE_MIN_BARS (3) U-bars per edge, " \
+    "per explicit user request, even when that needs a tighter-than-perimeter " \
+    "corner margin"
+for e in min3_hole_area_entries:
+    leg0 = e['materialized_bars'][0]['curves'][0]
+    leg_len_mm = leg0.GetEndPoint(0).DistanceTo(leg0.GetEndPoint(1)) * _MM_PER_FT
+    assert abs(leg_len_mm - 400.0) < 1e-3, \
+        "the tighter hole-only corner margin must never shrink the leg's own " \
+        "anchorage length (400mm) — only the ALONG-EDGE spacing is tightened"
+print("_build_edge_ubars: a 500x500mm hole (400mm anchorage leg) now gets AT "
+      "LEAST 3 open U-bars per edge via a tighter, hole-only corner margin — "
+      "the anchorage leg length itself is never shrunk, only the along-edge "
+      "spacing: OK")
 
 # ── Test 14 (Phase 3.1 item 3 regression): mm coordinates are rounded ────
 assert floor_rebar._round_mm(1499.999999999997) == 1500.0, \
