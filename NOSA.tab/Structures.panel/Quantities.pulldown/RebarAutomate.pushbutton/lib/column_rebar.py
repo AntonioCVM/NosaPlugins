@@ -661,31 +661,69 @@ def detect_column_geometry(doc, host):
         return {'shape': 'circle', 'diameter_mm': diameter_mm}
     b_mm = _lookup_length_param_mm(host, [u'b', u'B'])
     h_mm = _lookup_length_param_mm(host, [u'h', u'H'])
-    # PHASE 3.5.9 item 1 — same fix as _resolve_column_geometry_source:
-    # a bare 'b' with no 'h' is a SQUARE section (h_mm = b_mm), never a
-    # diameter — keeps the preview consistent with what generation now
-    # does for the same family.
-    if b_mm is not None and h_mm is None:
-        h_mm = b_mm
-    if b_mm is not None and h_mm is not None:
-        return {'shape': 'rect', 'width_mm': b_mm, 'depth_mm': h_mm}
 
     engine = _ensure_engine()
     cover_mgr = engine.CoverGeometryManager(doc, host)
 
-    if cover_mgr.solid is not None:
-        for face in cover_mgr.solid.Faces:
-            if isinstance(face, DB.CylindricalFace):
-                radius_ft = None
-                try:
-                    radius_ft = face.get_Radius()
-                except Exception:
-                    try:
-                        radius_ft = face.Radius
-                    except Exception:
-                        radius_ft = None
-                if radius_ft is not None:
-                    return {'shape': 'circle', 'diameter_mm': radius_ft * 2.0 * _MM_PER_FT}
+    def _find_cylindrical_face_diameter_mm():
+        if cover_mgr.solid is None:
+            return None
+        has_cylindrical_face = any(
+            isinstance(face, DB.CylindricalFace) for face in cover_mgr.solid.Faces)
+        if not has_cylindrical_face:
+            return None
+        # BUG FIX (2026-09-01, confirmed via a real traceback from the
+        # user's own Revit session): CylindricalFace.Radius (and its
+        # get_Radius() accessor) does NOT behave as a plain float in
+        # this pythonnet binding — it resolves to an "indexer#" wrapper
+        # object, and `radius_ft * 2.0` throws exactly the reported
+        # error: "unsupported operand type(s) for *: 'indexer#' and
+        # 'float'". This is why the earlier fix (which correctly
+        # detected the column as circular) still produced ZERO rebar
+        # with no visible error until diagnostic hardening surfaced the
+        # traceback. Sidestepping that fragile API surface entirely: a
+        # column's bounding box IS its diameter on both horizontal axes
+        # for a genuinely circular section (X-extent == Y-extent ==
+        # diameter, exactly) — the SAME bounding-box arithmetic this
+        # function's own "faceted circle" last-resort branch below
+        # already uses; only reached here once a true CylindricalFace
+        # confirms the column really is round (a rectangular column's
+        # bbox is not its diameter, and never reaches this branch).
+        bbox = host.get_BoundingBox(None)
+        if bbox is None:
+            return None
+        width_ft = bbox.Max.X - bbox.Min.X
+        depth_ft = bbox.Max.Y - bbox.Min.Y
+        if width_ft <= 0 or depth_ft <= 0:
+            return None
+        return (width_ft + depth_ft) / 2.0 * _MM_PER_FT
+
+    # PHASE F2.5/circular-bug-fix (2026-09-01) — a bare 'b' with no 'h'
+    # is AMBIGUOUS by name alone: Phase 3.5.9 treated it as a SQUARE
+    # section (h_mm = b_mm) to fix square columns being misdetected as
+    # circular, but this silently broke the OPPOSITE case — Revit's own
+    # stock "Concrete Round" family exposes ONLY 'b' (its diameter),
+    # with no 'h' and no "Diameter" parameter at all, and got routed
+    # into the rectangular path as a false "square" (live bug, confirmed
+    # against a real project: reinforced as a 600x600 square instead of
+    # a 600mm-diameter circle). Fix: when 'h' is absent, check the
+    # SOLID's real geometry for a true CylindricalFace BEFORE assuming
+    # square — geometry can't lie about which shape the column actually
+    # is, unlike a bare parameter name. Falls back to the old "h=b,
+    # square" assumption only when no CylindricalFace is found either
+    # (a genuinely square/rectangular family that also only authors
+    # 'b') — that original Phase 3.5.9 case is unaffected.
+    if b_mm is not None and h_mm is None:
+        cyl_diameter_mm = _find_cylindrical_face_diameter_mm()
+        if cyl_diameter_mm is not None:
+            return {'shape': 'circle', 'diameter_mm': cyl_diameter_mm}
+        h_mm = b_mm
+    if b_mm is not None and h_mm is not None:
+        return {'shape': 'rect', 'width_mm': b_mm, 'depth_mm': h_mm}
+
+    cyl_diameter_mm = _find_cylindrical_face_diameter_mm()
+    if cyl_diameter_mm is not None:
+        return {'shape': 'circle', 'diameter_mm': cyl_diameter_mm}
 
     try:
         axis = get_column_axis(host)
@@ -2017,7 +2055,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
                                           densify_at_nodes, include_starter_bars,
                                           starter_bar_length_mm, starter_bar_multiplier,
                                           use_cranked_laps, crank_offset_mm, crank_slope,
-                                          joint_zone_length_mm, start_offset_mm, end_offset_mm):
+                                          joint_zone_length_mm, start_offset_mm, end_offset_mm,
+                                          std=None):
     """
     PHASE 3.5.7 item 1 — circular column reinforcement: radial vertical
     bars (pure trigonometry — DB.XYZ(cos, sin)) and circular ties.
@@ -2083,8 +2122,15 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
     u_dir = DB.XYZ(1.0, 0.0, 0.0)
     v_dir = DB.XYZ(0.0, 1.0, 0.0)
 
+    # PHASE F2.5 — starters lap the vertical bar into the storey above,
+    # under gravity load: assumed IN COMPRESSION (the conventional
+    # default for a column's own main bars) so a resolved `std` uses
+    # standards.lap_length_mm's compression_factor, not the tension
+    # bands. A caller needing a tension-splice column (unusual) should
+    # keep passing an explicit starter_bar_length_mm override instead.
     lap_mm = (starter_bar_length_mm if starter_bar_length_mm is not None
-              else default_lap_length_mm(bar_diameter_mm, starter_bar_multiplier))
+              else default_lap_length_mm(bar_diameter_mm, starter_bar_multiplier,
+                                          std=std, in_compression=True))
     floor_entries = find_floor_split_elevations_ft(doc, axis)
     split_elevations_ft = [e['top_ft'] for e in floor_entries]
 
@@ -2129,7 +2175,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
         # a rectangle's max(2*half_w, 2*half_d) collapses to the tie's
         # own diameter for a circle.
         larger_dim_mm = 2.0 * stirrup_radius_mm
-        joint_zone_length_mm = default_joint_zone_length_mm(larger_dim_mm, clear_height_mm)
+        joint_zone_length_mm = default_joint_zone_length_mm(
+            larger_dim_mm, clear_height_mm, std=std)
 
     zones = generate_column_stirrup_zones(
         clear_height_mm, joint_zone_length_mm, dense_spacing_mm, normal_spacing_mm,
@@ -2174,7 +2221,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 crank_slope=6.0, include_crossties=False,
                                 crosstie_layout='all',
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
-                                end_offset_mm=50.0):
+                                end_offset_mm=50.0, std=None):
     """
     PHASE 3 (multi-story + Rebar-Set verticals — PHASE 3.2) — the
     ui.py-facing pipeline for one rectangular column host, matching the
@@ -2311,6 +2358,22 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                  given.
         start_offset_mm, end_offset_mm (float): see
                                  generate_column_stirrup_zones.
+        std                      (dict or None): PHASE F2.5 — a resolved
+                                 nosa_utils.standards profile. When
+                                 given, it replaces the fixed-multiplier
+                                 defaults below wherever the caller has
+                                 NOT already supplied an explicit
+                                 override: starter_bar_length_mm (via
+                                 default_lap_length_mm's std path,
+                                 in_compression=True — see that call
+                                 site's own comment) and
+                                 joint_zone_length_mm (via
+                                 default_joint_zone_length_mm's
+                                 stirrups.confinement_zone_factor_h).
+                                 Passed straight through to the circular
+                                 branch too. Omitting std (the default,
+                                 None) reproduces exactly this
+                                 function's pre-F2.5 behaviour.
 
     Returns:
         {
@@ -2354,26 +2417,30 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     # exactly 4... found 0") no matter what b/h-based fallback exists
     # downstream.
     #
-    # PHASE 3.5.9 item 1 FIX — REMOVED the "bare 'b' with no 'h' means
-    # circular" fallback that used to live here. Live testing proved
-    # this false: many genuine SQUARE column families expose only 'b'
-    # (h is implied equal, never authored as a separate parameter) —
-    # this branch was routing perfectly rectangular columns into
-    # _build_circular_column_reinforcement, producing radial bars and
-    # arc-based ties for a square section. Circular detection is now
-    # EXCLUSIVELY the "Diameter" parameter — a genuinely round family
-    # that exposes no "Diameter" param at all falls through to the
-    # rectangular path below, where _resolve_column_geometry_source's
-    # own b-only branch (PHASE 3.5.9 item 1) now treats a bare 'b' as a
-    # SQUARE section (h_mm = b_mm), not as a diameter.
-    diameter_mm = _lookup_length_param_mm(host, [u'Diameter', u'DIAMETER', u'diameter'])
-    if diameter_mm is not None:
+    # BUG FIX (2026-09-01, confirmed live against a real project):
+    # this used to check ONLY the literal "Diameter" parameter name —
+    # Phase 3.5.9's own reasoning for that ("many genuine SQUARE
+    # families expose only 'b'") is sound, but it silently broke the
+    # OPPOSITE real case: Revit's own stock "Concrete Round" structural
+    # column family exposes ONLY 'b' (its diameter) and no "Diameter"
+    # parameter at all — this column fell all the way through to the
+    # rectangular path and got reinforced as a square. Now delegates to
+    # detect_column_geometry(), which tries "Diameter" first (unchanged
+    # fast path), then — for a bare 'b' with no 'h' — checks the SOLID's
+    # real geometry for a true DB.CylindricalFace BEFORE assuming
+    # square, so a genuinely round family is never misdetected by name
+    # alone. A genuinely rectangular/square host (detect_column_geometry
+    # returns 'rect' or the geometry doesn't resolve) falls through to
+    # the unchanged rectangular path below exactly as before.
+    geom = detect_column_geometry(doc, host)
+    if geom is not None and geom.get('shape') == 'circle':
+        diameter_mm = geom['diameter_mm']
         return _build_circular_column_reinforcement(
             doc, host, axis, diameter_mm, cover_mm, bar_diameter_mm, bar_count,
             stirrup_diameter_mm, dense_spacing_mm, normal_spacing_mm, densify_at_nodes,
             include_starter_bars, starter_bar_length_mm, starter_bar_multiplier,
             use_cranked_laps, crank_offset_mm, crank_slope,
-            joint_zone_length_mm, start_offset_mm, end_offset_mm)
+            joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std)
 
     engine = _ensure_engine()
     cover_mgr = engine.CoverGeometryManager(doc, host)
@@ -2428,8 +2495,12 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     n_u = max(2, n_u)
     n_v = max(2, n_v)
 
+    # PHASE F2.5 — see this function's own std docstring entry above:
+    # assumed IN COMPRESSION, matching the circular branch's identical
+    # comment.
     lap_mm = (starter_bar_length_mm if starter_bar_length_mm is not None
-              else default_lap_length_mm(bar_diameter_mm, starter_bar_multiplier))
+              else default_lap_length_mm(bar_diameter_mm, starter_bar_multiplier,
+                                          std=std, in_compression=True))
     floor_entries = find_floor_split_elevations_ft(doc, axis)
     split_elevations_ft = [e['top_ft'] for e in floor_entries]
 
@@ -2477,7 +2548,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     clear_height_mm = axis.Length * _MM_PER_FT
     if joint_zone_length_mm is None:
         larger_dim_mm = max(2 * stirrup_half_w_mm, 2 * stirrup_half_d_mm)
-        joint_zone_length_mm = default_joint_zone_length_mm(larger_dim_mm, clear_height_mm)
+        joint_zone_length_mm = default_joint_zone_length_mm(
+            larger_dim_mm, clear_height_mm, std=std)
 
     zones = generate_column_stirrup_zones(
         clear_height_mm, joint_zone_length_mm, dense_spacing_mm, normal_spacing_mm,

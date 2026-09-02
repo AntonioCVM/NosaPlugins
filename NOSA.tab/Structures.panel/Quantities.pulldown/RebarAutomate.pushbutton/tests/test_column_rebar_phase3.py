@@ -676,7 +676,16 @@ print("detect_column_geometry (rectangular column): reads the REAL "
 
 circ_axis = Line.CreateBound(XYZ(0, 0, 0), XYZ(0, 0, 3000.0 / _MM_PER_FT))
 circ_solid = Solid([CylindricalFace(200.0 / _MM_PER_FT)], volume=1.0)
-circ_host = FakeHost(circ_solid, LocationCurve(circ_axis))
+# BUG FIX (2026-09-01) — detect_column_geometry's circular branch now
+# derives diameter from the host's own bounding box (CylindricalFace.
+# Radius doesn't behave as a plain float in the real pythonnet binding —
+# see column_rebar.py's own comment on this), not the fixture's
+# CylindricalFace(radius_ft) stub attribute directly, so this fixture
+# needs a bbox matching the same 400mm diameter for the test to mean
+# anything real.
+circ_bbox = BBoxXYZ(XYZ(-200.0 / _MM_PER_FT, -200.0 / _MM_PER_FT, 0.0),
+                     XYZ(200.0 / _MM_PER_FT, 200.0 / _MM_PER_FT, 3000.0 / _MM_PER_FT))
+circ_host = FakeHost(circ_solid, LocationCurve(circ_axis), bbox=circ_bbox)
 circ_geom = column_rebar.detect_column_geometry(doc, circ_host)
 assert circ_geom is not None and circ_geom['shape'] == 'circle'
 assert abs(circ_geom['diameter_mm'] - 400.0) < 0.5
