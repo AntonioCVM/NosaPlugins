@@ -124,6 +124,34 @@ print("compute_wall_elevation_preview: horiz_dia_mm (e.g. TxtWallHorizDia) "
       "now genuinely affects the drawn horizontal mesh thickness instead of "
       "being silently ignored: OK")
 
+# ── compute_wall_elevation_preview: starter bars (round 2, live report
+# "los starter bars no se ven") ──────────────────────────────────────
+wall_no_starters = rebar_preview.compute_wall_elevation_preview(
+    6000.0, 3000.0, 25.0, 12.0, 200.0, 200.0)
+assert wall_no_starters['starter_extension_mm'] == 0.0
+assert all(b['y0_mm'] >= 0.0 for b in wall_no_starters['bars']), \
+    "no starters requested -> every vertical bar segment stays within [0, height_mm]"
+
+wall_starters = rebar_preview.compute_wall_elevation_preview(
+    6000.0, 3000.0, 25.0, 12.0, 200.0, 200.0,
+    include_starters=True, starter_length_mm=600.0)
+assert wall_starters['starter_extension_mm'] == 600.0
+_vert_inset_mm = 25.0 + 12.0 / 2.0  # cover + vert_dia/2 — matches the function's own 'inset'
+_expected_y0 = _vert_inset_mm - 600.0
+assert all(abs(b['y0_mm'] - _expected_y0) < 1e-6 for b in wall_starters['bars']), \
+    "every vertical bar's own y0_mm must extend exactly starter_length_mm below " \
+    "its own normal starting point (cover + half diameter above y=0), not below y=0 itself"
+
+wall_starters_auto = rebar_preview.compute_wall_elevation_preview(
+    6000.0, 3000.0, 25.0, 12.0, 200.0, 200.0, include_starters=True)
+assert wall_starters_auto['starter_extension_mm'] == max(40.0 * 12.0, 500.0), \
+    "starter_length_mm omitted -> the SAME 40x-diameter/500mm-minimum default " \
+    "build_wall_reinforcement itself uses"
+print("compute_wall_elevation_preview: starter bars (straight extension below "
+      "the wall's own base, matching build_wall_reinforcement's own "
+      "include_starter_bars) are now visible in the preview, with the correct "
+      "default length when omitted: OK")
+
 
 # ── compute_wall_section_preview (round 2, 2026-09-02 — live report
 # "la sección no se ve correctamente, necesitaríamos una sección bien

@@ -1064,7 +1064,9 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
                                     include_top_ubars=False,
                                     include_end_ubars=False,
                                     end_clear_mm=50.0,
-                                    horiz_dia_mm=None):
+                                    horiz_dia_mm=None,
+                                    include_starters=False,
+                                    starter_length_mm=None):
     """
     Wall elevation preview (front view): vertical mesh as line segments,
     horizontal mesh as lines, optional top/end U-bar polylines.
@@ -1077,6 +1079,20 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
     typed. Now defaults to that same fallback ONLY when horiz_dia_mm is
     omitted (preserving any existing caller's behaviour), but uses the
     REAL value whenever one is given.
+
+    BUG FIX (2026-09-02, round 2, live report — "los starter bars no se
+    ven") — include_starters/starter_length_mm mirror wall_rebar.
+    build_wall_reinforcement's own include_starter_bars/starter_length_mm
+    (a straight extension of the SAME vertical bars below the wall's own
+    base, per that function's docstring — "verticals extended below the
+    wall base") — this preview had no representation of that at all.
+    Extends each vertical bar line's own y0_mm below 0 by
+    starter_length_mm (defaulting to 40x vert_dia_mm, matching
+    build_wall_reinforcement's own default) and reports the extension via
+    'starter_extension_mm', the SAME echoed-length pattern
+    compute_column_elevation_preview's own 'starter_extension_mm' already
+    established, for the caller's draw function to extend its own
+    scale/offset calculation downward to fit it.
     """
     if length_mm <= 0 or height_mm <= 0:
         raise ValueError(u'Invalid wall elevation dimensions.')
@@ -1086,6 +1102,12 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
     vert_top = height_mm - inset
     if vert_top <= vert_bottom:
         raise ValueError(u'Wall is too short for the given cover.')
+
+    starter_mm = 0.0
+    if include_starters:
+        starter_mm = (starter_length_mm if starter_length_mm and starter_length_mm > 0
+                      else max(40.0 * (vert_dia_mm or 12.0), 500.0))
+    vert_bottom_with_starter = vert_bottom - starter_mm
 
     vert_x_positions = _evenly_spaced_wall_preview(
         end_clear_mm, length_mm - end_clear_mm, vert_spacing_mm)
@@ -1098,7 +1120,7 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
     for x in vert_x_positions:
         for x_off in face_offsets:
             bars.append({
-                'x0_mm': x + x_off, 'y0_mm': vert_bottom,
+                'x0_mm': x + x_off, 'y0_mm': vert_bottom_with_starter,
                 'x1_mm': x + x_off, 'y1_mm': vert_top,
                 'diameter_mm': vert_dia_mm,
             })
@@ -1144,4 +1166,5 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
         'bars': bars,
         'horizontals': horizontals,
         'ubars': ubars,
+        'starter_extension_mm': starter_mm,
     }

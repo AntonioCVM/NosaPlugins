@@ -2536,6 +2536,15 @@ class RebarAutomateWindow(NOSAWindow):
         except Exception:
             elevation_canvas = None
         if elevation_canvas is not None:
+            include_starters = self.ChkWallStarters.IsChecked == True
+            starter_length = None
+            if include_starters:
+                try:
+                    starter_length = float(self.TxtWallStarterLength.Text)
+                    if starter_length <= 0:
+                        starter_length = None  # 0 = auto, matches build_wall_reinforcement
+                except (TypeError, ValueError):
+                    starter_length = None
             try:
                 data = rebar_preview.compute_wall_elevation_preview(
                     length_mm=length_mm, height_mm=height_mm, cover_mm=cover,
@@ -2543,7 +2552,8 @@ class RebarAutomateWindow(NOSAWindow):
                     horiz_spacing_mm=horiz_sp, horiz_dia_mm=horiz_dia,
                     both_faces=both_faces,
                     include_top_ubars=self.ChkWallEndUBars.IsChecked == True,
-                    include_end_ubars=self.ChkWallEndUBars.IsChecked == True)
+                    include_end_ubars=self.ChkWallEndUBars.IsChecked == True,
+                    include_starters=include_starters, starter_length_mm=starter_length)
             except Exception:
                 pass
             else:
@@ -2680,11 +2690,19 @@ class RebarAutomateWindow(NOSAWindow):
         section = data.get('section') or {}
         w_mm = float(section.get('width_mm') or 6000.0)
         h_mm = float(section.get('height_mm') or 3000.0)
+        # BUG FIX (2026-09-02, round 2, live report — "los starter bars
+        # no se ven") — same starter_extension_mm pattern _draw_column_
+        # elevation_preview already uses: the scale/offset must account
+        # for the starter's own extension BELOW y=0, or those bar
+        # segments get drawn off the bottom of the canvas / squeezed the
+        # scale as if they didn't exist.
+        starter_ext = float(data.get('starter_extension_mm') or 0.0)
+        total_h_mm = h_mm + starter_ext
         cw = canvas.Width or 700.0
         ch = canvas.Height or 220.0
         margin_x = 24.0
         margin_y = 16.0
-        scale = min((cw - 2 * margin_x) / w_mm, (ch - 2 * margin_y) / h_mm)
+        scale = min((cw - 2 * margin_x) / w_mm, (ch - 2 * margin_y) / total_h_mm)
         # BUG FIX (2026-09-02, live report — "la vista de los walls
         # preview no está centrada") — off_x used to be the fixed left
         # MARGIN itself, so the wall was always drawn flush against the
@@ -2694,7 +2712,11 @@ class RebarAutomateWindow(NOSAWindow):
         # the ACTUAL scaled wall width within the canvas instead — same
         # fix shape as _draw_beam_elevation_preview's own centring.
         off_x = (cw - w_mm * scale) / 2.0
-        off_y = ch - margin_y
+        # y=0 (the wall's own base) is shifted UP from the bottom margin
+        # by however much room the starter extension needs below it, so
+        # the starter's own bottom (y=-starter_ext) still lands exactly
+        # at the bottom margin instead of running off the canvas.
+        off_y = ch - margin_y - starter_ext * scale
 
         def sx(x_mm):
             return off_x + x_mm * scale
