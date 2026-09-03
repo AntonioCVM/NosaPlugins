@@ -329,10 +329,96 @@ de abajo es Python puro, sin necesidad de mock alguno.
 Verificado con un nuevo fichero de test, `tests/test_rebar_preview_
 phase26.py` (mismo convenio sin-Revit que `test_phase351_fixes.py`) — 6
 comprobaciones dirigidas a cada uno de los 4 bugs de arriba, todas en
-verde. 20/20 suites de test totales en verde (ninguna regresión). **Pendiente
-de verdad: smoke visual real en Revit** — confirmar que hooks, el nuevo
-alzado de vigas y las 2 vistas de muro se ven correctamente en la ventana
-real, algo que no puedo verificar sin ojos en el render WPF.
+verde. 20/20 suites de test totales en verde (ninguna regresión).
+
+**Ronda 2 (2026-09-02, mismo día, tras smoke visual real del usuario) — 3
+bugs más encontrados y corregidos:**
+- **Hooks al revés:** confirmado por captura — doblaban HACIA AFUERA
+  (pasando la cara libre) en vez de HACIA DENTRO del hormigón (el
+  convenio real de un hook de 90°, que ancla curvando hacia el núcleo).
+  Invertida la dirección en ambos call sites (`bottom_hooks` ahora dobla
+  hacia arriba/núcleo, `top_hooks` hacia abajo/núcleo).
+- **Sección de muro reescrita por completo:** era un corte casi cuadrado
+  con solo 2 puntos y una tie — ahora es el corte estructural
+  convencional: un corte VERTICAL perpendicular a la longitud del muro
+  (espesor x una altura representativa), con barras verticales como
+  líneas continuas (una por cara) y barras horizontales como puntos a su
+  espaciado real — mismo convenio puntos-vs-líneas que footings/floors,
+  rotado 90°. Nueva salida `'bar_lines'` genérica añadida a
+  `_draw_simple_section_preview` para soportar esto (reutilizable por
+  cualquier preview futuro que necesite una línea de barra no fijada a
+  una fila).
+- **Starter bars del muro ahora visibles** en el alzado — se extienden
+  bajo la base tal y como ya hace `build_wall_reinforcement`
+  (`include_starter_bars`/`starter_length_mm`), con el mismo patrón
+  `starter_extension_mm` que la elevación de columnas ya usaba.
+
+Verificado con 3 comprobaciones más en el mismo fichero de test — 20/20
+suites en verde. **Pendiente de verdad: smoke visual real en Revit** —
+confirmar que hooks, el nuevo alzado de vigas y las 2 vistas de muro se
+ven correctamente en la ventana real, algo que no puedo verificar sin
+ojos en el render WPF.
+
+---
+
+## 🚧 F7.18 — Starter bars en L hacia la cimentación (columnas y muros)
+
+Petición explícita del usuario (2026-09-02), tras confirmar el alcance con
+2 preguntas: mismo detalle que las "Dowels" ya existentes en Zapatas
+(barra recta + gancho de 90° en la base), pero **generado desde la propia
+columna/muro** (no desde la zapata), y funcionando contra los 3 tipos de
+cimentación: zapata aislada, losa de cimentación/solera, y zapata corrida.
+
+**Implementado:**
+- `rebar_engine.find_foundation_below(doc, x_ft, y_ft, base_z_ft, ...)` —
+  detecta el elemento de cimentación (zapata aislada/corrida —
+  `OST_StructuralFoundation`, ambas comparten categoría en Revit aunque
+  `WallFoundation` sea una clase distinta — o losa/solera,
+  `OST_Floors`) directamente bajo un punto dado, vía bounding box (mismo
+  convenio ya establecido en `column_rebar.find_floor_split_elevations_
+  ft`).
+- `rebar_engine.build_starter_into_foundation(...)` — construye UNA
+  barra recta desde la elevación del mat inferior de la cimentación
+  detectada (offset por su propio cover) hasta `anchor_length_mm` (dentro
+  de la cimentación) + `splice_length_mm` (por encima, hacia las barras
+  reales de la columna/muro) — mismo reparto de longitud que
+  `footing_rebar.build_dowel_curves`. El gancho de 90° se aplica al
+  CREAR (start_hook), no está horneado en la geometría — misma
+  convención que `_create_dowel_bars` ya usa.
+- `column_rebar.build_column_foundation_starters(...)` — 4 barras en las
+  esquinas (n_u=n_v=2, mismo valor por defecto que Dowels), reutilizando
+  `compute_vertical_bar_lines` para las posiciones reales.
+- `wall_rebar.build_wall_foundation_starters(...)` — una barra por
+  posición de barra vertical a lo largo del muro (mismo espaciado que la
+  malla vertical real), posicionadas en el eje del muro (simplificación
+  DIVULGADA: no compensa a qué cara pertenecería cada barra vertical
+  real).
+- `ui.py`: nuevo `_create_foundation_starter_bars` (barras individuales,
+  gancho al crear, mismo patrón que `_create_dowel_bars`); cableado en
+  `_process_column`/`_process_wall`; nuevas tarjetas en `ui.xaml` para
+  ambas pestañas ("Add L-Shaped Starter Bars into Foundation Below" +
+  longitud de anclaje/solape).
+- **Distinto** de lo que ya existía: `ChkColStarterBars` (columnas) sigue
+  siendo sobre la PROPIA cabeza de la columna, para plantas futuras —
+  sin relación. `ChkWallStarters` (muros) sigue siendo la extensión recta
+  simple bajo la base — esta nueva opción es un checkbox APARTE
+  ("L-Shaped... into Foundation Below"), con detección real de
+  cimentación y gancho, sin tocar el comportamiento existente.
+
+**Sin preview todavía** (decisión explícita por alcance/tiempo — la
+geometría depende de una consulta en vivo a la cimentación detectada, no
+del motor `rebar_preview.py` ilustrativo que el resto de paneles usa) —
+los checkboxes solo activan/desactivan sus propios campos por ahora.
+
+**Pendiente de verdad — sin verificar en vivo todavía:** a diferencia del
+resto del trabajo de hoy (que sí tiene tests automáticos sin Revit), esta
+función depende intensivamente de la API real de Revit
+(`FilteredElementCollector`, `get_BoundingBox`) — no hay forma honesta de
+mockearla con el mismo rigor que `rebar_preview.py`. Necesito que
+selecciones una columna y/o un muro con una cimentación real modelada
+debajo (de cualquiera de los 3 tipos), actives el checkbox nuevo, y me
+pegues el log completo para verificar contra el modelo real, siguiendo el
+mismo método de este sesión.
 
 ---
 
