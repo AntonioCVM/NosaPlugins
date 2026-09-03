@@ -125,17 +125,47 @@ print("compute_wall_elevation_preview: horiz_dia_mm (e.g. TxtWallHorizDia) "
       "being silently ignored: OK")
 
 
-# ── compute_wall_section_preview: sanity check it's a valid, usable call
-# (this function already existed but was never wired into the UI at all
-# until this round — confirming its own contract still holds). ──────────
+# ── compute_wall_section_preview (round 2, 2026-09-02 — live report
+# "la sección no se ve correctamente, necesitaríamos una sección bien
+# hecha") — REWRITTEN into a real vertical cut through the wall's
+# thickness: vertical bars as continuous LINES (one per face), horizontal
+# bars as DOTS spaced at horiz_spacing_mm, both centred at y=0 (matching
+# _draw_simple_section_preview's own centred convention, shared with
+# compute_beam_section_preview). ──────────────────────────────────────
 wall_section = rebar_preview.compute_wall_section_preview(
-    250.0, 25.0, 12.0, both_faces=True, include_ties=True, include_ubars=True)
-assert len(wall_section['bars']) == 4  # 2 faces x (1 main + 1 edge dot each)
-assert len(wall_section['ties']) == 1
+    250.0, 900.0, 25.0, 12.0, 10.0, 200.0,
+    both_faces=True, include_ties=True, tie_spacing_mm=400.0, include_ubars=True)
+assert len(wall_section['bar_lines']) == 2, \
+    "one continuous vertical bar LINE per face (both_faces=True)"
+for bl in wall_section['bar_lines']:
+    assert bl['diameter_mm'] == 12.0
+    assert bl['y0_mm'] < 0.0 < bl['y1_mm'], \
+        "vertical bar lines must be centred at y=0, spanning both above and below it"
+assert len(wall_section['bars']) >= 4, \
+    "multiple horizontal-bar dot rows (2 faces x >=2 rows at 900mm height / 200mm spacing)"
+assert all(b['diameter_mm'] == 10.0 for b in wall_section['bars'])
+assert len(wall_section['ties']) >= 1
 assert len(wall_section['ubars']) == 1
-print("compute_wall_section_preview: still returns a valid dots+tie+ubar "
-      "cross-section through the wall's own thickness, now actually wired "
-      "into the Walls tab's own (new) Section Preview canvas: OK")
+
+# both_faces=False -> exactly 1 bar_line, and ties/ubars silently empty
+# even if requested (they only make sense with 2 faces to connect).
+wall_section_1face = rebar_preview.compute_wall_section_preview(
+    250.0, 900.0, 25.0, 12.0, 10.0, 200.0,
+    both_faces=False, include_ties=True, tie_spacing_mm=400.0, include_ubars=True)
+assert len(wall_section_1face['bar_lines']) == 1
+assert wall_section_1face['ties'] == [] and wall_section_1face['ubars'] == []
+
+try:
+    rebar_preview.compute_wall_section_preview(
+        250.0, 900.0, 25.0, 12.0, 10.0, 200.0, include_ties=True)
+    raise AssertionError("include_ties without tie_spacing_mm must raise ValueError")
+except ValueError:
+    pass
+
+print("compute_wall_section_preview: now a real vertical cut through the "
+      "wall's thickness — continuous vertical bar lines + spaced "
+      "horizontal-bar dots + tie/U-bar detail, centred to match "
+      "_draw_simple_section_preview's shared convention: OK")
 
 print()
 print("ALL REBAR_PREVIEW PHASE 2.6 CHECKS PASSED")

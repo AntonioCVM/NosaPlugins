@@ -2551,22 +2551,38 @@ class RebarAutomateWindow(NOSAWindow):
 
         # PHASE 2.6 (2026-09-02, explicit live request — "sería
         # conveniente que se viese una sección, el nombre... dice
-        # Section Preview cuando es un alzado") — genuine cross-section
-        # (horizontal cut through the wall's own THICKNESS), alongside
-        # the elevation above, using rebar_preview.compute_wall_section_
-        # preview — already written, never actually wired into the UI
-        # until now. Reuses _draw_simple_section_preview as-is: its
-        # 'section'/'bars'/'ties'/'ubars' shape already matches this
-        # function's own return exactly.
+        # Section Preview cuando es un alzado", then "la sección no se
+        # ve correctamente, necesitaríamos una sección bien hecha") —
+        # genuine cross-section (a VERTICAL cut PERPENDICULAR to the
+        # wall's own length, through its thickness), alongside the
+        # elevation above. Reuses _draw_simple_section_preview (now
+        # extended with a 'bar_lines' renderer for the vertical bars —
+        # see that method's own note).
         try:
             section_canvas = self.WallSectionCanvas
         except Exception:
             return
+        include_ties = self.ChkWallTies.IsChecked == True
+        tie_spacing = None
+        if include_ties:
+            try:
+                tie_spacing = float(self.TxtWallTieSpacing.Text)
+                if tie_spacing <= 0:
+                    include_ties = False
+            except (TypeError, ValueError):
+                include_ties = False
+        # A representative slice, not the wall's real height (same role
+        # length_mm/height_mm play in compute_beam_elevation_preview) —
+        # tall enough relative to a typical thickness to read clearly as
+        # a section rather than a square blob, and to show 2-3 real
+        # horizontal-bar row crossings at the user's own spacing.
+        section_height_mm = max(900.0, thickness_mm * 3.0)
         try:
             section_data = rebar_preview.compute_wall_section_preview(
-                thickness_mm, cover, vert_dia, both_faces=both_faces,
-                include_ubars=self.ChkWallEndUBars.IsChecked == True,
-                include_ties=self.ChkWallTies.IsChecked == True)
+                thickness_mm, section_height_mm, cover, vert_dia, horiz_dia, horiz_sp,
+                both_faces=both_faces,
+                include_ties=include_ties, tie_spacing_mm=tie_spacing,
+                include_ubars=self.ChkWallEndUBars.IsChecked == True)
         except Exception:
             return
         self._draw_simple_section_preview(section_canvas, section_data)
@@ -2626,6 +2642,20 @@ class RebarAutomateWindow(NOSAWindow):
             SWC.Canvas.SetLeft(dot, sx(bar['x_mm']) - r)
             SWC.Canvas.SetTop(dot, sy(bar['y_mm']) - r)
             canvas.Children.Add(dot)
+
+        # PHASE 2.6 (2026-09-02) — generic diameter-scaled bar LINE
+        # segments, added for the rewritten wall section preview's
+        # vertical bars (one continuous line per face) — a "lines" list
+        # already existed for footings' B2/T2 (fixed-y, x0..x1 only);
+        # this is the general x0/y0/x1/y1 shape any future caller can
+        # reuse for a bar that isn't axis-locked to a single row.
+        for bl in data.get('bar_lines', []):
+            line = SWS.Line()
+            line.X1, line.Y1 = sx(bl['x0_mm']), sy(bl['y0_mm'])
+            line.X2, line.Y2 = sx(bl['x1_mm']), sy(bl['y1_mm'])
+            line.Stroke = _PREVIEW_BAR_FILL
+            line.StrokeThickness = max(2.0, float(bl.get('diameter_mm') or 12.0) * scale)
+            canvas.Children.Add(line)
 
         for tie in data.get('ties', []):
             line = SWS.Line()

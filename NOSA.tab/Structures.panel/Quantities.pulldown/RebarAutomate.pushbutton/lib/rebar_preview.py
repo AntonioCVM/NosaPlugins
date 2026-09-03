@@ -926,35 +926,119 @@ def compute_beam_elevation_preview(length_mm, height_mm, cover_mm,
     }
 
 
-def compute_wall_section_preview(thickness_mm, cover_mm, vert_dia_mm,
-                                  both_faces=True, include_edge=True,
-                                  include_ubars=False, include_ties=False):
-    """Horizontal cut through a wall — dots on each face + optional U/tie."""
-    if thickness_mm <= 0 or cover_mm < 0:
+def compute_wall_section_preview(thickness_mm, height_mm, cover_mm,
+                                  vert_dia_mm, horiz_dia_mm, horiz_spacing_mm,
+                                  both_faces=True,
+                                  include_ties=False, tie_spacing_mm=None,
+                                  include_ubars=False, end_clear_mm=50.0):
+    """
+    REWRITE (2026-09-02, live report — "la sección no se ve
+    correctamente, necesitaríamos una sección bien hecha") — this is now
+    the conventional structural "wall section": a VERTICAL cut
+    PERPENDICULAR to the wall's own length, showing the wall's THICKNESS
+    (horizontal) against an illustrative HEIGHT segment (vertical) —
+    exactly like a beam's cross-section, just thin and tall instead of
+    wide and short. The old version drew a near-square blob with only 2
+    dots and a single tie at a fixed 1.2x-thickness "height" that had no
+    real structural meaning.
+
+    Same dots-vs-lines convention compute_section_preview already
+    established for footings/floors, rotated 90°: VERTICAL bars run
+    IN-PLANE with this cut (parallel to it), so they draw as continuous
+    vertical LINES, one per face; HORIZONTAL bars run ALONG the wall's
+    own length — PERPENDICULAR to this cut — so they draw as DOTS, one
+    per face per illustrative height position (spaced at
+    horiz_spacing_mm, the real spacing the user typed, so the section
+    shows the actual row count a real cut this tall would cross).
+
+    Args:
+        thickness_mm      (float): wall thickness, mm.
+        height_mm          (float): illustrative section height, mm —
+                          NOT the real wall height (this is a
+                          representative slice, the same role
+                          length_mm/height_mm play in compute_beam_
+                          elevation_preview, not the whole structure).
+        cover_mm            (float): nominal cover, mm.
+        vert_dia_mm          (float): vertical bar diameter, mm.
+        horiz_dia_mm          (float): horizontal bar diameter, mm.
+        horiz_spacing_mm      (float): horizontal bar row spacing, mm.
+        both_faces             (bool): whether mesh is on both faces or
+                              the exterior face only.
+        include_ties            (bool): whether to also show through-
+                              wall tie lines (only meaningful with
+                              both_faces).
+        tie_spacing_mm            (float or None): spacing between tie
+                              rows, mm — required if include_ties.
+        include_ubars              (bool): whether to show one
+                              illustrative end U-bar detail near the
+                              section's own bottom.
+        end_clear_mm                 (float): top/bottom clearance for
+                              the vertical bar lines and the first/last
+                              horizontal-bar/tie row, mm.
+
+    Returns:
+        {
+          'section': {'width_mm': thickness_mm, 'height_mm': height_mm, 'shape': 'rect'},
+          'bars':    [{'x_mm', 'y_mm', 'diameter_mm'}, ...],  # horizontal
+                      bars, dots, one per face per row.
+          'bar_lines': [{'x0_mm', 'y0_mm', 'x1_mm', 'y1_mm', 'diameter_mm'}, ...],
+                      # vertical bars, one continuous line per face.
+          'ties':    [{'x0_mm', 'y0_mm', 'x1_mm', 'y1_mm'}, ...],  # one
+                      per tie row, empty unless include_ties.
+          'ubars':   [{'points': [...]}, ...],  # empty unless include_ubars.
+        }
+
+    Raises:
+        ValueError: if thickness_mm/height_mm aren't positive, cover_mm
+        is negative, or include_ties is True without tie_spacing_mm.
+    """
+    if thickness_mm <= 0 or height_mm <= 0 or cover_mm < 0:
         raise ValueError(u'Invalid wall section dimensions.')
-    ht = thickness_mm / 2.0
-    inset = cover_mm + (vert_dia_mm or 0) / 2.0
-    face_x = max(ht - inset, 1.0)
-    bars = [{'x_mm': -face_x, 'y_mm': 0.0, 'diameter_mm': vert_dia_mm}]
-    if both_faces:
-        bars.append({'x_mm': face_x, 'y_mm': 0.0, 'diameter_mm': vert_dia_mm})
-    # Illustrative extra edge dots near top/bottom of the cut
-    if include_edge:
-        bars.append({'x_mm': -face_x, 'y_mm': face_x * 0.6, 'diameter_mm': vert_dia_mm})
-        if both_faces:
-            bars.append({'x_mm': face_x, 'y_mm': face_x * 0.6, 'diameter_mm': vert_dia_mm})
+    if include_ties and not tie_spacing_mm:
+        raise ValueError(u'include_ties requires tie_spacing_mm.')
+
+    half_t = thickness_mm / 2.0
+    vert_inset = cover_mm + (vert_dia_mm or 0) / 2.0
+    face_x = max(half_t - vert_inset, 1.0)
+    face_xs = [-face_x, face_x] if both_faces else [-face_x]
+
+    # CENTRED y convention (y=0 at this section's own vertical middle) —
+    # matches ui.py's _draw_simple_section_preview, which this function
+    # is drawn through (shared with compute_beam_section_preview, whose
+    # own bars/outline are likewise centred at 0,0) — NOT the "from
+    # y=0 upward" convention compute_wall_elevation_preview/compute_
+    # beam_elevation_preview use, which are drawn through their own
+    # dedicated from-bottom draw functions instead.
+    half_h = height_mm / 2.0
+    y_lo, y_hi = -(half_h - end_clear_mm), (half_h - end_clear_mm)
+    if y_hi <= y_lo:
+        y_lo, y_hi = -half_h, half_h
+
+    bar_lines = [{'x0_mm': x, 'y0_mm': y_lo, 'x1_mm': x, 'y1_mm': y_hi,
+                  'diameter_mm': vert_dia_mm} for x in face_xs]
+
+    horiz_y_positions = _evenly_spaced_wall_preview(y_lo, y_hi, horiz_spacing_mm)
+    bars = [{'x_mm': x, 'y_mm': y, 'diameter_mm': horiz_dia_mm}
+            for y in horiz_y_positions for x in face_xs]
+
     ties = []
     if include_ties and both_faces:
-        ties.append({'x0_mm': -face_x, 'y0_mm': 0.0, 'x1_mm': face_x, 'y1_mm': 0.0})
+        tie_y_positions = _evenly_spaced_wall_preview(y_lo, y_hi, tie_spacing_mm)
+        ties = [{'x0_mm': -face_x, 'y0_mm': y, 'x1_mm': face_x, 'y1_mm': y}
+                for y in tie_y_positions]
+
     ubars = []
     if include_ubars and both_faces:
-        leg = face_x * 0.8
+        leg = min(max(15.0 * (vert_dia_mm or 12.0), 100.0), half_h * 0.6)
         ubars.append({
-            'points': [(-face_x, -leg), (-face_x, 0.0), (face_x, 0.0), (face_x, -leg)]
+            'points': [(-face_x, y_lo + leg), (-face_x, y_lo),
+                       (face_x, y_lo), (face_x, y_lo + leg)],
         })
+
     return {
-        'section': {'width_mm': thickness_mm, 'height_mm': thickness_mm * 1.2, 'shape': 'rect'},
+        'section': {'width_mm': thickness_mm, 'height_mm': height_mm, 'shape': 'rect'},
         'bars': bars,
+        'bar_lines': bar_lines,
         'ties': ties,
         'ubars': ubars,
     }
