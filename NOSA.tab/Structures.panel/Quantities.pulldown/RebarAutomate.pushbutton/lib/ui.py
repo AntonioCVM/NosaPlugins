@@ -1186,6 +1186,48 @@ class RebarAutomateWindow(NOSAWindow):
                 self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
 
+    def _create_foundation_starter_bars(self, wrapper, host, starters, bar_type, hook_type,
+                                         label, errors, created_rebars):
+        """
+        PHASE F7.18 (2026-09-02, explicit request) — companion to
+        _create_dowel_bars for column_rebar.build_column_foundation_
+        starters / wall_rebar.build_wall_foundation_starters: individual
+        Rebar elements (same reasoning as dowels — a handful of bars at
+        real, possibly-irregular positions, not a single-direction
+        array), hosted on the COLUMN/WALL itself (not the foundation
+        found below it — Revit's own `host` argument is an association
+        for cover/grouping, not a geometric clip, matching how a
+        perimeter closure U-bar already spans between two different
+        structural elements conceptually), with the SAME start-hook
+        convention _create_dowel_bars uses.
+
+        `starters['skipped']` (bar positions where no foundation was
+        detected below) is reported as ONE summary warning, not one
+        per position — this is routine for a column/wall that doesn't
+        land on a foundation everywhere (e.g. only some columns in a
+        grid have their own footing modelled yet), not a per-bar error.
+        """
+        if bar_type is None:
+            return
+        for line in starters.get('bars', []):
+            rebar = wrapper.create_from_curves(
+                host, [line], bar_type,
+                start_hook=hook_type, end_hook=None,
+                start_hook_orientation=_HOOK_ORIENTATION if hook_type else None,
+                normal=starters['normal'],
+                transaction_name=u'NOSA — Create {} Foundation Starter'.format(label))
+            if rebar is None:
+                errors.append(u'{} {}: foundation starter — {}'.format(
+                    label, get_id_value(host.Id), wrapper.last_error))
+            else:
+                self._stamp_layer(rebar, u'foundation_starter')
+                created_rebars.append(rebar)
+        skipped = starters.get('skipped', 0)
+        if skipped:
+            errors.append(u'{} {}: {} starter position(s) skipped — no foundation '
+                          u'(isolated/strip footing or floor/mat slab) detected '
+                          u'directly below.'.format(label, get_id_value(host.Id), skipped))
+
     def _stamp_layer(self, rebar, layer):
         """
         FEATURE (2026-09-02, explicit request) — F3's own known gap
@@ -1678,6 +1720,17 @@ class RebarAutomateWindow(NOSAWindow):
         self.PanelColCrossties.IsEnabled = self.ChkColCrossties.IsChecked == True
         self._update_column_preview()
 
+    def ColFoundationStarters_Click(self, sender, args):
+        # PHASE F7.18 (2026-09-02) — no preview support yet (scope
+        # disclosed to the user: this feature's own geometry depends on
+        # a live foundation-detection query, not the illustrative-only
+        # rebar_preview.py this window's other panels use) — just
+        # enables/disables the length fields, matching every other
+        # optional-panel checkbox's own convention.
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelColFoundationStarters.IsEnabled = self.ChkColFoundationStarters.IsChecked == True
+
     def ColumnPreview_Changed(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
@@ -2065,6 +2118,17 @@ class RebarAutomateWindow(NOSAWindow):
         values['crosstie_layout'] = ('alternate' if self.CboCrosstieLayout.SelectedIndex == 1
                                       else 'all')
 
+        # PHASE F7.18 (2026-09-02, explicit request) — L-shaped starters
+        # into whatever foundation (isolated/strip footing or floor/mat
+        # slab) is detected below the column, distinct from starter_bars
+        # above (which extends the column's OWN top, for future storeys).
+        values['foundation_starters'] = self.ChkColFoundationStarters.IsChecked == True
+        if values['foundation_starters']:
+            values['foundation_anchor_mm'] = self._read_number(
+                self.TxtColFoundationAnchor.Text, u'Foundation starter anchor length', errors)
+            values['foundation_splice_mm'] = self._read_number(
+                self.TxtColFoundationSplice.Text, u'Foundation starter splice length', errors)
+
         if errors:
             forms.alert(u'\n'.join(errors))
             return None
@@ -2248,6 +2312,26 @@ class RebarAutomateWindow(NOSAWindow):
                         continue
                     self._stamp_layer(rebar, u'crosstie')
                     created_rebars.append(rebar)
+
+        # PHASE F7.18 (2026-09-02, explicit request — "Starter bars con
+        # forma de L en columnas y muros... unidas a la cimentación") —
+        # a representative 4-corner starter cage (n_u=n_v=2, matching
+        # footing_rebar's own Dowels default of 4) reaching down into
+        # whatever foundation is detected below this column, distinct
+        # from values['starter_bars'] above (the column's OWN top, for
+        # future storeys — unrelated direction/purpose).
+        if values.get('foundation_starters') and bar_type_vert is not None:
+            starters = column_rebar.build_column_foundation_starters(
+                self.doc, host, cover_mm, 2, 2, values['bar_dia'],
+                values['foundation_anchor_mm'], values['foundation_splice_mm'])
+            hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
+            if hook_90 is None:
+                errors.append(u'Column {}: foundation starters — no 90° RebarHookType '
+                              u'found in this project; created WITHOUT hooks (not '
+                              u'normative anchorage).'.format(get_id_value(host.Id)))
+            self._create_foundation_starter_bars(
+                wrapper, host, starters, bar_type_vert, hook_90, u'Column',
+                errors, created_rebars)
 
     def _run_column_reinforcement(self, columns, values):
         """
@@ -3028,6 +3112,17 @@ class RebarAutomateWindow(NOSAWindow):
                 errors.append(u'"Starter length" cannot be negative.')
                 sl = None
             values['starter_length'] = sl if (sl and sl > 0) else None
+        # PHASE F7.18 (2026-09-02, explicit request) — L-shaped starters
+        # into whatever foundation (isolated/strip footing or floor/mat
+        # slab) is detected below the wall, distinct from include_
+        # starter_bars above (a plain straight extension, no foundation
+        # detection or hook).
+        values['foundation_starters'] = self.ChkWallFoundationStarters.IsChecked == True
+        if values['foundation_starters']:
+            values['foundation_anchor_mm'] = self._read_number(
+                self.TxtWallFoundationAnchor.Text, u'Foundation starter anchor length', errors)
+            values['foundation_splice_mm'] = self._read_number(
+                self.TxtWallFoundationSplice.Text, u'Foundation starter splice length', errors)
         values['stock_length'] = self._read_number(
             self.TxtWallStockLength.Text, u'Max stock length', errors)
         if values.get('stock_length') is not None and values['stock_length'] < 1000.0:
@@ -3054,6 +3149,13 @@ class RebarAutomateWindow(NOSAWindow):
             return
         self.PanelWallStarters.IsEnabled = self.ChkWallStarters.IsChecked == True
         self._update_wall_preview()
+
+    def WallFoundationStarters_Click(self, sender, args):
+        # PHASE F7.18 (2026-09-02) — no preview support yet, same
+        # reasoning as ColFoundationStarters_Click.
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelWallFoundationStarters.IsEnabled = self.ChkWallFoundationStarters.IsChecked == True
 
     def WallPreview_Changed(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -3200,6 +3302,26 @@ class RebarAutomateWindow(NOSAWindow):
             self._create_grouped_bars(
                 wrapper, host, reinforcement.get('top_ubars', {'sets': [], 'bars': []}),
                 bar_type_u, errors, created_rebars, u'Wall Top U-Bar', layer=u'top_ubar')
+
+        # PHASE F7.18 (2026-09-02, explicit request — "Starter bars con
+        # forma de L en columnas y muros... unidas a la cimentación") —
+        # one starter per vertical-bar position along the wall's own
+        # length, reaching down into whatever foundation is detected
+        # below it.
+        if values.get('foundation_starters') and bar_type_v is not None:
+            end_clear_mm = 50.0  # matches wall_rebar.build_wall_reinforcement's own default
+            starters = wall_rebar.build_wall_foundation_starters(
+                self.doc, host, values['vert_spacing'], end_clear_mm,
+                values['foundation_anchor_mm'], values['foundation_splice_mm'],
+                foundation_cover_mm=cover_mm)
+            hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
+            if hook_90 is None:
+                errors.append(u'Wall {}: foundation starters — no 90° RebarHookType '
+                              u'found in this project; created WITHOUT hooks (not '
+                              u'normative anchorage).'.format(get_id_value(host.Id)))
+            self._create_foundation_starter_bars(
+                wrapper, host, starters, bar_type_v, hook_90, u'Wall',
+                errors, created_rebars)
 
     def _run_wall_reinforcement(self, walls, values):
         errors = []

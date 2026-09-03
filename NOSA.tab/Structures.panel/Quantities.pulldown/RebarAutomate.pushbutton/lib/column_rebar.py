@@ -881,6 +881,89 @@ def compute_vertical_bar_lines(doc, host, cover_mm, n_u, n_v, bar_diameter_mm=16
     return bars
 
 
+def build_column_foundation_starters(doc, host, cover_mm, n_u, n_v, bar_diameter_mm,
+                                      anchor_length_mm, splice_length_mm,
+                                      foundation_cover_mm=None, search_depth_mm=3000.0):
+    """
+    PHASE F7.18 (2026-09-02, explicit user request — "Starter bars con
+    forma de L en columnas y muros... unidas a la cimentación... zapata
+    aislada, solera o zapata corrida") — ONE straight starter Line per
+    column vertical-bar position (reusing compute_vertical_bar_lines'
+    own position layout, so these land exactly where the real verticals
+    do — not a separate, possibly-mismatched square cage), reaching DOWN
+    from the column's own base into whatever foundation element (any of
+    the 3 types above — see rebar_engine.find_foundation_below) is
+    detected directly below it. Each returned Line is meant to get a 90°
+    hook at its own BOTTOM end (start_hook, applied by the caller at
+    creation time, exactly like footing_rebar.build_dowel_curves' own
+    dowels — 'normal' in the return dict is that hook's own plane
+    normal, per rebar_engine.build_starter_into_foundation).
+
+    Complements footing_rebar.build_dowel_curves (generated from the
+    FOOTING's own side — a fixed corner/edge-midpoint square unrelated
+    to the column's real bar count/positions, and isolated-footing-only)
+    rather than replacing it: use THIS when the footing/floor hasn't
+    been (or won't be) run through its own "Include Dowels", or the
+    foundation below is a floor/mat slab or a strip footing, neither of
+    which build_dowel_curves' own square-cage layout supports.
+
+    Args:
+        doc, host                    as elsewhere.
+        cover_mm                      (float): the COLUMN's own cover,
+                                      mm — used only to reuse compute_
+                                      vertical_bar_lines' own position
+                                      layout (matching the real
+                                      verticals exactly), NOT the
+                                      foundation's own cover.
+        n_u, n_v                       (int): see _perimeter_positions —
+                                      pass the SAME values the main
+                                      verticals use, so positions match.
+        bar_diameter_mm                  (float): the COLUMN's own
+                                      vertical bar diameter, mm — same
+                                      position-layout-reuse purpose.
+        anchor_length_mm                   (float): straight length
+                                      WITHIN the detected foundation,
+                                      from its own bottom cover
+                                      elevation upward, mm.
+        splice_length_mm                     (float): additional length
+                                      ABOVE the foundation's own top,
+                                      mm.
+        foundation_cover_mm                    (float or None): the
+                                      FOUNDATION's own bottom cover,
+                                      mm — defaults to cover_mm (the
+                                      column's) if not given.
+        search_depth_mm                          (float): how far below
+                                      the column's own base to search
+                                      for a foundation, mm.
+
+    Returns:
+        {'bars': list[DB.Line], 'normal': DB.XYZ, 'skipped': int} —
+        'skipped' counts bar positions where no foundation was found
+        below (not an error — e.g. this column doesn't actually land on
+        a modelled foundation at this position). Empty 'bars' (skipped
+        == n_bars) if none did.
+    """
+    engine = _ensure_engine()
+    position_lines = compute_vertical_bar_lines(doc, host, cover_mm, n_u, n_v, bar_diameter_mm)
+    resolved_foundation_cover_mm = foundation_cover_mm if foundation_cover_mm is not None else cover_mm
+    search_depth_ft = search_depth_mm / _MM_PER_FT
+
+    bars = []
+    skipped = 0
+    normal = DB.XYZ(0.0, 0.0, -1.0)
+    for line in position_lines:
+        p0 = line.GetEndPoint(0)
+        result = engine.build_starter_into_foundation(
+            doc, p0.X, p0.Y, p0.Z, anchor_length_mm, splice_length_mm,
+            resolved_foundation_cover_mm, search_depth_ft=search_depth_ft)
+        if result is None:
+            skipped += 1
+            continue
+        bars.append(result['line'])
+        normal = result['normal']
+    return {'bars': bars, 'normal': normal, 'skipped': skipped}
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Esperas / dowels (lap extension at the column head)
 # ══════════════════════════════════════════════════════════════════════════

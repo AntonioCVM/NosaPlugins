@@ -512,6 +512,140 @@ def offset_curve_inward(curve, face_info, cover_mm):
     return curve.CreateTransformed(transform)
 
 
+def find_foundation_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft=10.0, tol_ft=0.01):
+    """
+    PHASE F7.18 (2026-09-02, explicit user request — "Starter bars con
+    forma de L en columnas y muros... unidas a la cimentación... zapata
+    aislada, solera o zapata corrida") — finds whichever foundation
+    element sits directly below a given point: an isolated OR wall/strip
+    footing (both share OST_StructuralFoundation in Revit — a
+    DB.WallFoundation is a distinct class but the SAME category, so one
+    collector covers both) or a floor/mat slab (OST_Floors, e.g. a
+    "solera"). Generalises column_rebar.find_floor_split_elevations_ft's
+    own bbox-based "does this host's plan footprint contain this point"
+    pattern to foundation detection for starter bars generated from a
+    column/wall's own base, reaching DOWN into whatever's below it —
+    the mirror image of footing_rebar.build_dowel_curves, which is
+    generated from the FOOTING's own side instead.
+
+    DISCLOSED SIMPLIFICATION: plan footprint tested via the element's
+    GLOBAL BOUNDING BOX, not its exact polygon/host boundary — same
+    established tradeoff as every other bbox-based host query in this
+    project (find_floor_split_elevations_ft included). Also assumes a
+    flat (non-sloped) foundation top/bottom, matching footing_rebar.
+    get_footing_bottom_face's own -0.7 Z-normal scope.
+
+    Args:
+        doc               (DB.Document)
+        x_ft, y_ft         (float): the point to search below, project
+                          coordinates, ft.
+        base_z_ft           (float): the column/wall's own base
+                          elevation, ft — only a foundation whose own
+                          TOP sits at or just below this (never above
+                          it) is considered a match.
+        search_depth_ft       (float): how far below base_z_ft to look,
+                          ft — default 10ft (~3m), generous for any
+                          normal footing/slab depth.
+        tol_ft                  (float): bounding-box/elevation
+                          tolerance, ft — default ~3mm, matching
+                          find_floor_split_elevations_ft's own
+                          _OST_FLOORS_TOL_FT.
+
+    Returns:
+        DB.Element (the closest match — highest top Z at or below
+        base_z_ft — if more than one candidate's bbox contains the
+        point), or None if nothing was found.
+    """
+    best, best_top = None, None
+    for cat in (DB.BuiltInCategory.OST_StructuralFoundation, DB.BuiltInCategory.OST_Floors):
+        collector = DB.FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType()
+        for elem in collector:
+            try:
+                bbox = elem.get_BoundingBox(None)
+            except Exception:
+                bbox = None
+            if bbox is None:
+                continue
+            if not (bbox.Min.X - tol_ft <= x_ft <= bbox.Max.X + tol_ft and
+                    bbox.Min.Y - tol_ft <= y_ft <= bbox.Max.Y + tol_ft):
+                continue
+            elem_top = bbox.Max.Z
+            if elem_top > base_z_ft + tol_ft:
+                continue  # floats above the base — not actually underneath it
+            if elem_top < base_z_ft - search_depth_ft:
+                continue  # too far below to plausibly be what this base rests on
+            if best is None or elem_top > best_top:
+                best, best_top = elem, elem_top
+    return best
+
+
+def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
+                                   anchor_length_mm, splice_length_mm,
+                                   cover_mm, search_depth_ft=10.0):
+    """
+    PHASE F7.18 (2026-09-02) — ONE straight vertical starter Line
+    reaching from a detected foundation's own bottom-face elevation
+    (offset inward by cover_mm — "resting on the bottom mat", the SAME
+    phrase and convention footing_rebar.build_dowel_curves' own
+    docstring uses) UP through anchor_length_mm (inside the foundation)
+    + splice_length_mm (above it, into the column/wall's own first-run
+    bars) — same total-length split as build_dowel_curves, just found
+    via find_foundation_below instead of already knowing which footing
+    to use. The bar stays a plain straight Line here — the 90° hook
+    itself is applied by the CALLER at creation time via RebarHookType
+    (start_hook=...), matching how _create_dowel_bars already applies
+    one to build_dowel_curves' own straight lines; this function has no
+    Revit Transaction open and creates nothing.
+
+    Uses the foundation's own BOUNDING BOX minimum Z as its bottom
+    elevation (a flat-foundation assumption, consistent with this
+    module's and footing_rebar.py's established scope) rather than
+    resolving its actual bottom FACE — cheaper, and avoids a second
+    CoverGeometryManager/face-classification pass since find_foundation_
+    below already read the same bounding box to locate it.
+
+    Args:
+        doc                    (DB.Document)
+        x_ft, y_ft              (float): the column/wall's own bar
+                              position, ft, project coordinates.
+        base_z_ft                (float): the column/wall's own base
+                              elevation, ft.
+        anchor_length_mm            (float): straight length WITHIN the
+                              foundation, from its own bottom cover
+                              elevation upward, mm.
+        splice_length_mm              (float): additional length ABOVE
+                              the foundation's own top, mm — the visible
+                              splice for the column/wall's own bars.
+        cover_mm                        (float): the FOUNDATION's own
+                              bottom cover, mm — NOT the column/wall's
+                              own cover.
+        search_depth_ft                   (float): passed straight to
+                              find_foundation_below.
+
+    Returns:
+        {'line': DB.Line, 'normal': DB.XYZ, 'foundation': DB.Element}
+        — 'normal' is a fixed (0,0,-1) (this module's flat-foundation
+        scope, matching footing_rebar.build_dowel_curves' own bottom-
+        face normal for a flat footing exactly) — or None if no
+        foundation was found below this point (not an error — a column/
+        wall position that genuinely doesn't land on a modelled
+        foundation).
+    """
+    foundation = find_foundation_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft)
+    if foundation is None:
+        return None
+    bbox = foundation.get_BoundingBox(None)
+    if bbox is None:
+        return None
+    bottom_z_ft = bbox.Min.Z
+    cover_ft = cover_mm / _MM_PER_FT
+    total_len_ft = (anchor_length_mm + splice_length_mm) / _MM_PER_FT
+    p0 = DB.XYZ(x_ft, y_ft, bottom_z_ft + cover_ft)
+    p1 = p0 + DB.XYZ(0.0, 0.0, total_len_ft)
+    return {'line': DB.Line.CreateBound(p0, p1), 'normal': DB.XYZ(0.0, 0.0, -1.0),
+            'foundation': foundation}
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and

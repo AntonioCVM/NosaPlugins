@@ -529,6 +529,36 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ═══ STARTER BARS INTO FOUNDATION (Phase F7.18) ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkColFoundationStarters" Content="Add L-Shaped Starter Bars into Foundation Below"
+                                  Click="ColFoundationStarters_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <TextBlock Text="4 corner bars reach down from the column's own base into whatever isolated footing, strip (wall) footing, or floor/mat slab is detected directly below, with a 90° hook at the bottom — same detail as Footings' own 'Include Dowels', generated from the column's side instead. Skipped (per bar, reported) where no foundation is found below."
+                                   FontSize="9" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
+                        <StackPanel Name="PanelColFoundationStarters" IsEnabled="False">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Anchor Length in Foundation (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtColFoundationAnchor" Text="400" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtColFoundationSplice" Text="600" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <Button Name="BtnRunColumn" Content="GENERATE REINFORCEMENT"
                         Click="RunColumnReinforcement_Click" Style="{DynamicResource ActionButton}"
                         HorizontalAlignment="Stretch" Height="52" FontSize="14" FontWeight="Bold"
@@ -942,6 +972,38 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Starter / lap length (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
                                     <TextBox Grid.Column="1" Name="TxtWallStarterLength" Text="0" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                            </StackPanel>
+
+                            <!-- Phase F7.18 (2026-09-02) — distinct from
+                                 the plain straight extension above: an
+                                 L-shaped (hooked) starter per vertical
+                                 bar position, reaching down into a
+                                 DETECTED foundation (isolated/strip
+                                 footing or floor/mat slab) below. -->
+                            <CheckBox Name="ChkWallFoundationStarters" Content="Add L-Shaped Starter Bars into Foundation Below"
+                                      IsChecked="False" Margin="0,12,0,4"
+                                      Click="WallFoundationStarters_Click"
+                                      Foreground="{DynamicResource TextColor}"/>
+                            <TextBlock Text="One hooked bar per vertical-bar position, reaching down from the wall's own base into whatever foundation is detected directly below — same detail as Footings' own 'Include Dowels', generated from the wall's side instead. Skipped (per position, reported) where no foundation is found below."
+                                       FontSize="9" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,4,0,4"/>
+                            <StackPanel Name="PanelWallFoundationStarters" IsEnabled="False">
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Anchor Length in Foundation (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallFoundationAnchor" Text="400" Style="{StaticResource RA_NumField}"/>
+                                </Grid>
+                                <Grid Style="{StaticResource RA_FieldRow}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallFoundationSplice" Text="600" Style="{StaticResource RA_NumField}"/>
                                 </Grid>
                             </StackPanel>
                         </StackPanel>
