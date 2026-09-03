@@ -235,6 +235,17 @@ def compute_section_preview(width_mm, thickness_mm,
         # illustrative (8x the bar's own diameter, a common rough hook-
         # leg proportion), never the real normative hook length —
         # matches this module's established "illustrative only" scope.
+        #
+        # BUG FIX (2026-09-02, live report — "los Ubars salen al revés")
+        # — bend direction was backwards: hooks were bending AWAY from
+        # the section's core, past the nearest free face (bottom hooks
+        # down past y=0, top hooks up past y=thickness_mm) — the
+        # opposite of a real 90° hook, which curls INTO the surrounding
+        # concrete mass for anchorage, not out toward the cover it's
+        # already at. Fixed at the two call sites below (bottom now
+        # bends UP/inward, top now bends DOWN/inward) rather than here,
+        # so this helper's own `bend_up` parameter keeps its plain,
+        # literal meaning.
         d = line['diameter_mm']
         hook_len = max(8.0 * d, 40.0)
         sign = 1.0 if bend_up else -1.0
@@ -252,7 +263,7 @@ def compute_section_preview(width_mm, thickness_mm,
     lines = [b2_line]
     hooks = []
     if bottom_hooks:
-        hooks.extend(_hook_stubs(b2_line, bend_up=False))
+        hooks.extend(_hook_stubs(b2_line, bend_up=True))
 
     if include_top_mat:
         t1_y = thickness_mm - top_cover_mm - top_dia_x_mm
@@ -261,7 +272,7 @@ def compute_section_preview(width_mm, thickness_mm,
         t2_line = _line(t2_y, top_dia_y_mm, 'T2')
         lines.append(t2_line)
         if top_hooks:
-            hooks.extend(_hook_stubs(t2_line, bend_up=True))
+            hooks.extend(_hook_stubs(t2_line, bend_up=False))
 
     perimeter_ubars = []
     if include_perimeter_ubars:

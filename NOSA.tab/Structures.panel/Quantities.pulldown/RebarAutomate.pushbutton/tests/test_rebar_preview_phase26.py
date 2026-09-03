@@ -39,10 +39,14 @@ assert len(data_hooks['hooks']) == 4, \
 bottom_stubs = [h for h in data_hooks['hooks'] if h['layer'] == 'B2']
 top_stubs = [h for h in data_hooks['hooks'] if h['layer'] == 'T2']
 assert len(bottom_stubs) == 2 and len(top_stubs) == 2
-assert all(h['y1_mm'] < h['y0_mm'] for h in bottom_stubs), \
-    "bottom (B2) hooks must bend DOWN, toward the nearest free face"
-assert all(h['y1_mm'] > h['y0_mm'] for h in top_stubs), \
-    "top (T2) hooks must bend UP, toward the nearest free face"
+# BUG FIX (2026-09-02, round 2, live report — "los Ubars salen al revés")
+# — a real 90° hook curls INTO the surrounding concrete (toward the
+# section's own mid-depth), never OUT past the nearest free face it's
+# already sitting at cover distance from.
+assert all(h['y1_mm'] > h['y0_mm'] for h in bottom_stubs), \
+    "bottom (B2) hooks must bend UP, INTO the section (toward mid-depth)"
+assert all(h['y1_mm'] < h['y0_mm'] for h in top_stubs), \
+    "top (T2) hooks must bend DOWN, INTO the section (toward mid-depth)"
 print("compute_section_preview: bottom_hooks/top_hooks now produce real, "
       "direction-correct hook geometry instead of having no effect at all: OK")
 
