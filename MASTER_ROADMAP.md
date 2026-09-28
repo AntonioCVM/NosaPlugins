@@ -63,7 +63,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T2.4 | Verificar `NOSA_Rebar_Layer`: el commit `6fbe47e` dice que se estampa, `ROADMAP.md` dice que no — comprobar en el modelo | – | ✔ | – | |
 | [ ] | T2.5 | Investigar los cierres de Revit al recargar pyRevit (reproducir, recoger journal de Revit) | – | ✔ | ✔ | |
 | [ ] | T2.6 | Smoke visual: pestañas normalizadas + previews (hooks, alzado de viga, 2 vistas de muro) | – | ✔ | ✔ | |
-| [ ] | T2.7 | Pasar `RebarAutomate/lib/ui.py:65-69` (`BuiltInCategory` a nivel de módulo) a carga perezosa | – | – | – | |
+| [x] | T2.7 | Pasar `RebarAutomate/lib/ui.py:65-69` (`BuiltInCategory` a nivel de módulo) a carga perezosa | – | – | – | `eb8d4d4` — `_cat_id()` con caché + `sys.path` corregido (faltaba un `..`); 20/20 tests. Se verifica solo al abrir RebarAutomate y seleccionar elementos en T2.1 |
 | [ ] | T2.8 | **Humo en 4 versiones** (2024/2025/2026/2027) de F4, F6 y F7 según la Matriz de validación de `ROADMAP.md` | – | ✔ | ✔ | |
 | [ ] | T2.9 | Fusionar a `main` (solo tras T2.8) | – | – | ✔ | |
 
@@ -72,7 +72,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
 | [~] | T3.1 | **SheetExportHub** (el más usado): 8 ficheros con `from pyrevit import DB` → `from Autodesk.Revit import DB`; `Config.ensure_dirs()` al importar (`config.py:120`) → perezoso (C5-bis) | ✔ | ✔ | – | imports + `_BIP_FALLBACK` perezoso en `c3c1578`; **pendiente de re-probar tras T0.4** (la prueba del 2026-09-28 se hizo con el checkout principal aún en `fix/...`, sin este cambio) |
-| [ ] | T3.1b | SheetExportHub C5-bis: enums `DB.RasterQualityType`/`ColorDepthType`/`ACADVersion`/`ExportColorMode` en el cuerpo de `Config` (`config.py:97-116`) y `Config.ensure_dirs()` al importar (`config.py:120`) → perezosos | – | ✔ | – | |
+| [x] | T3.1b | SheetExportHub C5-bis: enums `DB.RasterQualityType`/`ColorDepthType`/`ACADVersion`/`ExportColorMode` en el cuerpo de `Config` (`config.py:97-116`) y `Config.ensure_dirs()` al importar (`config.py:120`) → perezosos | – | ✔ | – | `fb34a55` — `Config.preset(name)` resuelve los enums bajo demanda; `ensure_dirs()` se queda al importar (solo toca disco) pero protegido. Re-probar junto con T3.1 |
 | [ ] | T3.2 | Barrido de `.Name` sobre objetos de la API de Revit (pythonnet/CPython), por panel: T3.2a Data · T3.2b Documentation · T3.2c Foundations · T3.2d Structures | ✔ | ✔ | – | |
 | [ ] | T3.3 | `except: pass` → `nosa_utils.telemetry.log_error`, empezando por ModelHealthHub (52), StructuralQA (49), SheetExportHub (43) | ✔ | – | – | |
 | [ ] | T3.4 | C6: `ClashReport` `_log_debug` es un no-op (`ClashReport.nobutton/lib/logic.py:14`) | ✔ | – | – | |
