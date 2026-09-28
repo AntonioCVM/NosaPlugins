@@ -1,6 +1,7 @@
 layout:
   - ParameterHub
   - SharedParamManager
+  - WorksharingAudit
   - DataTools
   - ProjectSetup
   - ModelCleanup
