@@ -6,7 +6,6 @@ import math
 import os
 import sys
 import types
-import importlib.util
 
 _MM_PER_FT = 304.8
 
@@ -123,7 +122,12 @@ class FakeHost(object):
     def get_BoundingBox(self, view):
         return BBoxXYZ(XYZ(0.0, 0.0, 0.0), XYZ(self._w, self._d, self._h))
 
-DB = types.ModuleType('Autodesk.Revit.DB')
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
+
+DB, DBS = revit_stubs.install_revit_stubs(structure_attrs=revit_stubs.rebar_structure_attrs())
 DB.XYZ = XYZ
 DB.XYZ.BasisZ = XYZ(0, 0, 1)
 DB.UV = UV
@@ -138,52 +142,19 @@ DB.BuiltInParameter = types.SimpleNamespace(REBAR_BAR_DIAMETER=1)
 DB.FilteredElementCollector = lambda doc: types.SimpleNamespace(
     OfClass=lambda cls: types.SimpleNamespace(ToElements=lambda: []))
 
-DBS = types.ModuleType('Autodesk.Revit.DB.Structure')
-class _NoRebarHostData(object):
-    @staticmethod
-    def GetRebarHostData(host):
-        raise RuntimeError('not mocked')
-DBS.RebarHostData = _NoRebarHostData
-DBS.RebarBarType = object
-DBS.RebarShape = object
-DBS.RebarStyle = types.SimpleNamespace(Standard=1, StirrupTie=2)
-DBS.RebarHookOrientation = types.SimpleNamespace(Left=1, Right=2)
-DBS.RebarHookType = object
-DB.Structure = DBS
-
-autodesk = types.ModuleType('Autodesk')
-revit_mod = types.ModuleType('Autodesk.Revit')
-autodesk.Revit = revit_mod
-revit_mod.DB = DB
-sys.modules['Autodesk'] = autodesk
-sys.modules['Autodesk.Revit'] = revit_mod
-sys.modules['Autodesk.Revit.DB'] = DB
-sys.modules['Autodesk.Revit.DB.Structure'] = DBS
-sys.modules['System.Collections.Generic'] = types.SimpleNamespace(List=lambda t: (lambda items: list(items)))
+revit_stubs.install_system_stubs()
 
 _LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 
-spec_re = importlib.util.spec_from_file_location('re_engine', _LIB + r'\rebar_engine.py')
-re_engine = importlib.util.module_from_spec(spec_re)
-sys.modules['re_engine'] = re_engine
-spec_re.loader.exec_module(re_engine)
+re_engine = revit_stubs.load_module('re_engine', _LIB + r'\rebar_engine.py')
 
-spec_fr = importlib.util.spec_from_file_location('footing_rebar_mod', _LIB + r'\footing_rebar.py')
-footing_rebar_mod = importlib.util.module_from_spec(spec_fr)
-sys.modules['footing_rebar_mod'] = footing_rebar_mod
-spec_fr.loader.exec_module(footing_rebar_mod)
+footing_rebar_mod = revit_stubs.load_module('footing_rebar_mod', _LIB + r'\footing_rebar.py')
 footing_rebar_mod.re_engine = re_engine
 footing_rebar_mod._ensure_engine = lambda: re_engine
 
-spec_topo = importlib.util.spec_from_file_location('slab_topology', _LIB + r'\slab_topology.py')
-slab_topology = importlib.util.module_from_spec(spec_topo)
-sys.modules['slab_topology'] = slab_topology
-spec_topo.loader.exec_module(slab_topology)
+slab_topology = revit_stubs.load_module('slab_topology', _LIB + r'\slab_topology.py')
 
-spec_flr = importlib.util.spec_from_file_location('floor_rebar', _LIB + r'\floor_rebar.py')
-floor_rebar = importlib.util.module_from_spec(spec_flr)
-sys.modules['floor_rebar'] = floor_rebar
-spec_flr.loader.exec_module(floor_rebar)
+floor_rebar = revit_stubs.load_module('floor_rebar', _LIB + r'\floor_rebar.py')
 floor_rebar.footing_rebar_mod = footing_rebar_mod
 floor_rebar._ensure_footing_rebar = lambda: footing_rebar_mod
 floor_rebar.re_engine = re_engine

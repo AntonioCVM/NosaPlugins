@@ -17,7 +17,6 @@ tests/test_column_rebar_phase3.py y tests/test_floor_rebar_phase23.py).
 from __future__ import absolute_import, print_function, unicode_literals
 import os
 import sys
-import types
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
@@ -29,13 +28,11 @@ if _lib not in sys.path:
 # resolve. Minimal stub (no live Revit session, no full fidelity needed —
 # see test_column_rebar_phase3.py's own fuller stub if a future test here
 # needs real DB.XYZ/DB.Line behaviour).
-if 'Autodesk' not in sys.modules:
-    autodesk = types.ModuleType('Autodesk')
-    revit_mod = types.ModuleType('Autodesk.Revit')
-    db_mod = types.ModuleType('Autodesk.Revit.DB')
-    sys.modules['Autodesk'] = autodesk
-    sys.modules['Autodesk.Revit'] = revit_mod
-    sys.modules['Autodesk.Revit.DB'] = db_mod
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
+revit_stubs.install_revit_stubs(only_if_missing=True)
 
 import column_rebar
 import footing_rebar

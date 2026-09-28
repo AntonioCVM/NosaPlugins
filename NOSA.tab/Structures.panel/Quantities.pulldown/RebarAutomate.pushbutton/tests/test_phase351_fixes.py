@@ -6,17 +6,15 @@ Solids expose no .Edges)."""
 import math
 import sys
 import os
-import importlib.util
 
 _LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
 
 
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+_load = revit_stubs.load_module
 
 
 # ── slab_topology: minimum edge length filter ──────────────────────────
@@ -87,15 +85,7 @@ print("floor_rebar._clamp_z_to_solid_ft: None extent leaves the face-derived Z u
 # stub it out (empty module object is enough; the functions under test
 # here never touch DB.* internally) so the module can be imported
 # outside Revit, same technique the existing mocked test files use.
-import types
-autodesk = types.ModuleType('Autodesk')
-revit_mod = types.ModuleType('Autodesk.Revit')
-DB_stub = types.ModuleType('Autodesk.Revit.DB')
-autodesk.Revit = revit_mod
-revit_mod.DB = DB_stub
-sys.modules['Autodesk'] = autodesk
-sys.modules['Autodesk.Revit'] = revit_mod
-sys.modules['Autodesk.Revit.DB'] = DB_stub
+revit_stubs.install_revit_stubs()
 
 column_rebar = _load("column_rebar_351", os.path.join(_LIB, "column_rebar.py"))
 

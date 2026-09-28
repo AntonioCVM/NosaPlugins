@@ -9,18 +9,16 @@ import math
 import sys
 import os
 import types
-import importlib.util
 
 _MM_PER_FT = 304.8
 _LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
 
 
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+_load = revit_stubs.load_module
 
 
 class XYZ(object):
@@ -159,7 +157,7 @@ class FakeHost(object):
         return self._params.get(name)
 
 
-DB = types.ModuleType('Autodesk.Revit.DB')
+DB, DBS = revit_stubs.install_revit_stubs(structure_attrs=revit_stubs.rebar_structure_attrs())
 DB.XYZ = XYZ
 DB.XYZ.BasisZ = XYZ(0, 0, 1)
 DB.XYZ.BasisX = XYZ(1, 0, 0)
@@ -172,16 +170,7 @@ DB.Options = Options
 DB.GeometryInstance = GeometryInstance
 DB.ViewDetailLevel = types.SimpleNamespace(Fine=1)
 
-class _FakeElementId(object):
-    def __init__(self, value):
-        self._value = value
-    def __eq__(self, other):
-        return isinstance(other, _FakeElementId) and other._value == self._value
-    def __ne__(self, other):
-        return not self.__eq__(other)
-    def __hash__(self):
-        return hash(self._value)
-DB.ElementId = types.SimpleNamespace(InvalidElementId=_FakeElementId(-1))
+DB.ElementId = revit_stubs.element_id_namespace()
 
 DB.BuiltInParameter = types.SimpleNamespace(
     REBAR_BAR_DIAMETER=1,
@@ -195,56 +184,17 @@ DB.BuiltInParameter = types.SimpleNamespace(
 )
 DB.BuiltInCategory = types.SimpleNamespace(OST_Floors=1, OST_StructuralColumns=2)
 
-class _FakeCollector(object):
-    def OfClass(self, cls):
-        return self
-    def OfCategory(self, cat):
-        return self
-    def WhereElementIsNotElementType(self):
-        return []
-    def ToElements(self):
-        return []
-DB.FilteredElementCollector = lambda doc: _FakeCollector()
+DB.FilteredElementCollector = revit_stubs.collector_factory()
 
-DBS = types.ModuleType('Autodesk.Revit.DB.Structure')
-class _NoRebarHostData(object):
-    @staticmethod
-    def GetRebarHostData(host):
-        raise RuntimeError('not mocked')
-DBS.RebarHostData = _NoRebarHostData
-DBS.RebarBarType = object
-DBS.RebarShape = object
-DBS.RebarStyle = types.SimpleNamespace(Standard=1, StirrupTie=2)
-DBS.RebarHookOrientation = types.SimpleNamespace(Left=1, Right=2)
-DBS.RebarHookType = object
-DB.Structure = DBS
+revit_stubs.install_system_stubs()
 
-autodesk = types.ModuleType('Autodesk')
-revit_mod = types.ModuleType('Autodesk.Revit')
-autodesk.Revit = revit_mod
-revit_mod.DB = DB
-sys.modules['Autodesk'] = autodesk
-sys.modules['Autodesk.Revit'] = revit_mod
-sys.modules['Autodesk.Revit.DB'] = DB
-sys.modules['Autodesk.Revit.DB.Structure'] = DBS
-sys.modules['System.Collections.Generic'] = types.SimpleNamespace(List=lambda t: (lambda items: list(items)))
+re_engine = revit_stubs.load_module('re_engine_356', _LIB + r'\rebar_engine.py')
 
-spec_re = importlib.util.spec_from_file_location('re_engine_356', _LIB + r'\rebar_engine.py')
-re_engine = importlib.util.module_from_spec(spec_re)
-sys.modules['re_engine_356'] = re_engine
-spec_re.loader.exec_module(re_engine)
-
-spec_col = importlib.util.spec_from_file_location('column_rebar_356', _LIB + r'\column_rebar.py')
-column_rebar = importlib.util.module_from_spec(spec_col)
-sys.modules['column_rebar_356'] = column_rebar
-spec_col.loader.exec_module(column_rebar)
+column_rebar = revit_stubs.load_module('column_rebar_356', _LIB + r'\column_rebar.py')
 column_rebar.re_engine = re_engine
 column_rebar._ensure_engine = lambda: re_engine
 
-spec_ftg = importlib.util.spec_from_file_location('footing_rebar_356', _LIB + r'\footing_rebar.py')
-footing_rebar = importlib.util.module_from_spec(spec_ftg)
-sys.modules['footing_rebar_356'] = footing_rebar
-spec_ftg.loader.exec_module(footing_rebar)
+footing_rebar = revit_stubs.load_module('footing_rebar_356', _LIB + r'\footing_rebar.py')
 footing_rebar.re_engine = re_engine
 footing_rebar._ensure_engine = lambda: re_engine
 
