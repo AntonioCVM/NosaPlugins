@@ -36,7 +36,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [x] | T0.1 | Revisar y commitear el trabajo sin commitear de `SheetExportHub` (ui/xaml/exporters) + `bundle.yaml` de Data y Foundations | – | – | ✔ | `8775cdd` (encima de T3.1 `c3c1578`); el cambio de `config.json` de CenterBeamToColumn era solo reordenación → descartado |
+| [x] | T0.1 | Revisar y commitear el trabajo sin commitear de `SheetExportHub` (ui/xaml/exporters) + `bundle.yaml` de Data y Foundations | – | – | ✔ | `8775cdd` (encima de T3.1 `c3c1578`); el cambio de `config.json` de CenterBeamToColumn era solo reordenación → descartado. **Probado en Revit 2026-09-28**: ventana abre, fila seleccionada naranja, sin PNG/JPG sueltos junto al DWG |
 | [x] | T0.2 | Pasar `/check-plugin` a **SharedParamManager**, **WorksharingAudit**, **SiteToolkit** y commitearlos (uno por commit) | – | – | ✔ | `74405ff`, `e291042`, `a9ced93` — nosa_lint limpio (solo 1 NOSA006 en SharedParamManager y SiteToolkit) |
 | [x] | T0.3 | Aplicar D2 (`.gitignore` de configs personales) | – | – | ✔ | `4f510e2` — 53 ficheros fuera de git (siguen en disco) |
 | [~] | T0.4 | Aplicar D1: crear rama de integración y hacer que las worktrees nuevas partan de ella | – | – | ✔ | rama `develop` creada; falta que el checkout principal cambie a `develop` (pasos en el chat del 2026-09-28) |
@@ -71,7 +71,8 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [~] | T3.1 | **SheetExportHub** (el más usado): 8 ficheros con `from pyrevit import DB` → `from Autodesk.Revit import DB`; `Config.ensure_dirs()` al importar (`config.py:120`) → perezoso (C5-bis) | ✔ | ✔ | – | imports + `_BIP_FALLBACK` perezoso en `c3c1578`; **pendiente**: enums de `Config` en cuerpo de clase + `ensure_dirs()` al importar, y prueba en Revit (exportar 1 plano a PDF y DWG) |
+| [~] | T3.1 | **SheetExportHub** (el más usado): 8 ficheros con `from pyrevit import DB` → `from Autodesk.Revit import DB`; `Config.ensure_dirs()` al importar (`config.py:120`) → perezoso (C5-bis) | ✔ | ✔ | – | imports + `_BIP_FALLBACK` perezoso en `c3c1578`; **pendiente de re-probar tras T0.4** (la prueba del 2026-09-28 se hizo con el checkout principal aún en `fix/...`, sin este cambio) |
+| [ ] | T3.1b | SheetExportHub C5-bis: enums `DB.RasterQualityType`/`ColorDepthType`/`ACADVersion`/`ExportColorMode` en el cuerpo de `Config` (`config.py:97-116`) y `Config.ensure_dirs()` al importar (`config.py:120`) → perezosos | – | ✔ | – | |
 | [ ] | T3.2 | Barrido de `.Name` sobre objetos de la API de Revit (pythonnet/CPython), por panel: T3.2a Data · T3.2b Documentation · T3.2c Foundations · T3.2d Structures | ✔ | ✔ | – | |
 | [ ] | T3.3 | `except: pass` → `nosa_utils.telemetry.log_error`, empezando por ModelHealthHub (52), StructuralQA (49), SheetExportHub (43) | ✔ | – | – | |
 | [ ] | T3.4 | C6: `ClashReport` `_log_debug` es un no-op (`ClashReport.nobutton/lib/logic.py:14`) | ✔ | – | – | |
