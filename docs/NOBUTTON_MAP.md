@@ -80,7 +80,7 @@ dentro de un hub activo (`logic_*.py`), así que borrarlas no quita funcionalida
 - `ExportSheets.nobutton` solo se usa por el encadenado Issue Gate → Export de `IssueWorkflowHub`; el
   sucesor activo es `SheetExportHub`. Ver nota fuera de alcance en `MASTER_ROADMAP.md` (T5.2).
 
-## Fase 2 — Propuesta de borrado (pendiente de aprobación)
+## Fase 2 — Borrado (aprobado y ejecutado en `577881e`)
 
 Borrar estas 44 carpetas (19659 LOC). Excluida `ClashReport.nobutton` (T3.4).
 
