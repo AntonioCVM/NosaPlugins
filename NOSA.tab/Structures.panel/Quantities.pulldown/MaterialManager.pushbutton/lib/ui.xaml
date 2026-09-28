@@ -247,7 +247,6 @@
 
         <!-- ==================== RIGHT PANEL — TABS ==================== -->
         <TabControl Grid.Column="2" Name="TabMain"
-                    SelectionChanged="Tab_Changed"
                     Background="{DynamicResource BgColor}"
                     BorderThickness="0"
                     Margin="6,20,20,20">

@@ -86,6 +86,11 @@ class MaterialManagerWindow(NOSAWindow):
         cfg = self.LoadConfig()
         self.ChkDarkMode.IsChecked = cfg.get('dark_mode', self.dark_mode)
 
+        # Wired here, not in XAML: the initial tab selection fires during
+        # LoadComponent, before the sidebar controls exist.
+        self.TabMain.SelectionChanged += self.Tab_Changed
+        self.Tab_Changed(self.TabMain, None)
+
     # ── tab switching ─────────────────────────────────────────────────────────
 
     def Tab_Changed(self, sender, args):

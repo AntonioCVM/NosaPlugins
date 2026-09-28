@@ -217,6 +217,11 @@ class SheetComposerWindow(NOSAWindow):
             self._rebuild_extra_columns()
             self._apply_edit_filter()
 
+        # Wired here, not in XAML: the initial tab selection fires during
+        # LoadComponent, before the sidebar controls exist.
+        self.TabMain.SelectionChanged += self.Tab_Changed
+        self.Tab_Changed(self.TabMain, None)
+
     def _rebuild_extra_columns(self):
         for col in self._extra_cols:
             try:

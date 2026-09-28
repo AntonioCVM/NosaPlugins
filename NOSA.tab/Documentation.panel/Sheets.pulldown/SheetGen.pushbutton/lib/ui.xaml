@@ -324,7 +324,6 @@
 
         <!-- ═══ MAIN TabControl ═══ -->
         <TabControl Grid.Column="2" Name="TabMain"
-                    SelectionChanged="Tab_Changed"
                     Background="{DynamicResource BgColor}"
                     BorderThickness="0,1,0,0"
                     BorderBrush="{DynamicResource BorderColor}">
