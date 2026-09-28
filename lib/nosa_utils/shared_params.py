@@ -300,6 +300,12 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
     return report
 
 
+def _exc_text(exc):
+    """Exception message, or its type name when Revit raises one with an empty message."""
+    text = u'{}'.format(exc).strip()
+    return text or type(exc).__name__
+
+
 def _insert_definitions_into_user_file(app, user_file_path, nosa_def_file, report):
     """
     Best-effort: copy every NOSA definition into the office's own
@@ -314,6 +320,12 @@ def _insert_definitions_into_user_file(app, user_file_path, nosa_def_file, repor
         report['errors'].append(
             u'insert_into_user_file was requested but no office shared-parameter '
             u'file is currently configured — nothing to insert into.')
+        return
+    if os.path.isfile(user_file_path) and not os.access(user_file_path, os.W_OK):
+        report['errors'].append(
+            u'The office shared-parameter file is read-only, so the NOSA groups '
+            u'could not be copied into it (parameters are still bound to this '
+            u'project): {}'.format(user_file_path))
         return
 
     try:
@@ -346,8 +358,8 @@ def _insert_definitions_into_user_file(app, user_file_path, nosa_def_file, repor
                 target_group = user_def_file.Groups.Create(nosa_group.Name)
             except Exception as e:
                 report['errors'].append(
-                    u'Could not create group {} in the office file: {}'.format(
-                        nosa_group.Name, e))
+                    u'Could not create group {} in the office file ({}): {}'.format(
+                        nosa_group.Name, user_file_path, _exc_text(e)))
                 continue
 
         for definition in nosa_group.Definitions:
@@ -362,7 +374,7 @@ def _insert_definitions_into_user_file(app, user_file_path, nosa_def_file, repor
             except Exception as e:
                 report['errors'].append(
                     u'Could not insert {} into the office file: {}'.format(
-                        definition.Name, e))
+                        definition.Name, _exc_text(e)))
 
 
 def _find_parameter(elem, guid_or_name):
