@@ -1,0 +1,15 @@
+#!/bin/sh
+# Blocks commits that add critical nosa_lint findings to staged .py/.xaml files.
+root=$(git rev-parse --show-toplevel)
+files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.py' '*.xaml')
+[ -z "$files" ] && exit 0
+command -v python >/dev/null 2>&1 || { echo "nosa_lint: python not found, skipping"; exit 0; }
+cd "$root" || exit 0
+echo "$files" | tr '\n' '\0' | xargs -0 python tools/nosa_lint.py --min-severity critical --fail-on critical
+status=$?
+if [ $status -ne 0 ]; then
+    echo
+    echo "Commit blocked by nosa_lint (critical). Fix the findings above,"
+    echo "suppress a deliberate case with '# nosa-lint: disable=<RULE>', or bypass once with --no-verify."
+fi
+exit $status
