@@ -9,10 +9,19 @@ if _lib not in sys.path:
 from nosa_utils.revit_helpers import get_id_value as _get_id_value
 from nosa_utils import solids as _solids
 from nosa_utils import geometry as _geometry
+from nosa_utils.telemetry import log_error as _log_error
+import traceback as _traceback
 
 
 def _log_debug(msg, exc=None):
-    pass
+    if exc is None:
+        _log_error('ClashReport', msg)
+        return
+    try:
+        detail = u'{}: {}'.format(msg, exc)
+    except Exception:
+        detail = u'{}: {!r}'.format(msg, exc)
+    _log_error('ClashReport', detail, _traceback.format_exc())
 
 
 class ClashLogic:

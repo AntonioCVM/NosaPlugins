@@ -75,7 +75,14 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T3.1b | SheetExportHub C5-bis: enums `DB.RasterQualityType`/`ColorDepthType`/`ACADVersion`/`ExportColorMode` en el cuerpo de `Config` (`config.py:97-116`) y `Config.ensure_dirs()` al importar (`config.py:120`) → perezosos | – | ✔ | – | |
 | [ ] | T3.2 | Barrido de `.Name` sobre objetos de la API de Revit (pythonnet/CPython), por panel: T3.2a Data · T3.2b Documentation · T3.2c Foundations · T3.2d Structures | ✔ | ✔ | – | |
 | [ ] | T3.3 | `except: pass` → `nosa_utils.telemetry.log_error`, empezando por ModelHealthHub (52), StructuralQA (49), SheetExportHub (43) | ✔ | – | – | |
-| [ ] | T3.4 | C6: `ClashReport` `_log_debug` es un no-op (`ClashReport.nobutton/lib/logic.py:14`) | ✔ | – | – | |
+| [~] | T3.4 | C6: `ClashReport` `_log_debug` es un no-op (`ClashReport.nobutton/lib/logic.py:14`). **Hub:** ningún fichero carga `ClashReport.nobutton`; el que se ejecuta es `StructuralQA.pushbutton` (QA ▸ Structural QA), vía `lib/ui.py:20` → `imp.load_source('sqa_cr_logic', 'logic_clash_report.py')`, copia byte a byte de `ClashReport.nobutton/lib/logic.py`. Fix aplicado en ambas copias → `telemetry.log_error('ClashReport', msg, traceback)` | ✔ | – | – | `claude/priceless-elbakyan-68ab9b` |
+
+  Notas T3.4 (fuera de alcance, NO corregidas):
+  - `ClashReport.nobutton/` es código huérfano duplicado de `StructuralQA.pushbutton/lib/logic_clash_report.py` (+ su `ui.py`); decidir si se borra o si el hub pasa a cargarlo, para no mantener dos copias.
+  - nosa_lint en ambos: transacción `"Isolate Clash"` sin prefijo NOSA (`ClashReport.nobutton/lib/ui.py:222`, `StructuralQA.pushbutton/lib/ui.py:352`); `except: pass` en `ClashReport.nobutton/lib/ui.py:210`, `script.py:23`, `StructuralQA.pushbutton/lib/ui.py:340,1171` (→ T3.3).
+  - `StructuralQA.pushbutton/icon.png` es 65×65 (NOSA202 HIGH); `ui.xaml:407` `FA_CboCategory` con SelectedIndex/SelectionChanged en XAML (NOSA106).
+  - `error_registry.py` ERR005 apunta a "ClashReport logic.py"; el fichero vivo es `logic_clash_report.py`.
+  - Volumen: cada par con fallo booleano escribe una entrada; en modelos grandes puede llenar el log (rotación 3×5 MB). Valorar agregar/contar en vez de loguear por par.
 | [ ] | T3.5 | AddPileToPilecap: config en dos sistemas (`ConfigManager` + `NOSAWindow`) y `NameError` latente en `point_in_face` | ✔ | ✔ | – | |
 | [ ] | T3.6 | Telemetría: unificar claves de `_usage.json` (`export_sheets`/`exportsheets`/`sheet_export_hub`, `qrcode`/`qr_code`, `pilemaster`/`pile_master`…) para poder medir uso real | ✔ | – | – | |
 
