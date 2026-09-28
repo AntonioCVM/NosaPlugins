@@ -4,25 +4,25 @@ Objetivo: Plugin de armado profesional con paridad/superioridad vs SOFiSTiK Rein
 
 ---
 
-## Estado actual (actualizado 2026-09-02)
+## Estado actual (actualizado 2026-09-28)
 
 | Fase | Descripción | Estado | Rama | Commits |
 |---|---|---|---|---|
 | **F0** | Revit 2024–2027 compat facade + tooling migration | ✅ **DONE** | `feat/rebar-F0-compat` | 3cfa461 |
 | **F1** | Shared params + provenance + batch manager | ✅ **DONE** | `feat/rebar-F1-shared-params` | 736497b, 252e379 |
 | **F2** | Perfiles de normativa (EHE-08, ISO, BS) | ✅ **DONE** | `feat/rebar-F2-standards` | 02d2a65 |
-| **F2.5** | Lap/mandrel/confinamiento/anclaje conectados a la normativa | ✅ **DONE** | `main` (sin commitear) | — |
-| **F3** | Numeración y marcado | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (firma `shared_params` incorrecta), corregido | `main` (sin commitear) | — |
-| **F4** | Catálogo de formas + clasificador | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (`import Rebar` del módulo equivocado), corregido | `main` (sin commitear) | — |
-| **F5** | Despiece (BBS) + export CSV/XLSX + peso | ✅ **DONE** | `main` (sin commitear) | — |
-| **F6** | Detallado completo (tags, MRA, secciones) | ✅ Code-complete — tagging tenía un bug real (vista 3D sin bloquear), corregido; smoke 4 versiones sigue pendiente | `main` (sin commitear) | 72ad5be, 0eba562 |
-| **F7** | Vigas + muros + pilares circulares + losas/zapatas (cierres perimetrales) | 🚧 **En smoke real del usuario, F7.1→F7.17** — cierres perimetrales y Shape Code en huecos confirmados en vivo; **vigas: causa raíz encontrada, reproducida y corregida EN VIVO** (`SetLayoutAsMaximumSpacing` propaga desde la barra semilla hacia `+normal`, no "rellena entre" dos barras — la semilla caía en el lado equivocado; corregido y reverificado con `revit_create_rebar_by_curves`+`revit_set_rebar_layout`); huecos pequeños ahora garantizan mínimo 3 U-bars/lado. Ambos pendientes de confirmación en vivo del usuario. Commit PENDIENTE | `main` (sin commitear) | 9df02d7 + working tree |
-| **F8** | Export BVBS (máquinas ferralla) | 🚧 Código+tests escritos; formato BF2D/checksum explícitamente SIN validar contra un `.abs` real | `main` (sin commitear) | — |
+| **F2.5** | Lap/mandrel/confinamiento/anclaje conectados a la normativa | ✅ **DONE** | `develop` | commits 2026-09-02/03 |
+| **F3** | Numeración y marcado | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (firma `shared_params` incorrecta), corregido | `develop` | commits 2026-09-02/03 |
+| **F4** | Catálogo de formas + clasificador | ✅ Código completo — **estaba roto en TODAS las ejecuciones** hasta hoy (`import Rebar` del módulo equivocado), corregido | `develop` | commits 2026-09-02/03 |
+| **F5** | Despiece (BBS) + export CSV/XLSX + peso | ✅ **DONE** | `develop` | commits 2026-09-02/03 |
+| **F6** | Detallado completo (tags, MRA, secciones) | ✅ Code-complete — tagging tenía un bug real (vista 3D sin bloquear), corregido; smoke 4 versiones sigue pendiente | `develop` | 72ad5be, 0eba562 |
+| **F7** | Vigas + muros + pilares circulares + losas/zapatas (cierres perimetrales) | 🚧 **En smoke real del usuario, F7.1→F7.17** — cierres perimetrales y Shape Code en huecos confirmados en vivo; **vigas: causa raíz encontrada, reproducida y corregida EN VIVO** (`SetLayoutAsMaximumSpacing` propaga desde la barra semilla hacia `+normal`, no "rellena entre" dos barras — la semilla caía en el lado equivocado; corregido y reverificado con `revit_create_rebar_by_curves`+`revit_set_rebar_layout`); huecos pequeños ahora garantizan mínimo 3 U-bars/lado. Ambos pendientes de confirmación en vivo del usuario. Commiteado (rama `fix/rebar-f7-smoke-and-shared-params-bugs` → `develop`) | `develop` | 189b985 → ee4a9b1 |
+| **F8** | Export BVBS (máquinas ferralla) | 🚧 Código+tests escritos; formato BF2D/checksum explícitamente SIN validar contra un `.abs` real | `develop` | commits 2026-09-02/03 |
 | **F9** | Losas + endurecimiento + release 1.0.0 | ⏳ El motor de losas (`floor_rebar.py`) ya existe y se está probando dentro de F7 — falta la matriz de humo 4 versiones y el empaquetado de release | — | — |
 
-**Tests:** 19 ficheros en `tests/`, todos en verde (`python tests/test_X.py`, exit 0 cada uno).
+**Tests:** 20 ficheros en `tests/`, todos en verde (re-ejecutados 2026-09-28) (`python tests/test_X.py`, exit 0 cada uno).
 
-**Nada está commiteado desde `9df02d7`** — todo el trabajo de F2.5 a F7.11 vive sin commitear en el working tree (confirmado: `git status` sobre 21 ficheros modificados + 4 nuevos). Sigue la regla de "no commit sin petición explícita".
+**Estado git (2026-09-28):** todo el trabajo de F2.5 a F7.18 está commiteado (27 commits del 2 y 3 de septiembre, `189b985`→`ee4a9b1`) y forma la base de la rama de integración `develop`. `main` sigue sin F7 hasta pasar el humo en 4 versiones (Matriz de validación). El seguimiento global de tareas vive en `MASTER_ROADMAP.md`.
 
 ---
 
@@ -1046,4 +1046,4 @@ Part-time: **10–14 semanas**.
 
 ---
 
-**Última actualización:** F7 en smoke real del usuario (F7.1→F7.17) — F3/F4 tenían bugs de firma/import que los rompían desde siempre, corregidos; huecos: Shape 21 confirmado correcto, mínimo 3 U-bars por lado en huecos pequeños implementado por decisión explícita del usuario. Vigas: causa raíz real encontrada y CORREGIDA — `SetLayoutAsMaximumSpacing` propagaba el Set entero fuera de la sección por la barra semilla estar en el lado equivocado de `normal`; verificado en vivo antes/después con reproducción manual. Pendiente de que el usuario confirme ambas cosas con el botón real. Aviso pendiente de investigar: crashes ocasionales de Revit al recargar pyRevit. Nada commiteado desde `9df02d7` (2026-09-02)
+**Última actualización:** F7 en smoke real del usuario (F7.1→F7.17) — F3/F4 tenían bugs de firma/import que los rompían desde siempre, corregidos; huecos: Shape 21 confirmado correcto, mínimo 3 U-bars por lado en huecos pequeños implementado por decisión explícita del usuario. Vigas: causa raíz real encontrada y CORREGIDA — `SetLayoutAsMaximumSpacing` propagaba el Set entero fuera de la sección por la barra semilla estar en el lado equivocado de `normal`; verificado en vivo antes/después con reproducción manual. Pendiente de que el usuario confirme ambas cosas con el botón real. Aviso pendiente de investigar: crashes ocasionales de Revit al recargar pyRevit. Todo commiteado en `develop` (actualizado 2026-09-28).

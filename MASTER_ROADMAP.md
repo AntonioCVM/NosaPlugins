@@ -4,7 +4,7 @@
 `ROADMAP.md` (RebarAutomate) y `PLAN_MEJORA.md` (extensión) siguen siendo el detalle técnico; aquí solo se
 rastrea *qué* falta, *en qué orden* y *en qué estado está*.
 
-Creado: 2026-09-28 · Base: rama `fix/rebar-f7-smoke-and-shared-params-bugs` (27 commits por delante de `main`)
+Creado: 2026-09-28 · Rama de integración: **`develop`** (= `fix/rebar-f7-...` + Fase 0/1). `main` no recibe nada hasta T2.9.
 
 ## Cómo se usa este fichero
 
@@ -21,8 +21,8 @@ Creado: 2026-09-28 · Base: rama `fix/rebar-f7-smoke-and-shared-params-bugs` (27
 
 | ID | Decisión | Bloquea | Estado |
 |---|---|---|---|
-| D1 | Estrategia de ramas: crear `develop` desde la rama `fix/...` como base de integración (recomendado) vs. fusionar ya a `main` saltándose la regla de humo 4 versiones | T0.4 y todo lo demás | [ ] |
-| D2 | `NOSA_Configs/*.json` (preferencias personales, `_usage.json`, snapshots) ¿siguen en git o pasan a `.gitignore` salvo presets compartidos? | T0.3 | [ ] |
+| D1 | Estrategia de ramas | T0.4 | [x] `develop` como integración; `main` solo tras humo 4 versiones |
+| D2 | `NOSA_Configs` en git | T0.3 | [x] Personales fuera de git; presets compartidos (NamingProfiles, ColumnPresets, ExportPresets) versionados |
 | D3 | Bugs legacy de RebarAutomate (densificación en nudos intermedios, esquineras 45° en huecos, ventana modeless): ¿dentro de 1.0 o post-1.0? | T4.6 | [ ] |
 | D4 | Fase 13 de `PLAN_MEJORA` (migrar pilecap tools a `pilecap_utils`): ¿se desbloquea? | T5.5 | [ ] |
 | D5 | Hubs grandes con uso casi nulo (ModelHealthHub, StructuralQA, DataToolsHub, IssueWorkflowHub): ¿mantener, simplificar o fusionar? | T6.2 | [ ] |
@@ -36,19 +36,19 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [ ] | T0.1 | Revisar y commitear el trabajo sin commitear de `SheetExportHub` (ui/xaml/exporters) + `bundle.yaml` de Data y Foundations | – | – | ✔ | |
-| [ ] | T0.2 | Pasar `/check-plugin` a **SharedParamManager**, **WorksharingAudit**, **SiteToolkit** y commitearlos (uno por commit) | – | – | ✔ | |
-| [ ] | T0.3 | Aplicar D2 (`.gitignore` de configs personales) | – | – | ✔ | |
-| [ ] | T0.4 | Aplicar D1: crear rama de integración y hacer que las worktrees nuevas partan de ella | – | – | ✔ | |
-| [ ] | T0.5 | Actualizar la tabla "Estado actual" de `ROADMAP.md` (dice "nada commiteado desde `9df02d7`", ya es falso) y el bloque ESTADO de `PLAN_MEJORA.md`; traer este `MASTER_ROADMAP.md` a la rama de integración | – | – | – | |
+| [x] | T0.1 | Revisar y commitear el trabajo sin commitear de `SheetExportHub` (ui/xaml/exporters) + `bundle.yaml` de Data y Foundations | – | – | ✔ | `8775cdd` (encima de T3.1 `c3c1578`); el cambio de `config.json` de CenterBeamToColumn era solo reordenación → descartado |
+| [x] | T0.2 | Pasar `/check-plugin` a **SharedParamManager**, **WorksharingAudit**, **SiteToolkit** y commitearlos (uno por commit) | – | – | ✔ | `74405ff`, `e291042`, `a9ced93` — nosa_lint limpio (solo 1 NOSA006 en SharedParamManager y SiteToolkit) |
+| [x] | T0.3 | Aplicar D2 (`.gitignore` de configs personales) | – | – | ✔ | `0c15923` — 53 ficheros fuera de git (siguen en disco) |
+| [~] | T0.4 | Aplicar D1: crear rama de integración y hacer que las worktrees nuevas partan de ella | – | – | ✔ | rama `develop` creada; falta que el checkout principal cambie a `develop` (pasos en el chat del 2026-09-28) |
+| [x] | T0.5 | Actualizar la tabla "Estado actual" de `ROADMAP.md` (dice "nada commiteado desde `9df02d7`", ya es falso) y el bloque ESTADO de `PLAN_MEJORA.md`; traer este `MASTER_ROADMAP.md` a la rama de integración | – | – | – | ROADMAP.md actualizado; PLAN_MEJORA se sigue desde aquí (Fases 3 y 5) |
 
 ## Fase 1 — Guardarraíles (antes de tocar código en masa)
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [~] | T1.1 | `tools/nosa_lint.py`: validador determinista con las reglas de `CLAUDE.md` y `/audit-nosa` (imports `pyrevit DB`, `BuiltInCategory` a nivel de módulo, `{Binding type}`/`{Binding _x}`, `SelectedIndex` en XAML, profundidad `sys.path`, español en UI, recursos de color, prefijo `NOSA —` en transacciones, `except: pass`) | ✔ | – | – | `claude/graphify-pyrevit-analysis-e32e65` (sin commit) — 19 reglas, AST, `--summary/--json/--fail-on` |
-| [ ] | T1.2 | Hook de Claude Code (PostToolUse en Edit/Write de `.py`/`.xaml`) que ejecute T1.1 sobre el fichero tocado | – | – | – | |
-| [ ] | T1.3 | Hook `pre-commit` de git con T1.1 | – | – | – | |
+| [x] | T1.1 | `tools/nosa_lint.py`: validador determinista con las reglas de `CLAUDE.md` y `/audit-nosa` (imports `pyrevit DB`, `BuiltInCategory` a nivel de módulo, `{Binding type}`/`{Binding _x}`, `SelectedIndex` en XAML, profundidad `sys.path`, español en UI, recursos de color, prefijo `NOSA —` en transacciones, `except: pass`) | ✔ | – | – | `76e41ca` — 20 reglas, AST, `--summary/--json/--fail-on` |
+| [x] | T1.2 | Hook de Claude Code (PostToolUse en Edit/Write de `.py`/`.xaml`) que ejecute T1.1 sobre el fichero tocado | – | – | – | `76e41ca` — `.claude/settings.json` + `tools/nosa_lint_hook.py`, bloquea critical/high; probado en vivo |
+| [x] | T1.3 | Hook `pre-commit` de git con T1.1 | – | – | – | `76e41ca` — `tools/git-hooks/pre-commit` vía `core.hooksPath`, bloquea critical |
 | [ ] | T1.6 | Plugins de apoyo: `claude-code-setup` (ejecutar una vez) y `pyright-lsp` con un `pyrightconfig.json` ajustado a IronPython (silenciar imports `clr`/`System`/`Autodesk`, mantener nombres no definidos) | ✔ | – | ✔ | |
 | [ ] | T1.4 | Extraer los stubs de `Autodesk.Revit.DB`/`System` de `RebarAutomate/tests` a un `lib/tests_support/` compartido para que cualquier plugin pueda tener tests sin Revit | ✔ | – | – | |
 | [x] | T1.5 | Línea base: ejecutar T1.1 sobre todo el árbol y guardar el informe (será la lista de trabajo de la Fase 3) | – | – | – | 2026-09-28: 982 hallazgos — critical: 8×NOSA001 (SheetExportHub), 33×NOSA002 (ElementCommentsHub, RebarAutomate, SheetExportHub, SheetGen, StructuralSchedulePro, sheet_protocol), 2×NOSA103 (TabMain de SheetGen y MaterialManager, mitigados por try/except) · high: 8×NOSA004 (ProjectSetupWizard, SurveyExport: `..` de menos, inocuo porque pyRevit ya añade `lib/`), 8×NOSA202 iconos, 3×NOSA105, 3×NOSA203 · medium: 854×NOSA006, 45×NOSA106, 16×NOSA005, 2×NOSA007 |
@@ -71,7 +71,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [ ] | T3.1 | **SheetExportHub** (el más usado): 8 ficheros con `from pyrevit import DB` → `from Autodesk.Revit import DB`; `Config.ensure_dirs()` al importar (`config.py:120`) → perezoso (C5-bis) | ✔ | ✔ | – | |
+| [~] | T3.1 | **SheetExportHub** (el más usado): 8 ficheros con `from pyrevit import DB` → `from Autodesk.Revit import DB`; `Config.ensure_dirs()` al importar (`config.py:120`) → perezoso (C5-bis) | ✔ | ✔ | – | imports + `_BIP_FALLBACK` perezoso en `c3c1578`; **pendiente**: enums de `Config` en cuerpo de clase + `ensure_dirs()` al importar, y prueba en Revit (exportar 1 plano a PDF y DWG) |
 | [ ] | T3.2 | Barrido de `.Name` sobre objetos de la API de Revit (pythonnet/CPython), por panel: T3.2a Data · T3.2b Documentation · T3.2c Foundations · T3.2d Structures | ✔ | ✔ | – | |
 | [ ] | T3.3 | `except: pass` → `nosa_utils.telemetry.log_error`, empezando por ModelHealthHub (52), StructuralQA (49), SheetExportHub (43) | ✔ | – | – | |
 | [ ] | T3.4 | C6: `ClashReport` `_log_debug` es un no-op (`ClashReport.nobutton/lib/logic.py:14`) | ✔ | – | – | |
@@ -129,6 +129,7 @@ Pegar como primer mensaje de una sesión nueva:
 
 ```
 Trabaja SOLO en la tarea <ID> de MASTER_ROADMAP.md.
+0. Antes de nada: `git merge --ff-only develop` (las worktrees nuevas pueden partir de main).
 1. Lee MASTER_ROADMAP.md, CLAUDE.md y la sección relevante de ROADMAP.md / PLAN_MEJORA.md.
 2. Marca la tarea como [~] con el nombre de tu rama.
 3. Haz la tarea. Si encuentras algo fuera de alcance, NO lo arregles: añádelo como nota bajo la tarea.
