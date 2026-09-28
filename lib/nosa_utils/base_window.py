@@ -83,7 +83,8 @@ def launch_nosa_window(window_class, *args, **kwargs):
         return win
     try:
         from nosa_utils import usage as _usage
-        _key = getattr(win, '_plugin_key', None) or name
+        _key = _usage.resolve_launch_key(
+            window_class, getattr(win, '_plugin_key', None) or name)
         _usage.record(_key)
     except Exception:
         pass
