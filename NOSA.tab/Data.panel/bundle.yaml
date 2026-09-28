@@ -1,5 +1,6 @@
 layout:
   - ParameterHub
+  - SharedParamManager
   - DataTools
   - ProjectSetup
   - ModelCleanup
