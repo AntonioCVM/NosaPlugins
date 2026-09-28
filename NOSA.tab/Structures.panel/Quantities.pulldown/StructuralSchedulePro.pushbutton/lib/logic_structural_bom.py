@@ -19,11 +19,11 @@ STEEL_DENSITY_KG_M3 = 7850.0
 
 # ── structural categories ──────────────────────────────────────────────────────
 CATEGORIES = [
-    (u'Structural Columns',      DB.BuiltInCategory.OST_StructuralColumns),
-    (u'Structural Framing',      DB.BuiltInCategory.OST_StructuralFraming),
-    (u'Structural Foundations',  DB.BuiltInCategory.OST_StructuralFoundation),
-    (u'Floors',                  DB.BuiltInCategory.OST_Floors),
-    (u'Structural Walls',        DB.BuiltInCategory.OST_Walls),
+    (u'Structural Columns',      'OST_StructuralColumns'),
+    (u'Structural Framing',      'OST_StructuralFraming'),
+    (u'Structural Foundations',  'OST_StructuralFoundation'),
+    (u'Floors',                  'OST_Floors'),
+    (u'Structural Walls',        'OST_Walls'),
 ]
 
 # Default density used for estimated total weight (concrete incl. rebar)
@@ -369,7 +369,8 @@ def collect_bom(doc, options):
             g = material
         return (g, cat_name, fam, typ, level, material, el_type)
 
-    for cat_name, bic in CATEGORIES:
+    for cat_name, bic_name in CATEGORIES:
+        bic = getattr(DB.BuiltInCategory, bic_name)
         cat_density = densities.get(cat_name, DEFAULT_DENSITIES.get(cat_name, 2500.0))
 
         for el in _collect(doc, bic):

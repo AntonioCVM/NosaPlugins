@@ -24,16 +24,20 @@ from nosa_utils.revit_helpers import get_id_value
 # ---------------------------------------------------------------------------
 
 CATEGORY_CHOICES = (
-    ('StructuralFraming',    u'Beams (incl. ground beams)', DB.BuiltInCategory.OST_StructuralFraming),
-    ('StructuralColumns',    u'Columns',                     DB.BuiltInCategory.OST_StructuralColumns),
-    ('StructuralFoundation', u'Foundations (piles, pilecaps)', DB.BuiltInCategory.OST_StructuralFoundation),
-    ('Floors',               u'Floors / slabs',              DB.BuiltInCategory.OST_Floors),
-    ('Walls',                u'Walls',                       DB.BuiltInCategory.OST_Walls),
+    ('StructuralFraming',    u'Beams (incl. ground beams)', 'OST_StructuralFraming'),
+    ('StructuralColumns',    u'Columns',                     'OST_StructuralColumns'),
+    ('StructuralFoundation', u'Foundations (piles, pilecaps)', 'OST_StructuralFoundation'),
+    ('Floors',               u'Floors / slabs',              'OST_Floors'),
+    ('Walls',                u'Walls',                       'OST_Walls'),
 )
 
 CATEGORY_KEYS = tuple(c[0] for c in CATEGORY_CHOICES)
 _BIC_BY_KEY = {c[0]: c[2] for c in CATEGORY_CHOICES}
 _LABEL_BY_KEY = {c[0]: c[1] for c in CATEGORY_CHOICES}
+
+
+def _bic(name):
+    return getattr(DB.BuiltInCategory, name)
 
 _DEFAULT_PREFIX = {
     'StructuralFraming':    u'B',
@@ -51,7 +55,7 @@ _GROUND_KEYWORDS = (u'ground beam', u'ground', u'riostra', u'viga de atado', u't
 
 def _category_key_for_bic(bic_int):
     for key, _label, bic in CATEGORY_CHOICES:
-        if int(bic) == bic_int:
+        if int(_bic(bic)) == bic_int:
             return key
     return None
 
@@ -148,7 +152,7 @@ class TypeCommentsLogic(object):
         if scope == 'selection':
             if uidoc is None:
                 return []
-            wanted_ints = {int(_BIC_BY_KEY[k]): k for k in wanted}
+            wanted_ints = {int(_bic(_BIC_BY_KEY[k])): k for k in wanted}
             result = []
             for eid in uidoc.Selection.GetElementIds():
                 el = self.doc.GetElement(eid)
@@ -161,7 +165,7 @@ class TypeCommentsLogic(object):
 
         result = []
         for key in wanted:
-            bic = _BIC_BY_KEY[key]
+            bic = _bic(_BIC_BY_KEY[key])
             try:
                 if scope == 'active_view':
                     collector = DB.FilteredElementCollector(self.doc, self.doc.ActiveView.Id)
@@ -274,9 +278,10 @@ class TypeCommentsLogic(object):
 def existing_comment_for_type(doc, category_key, family_name, type_name, exclude_id=None):
     """Return an existing non-empty Comments value already used by another
     element of this exact Type, or u'' if the Type is genuinely new."""
-    bic = _BIC_BY_KEY.get(category_key)
-    if bic is None:
+    bic_name = _BIC_BY_KEY.get(category_key)
+    if bic_name is None:
         return u''
+    bic = _bic(bic_name)
     collector = (DB.FilteredElementCollector(doc)
                  .OfCategory(bic).WhereElementIsNotElementType())
     for el in collector:

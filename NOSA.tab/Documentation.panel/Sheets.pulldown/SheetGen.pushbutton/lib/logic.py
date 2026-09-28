@@ -282,9 +282,9 @@ NOSA_PARAMS = [
 ]
 
 _BIP_MAP = {
-    'Sheet Name': DB.BuiltInParameter.SHEET_NAME,
-    'Drawn By':   DB.BuiltInParameter.SHEET_DRAWN_BY,
-    'Checked By': DB.BuiltInParameter.SHEET_CHECKED_BY,
+    'Sheet Name': 'SHEET_NAME',
+    'Drawn By':   'SHEET_DRAWN_BY',
+    'Checked By': 'SHEET_CHECKED_BY',
 }
 
 
@@ -334,7 +334,7 @@ def write_param(element, param_name, value, doc=None):
         return wrote > 0
     p = element.LookupParameter(param_name)
     if not p and param_name in _BIP_MAP:
-        p = element.get_Parameter(_BIP_MAP[param_name])
+        p = element.get_Parameter(getattr(DB.BuiltInParameter, _BIP_MAP[param_name]))
     if p and not p.IsReadOnly:
         p.Set(value)
         return True

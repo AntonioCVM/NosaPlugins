@@ -59,11 +59,11 @@ _LIB_DIR = os.path.dirname(os.path.abspath(__file__))
 # duplicated (not imported) from logic.py on purpose, so register()/
 # unregister() never depend on a lazy cross-module import succeeding.
 _TARGET_BICS = {
-    'StructuralFraming':    DB.BuiltInCategory.OST_StructuralFraming,
-    'StructuralColumns':    DB.BuiltInCategory.OST_StructuralColumns,
-    'StructuralFoundation': DB.BuiltInCategory.OST_StructuralFoundation,
-    'Floors':                DB.BuiltInCategory.OST_Floors,
-    'Walls':                 DB.BuiltInCategory.OST_Walls,
+    'StructuralFraming':    'OST_StructuralFraming',
+    'StructuralColumns':    'OST_StructuralColumns',
+    'StructuralFoundation': 'OST_StructuralFoundation',
+    'Floors':                'OST_Floors',
+    'Walls':                 'OST_Walls',
 }
 
 _registered_updater = None
@@ -277,7 +277,7 @@ def register(app):
     errors = []
     for cat_key, bic in _TARGET_BICS.items():
         try:
-            filt = DB.ElementCategoryFilter(bic)
+            filt = DB.ElementCategoryFilter(getattr(DB.BuiltInCategory, bic))
             DB.UpdaterRegistry.AddTrigger(
                 updater_id, filt, DB.Element.GetChangeTypeElementAddition())
             DB.UpdaterRegistry.AddTrigger(

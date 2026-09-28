@@ -101,10 +101,19 @@ NOSA_PROTOCOL_PARAMS = [
     (u'Current Revision',      u'f8'),
 ]
 
+def _resolve_bip(names):
+    """First BuiltInParameter member that exists in this Revit version, else None."""
+    for name in names or ():
+        bip = getattr(DB.BuiltInParameter, name, None)
+        if bip is not None:
+            return bip
+    return None
+
+
 _BIP_FALLBACK = {
-    u'Drawn By':   getattr(DB.BuiltInParameter, 'SHEET_DRAWN_BY', None),
-    u'Checked By': getattr(DB.BuiltInParameter, 'SHEET_CHECKED_BY', None),
-    u'Sheet Name': getattr(DB.BuiltInParameter, 'SHEET_NAME', None),
+    u'Drawn By':   ('SHEET_DRAWN_BY',),
+    u'Checked By': ('SHEET_CHECKED_BY',),
+    u'Sheet Name': ('SHEET_NAME',),
 }
 
 NOSA_NUMBER_RE = re.compile(
@@ -127,9 +136,8 @@ _FORM_WRITE_NAMES = (
 
 # F1/F2 often live on title blocks (sometimes project-linked labels).
 _FKEY_PROJECT_BIP = {
-    u'f1': getattr(DB.BuiltInParameter, 'PROJECT_NUMBER', None),
-    u'f2': (getattr(DB.BuiltInParameter, 'ORGANIZATION_NAME', None)
-            or getattr(DB.BuiltInParameter, 'PROJECT_ORGANIZATION_NAME', None)),
+    u'f1': ('PROJECT_NUMBER',),
+    u'f2': ('ORGANIZATION_NAME', 'PROJECT_ORGANIZATION_NAME'),
 }
 
 _FKEY_READONLY_INFO = {
@@ -344,7 +352,7 @@ def _write_aliases_on_element(el, aliases, value, fkey=None):
         ok, info = _try_set_parameter(p, value, fkey)
         if ok:
             return True, info
-    bip = _FKEY_PROJECT_BIP.get(fkey)
+    bip = _resolve_bip(_FKEY_PROJECT_BIP.get(fkey))
     if bip is not None:
         try:
             p = el.get_Parameter(bip)
@@ -358,7 +366,7 @@ def _write_aliases_on_element(el, aliases, value, fkey=None):
 
 
 def _write_on_project_information(doc, fkey, value):
-    bip = _FKEY_PROJECT_BIP.get(fkey)
+    bip = _resolve_bip(_FKEY_PROJECT_BIP.get(fkey))
     if bip is None:
         return False, u''
     try:
@@ -589,7 +597,7 @@ def write_param_on_hosts(doc, sheet, param_name, value):
                 p = el.LookupParameter(param_name)
             except Exception:
                 p = None
-        _bip = _BIP_FALLBACK.get(param_name)
+        _bip = _resolve_bip(_BIP_FALLBACK.get(param_name))
         if not p and _bip is not None:
             try:
                 p = el.get_Parameter(_bip)
