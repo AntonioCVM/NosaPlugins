@@ -91,30 +91,30 @@ class Config:
         "Arch E1": (762, 1067)
     }
 
-    # Presets optimizados basados en Diroots Prosheets
-    PRESET_QUICK = {
-        'name': 'Quick',
-        'pdf_raster_quality': DB.RasterQualityType.Presentation,
-        'pdf_color_depth': DB.ColorDepthType.Color,
-        'dwg_version': DB.ACADVersion.R2013,
-        'dwg_colors': DB.ExportColorMode.TrueColor
+    # Presets optimizados basados en Diroots Prosheets.
+    # Enum member names only: Revit enums are resolved in preset(), never at import time.
+    _PRESET_SPECS = {
+        'Quick':    ('Presentation', 'R2013', 'TrueColor'),
+        'Standard': ('High',         'R2018', 'TrueColorPerView'),
+        'Print':    ('Presentation', 'R2018', 'TrueColorPerView'),
     }
 
-    PRESET_STANDARD = {
-        'name': 'Standard',
-        'pdf_raster_quality': DB.RasterQualityType.High,
-        'pdf_color_depth': DB.ColorDepthType.Color,
-        'dwg_version': DB.ACADVersion.R2018,
-        'dwg_colors': DB.ExportColorMode.TrueColorPerView
-    }
+    @classmethod
+    def preset(cls, name):
+        """Export settings for a preset name; unknown names fall back to Standard."""
+        if name not in cls._PRESET_SPECS:
+            name = 'Standard'
+        quality, acad, colors = cls._PRESET_SPECS[name]
+        return {
+            'name': name,
+            'pdf_raster_quality': getattr(DB.RasterQualityType, quality),
+            'pdf_color_depth': DB.ColorDepthType.Color,
+            'dwg_version': getattr(DB.ACADVersion, acad),
+            'dwg_colors': getattr(DB.ExportColorMode, colors),
+        }
 
-    PRESET_PRINT = {
-        'name': 'Print',
-        'pdf_raster_quality': DB.RasterQualityType.Presentation,
-        'pdf_color_depth': DB.ColorDepthType.Color,
-        'dwg_version': DB.ACADVersion.R2018,
-        'dwg_colors': DB.ExportColorMode.TrueColorPerView
-    }
-
-# Run directory check on import
-Config.ensure_dirs()
+# Run directory check on import (plain filesystem, no Revit API); never break the import
+try:
+    Config.ensure_dirs()
+except Exception:
+    pass  # nosa-lint: disable=NOSA006 - each save reports its own IO error

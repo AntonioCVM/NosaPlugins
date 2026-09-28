@@ -68,14 +68,7 @@ class ExportManager:
     
     def _get_preset_config(self):
         """Obtiene configuración del preset seleccionado"""
-        if self.preset == "Quick":
-            return Config.PRESET_QUICK
-        elif self.preset == "Standard":
-            return Config.PRESET_STANDARD
-        elif self.preset == "Print":
-            return Config.PRESET_PRINT
-        else:
-            return Config.PRESET_STANDARD
+        return Config.preset(self.preset)
     
     def export_all(self, progress_callback=None, cancellation_token=None, batch_size=50):
         """Exporta todos los elementos (sheets o views) en formatos PDF y/o DWG"""
