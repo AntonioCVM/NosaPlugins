@@ -30,6 +30,11 @@
         <SolidColorBrush x:Key="AccentSofterColor" Color="#0AFF5F00"/>
         <SolidColorBrush x:Key="PendingOverlayColor" Color="#22FFC107"/>
         <SolidColorBrush x:Key="HoverOverlayColor" Color="#07000000"/>
+        <!-- Grid-row selection needs to actually be visible — AccentSoftColor
+             (9% alpha) is tuned for button hover tints and disappears on a
+             white row background, so "Check Highlighted" looked like nothing
+             was selected. This is deliberately much more opaque. -->
+        <SolidColorBrush x:Key="RowSelectedColor" Color="#4DFF5F00"/>
         <SolidColorBrush x:Key="StatusOkColor" Color="#2EAA4A"/>
         <SolidColorBrush x:Key="StatusPendingColor" Color="#C6C6C6"/>
 
@@ -388,12 +393,14 @@
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{DynamicResource HoverOverlayColor}"/>
                 </Trigger>
-                <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="{DynamicResource AccentSoftColor}"/>
-                </Trigger>
                 <DataTrigger Binding="{Binding HasPending}" Value="True">
                     <Setter Property="Background" Value="{DynamicResource PendingOverlayColor}"/>
                 </DataTrigger>
+                <!-- Selected wins over hover/pending — it's the state the
+                     user is actively working with (Check Highlighted). -->
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource RowSelectedColor}"/>
+                </Trigger>
             </Style.Triggers>
         </Style>
 

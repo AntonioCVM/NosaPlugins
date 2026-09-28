@@ -14,6 +14,7 @@ import System
 from System.Windows import MessageBox
 from System.Windows.Controls import DataGridTextColumn, DataGridLength
 from System.Windows.Data import Binding
+from System.Windows.Media import Brushes, Color, SolidColorBrush
 from System.Collections.Generic import Dictionary
 from System.Collections.ObjectModel import ObservableCollection
 
@@ -131,6 +132,19 @@ class SheetExportHubWindow(NOSAWindow):
         self.sheet_items = ObservableCollection[SheetItem]()
         self.project_params = {}
         self.GridSheets.ItemsSource = self.sheet_items
+
+        # Row selection highlight, painted directly on the row containers
+        # rather than via a Style/ControlTemplate trigger. WPF's built-in
+        # DataGridRow template paints IsSelected through its own theme
+        # VisualStates, which sit above a Style.Trigger in dependency-
+        # property precedence, so a styled Background never actually showed
+        # even though IsSelected really was True (SelectedItems/"Check
+        # Highlighted" always worked correctly). A LOCAL value set here
+        # beats that theme visual outright, in any WPF host. LoadingRow
+        # re-applies it to containers recycled by virtualisation (scrolling,
+        # or the grid swapping ItemsSource when the search box filters).
+        self.GridSheets.SelectionChanged += self.GridSheets_SelectionChanged
+        self.GridSheets.LoadingRow += self.GridSheets_LoadingRow
 
         self.sub_tabs = {
             "BtnSubNaming": self.SubNaming,
@@ -475,6 +489,43 @@ class SheetExportHubWindow(NOSAWindow):
             self._suspend_status_update = False
         self.UpdateStatus()
         self.SaveLastConfig()
+
+    # =========================================================================
+    # ROW SELECTION HIGHLIGHT (painted in code — see comment in __init__)
+    # =========================================================================
+
+    def _selection_brush(self):
+        # Fresh brush each call: WPF Freezable brushes can only be shared
+        # safely once frozen, and there's no need to cache one instance here.
+        return SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0x5F, 0x00))
+
+    def _paint_row(self, row, is_selected):
+        if row is None:
+            return
+        try:
+            row.Background = self._selection_brush() if is_selected else Brushes.Transparent
+        except Exception:
+            pass
+
+    def GridSheets_SelectionChanged(self, sender, args):
+        try:
+            for item in args.RemovedItems:
+                self._paint_row(self.GridSheets.ItemContainerGenerator.ContainerFromItem(item), False)
+            for item in args.AddedItems:
+                self._paint_row(self.GridSheets.ItemContainerGenerator.ContainerFromItem(item), True)
+        except Exception:
+            pass
+
+    def GridSheets_LoadingRow(self, sender, args):
+        """A row container that's just been realised (initial load, scroll
+        virtualisation, or the grid rebuilding its ItemsSource when the
+        search box filters) doesn't know about a pre-existing selection —
+        repaint it here so the highlight survives all of that."""
+        try:
+            is_selected = args.Row.Item in list(self.GridSheets.SelectedItems)
+            self._paint_row(args.Row, is_selected)
+        except Exception:
+            pass
 
     # =========================================================================
     # SHEET SETS
