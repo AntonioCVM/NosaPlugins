@@ -26,6 +26,7 @@ Creado: 2026-09-28 · Rama de integración: **`develop`** (= `fix/rebar-f7-...` 
 | D3 | Bugs legacy de RebarAutomate (densificación en nudos intermedios, esquineras 45° en huecos, ventana modeless): ¿dentro de 1.0 o post-1.0? | T4.6 | [ ] |
 | D4 | Fase 13 de `PLAN_MEJORA` (migrar pilecap tools a `pilecap_utils`): ¿se desbloquea? | T5.5 | [ ] |
 | D5 | Hubs grandes con uso casi nulo (ModelHealthHub, StructuralQA, DataToolsHub, IssueWorkflowHub): ¿mantener, simplificar o fusionar? | T6.2 | [ ] |
+| D7 | 8 iconos de 65×65 (AnnotationHub, TextTools, ViewUtilities, AddPileToPilecap, CreatePilecapType, CenterBeamToColumn, WaffleSlab, StructuralQA) frente a la convención 32×32: ¿redimensionar, o aceptar iconos grandes (mejor en HiDPI) y relajar la regla NOSA202? | — | [ ] |
 | D6 | ¿Adoptar GSD (`/gsd-new-project`) para gestionar este roadmap, o seguir con este fichero + sesiones? | — | [ ] |
 
 ---
@@ -102,7 +103,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T5.3 | Adoptar `nosa_utils.collectors` en los 8 sitios duplicados de "vistas sin plantilla"/"aplicar plantilla" | ✔ | – | – | |
 | [ ] | T5.4 | Adoptar `nosa_utils.bootstrap` en lugar de `imp.load_source` (preparación CPython) | – | – | – | |
 | [ ] | T5.5 | Fase 13 de `PLAN_MEJORA` (según D4) | – | ✔ | – | |
-| [ ] | T5.6 | Fase 16 de `PLAN_MEJORA`: `Icon.png`→`icon.png`, `WaffleSlab` `\\n`, `MEJORAS_APLICADAS.md` | ✔ | – | – | |
+| [x] | T5.6 | Fase 16 de `PLAN_MEJORA`: `Icon.png`→`icon.png`, `WaffleSlab` `\\n`, `MEJORAS_APLICADAS.md` | ✔ | – | – || `1665f42` — 6 `Icon.png`→`icon.png`, notas movidas a `docs/history/`; el título de WaffleSlab ya estaba bien. nosa_lint detecta ahora el caso de mayúsculas (`b22d2f1`). Los 8 iconos 65×65 → ver D7 |
 | [ ] | T5.7 | Fase 17 de `PLAN_MEJORA`: consistencia de idioma interna / `i18n` | ✔ | – | – | |
 
 ## Fase 6 — Utilidad y calidad de producto
