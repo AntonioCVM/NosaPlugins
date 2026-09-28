@@ -5,7 +5,7 @@ import System.Windows
 from pyrevit import forms, revit
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                     '..', '..', '..', '..', '..', 'lib'))
+                                     '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
