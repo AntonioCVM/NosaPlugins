@@ -24,7 +24,7 @@ print("=" * 80)
 # 2. Intentar ejecutar ensure_bound de nuevo
 print("\n1. Ejecutando ensure_bound()...")
 try:
-    report = shared_params.ensure_bound(doc, insert_into_user_file=False)
+    report = shared_params.ensure_bound(doc)
     print("   ÉXITO - ensure_bound() completó")
     print("   Bound: {}".format(len(report.get('bound', []))))
     print("   Already: {}".format(len(report.get('already', []))))

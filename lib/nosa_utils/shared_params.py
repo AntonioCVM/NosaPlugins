@@ -20,7 +20,7 @@ parse_shared_parameters_txt(path=None)
     the file before ever touching Revit) and by pure tests (Part 14's
     "40 GUIDs unicos, coinciden con la Parte 05" CI check).
 
-ensure_bound(doc, categories=None, insert_into_user_file=False)
+ensure_bound(doc, categories=None)
     Idempotent. Binds every parameter in NOSA_SharedParameters.txt to
     `categories` (defaults to the 5 "main" categories from Part 05) —
     see its own docstring for the DefinitionFile swap-and-restore
@@ -150,10 +150,10 @@ def parse_shared_parameters_txt(path=None):
     return {'groups': groups, 'params': params}
 
 
-def ensure_bound(doc, categories=None, insert_into_user_file=False):
+def ensure_bound(doc, categories=None):
     """
-    Idempotent. Called once per document, typically when RebarAutomate
-    first opens on it (see ui.py):
+    Idempotent. Called by RebarAutomate right before it first writes
+    NOSA data to a document (see ui.py, _ensure_shared_params):
 
       1. Parses NOSA_SharedParameters.txt (pure, validates the file
          BEFORE touching Revit at all — a malformed .txt aborts here
@@ -171,14 +171,10 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
          The bindings themselves live in the project's own BindingMap
          once created; they do not depend on NOSA's .txt staying "the
          current file" afterward (Decision 5.A).
-      6. If insert_into_user_file is True (the user opted in via the
-         one-time dialog, saved in rebar_project.json — default False,
-         never touches the office's own file uninvited): ALSO creates
-         matching Definitions (by GUID) inside the user's OWN
-         SharedParametersFilename, so the office's file gains NOSA's
-         parameters for direct use outside the plugin too. Best-effort,
-         per-definition — a failure on one definition is recorded in
-         the report and does not abort the rest.
+
+      The user's own shared-parameter file is never written to: NOSA's
+      definitions live only in NOSA_SharedParameters.txt and the
+      project's BindingMap.
 
     Args:
         doc         (DB.Document)
@@ -187,7 +183,6 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
                     categories. Pass DEFAULT_CATEGORY_NAMES + the tag
                     categories to also bind the tag-eligible subset
                     (F6's own concern, not F1's).
-        insert_into_user_file (bool): see step 6.
 
     Returns:
         {'bound': [names...], 'already': [names...],
@@ -286,8 +281,6 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
             t.RollBack()
             report['errors'].append(u'Transaction failed: {}'.format(e))
 
-        if insert_into_user_file:
-            _insert_definitions_into_user_file(app, original_path, def_file, report)
     finally:
         try:
             if original_path is not None:
@@ -298,83 +291,6 @@ def ensure_bound(doc, categories=None, insert_into_user_file=False):
                     original_path, e))
 
     return report
-
-
-def _exc_text(exc):
-    """Exception message, or its type name when Revit raises one with an empty message."""
-    text = u'{}'.format(exc).strip()
-    return text or type(exc).__name__
-
-
-def _insert_definitions_into_user_file(app, user_file_path, nosa_def_file, report):
-    """
-    Best-effort: copy every NOSA definition into the office's own
-    shared-parameter file, so it carries them for direct use outside
-    the plugin too (the user opted in — see ensure_bound's own
-    docstring, step 6). Per-definition try/except — one failure never
-    aborts the rest.
-    """
-    from Autodesk.Revit.DB import ExternalDefinitionCreationOptions
-
-    if not user_file_path:
-        report['errors'].append(
-            u'insert_into_user_file was requested but no office shared-parameter '
-            u'file is currently configured — nothing to insert into.')
-        return
-    if os.path.isfile(user_file_path) and not os.access(user_file_path, os.W_OK):
-        report['errors'].append(
-            u'The office shared-parameter file is read-only, so the NOSA groups '
-            u'could not be copied into it (parameters are still bound to this '
-            u'project): {}'.format(user_file_path))
-        return
-
-    try:
-        app.SharedParametersFilename = user_file_path
-        user_def_file = app.OpenSharedParameterFile()
-        if user_def_file is None:
-            report['errors'].append(
-                u'Could not open the office shared-parameter file to insert into.')
-            return
-    except Exception as e:
-        report['errors'].append(u'Could not open the office shared-parameter file: {}'.format(e))
-        return
-
-    existing_guids = set()
-    for group in user_def_file.Groups:
-        for definition in group.Definitions:
-            try:
-                existing_guids.add(str(definition.GUID))
-            except Exception:
-                pass
-
-    for nosa_group in nosa_def_file.Groups:
-        target_group = None
-        for g in user_def_file.Groups:
-            if g.Name == nosa_group.Name:
-                target_group = g
-                break
-        if target_group is None:
-            try:
-                target_group = user_def_file.Groups.Create(nosa_group.Name)
-            except Exception as e:
-                report['errors'].append(
-                    u'Could not create group {} in the office file ({}): {}'.format(
-                        nosa_group.Name, user_file_path, _exc_text(e)))
-                continue
-
-        for definition in nosa_group.Definitions:
-            guid = str(definition.GUID)
-            if guid in existing_guids:
-                continue
-            try:
-                options = ExternalDefinitionCreationOptions(
-                    definition.Name, definition.GetDataType())
-                options.GUID = definition.GUID
-                target_group.Definitions.Create(options)
-            except Exception as e:
-                report['errors'].append(
-                    u'Could not insert {} into the office file: {}'.format(
-                        definition.Name, _exc_text(e)))
 
 
 def _find_parameter(elem, guid_or_name):

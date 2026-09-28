@@ -156,6 +156,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 return
 
             elements = [uidoc.Document.GetElement(r.ElementId) for r in refs]
+            if elements and not window._ensure_shared_params():
+                return
 
             if mode == 'columns':
                 if not elements:
@@ -297,87 +299,12 @@ class RebarAutomateWindow(NOSAWindow):
         self._reinforcement_handler = _ReinforcementEventHandler(self)
         self._reinforcement_event = ExternalEvent.Create(self._reinforcement_handler)
 
-        # PHASE F1 — shared-param sealing, once per document. On the
-        # VERY FIRST launch on a given document (no rebar_project.json
-        # saved for it yet — rebar_project.exists returns False), ask
-        # ONCE whether to also insert NOSA's parameters into the
-        # office's own shared-parameter file (default No — never
-        # touches it uninvited); the answer is saved and never asked
-        # again for this document. ensure_bound itself is idempotent
-        # and safe to re-run on every launch (Decision 5.A: it swaps
-        # app.SharedParametersFilename to NOSA's own .txt just long
-        # enough to bind, then restores the original path).
+        # Shared parameters are bound lazily by _ensure_shared_params(),
+        # right before the first generation writes NOSA data: opening the
+        # window never modifies the model.
         self.ra_project = rebar_project.load(self.doc)
-        if not rebar_project.exists(self.doc):
-            insert_into_office_file = forms.alert(
-                u'Would you also like to insert NOSA\'s shared parameters into your '
-                u'office\'s own shared parameter file? (The project\'s own bindings '
-                u'are created either way, even if you answer No.)',
-                title=u'NOSA RebarAutomate — Shared Parameters',
-                yes=True, no=True)
-            self.ra_project['insert_shared_params_into_user_file'] = bool(insert_into_office_file)
-            rebar_project.save(self.doc, self.ra_project)
         self.ra_generator_version = _version_mod.RA_VERSION
-        
-        # ALWAYS verify and create shared parameters on every launch
-        # (ensure_bound is idempotent and safe to re-run)
-        try:
-            print(u'\n' + u'='*80)
-            print(u'NOSA RebarAutomate — Verifying shared parameters...')
-            self._shared_params_report = shared_params.ensure_bound(
-                self.doc,
-                insert_into_user_file=self.ra_project.get(
-                    'insert_shared_params_into_user_file', False))
-            
-            # Report results to console
-            bound_count = len(self._shared_params_report.get('bound', []))
-            already_count = len(self._shared_params_report.get('already', []))
-            skipped_count = len(self._shared_params_report.get('skipped', []))
-            error_count = len(self._shared_params_report.get('errors', []))
-            
-            print(u'  ✓ Newly bound: {} parameters'.format(bound_count))
-            print(u'  ✓ Already bound: {} parameters'.format(already_count))
-            if skipped_count > 0:
-                print(u'  ⚠ Skipped: {} parameters'.format(skipped_count))
-            if error_count > 0:
-                print(u'  ✗ Errors: {} parameters'.format(error_count))
-                for err in self._shared_params_report.get('errors', []):
-                    print(u'    - {}'.format(err))
-            
-            print(u'='*80 + u'\n')
-            
-            # Show alert if critical errors occurred
-            if error_count > 0:
-                forms.alert(
-                    u'WARNING: {} error(s) occurred while creating shared parameters.\n\n'
-                    u'Check the pyRevit console (Ctrl+F8) for details.\n\n'
-                    u'Some NOSA features may not work correctly.'.format(error_count),
-                    title=u'NOSA RebarAutomate — Shared Parameters',
-                    warn_icon=True)
-            elif bound_count > 0:
-                # First time binding succeeded
-                forms.alert(
-                    u'Successfully created {} NOSA shared parameters.\n\n'
-                    u'These parameters are now available on rebar elements:\n'
-                    u'• NOSA_Rebar_Batch_Id\n'
-                    u'• NOSA_Rebar_Mark\n'
-                    u'• NOSA_Rebar_Number\n'
-                    u'• NOSA_Rebar_Shape_Code\n'
-                    u'• NOSA_Rebar_Shape_Params\n'
-                    u'• ... and more'.format(bound_count),
-                    title=u'NOSA RebarAutomate — Shared Parameters')
-                
-        except Exception as e:
-            self._shared_params_report = {'bound': [], 'already': [], 'skipped': [],
-                                           'errors': [u'ensure_bound failed: {}'.format(e)]}
-            print(u'\n✗ CRITICAL ERROR creating shared parameters: {}\n'.format(e))
-            forms.alert(
-                u'CRITICAL ERROR: Could not create shared parameters.\n\n'
-                u'Error: {}\n\n'
-                u'Check the pyRevit console (Ctrl+F8) for details.\n\n'
-                u'NOSA features will not work until this is resolved.'.format(e),
-                title=u'NOSA RebarAutomate — Error',
-                warn_icon=True)
+        self._shared_params_report = None
 
         # PHASE F2 — normativa (rebar standard) profile, resolved once at
         # launch and re-resolved whenever the user changes the "Standard:"
@@ -451,6 +378,49 @@ class RebarAutomateWindow(NOSAWindow):
         self._update_wall_preview()
 
     # ── normativa (rebar standard) — PHASE F2 ───────────────────────────
+
+    def _ensure_shared_params(self):
+        """Bind NOSA's shared parameters once per window; False if binding failed outright."""
+        if self._shared_params_report is not None:
+            return not self._shared_params_report.get('fatal', False)
+        print(u'\n' + u'=' * 80)
+        print(u'NOSA RebarAutomate — Verifying shared parameters...')
+        try:
+            report = shared_params.ensure_bound(self.doc)
+        except Exception as e:
+            self._shared_params_report = {'bound': [], 'already': [], 'skipped': [],
+                                          'errors': [u'ensure_bound failed: {}'.format(e)],
+                                          'fatal': True}
+            print(u'\n✗ CRITICAL ERROR creating shared parameters: {}\n'.format(e))
+            forms.alert(
+                u'CRITICAL ERROR: Could not create shared parameters.\n\n'
+                u'Error: {}\n\n'
+                u'Check the pyRevit console (Ctrl+F8) for details.\n\n'
+                u'NOSA features will not work until this is resolved.'.format(e),
+                title=u'NOSA RebarAutomate — Error',
+                warn_icon=True)
+            return False
+        self._shared_params_report = report
+
+        errors = report.get('errors', [])
+        print(u'  ✓ Newly bound: {} parameters'.format(len(report.get('bound', []))))
+        print(u'  ✓ Already bound: {} parameters'.format(len(report.get('already', []))))
+        if report.get('skipped'):
+            print(u'  ⚠ Skipped: {} parameters'.format(len(report['skipped'])))
+        if errors:
+            print(u'  ✗ Errors: {} parameters'.format(len(errors)))
+            for err in errors:
+                print(u'    - {}'.format(err))
+        print(u'=' * 80 + u'\n')
+
+        if errors:
+            forms.alert(
+                u'WARNING: {} error(s) occurred while creating shared parameters.\n\n'
+                u'Check the pyRevit console (Ctrl+F8) for details.\n\n'
+                u'Some NOSA features may not work correctly.'.format(len(errors)),
+                title=u'NOSA RebarAutomate — Shared Parameters',
+                warn_icon=True)
+        return True
 
     def _load_standard(self, code):
         """Resolve a rebar-standard profile dict for `code`, falling back
