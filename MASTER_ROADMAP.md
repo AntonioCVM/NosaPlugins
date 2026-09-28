@@ -77,9 +77,9 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T3.3 | `except: pass` → `nosa_utils.telemetry.log_error`, empezando por ModelHealthHub (52), StructuralQA (49), SheetExportHub (43) | ✔ | – | – | |
 | [ ] | T3.4 | C6: `ClashReport` `_log_debug` es un no-op (`ClashReport.nobutton/lib/logic.py:14`) | ✔ | – | – | |
 | [ ] | T3.5 | AddPileToPilecap: config en dos sistemas (`ConfigManager` + `NOSAWindow`) y `NameError` latente en `point_in_face` | ✔ | ✔ | – | |
-| [~] | T3.6 | Telemetría: unificar claves de `_usage.json` (`export_sheets`/`exportsheets`/`sheet_export_hub`, `qrcode`/`qr_code`, `pilemaster`/`pile_master`…) para poder medir uso real | ✔ | – | – | `claude/upbeat-dubinsky-cd6a8b` |
+| [x] | T3.6 | Telemetría: unificar claves de `_usage.json` (`export_sheets`/`exportsheets`/`sheet_export_hub`, `qrcode`/`qr_code`, `pilemaster`/`pile_master`…) para poder medir uso real | ✔ | – | – | `claude/upbeat-dubinsky-cd6a8b` @ `819065c` |
 
-> **Nota T3.6 (fuera de alcance):** `python tools/nosa_lint.py lib --fail-on critical` sale con código 1 por 6 hallazgos CRITICAL NOSA002 preexistentes en `lib/nosa_utils/sheet_protocol.py:105-107,130-132` (`BuiltInParameter` en el cuerpo de módulo/clase). No tocado. También: `smartjoin_pro`→`element_join` y `export_sheets`/`exportsheets`→`sheet_export_hub` se fusionan por indicación explícita; claves sin carpeta (`parameterinspector`, `tag_all`/`tagall` de `TagAll2.pushbutton.DISABLED`) se conservan tal cual.
+> **Nota T3.6 (fuera de alcance):** `python tools/nosa_lint.py lib --fail-on critical` sale con código 1 por 6 hallazgos CRITICAL NOSA002 preexistentes en `lib/nosa_utils/sheet_protocol.py:105-107,130-132` (`BuiltInParameter` en el cuerpo de módulo/clase). No tocado. También: `smartjoin_pro`→`element_join` y `export_sheets`/`exportsheets`→`sheet_export_hub` se fusionan por indicación explícita; claves sin carpeta activa (`parameterinspector`, `tag_all` de `TagAll2.pushbutton.DISABLED`, al que se suma `tagall`) se conservan como clave propia.
 
 ## Fase 4 — RebarAutomate 1.0.0 (F8 + F9)
 
