@@ -277,8 +277,9 @@ def lint_pushbutton(folder):
     if not os.path.isfile(os.path.join(folder, 'script.py')):
         findings.append(Finding('NOSA201', folder, 0))
     icon = os.path.join(folder, 'icon.png')
-    if not os.path.isfile(icon):
-        alt = [f for f in os.listdir(folder) if f.lower() == 'icon.png']
+    names = os.listdir(folder)
+    if 'icon.png' not in names:
+        alt = [f for f in names if f.lower() == 'icon.png']
         findings.append(Finding('NOSA202', folder, 0, 'wrong case: %s' % alt[0] if alt else 'missing'))
     else:
         size = _png_size(icon)
