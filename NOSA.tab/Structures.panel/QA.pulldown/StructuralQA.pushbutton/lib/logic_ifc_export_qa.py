@@ -7,6 +7,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'StructuralQA/ifc_export_qa'
 
 
 def _struct_categories():
@@ -105,7 +107,7 @@ def check_coordinates(doc):
         else:
             issues.append(u'Project base point not found.')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_coordinates')
 
     try:
         sp = (DB.FilteredElementCollector(doc)
@@ -116,7 +118,7 @@ def check_coordinates(doc):
         else:
             issues.append(u'No shared base point — internal coordinates only.')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_coordinates#2')
 
     try:
         site = doc.SiteLocation

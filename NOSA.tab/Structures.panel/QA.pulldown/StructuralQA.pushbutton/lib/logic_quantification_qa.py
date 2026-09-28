@@ -7,7 +7,9 @@ Detects missing materials, volume outliers, zero-volume elements.
 import math
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils import unit_conversion as _uc10
+_LOG = u'StructuralQA/quantification_qa'
 # ─────────────────────────────────────────────────
 # Category lists
 # ─────────────────────────────────────────────────
@@ -63,14 +65,14 @@ def _level_name(doc, el):
             lv = doc.GetElement(lid)
             if lv: return lv.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_level_name')
     try:
         p = el.get_Parameter(DB.BuiltInParameter.FAMILY_LEVEL_PARAM)
         if p:
             lv = doc.GetElement(p.AsElementId())
             if lv: return lv.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_level_name#2')
     return 'No Level'
 
 
@@ -80,7 +82,7 @@ def _volume_m3(el):
         if p and p.AsDouble() > 0:
             return p.AsDouble() * _FT3_TO_M3
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_volume_m3')
     # Geometric fallback: parameter missing or zero — sum solid volumes directly
     try:
         from nosa_utils.solids import total_volume
@@ -88,7 +90,7 @@ def _volume_m3(el):
         if v > 0:
             return v * _FT3_TO_M3
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_volume_m3#2')
     return 0.0
 
 
@@ -98,7 +100,7 @@ def _area_m2(el):
         if p and p.AsDouble() > 0:
             return p.AsDouble() * _FT2_TO_M2
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_area_m2')
     return 0.0
 
 
@@ -124,7 +126,7 @@ def _is_existing_phase(doc, el):
                 return ('existing' in name or 'existente' in name
                         or 'demol' in name or 'exist' in name)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_existing_phase')
     return False
 
 
@@ -142,7 +144,7 @@ def _get_family_name(el):
     """Return family name of element."""
     try:
         return el.Symbol.Family.Name
-    except Exception:
+    except Exception:  # nosa-lint: disable=NOSA006 - system-family elements have no Symbol; falls back to el.Name by design
         pass
     try:
         return el.Name or ''
@@ -159,7 +161,7 @@ def _get_element_material_name(doc, el):
             if mat:
                 return mat.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_element_material_name')
     try:
         mids = list(el.GetMaterialIds(False)) if hasattr(el, 'GetMaterialIds') else []
         if mids:
@@ -167,7 +169,7 @@ def _get_element_material_name(doc, el):
             if mat:
                 return mat.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_element_material_name#2')
     return ''
 
 
@@ -219,7 +221,7 @@ def collect_concrete_quantities_v2(doc, selected_cats=None, selected_levels=None
                     'has_material':  bool(mat_name),
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_concrete_quantities_v2')
     return rows
 
 
@@ -260,7 +262,7 @@ def collect_steel_quantities(doc, excluded_families=None, exclude_existing_phase
                 })
                 seen_ids.add(el_id)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_steel_quantities')
     return rows
 
 
@@ -340,7 +342,7 @@ def collect_rebar_quantities(doc, selected_levels=None):
                 'length_m': length_m,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_rebar_quantities')
     return rows
 
 
@@ -379,9 +381,9 @@ def get_all_family_names(doc):
                     if n:
                         names.add(n)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'get_all_family_names')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_family_names#2')
     return sorted(names)
 
 

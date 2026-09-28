@@ -5,6 +5,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'StructuralQA/drawing_checker'
 
 def _struct_cats():
     return [
@@ -43,7 +45,7 @@ def _collect_structural_elements(doc):
                    .ToElements())
             els.extend(col)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_collect_structural_elements')
     return els
 
 
@@ -57,7 +59,7 @@ def check_elements_without_level(doc):
                 name = getattr(el, 'Name', None) or u'id:{}'.format(el.Id)
                 issues.append(name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_elements_without_level')
 
     if not issues:
         return CheckResult('Elements without level', 'green', 0, [])
@@ -89,7 +91,7 @@ def check_viewport_scales(doc):
                     issues.append(u'Sheet {} — {} (1:{})'.format(
                         sheet.SheetNumber, view.Name, scale))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_viewport_scales')
 
     if not issues:
         return CheckResult('Viewport scale consistency', 'green', 0, [])
@@ -117,9 +119,9 @@ def check_untagged_structural(doc, active_view=None):
             try:
                 tag_ids.add(t.TaggedLocalElementId)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_untagged_structural')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_untagged_structural#2')
 
     issues = []
     for cat in _struct_cats():
@@ -134,9 +136,9 @@ def check_untagged_structural(doc, active_view=None):
                         name = getattr(el, 'Name', None) or u'id:{}'.format(el.Id)
                         issues.append(name)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'check_untagged_structural#3')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_untagged_structural#4')
 
     if not issues:
         return CheckResult('Untagged structural elements', 'green', 0, [])
@@ -156,7 +158,7 @@ def check_active_warnings(doc):
                 if c:
                     struct_cat_ids.add(c.Id)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_active_warnings')
 
         for w in warnings:
             try:
@@ -168,9 +170,9 @@ def check_active_warnings(doc):
                         issues.append(w.GetDescriptionText()[:80])
                         break
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_active_warnings#2')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_active_warnings#3')
 
     if not issues:
         return CheckResult('Active structural warnings', 'green', 0, [])
@@ -190,7 +192,7 @@ def check_views_without_template(doc):
                     if isinstance(vp, DB.Viewport):
                         sheet_view_ids.add(vp.ViewId)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_views_without_template')
 
         for vid in sheet_view_ids:
             view = doc.GetElement(vid)
@@ -201,9 +203,9 @@ def check_views_without_template(doc):
                 if tid == DB.ElementId.InvalidElementId:
                     issues.append(view.Name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_views_without_template#2')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_views_without_template#3')
 
     if not issues:
         return CheckResult('Views without template', 'green', 0, [])
@@ -262,7 +264,7 @@ def _templateguard_checks(doc):
                     x for x in (iss.get('view', ''), iss.get('sheet', ''),
                                 iss.get('type', ''), iss.get('detail', '')) if x))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_templateguard_checks')
         status = 'green' if not issues else 'amber'
         results.append(CheckResult(labels[key], status, len(issues), details))
     return results

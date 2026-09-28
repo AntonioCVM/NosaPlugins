@@ -13,8 +13,10 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils.logging import Logger
 from nosa_utils.revit_helpers import get_id_value
+_LOG = u'StructuralQA/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _cr_logic = imp.load_source('sqa_cr_logic', os.path.join(_here, 'logic_clash_report.py'))
@@ -338,7 +340,7 @@ class StructuralQAWindow(NOSAWindow):
             try:
                 revit.uidoc.ShowElements(ids)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'CR_SelectBoth_Click')
         except Exception as e:
             forms.alert("Could not select: {}".format(e))
 
@@ -1169,7 +1171,7 @@ class StructuralQAWindow(NOSAWindow):
                                         ok += 1
                                         assigned = True
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'QQ_AssignMaterial_Click')
                         if not assigned:
                             fail += 1
                     except Exception:

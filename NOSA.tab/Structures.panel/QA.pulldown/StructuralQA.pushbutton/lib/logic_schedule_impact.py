@@ -9,6 +9,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'StructuralQA/schedule_impact'
 
 def _schedulable_bics():
     return [
@@ -36,9 +38,9 @@ def get_schedulable_categories(doc):
                 if cat:
                     result.append((cat.Name, cat))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_schedulable_categories')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_schedulable_categories#2')
     # Also add any extra categories found in existing schedules
     try:
         for vs in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule).ToElements():
@@ -49,9 +51,9 @@ def get_schedulable_categories(doc):
                     if c and (c.Name, c) not in result:
                         result.append((c.Name, c))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_schedulable_categories#3')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_schedulable_categories#4')
     return sorted(set(result), key=lambda x: x[0])
 
 
@@ -64,9 +66,9 @@ def find_schedules_for_category(doc, category_id):
                 if get_id_value(vs.Definition.GetCategoryId()) == category_id:
                     result.append(vs)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'find_schedules_for_category')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'find_schedules_for_category#2')
     return result
 
 
@@ -82,9 +84,9 @@ def find_sheets_for_schedule(doc, schedule_id):
                         sheets.append((sheet.SheetNumber, sheet.Name))
                         break
             except Exception:
-                pass
+                log_swallowed(_LOG, u'find_sheets_for_schedule')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'find_sheets_for_schedule#2')
     return sheets
 
 
