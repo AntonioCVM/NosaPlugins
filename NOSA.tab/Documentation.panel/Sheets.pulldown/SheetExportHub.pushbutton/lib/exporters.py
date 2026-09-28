@@ -23,7 +23,16 @@ logger = Logger()
 
 class ExportManager:
     """Gestor de exportación optimizado - PDF y DWG solamente - Supports Sheets and Views"""
-    
+
+    # Revit's DWG/DXF exporter writes every raster image referenced by the
+    # exported view/sheet out as a separate companion file (e.g. a linked
+    # or embedded PNG/JPEG becomes its own file next to the .dwg/.dxf) so
+    # the CAD file's IMAGE/xref entities have something to point at. NOSA's
+    # workflow never wants those loose image files in the delivery folder,
+    # so every DWG/DXF export is wrapped in a before/after folder snapshot
+    # and any newly-appeared raster file is deleted straight after.
+    _AUTO_IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.gif')
+
     def __init__(self, doc, elements, naming_builder, output_folder, export_formats, preset, project_params=None,
                  is_views=False, dwg_setup_name=None, combined_pdf_name=None):
         self.doc = doc
@@ -439,7 +448,39 @@ class ExportManager:
         except Exception as e:
             logger.warning("Error buscando PDF más reciente", e)
             return None
-    
+
+    def _snapshot_folder(self):
+        """Set of every filename currently in the output folder."""
+        try:
+            return set(os.listdir(self.output_folder))
+        except Exception:
+            return set()
+
+    def _cleanup_auto_images(self, before_files):
+        """
+        Delete any raster image file that appeared in the output folder
+        during a DWG/DXF export (Revit's own side effect — see
+        _AUTO_IMAGE_EXTS above). Never touches files that already existed
+        before this export call. Returns the number of files removed.
+        """
+        try:
+            after_files = self._snapshot_folder()
+        except Exception:
+            return 0
+        new_files = after_files - before_files
+        removed = 0
+        for name in new_files:
+            if not name.lower().endswith(self._AUTO_IMAGE_EXTS):
+                continue
+            try:
+                os.remove(os.path.join(self.output_folder, name))
+                removed += 1
+            except Exception as e:
+                logger.warning("Could not remove auto-exported image '{}': {}".format(name, e))
+        if removed and self.progress_callback:
+            self.progress_callback("     🧹 Removed {} auto-exported image file(s)".format(removed))
+        return removed
+
     def export_view_pdf(self, view, filename):
         """Exporta view a PDF"""
         try:
@@ -560,19 +601,21 @@ class ExportManager:
 
             view_set = List[DB.ElementId]()
             view_set.Add(view.Id)
-            
+
             # Note: doc.Export for DWG needs filename without extension?
             # Revit API signature: Export(folder, name, views, options)
+            before_files = self._snapshot_folder()
             success = self.doc.Export(self.output_folder, filename, view_set, dwg_options)
             debug_print("      - doc.Export(DWG) returned: {}".format(success))
-            
+            self._cleanup_auto_images(before_files)
+
             # Check existence
             expected_file = os.path.join(self.output_folder, "{}.dwg".format(filename))
-            
+
             # Revit sometimes adds prefixes/suffixes if multiple views? Here only 1.
             # But sometimes "Sheet Number" logic applies if it's a sheet. For View, it uses View Name?
             # We explicitly pass filename.
-            
+
             result = os.path.exists(expected_file)
             debug_print("      - DWG Export Result (File Exists): {}".format(result))
             return result
@@ -612,14 +655,16 @@ class ExportManager:
             
             view_set = List[DB.ElementId]()
             view_set.Add(view.Id)
-            
+
             # Execute
+            before_files = self._snapshot_folder()
             success = self.doc.Export(self.output_folder, filename, view_set, dxf_options)
-            
+            self._cleanup_auto_images(before_files)
+
             if not success:
                 logger.warning("Revit API return False for DXF export: {}".format(filename))
                 return False
-                
+
             if os.path.exists(dxf_path):
                 return True
             else:
@@ -645,10 +690,12 @@ class ExportManager:
 
             view_set = List[DB.ElementId]()
             view_set.Add(sheet.Id)
-            
+
+            before_files = self._snapshot_folder()
             success = self.doc.Export(self.output_folder, filename, view_set, dwg_options)
             # debug_print("      - doc.Export(DWG) returned: {}".format(success))
-        
+            self._cleanup_auto_images(before_files)
+
             result = os.path.exists(dwg_path)
             if result and self.progress_callback:
                  self.progress_callback("     ✅ DWG Exported: **{}.dwg**".format(filename))
@@ -697,12 +744,14 @@ class ExportManager:
             # Execute
             # if self.progress_callback:
             #    self.progress_callback("  - Calling doc.Export(DXF)...")
-                
+
+            before_files = self._snapshot_folder()
             success = self.doc.Export(self.output_folder, filename, view_set, dxf_options)
-            
+            self._cleanup_auto_images(before_files)
+
             # if self.progress_callback:
             #    self.progress_callback("  - doc.Export(DXF) returned: {}".format(success))
-            
+
             if not success:
                  logger.warning("Revit API return False for DXF export: {}".format(filename))
                  return False
