@@ -7,6 +7,8 @@ import subprocess
 from Autodesk.Revit import DB
 from config import Config
 from nosa_utils.logging import Logger
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'SheetExportHub/utils'
 
 logger = Logger()
 
@@ -111,7 +113,7 @@ class Utils:
              params["Sheet Name"] = sheet.Name
              params["Sheet Number"] = sheet.SheetNumber
         except Exception:
-             pass
+             log_swallowed(_LOG, u'get_sheet_parameters')
 
         # CRÍTICO: Asegurar que Current Revision esté incluido
         try:
@@ -182,7 +184,7 @@ class Utils:
             if os.path.exists(folder_path):
                 subprocess.Popen(['explorer', folder_path])
         except Exception:
-            pass
+            log_swallowed(_LOG, u'open_folder')
     
     @staticmethod
     def get_paper_size_from_sheet(sheet, doc):

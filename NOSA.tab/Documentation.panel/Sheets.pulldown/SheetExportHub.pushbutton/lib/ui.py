@@ -5,7 +5,7 @@ try:
     clr.AddReference('System.Windows.Forms')
     clr.AddReference('PresentationCore')
     clr.AddReference('PresentationFramework')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - assemblies usually already referenced; runs before nosa_utils is importable
     pass
 
 import os
@@ -22,8 +22,10 @@ from Autodesk.Revit import DB
 from pyrevit import forms
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils.logging import Logger
 from nosa_utils import sheet_protocol as _sp
+_LOG = u'SheetExportHub/ui'
 
 from managers import ViewSetManager, ExportPresetManager
 from utils import Utils
@@ -214,7 +216,7 @@ class SheetExportHubWindow(NOSAWindow):
                             if val:
                                 self.project_params[name] = val
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'LoadProjectParameters')
         except Exception as e:
             logger.error("Error loading project parameters", e)
 
@@ -504,7 +506,7 @@ class SheetExportHubWindow(NOSAWindow):
             return
         try:
             row.Background = self._selection_brush() if is_selected else Brushes.Transparent
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - row repaint, called for every row on LoadingRow/SelectionChanged
             pass
 
     def GridSheets_SelectionChanged(self, sender, args):
@@ -513,7 +515,7 @@ class SheetExportHubWindow(NOSAWindow):
                 self._paint_row(self.GridSheets.ItemContainerGenerator.ContainerFromItem(item), False)
             for item in args.AddedItems:
                 self._paint_row(self.GridSheets.ItemContainerGenerator.ContainerFromItem(item), True)
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - SelectionChanged handler, fires on every click; cosmetic repaint only
             pass
 
     def GridSheets_LoadingRow(self, sender, args):
@@ -524,7 +526,7 @@ class SheetExportHubWindow(NOSAWindow):
         try:
             is_selected = args.Row.Item in list(self.GridSheets.SelectedItems)
             self._paint_row(args.Row, is_selected)
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - LoadingRow handler, fires per realised row; cosmetic repaint only
             pass
 
     # =========================================================================
@@ -539,7 +541,7 @@ class SheetExportHubWindow(NOSAWindow):
                 self.ComboSheetSets.Items.Add(name)
             self.ComboSheetSets.SelectedIndex = 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_load_sheet_sets')
 
     def LoadSet_Click(self, sender, args):
         name = self.ComboSheetSets.SelectedItem
@@ -619,7 +621,7 @@ class SheetExportHubWindow(NOSAWindow):
             try:
                 row.Params[param_name] = new_val
             except Exception:
-                pass
+                log_swallowed(_LOG, u'Grid_CellEditEnding')
             row.HasPending = True
             self.BtnApplyEdits.IsEnabled = True
             self._refresh_grid_async()
@@ -633,11 +635,11 @@ class SheetExportHubWindow(NOSAWindow):
                 try:
                     self.GridSheets.Items.Refresh()
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_do_refresh')
             self.GridSheets.Dispatcher.BeginInvoke(
                 _swt.DispatcherPriority.Background, System.Action(_do_refresh))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_refresh_grid_async')
 
     def ApplyParamEdits_Click(self, sender, args):
         if not self._pending_changes:
@@ -796,7 +798,7 @@ class SheetExportHubWindow(NOSAWindow):
                 if hasattr(el, 'IsTemporaryHideIsolateActive') and el.IsTemporaryHideIsolateActive():
                     flagged.append(getattr(el, 'Name', str(el.Id)))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_pre_export_check')
         return flagged
 
     # =========================================================================
@@ -825,7 +827,7 @@ class SheetExportHubWindow(NOSAWindow):
         try:
             base = Utils.expand_path_variables(base, self.doc)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_effective_output_folder')
         if self.subfolder:
             return os.path.join(base, self.subfolder.strip().strip('\\/'))
         return base
@@ -1025,7 +1027,7 @@ class SheetExportHubWindow(NOSAWindow):
         try:
             self.ExpLog.IsExpanded = True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'Export_Click')
         self.TxtLog.Text = "Starting export...\n"
         total_count = len(selected_elements)
         self._set_export_progress(0, total_count)
@@ -1073,7 +1075,7 @@ class SheetExportHubWindow(NOSAWindow):
         try:
             import System.Windows.Threading as _swt
             self.Dispatcher.Invoke(System.Action(lambda: None), _swt.DispatcherPriority.Background)
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - UI message pump during export, called per sheet; failure is harmless
             pass
 
     def _set_export_progress(self, current, total):
@@ -1083,7 +1085,7 @@ class SheetExportHubWindow(NOSAWindow):
             self.ExportProgress.Maximum = max(1, total)
             self.ExportProgress.Value = min(current, total)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_set_export_progress')
         self._pump_ui()
 
     # =========================================================================
@@ -1113,7 +1115,7 @@ class SheetExportHubWindow(NOSAWindow):
             })
             self.SaveConfig(cfg)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SaveLastConfig')
 
     def _apply_config(self, cfg):
         """Restore persisted UI state (no data reload — LoadData() runs

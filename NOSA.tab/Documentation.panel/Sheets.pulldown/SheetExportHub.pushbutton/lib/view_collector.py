@@ -2,7 +2,9 @@
 import time
 from Autodesk.Revit import DB
 from nosa_utils.logging import Logger
+from nosa_utils.telemetry import log_swallowed
 from utils import Utils
+_LOG = u'SheetExportHub/view_collector'
 
 logger = Logger()
 
@@ -52,7 +54,7 @@ class ViewCollector:
                 if value:
                     return value
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_level_name')
         return "Unassigned"
     
     @staticmethod
@@ -65,7 +67,7 @@ class ViewCollector:
                 except Exception:
                     return False
         except Exception:
-            pass
+            log_swallowed(_LOG, u'is_view_on_sheet')
         return False
     
     @staticmethod
@@ -176,7 +178,7 @@ class ViewCollector:
             try:
                 sheets.sort(key=lambda x: x.SheetNumber)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_all_sheets')
                 
             return sheets
         except Exception as e:

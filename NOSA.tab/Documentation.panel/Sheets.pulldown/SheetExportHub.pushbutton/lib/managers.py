@@ -6,6 +6,8 @@ from Autodesk.Revit import DB
 from config import Config
 from utils import Utils
 from nosa_utils.logging import Logger
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'SheetExportHub/managers'
 
 logger = Logger()
 
@@ -21,7 +23,7 @@ class ViewSetManager:
                     if filename.endswith('.json'):
                         sets.append(filename.replace('.json', ''))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_sets')
         return sorted(sets)
 
     @staticmethod
@@ -48,7 +50,7 @@ class ViewSetManager:
                     data = json.load(f)
                     return [DB.ElementId(int(sid)) for sid in data.get('sheet_ids', [])]
         except Exception:
-            pass
+            log_swallowed(_LOG, u'load_set')
         return []
 
     @staticmethod
@@ -59,7 +61,7 @@ class ViewSetManager:
                 os.remove(filepath)
                 return True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'delete_set')
         return False
 
     @staticmethod
@@ -80,7 +82,7 @@ class ViewSetManager:
                 os.remove(old_path)
                 return True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'rename_set')
         return False
 
 
@@ -96,7 +98,7 @@ class NamingProfileManager:
                     if filename.endswith('.json'):
                         profiles.append(filename.replace('.json', ''))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_profiles')
         return sorted(profiles)
 
     @staticmethod
@@ -123,7 +125,7 @@ class NamingProfileManager:
                     data = json.load(f)
                     return data.get('naming', None)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'load_profile')
         return None
 
     @staticmethod
@@ -134,7 +136,7 @@ class NamingProfileManager:
                 os.remove(filepath)
                 return True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'delete_profile')
         return False
 
     @staticmethod
@@ -155,7 +157,7 @@ class NamingProfileManager:
                 os.remove(old_path)
                 return True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'rename_profile')
         return False
 
 
@@ -176,7 +178,7 @@ class ExportPresetManager:
                     if filename.endswith('.json'):
                         presets.append(filename.replace('.json', ''))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_presets')
         return sorted(presets)
 
     @staticmethod
@@ -222,7 +224,7 @@ class ExportPresetManager:
                 os.remove(filepath)
                 return True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'delete_preset')
         return False
 
 
@@ -237,7 +239,7 @@ class LanguageManager:
                     data = json.load(f)
                     return data.get('language', 'en-GB')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'load_language')
         return 'en-GB'
 
     @staticmethod
@@ -294,5 +296,5 @@ class RecentExportsManager:
                 with open(Config.RECENT_EXPORTS_FILE, 'r') as f:
                     return json.load(f)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_recent_exports')
         return []
