@@ -14,7 +14,7 @@ from System.Windows.Media import SolidColorBrush, Color
 from System.Collections.Generic import List
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                     '..', '..', '..', '..', 'lib'))
+                                     '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
@@ -62,11 +62,15 @@ _version_mod = load_module('rebarautomate_version', os.path.join(_HERE, '_versio
 rebar_schedule = load_module('rebar_schedule', os.path.join(_HERE, 'rebar_schedule.py'))
 rebar_export_bvbs = load_module('rebar_export_bvbs', os.path.join(_HERE, 'rebar_export_bvbs.py'))
 
-_FOUNDATION_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFoundation))
-_FLOOR_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Floors))
-_COLUMN_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralColumns))
-_FRAMING_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_StructuralFraming))
-_WALL_CAT_ID = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Walls))
+_CAT_ID_CACHE = {}
+
+
+def _cat_id(bic_name):
+    """Integer id of a BuiltInCategory, resolved on first use (never at import time)."""
+    if bic_name not in _CAT_ID_CACHE:
+        bic = getattr(DB.BuiltInCategory, bic_name)
+        _CAT_ID_CACHE[bic_name] = get_id_value(DB.ElementId(bic))
+    return _CAT_ID_CACHE[bic_name]
 
 _PREVIEW_BAR_FILL = SolidColorBrush(Color.FromRgb(51, 51, 51))
 _PREVIEW_SECTION_STROKE = SolidColorBrush(Color.FromRgb(255, 95, 0))
@@ -131,16 +135,16 @@ class _ReinforcementEventHandler(IExternalEventHandler):
         values = ctx['values']
         try:
             if mode == 'columns':
-                sel_filter = _CategorySelectionFilter([_COLUMN_CAT_ID])
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralColumns')])
                 prompt = u'Select Structural Columns to reinforce, then click Finish.'
             elif mode == 'beams':
-                sel_filter = _CategorySelectionFilter([_FRAMING_CAT_ID])
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFraming')])
                 prompt = u'Select Structural Framing (beams) to reinforce, then click Finish.'
             elif mode == 'walls':
-                sel_filter = _CategorySelectionFilter([_WALL_CAT_ID])
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_Walls')])
                 prompt = u'Select Walls to reinforce, then click Finish.'
             else:
-                sel_filter = _CategorySelectionFilter([_FOUNDATION_CAT_ID, _FLOOR_CAT_ID])
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFoundation'), _cat_id('OST_Floors')])
                 prompt = (u'Select Structural Foundations and/or Floors to reinforce, '
                           u'then click Finish.')
 
@@ -218,9 +222,9 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 window._refresh_batch_list()
             else:
                 footings = [e for e in elements if e.Category is not None and
-                            get_id_value(e.Category.Id) == _FOUNDATION_CAT_ID]
+                            get_id_value(e.Category.Id) == _cat_id('OST_StructuralFoundation')]
                 floors = [e for e in elements if e.Category is not None and
-                          get_id_value(e.Category.Id) == _FLOOR_CAT_ID]
+                          get_id_value(e.Category.Id) == _cat_id('OST_Floors')]
                 if not footings and not floors:
                     forms.alert(u'No Structural Foundations or Floors selected.')
                     return
@@ -975,9 +979,9 @@ class RebarAutomateWindow(NOSAWindow):
             if elem is None or elem.Category is None:
                 continue
             cat_id = get_id_value(elem.Category.Id)
-            if cat_id == _FOUNDATION_CAT_ID:
+            if cat_id == _cat_id('OST_StructuralFoundation'):
                 footings.append(elem)
-            elif cat_id == _FLOOR_CAT_ID:
+            elif cat_id == _cat_id('OST_Floors'):
                 floors.append(elem)
         return footings, floors
 
@@ -2065,7 +2069,7 @@ class RebarAutomateWindow(NOSAWindow):
             elem = self.doc.GetElement(eid)
             if elem is None or elem.Category is None:
                 continue
-            if get_id_value(elem.Category.Id) == _COLUMN_CAT_ID:
+            if get_id_value(elem.Category.Id) == _cat_id('OST_StructuralColumns'):
                 columns.append(elem)
         return columns
 
@@ -2076,7 +2080,7 @@ class RebarAutomateWindow(NOSAWindow):
             elem = self.doc.GetElement(eid)
             if elem is None or elem.Category is None:
                 continue
-            if get_id_value(elem.Category.Id) == _FRAMING_CAT_ID:
+            if get_id_value(elem.Category.Id) == _cat_id('OST_StructuralFraming'):
                 beams.append(elem)
         return beams
 
@@ -2087,7 +2091,7 @@ class RebarAutomateWindow(NOSAWindow):
             elem = self.doc.GetElement(eid)
             if elem is None or elem.Category is None:
                 continue
-            if get_id_value(elem.Category.Id) == _WALL_CAT_ID:
+            if get_id_value(elem.Category.Id) == _cat_id('OST_Walls'):
                 walls.append(elem)
         return walls
 
@@ -3555,7 +3559,7 @@ class RebarAutomateWindow(NOSAWindow):
     def _selected_detail_hosts(self):
         """Footings / floors / columns currently selected (for detail sections)."""
         hosts = []
-        allowed = set([_FOUNDATION_CAT_ID, _FLOOR_CAT_ID, _COLUMN_CAT_ID])
+        allowed = set([_cat_id('OST_StructuralFoundation'), _cat_id('OST_Floors'), _cat_id('OST_StructuralColumns')])
         try:
             for eid in self.uidoc.Selection.GetElementIds():
                 elem = self.doc.GetElement(eid)
