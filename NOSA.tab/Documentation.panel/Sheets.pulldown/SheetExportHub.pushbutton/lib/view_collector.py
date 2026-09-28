@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import time
-from pyrevit import DB
+from Autodesk.Revit import DB
 from nosa_utils.logging import Logger
 from utils import Utils
 

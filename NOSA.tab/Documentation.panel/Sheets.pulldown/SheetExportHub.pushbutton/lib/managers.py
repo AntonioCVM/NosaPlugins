@@ -2,7 +2,7 @@
 import os
 import json
 import datetime
-from pyrevit import DB
+from Autodesk.Revit import DB
 from config import Config
 from utils import Utils
 from nosa_utils.logging import Logger

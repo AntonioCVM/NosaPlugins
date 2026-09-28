@@ -2,7 +2,7 @@
 import re
 from config import Config
 from utils import Utils
-from pyrevit import DB
+from Autodesk.Revit import DB
 
 # Import ViewCollector - circular dependency?
 # NamingBuilder uses ViewCollector.get_view_parameters

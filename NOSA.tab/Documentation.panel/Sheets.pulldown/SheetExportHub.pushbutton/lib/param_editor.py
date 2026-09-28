@@ -10,7 +10,8 @@ funnel through apply_changes() so there is exactly one write path.
 Sheet Number is deliberately excluded from what this module treats as
 editable — renumbering (F1-F7) is Sheet Hub's job, not this plugin's.
 """
-from pyrevit import DB, revit
+from Autodesk.Revit import DB
+from pyrevit import revit
 
 from nosa_utils import sheet_protocol as _sp
 
@@ -24,12 +25,17 @@ NON_EDITABLE_PARAMS = frozenset(['Sheet Number', 'Document Number'])
 # LookupParameter-by-name fails for a few standard sheet fields on some
 # templates; fall back to the known BuiltInParameter (same map Drawing
 # Index already validated).
-_BIP_FALLBACK = {
-    'Sheet Name': DB.BuiltInParameter.SHEET_NAME,
-    'Drawn By':   DB.BuiltInParameter.SHEET_DRAWN_BY,
-    'Checked By': DB.BuiltInParameter.SHEET_CHECKED_BY,
-    'Scale':      DB.BuiltInParameter.VIEW_SCALE_PULLDOWN_METRIC,
+_BIP_FALLBACK_NAMES = {
+    'Sheet Name': 'SHEET_NAME',
+    'Drawn By':   'SHEET_DRAWN_BY',
+    'Checked By': 'SHEET_CHECKED_BY',
+    'Scale':      'VIEW_SCALE_PULLDOWN_METRIC',
 }
+
+
+def _bip_fallback(param_name):
+    name = _BIP_FALLBACK_NAMES.get(param_name)
+    return getattr(DB.BuiltInParameter, name, None) if name else None
 
 
 def is_editable(param_name):
@@ -45,7 +51,7 @@ def resolve_parameter(element, param_name):
             return p
     except Exception:
         pass
-    bip = _BIP_FALLBACK.get(param_name)
+    bip = _bip_fallback(param_name)
     if bip is not None:
         try:
             p = element.get_Parameter(bip)

@@ -2,7 +2,7 @@
 import os
 import time
 from System.Collections.Generic import List
-from pyrevit import DB
+from Autodesk.Revit import DB
 from nosa_utils.logging import Logger
 from config import Config
 from utils import Utils

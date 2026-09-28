@@ -4,7 +4,7 @@ import re
 import time
 import datetime
 import subprocess
-from pyrevit import DB
+from Autodesk.Revit import DB
 from config import Config
 from nosa_utils.logging import Logger
 

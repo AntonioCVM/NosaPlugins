@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import json
-from pyrevit import DB
+from Autodesk.Revit import DB
 from System.Drawing import Color
 
 class Config:

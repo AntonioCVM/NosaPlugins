@@ -17,7 +17,8 @@ from System.Windows.Data import Binding
 from System.Collections.Generic import Dictionary
 from System.Collections.ObjectModel import ObservableCollection
 
-from pyrevit import DB, forms
+from Autodesk.Revit import DB
+from pyrevit import forms
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.logging import Logger
