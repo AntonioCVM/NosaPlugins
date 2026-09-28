@@ -21,3 +21,11 @@ desktop.ini
 *.swp
 *.bak
 *~
+
+# Per-user plugin state: preferences, usage counters, per-model data, overrides.
+# Shared presets (NamingProfiles, ColumnPresets, ExportPresets) stay versioned.
+NOSA_Configs/*.json
+NOSA_Configs/Snapshots/
+NOSA_Configs/rebar_project/
+NOSA_Configs/rebar_standards/
+NOSA_Configs/ExportSheets/Profiles/
