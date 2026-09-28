@@ -125,6 +125,26 @@ def log_error(script_name, exception_msg, stack_trace=u'', revit_version=None):
         pass
 
 
+_SWALLOWED_SEEN = set()
+
+
+def log_swallowed(script_name, where=u''):
+    """Log the exception being handled once per (script, where) per session; never raises."""
+    try:
+        key = (script_name, where)
+        if key in _SWALLOWED_SEEN:
+            return
+        _SWALLOWED_SEEN.add(key)
+        exc = sys.exc_info()[1]
+        try:
+            msg = u'swallowed in {}: {}: {}'.format(where, type(exc).__name__, exc)
+        except Exception:
+            msg = u'swallowed in {}: {}'.format(where, type(exc).__name__)
+        log_error(script_name, msg, _tb.format_exc())
+    except Exception:  # nosa-lint: disable=NOSA006 — logging must never break the caller
+        pass
+
+
 def log_info(script_name, message):
     """Write an INFO entry (non-error events, plugin launches, etc.)."""
     _ensure_log_dir()

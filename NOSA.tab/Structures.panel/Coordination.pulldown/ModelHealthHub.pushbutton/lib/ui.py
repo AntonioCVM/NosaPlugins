@@ -15,7 +15,9 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils.logging import Logger
+_LOG = u'ModelHealthHub/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _hs_logic  = imp.load_source('mhh_hs_logic',  os.path.join(_here, 'logic_health_score.py'))
@@ -245,7 +247,7 @@ class ModelHealthHubWindow(NOSAWindow):
                     SWC.Canvas.SetTop(date_lbl, h - 12)
                     canvas.Children.Add(date_lbl)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_hs_draw_trend')
 
     def HS_Run_Click(self, sender, args):
         self._hs_save_config()
@@ -313,7 +315,7 @@ class ModelHealthHubWindow(NOSAWindow):
             history = _hs_logic.get_score_history(title)
             self._hs_draw_trend(history)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'HS_Run_Click')
 
     def HS_Grid_SelectionChanged(self, sender, args):
         self.HS_BtnSelect.IsEnabled = self.HS_GridResults.SelectedItem is not None
@@ -535,7 +537,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
                         target_view = v
                         break
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'WT_JumpView_Click')
             if target_view is None:
                 for v in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewPlan).ToElements():
                     try:
@@ -543,7 +545,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
                             target_view = v
                             break
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'WT_JumpView_Click#2')
             if target_view is None:
                 forms.alert(u'No suitable view found to jump to.', title=u'Jump to View')
                 return
@@ -1010,7 +1012,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
                 try:
                     ids.Add(rec['element'].Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'CV_SelectInModel_Click')
             revit.uidoc.Selection.SetElementIds(ids)
             self.CV_TxtStatus.Text = u'Selected {} bar(s) in the model{}.'.format(
                 ids.Count, u'' if rows else u' (all failing)')
@@ -1094,7 +1096,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
             try:
                 proj = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'FL_ExportPDF_Click')
             out_path, is_pdf = _fl_logic.export_pdf_report(self._fl_rows, dlg.FileName, proj)
             if is_pdf:
                 forms.alert(u'PDF report exported:\n{}'.format(out_path))

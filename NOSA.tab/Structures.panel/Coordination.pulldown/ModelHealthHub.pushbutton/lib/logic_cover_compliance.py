@@ -8,7 +8,9 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils import unit_conversion as _uc10
+_LOG = u'ModelHealthHub/cover_compliance'
 
 _FT_TO_MM = _uc10.FT_TO_MM
 
@@ -55,14 +57,14 @@ def _host_name(doc, rebar_el):
         if host is not None:
             return host.Name or u'Unknown'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_name')
     try:
         host_id = rebar_el.HostId
         host = doc.GetElement(host_id)
         if host is not None:
             return host.Name or u'Unknown'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_name#2')
     return u'Unknown'
 
 
@@ -72,7 +74,7 @@ def _host_category(doc, rebar_el):
         if host is not None and host.Category is not None:
             return host.Category.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_category')
     return u'Structural'
 
 
@@ -111,7 +113,7 @@ def analyse(doc, min_cover_mm):
                 'element':  rb,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'analyse')
     return results
 
 

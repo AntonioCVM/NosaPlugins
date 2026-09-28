@@ -13,7 +13,9 @@ Returns a list of result dicts with status:
 import io, csv, math
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils import unit_conversion as _uc10
+_LOG = u'ModelHealthHub/model_sync'
 FT2M = _uc10.FT_TO_M
 LENGTH_TOL_M = 0.10   # ±100 mm tolerance on length comparison
 
@@ -30,7 +32,7 @@ def _level_name(doc, el):
             if p and p.HasValue:
                 lv = doc.GetElement(p.AsElementId())
                 if lv: return lv.Name
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_level_name')
     return ''
 
 def _length_m(el):
@@ -38,12 +40,12 @@ def _length_m(el):
         p = el.get_Parameter(DB.BuiltInParameter.CURVE_ELEM_LENGTH)
         if p and p.HasValue:
             return p.AsDouble() * FT2M
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_length_m')
     try:
         lc = el.Location
         if isinstance(lc, DB.LocationCurve):
             return lc.Curve.Length * FT2M
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_length_m#2')
     return None
 
 def _mark(el):
@@ -51,13 +53,13 @@ def _mark(el):
         p = el.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
         if p and p.HasValue and p.AsString():
             return p.AsString().strip()
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_mark')
     return ''
 
 def _type_name(el):
     try:
         return el.Name.strip()
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_type_name')
     return ''
 
 def build_revit_index(doc):

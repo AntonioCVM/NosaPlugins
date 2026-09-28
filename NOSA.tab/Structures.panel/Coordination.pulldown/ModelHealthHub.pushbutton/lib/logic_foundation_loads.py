@@ -7,7 +7,9 @@ aggregates them into per-foundation governing load envelopes.
 import math, io, csv
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils import unit_conversion as _uc10
+_LOG = u'ModelHealthHub/foundation_loads'
 FT2M  = _uc10.FT_TO_M
 FT2KN = FT2M * 4.44822   # ft·lbf → kN  (1 lbf = 4.44822 N)
 FTLB2KNM = FT2KN * FT2M    # ft·lbf → kN·m
@@ -18,7 +20,7 @@ def _param_str(el, bip):
     try:
         p = el.get_Parameter(bip)
         if p and p.HasValue: return p.AsString() or ''
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_param_str')
     return ''
 
 def _level_name(doc, el):
@@ -30,7 +32,7 @@ def _level_name(doc, el):
             if p and p.HasValue:
                 lv = doc.GetElement(p.AsElementId())
                 if lv: return lv.Name
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_level_name')
     return '—'
 
 def _xyz_str(pt):
@@ -54,7 +56,7 @@ def _collect_walls_structural(doc):
         try:
             p = el.get_Parameter(DB.BuiltInParameter.WALL_STRUCTURAL_SIGNIFICANT)
             if p and p.AsInteger(): walls.append(el)
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'_collect_walls_structural')
     return walls
 
 def _get_analytical_reactions(doc, el):
@@ -69,11 +71,11 @@ def _get_analytical_reactions(doc, el):
         am = None
         try:
             am = DB.Structure.AnalyticalModelStick.GetAnalyticalModelStick(el)
-        except Exception: pass
+        except Exception: pass  # nosa-lint: disable=NOSA006 - per-version API probe (AnalyticalModelStick vs GetAnalyticalModel)
         if am is None:
             try:
                 am = el.GetAnalyticalModel()
-            except Exception: pass
+            except Exception: pass  # nosa-lint: disable=NOSA006 - GetAnalyticalModel() was removed in Revit 2023+; fails by design on 2024-2027
         if am is None:
             return results
 
@@ -81,7 +83,7 @@ def _get_analytical_reactions(doc, el):
         bcs = None
         try:
             bcs = list(am.GetAnalyticalModelBoundaryConditions())
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'_get_analytical_reactions')
         if not bcs:
             return results
 
@@ -90,7 +92,7 @@ def _get_analytical_reactions(doc, el):
                 pt = None
                 try:
                     pt = bc.Point
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'_get_analytical_reactions#2')
                 # Reactions are not always available; provide zeros if missing
                 N = Vx = Vy = Mx = My = 0.0
                 try:
@@ -100,11 +102,11 @@ def _get_analytical_reactions(doc, el):
                     Vy = r.Force.Y  * FT2KN
                     Mx = r.Moment.X * FTLB2KNM
                     My = r.Moment.Y * FTLB2KNM
-                except Exception: pass
+                except Exception: pass  # nosa-lint: disable=NOSA006 - reactions are often unavailable; zeros are the intended fallback
                 results.append({'node': pt, 'N': N, 'Vx': Vx, 'Vy': Vy,
                                  'Mx': Mx, 'My': My})
-            except Exception: pass
-    except Exception: pass
+            except Exception: log_swallowed(_LOG, u'_get_analytical_reactions#3')
+    except Exception: log_swallowed(_LOG, u'_get_analytical_reactions#4')
     return results
 
 def _envelope(reactions):
@@ -138,7 +140,7 @@ def get_foundation_loads(doc):
                 if isinstance(lp, DB.LocationPoint):
                     loc = '({:.2f}, {:.2f})'.format(lp.Point.X * FT2M,
                                                      lp.Point.Y * FT2M)
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'get_foundation_loads')
 
             reacts = _get_analytical_reactions(doc, el)
             env    = _envelope(reacts)
@@ -156,7 +158,7 @@ def get_foundation_loads(doc):
                 'My_kNm': _fmt(env['My']),
                 'nodes':  len(reacts),
             })
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'get_foundation_loads#2')
 
     rows.sort(key=lambda r: str(r['mark']))
     return rows
@@ -258,7 +260,7 @@ def export_pdf_report(rows, path, project_name=''):
                 ])
                 return path, True
             except Exception:
-                pass
+                log_swallowed(_LOG, u'export_pdf_report')
     return html_path, False
 
 
