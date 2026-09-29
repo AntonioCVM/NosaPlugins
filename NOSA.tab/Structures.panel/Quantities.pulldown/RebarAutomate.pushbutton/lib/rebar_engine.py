@@ -581,7 +581,7 @@ def find_foundation_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft=10.0, tol_
 
 def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
                                    anchor_length_mm, splice_length_mm,
-                                   cover_mm, search_depth_ft=10.0):
+                                   cover_mm, search_depth_ft=10.0, hook_dir=None):
     """
     PHASE F7.18 (2026-09-02) — ONE straight vertical starter Line
     reaching from a detected foundation's own bottom-face elevation
@@ -644,8 +644,26 @@ def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
     total_len_ft = (anchor_length_mm + splice_length_mm) / _MM_PER_FT
     p0 = DB.XYZ(x_ft, y_ft, bottom_z_ft + cover_ft)
     p1 = p0 + DB.XYZ(0.0, 0.0, total_len_ft)
-    return {'line': DB.Line.CreateBound(p0, p1), 'normal': DB.XYZ(0.0, 0.0, -1.0),
+    return {'line': DB.Line.CreateBound(p0, p1), 'normal': starter_hook_plane_normal(hook_dir),
             'foundation': foundation}
+
+
+def starter_hook_plane_normal(hook_dir=None):
+    """Plane normal for a VERTICAL starter whose 90° start hook (RebarHookOrientation.Left) points along hook_dir.
+
+    The plane must contain the vertical bar, so its normal is horizontal:
+    BasisZ x hook_dir. Verified live (Revit 2026, 2026-09-29): with this
+    normal and Left orientation the hook foot points along +hook_dir. A
+    (0,0,-1) normal is parallel to the bar and Rebar.CreateFromCurves
+    returns None. With no hook_dir, any horizontal normal (BasisX) keeps
+    the bar valid.
+    """
+    if hook_dir is None:
+        return DB.XYZ.BasisX
+    flat = DB.XYZ(hook_dir.X, hook_dir.Y, 0.0)
+    if flat.GetLength() < 1e-9:
+        return DB.XYZ.BasisX
+    return DB.XYZ.BasisZ.CrossProduct(flat.Normalize())
 
 
 class CoverGeometryManager(object):

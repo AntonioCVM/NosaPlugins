@@ -937,7 +937,7 @@ def build_column_foundation_starters(doc, host, cover_mm, n_u, n_v, bar_diameter
                                       for a foundation, mm.
 
     Returns:
-        {'bars': list[DB.Line], 'normal': DB.XYZ, 'skipped': int} —
+        {'bars': list[DB.Line], 'normals': list[DB.XYZ] (one hook-plane normal per bar), 'skipped': int} —
         'skipped' counts bar positions where no foundation was found
         below (not an error — e.g. this column doesn't actually land on
         a modelled foundation at this position). Empty 'bars' (skipped
@@ -948,20 +948,25 @@ def build_column_foundation_starters(doc, host, cover_mm, n_u, n_v, bar_diameter
     resolved_foundation_cover_mm = foundation_cover_mm if foundation_cover_mm is not None else cover_mm
     search_depth_ft = search_depth_mm / _MM_PER_FT
 
+    bbox = host.get_BoundingBox(None)
+    centre = DB.XYZ((bbox.Min.X + bbox.Max.X) / 2.0, (bbox.Min.Y + bbox.Max.Y) / 2.0, 0.0)
+
     bars = []
+    normals = []
     skipped = 0
-    normal = DB.XYZ(0.0, 0.0, -1.0)
     for line in position_lines:
         p0 = line.GetEndPoint(0)
+        # Hook foot points towards the column centre, so it stays inside the footing.
+        inward = DB.XYZ(centre.X - p0.X, centre.Y - p0.Y, 0.0)
         result = engine.build_starter_into_foundation(
             doc, p0.X, p0.Y, p0.Z, anchor_length_mm, splice_length_mm,
-            resolved_foundation_cover_mm, search_depth_ft=search_depth_ft)
+            resolved_foundation_cover_mm, search_depth_ft=search_depth_ft, hook_dir=inward)
         if result is None:
             skipped += 1
             continue
         bars.append(result['line'])
-        normal = result['normal']
-    return {'bars': bars, 'normal': normal, 'skipped': skipped}
+        normals.append(result['normal'])
+    return {'bars': bars, 'normals': normals, 'skipped': skipped}
 
 
 # ══════════════════════════════════════════════════════════════════════════

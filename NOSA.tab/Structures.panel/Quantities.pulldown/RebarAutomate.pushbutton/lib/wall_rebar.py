@@ -156,7 +156,7 @@ def build_wall_foundation_starters(doc, host, vert_spacing_mm, end_clear_mm,
                                       a foundation, mm.
 
     Returns:
-        {'bars': list[DB.Line], 'normal': DB.XYZ, 'skipped': int} —
+        {'bars': list[DB.Line], 'normals': list[DB.XYZ] (one hook-plane normal per bar), 'skipped': int} —
         same meaning as build_column_foundation_starters' own.
     """
     engine = _ensure_engine()
@@ -176,20 +176,23 @@ def build_wall_foundation_starters(doc, host, vert_spacing_mm, end_clear_mm,
     vert_positions_mm = _evenly_spaced_mm(length_mm, vert_spacing_mm, end_clear_mm)
     search_depth_ft = search_depth_mm / _MM_PER_FT
 
+    # Hook foot points across the wall thickness, into the footing's width.
+    across = DB.XYZ.BasisZ.CrossProduct(axis_dir)
+
     bars = []
+    normals = []
     skipped = 0
-    normal = DB.XYZ(0.0, 0.0, -1.0)
     for dist_mm in vert_positions_mm:
         p = p0 + axis_dir.Multiply(dist_mm / _MM_PER_FT)
         result = engine.build_starter_into_foundation(
             doc, p.X, p.Y, base_z_ft, anchor_length_mm, splice_length_mm,
-            foundation_cover_mm, search_depth_ft=search_depth_ft)
+            foundation_cover_mm, search_depth_ft=search_depth_ft, hook_dir=across)
         if result is None:
             skipped += 1
             continue
         bars.append(result['line'])
-        normal = result['normal']
-    return {'bars': bars, 'normal': normal, 'skipped': skipped}
+        normals.append(result['normal'])
+    return {'bars': bars, 'normals': normals, 'skipped': skipped}
 
 
 def build_wall_reinforcement(doc, host, cover_mm,

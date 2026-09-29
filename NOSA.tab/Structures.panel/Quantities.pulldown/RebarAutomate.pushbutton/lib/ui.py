@@ -1183,12 +1183,12 @@ class RebarAutomateWindow(NOSAWindow):
         """
         if bar_type is None:
             return
-        for line in starters.get('bars', []):
+        for line, normal in zip(starters.get('bars', []), starters.get('normals', [])):
             rebar = wrapper.create_from_curves(
                 host, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
                 start_hook_orientation=_HOOK_ORIENTATION if hook_type else None,
-                normal=starters['normal'],
+                normal=normal,
                 transaction_name=u'NOSA — Create {} Foundation Starter'.format(label))
             if rebar is None:
                 errors.append(u'{} {}: foundation starter — {}'.format(
