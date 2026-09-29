@@ -210,13 +210,23 @@ def build_wall_reinforcement(doc, host, cover_mm,
         pass
 
     starter_mm = 0.0
-    if include_starter_bars:
-        starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \
-            else max(40.0 * vert_dia_mm, 500.0)
-
     vert_bottom_z = z0 + (cover_mm + vert_dia_mm / 2.0) / _MM_PER_FT
     if include_starter_bars:
-        vert_bottom_z = z0 - starter_mm / _MM_PER_FT
+        # Straight extension down to the real bottom of the foundation below
+        # (less cover), so it never pokes out of a shallow strip footing
+        # (T2.13, 2026-09-29). The typed length is only a fallback.
+        mid = p0 + axis_dir.Multiply(axis.Length / 2.0)
+        foundation = engine.find_foundation_below(doc, mid.X, mid.Y, z0)
+        if foundation is not None:
+            own = engine.get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
+            vert_bottom_z = own.Min.Z + cover_mm / _MM_PER_FT
+            starter_mm = (z0 - vert_bottom_z) * _MM_PER_FT
+        else:
+            starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \
+                else max(40.0 * vert_dia_mm, 500.0)
+            vert_bottom_z = z0 - starter_mm / _MM_PER_FT
+            warnings.append(u'No foundation detected below the wall — straight starter '
+                            u'extension uses the typed length ({:.0f} mm).'.format(starter_mm))
     vert_top_z = z0 + height_ft - (cover_mm + vert_dia_mm / 2.0) / _MM_PER_FT
     if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')

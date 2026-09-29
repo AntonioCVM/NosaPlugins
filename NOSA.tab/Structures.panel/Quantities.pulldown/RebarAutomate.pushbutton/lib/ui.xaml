@@ -960,7 +960,7 @@
                                              TextChanged="WallPreview_Changed"/>
                                 </Grid>
                             </StackPanel>
-                            <CheckBox Name="ChkWallStarters" Content="Starter bars into foundation (extend below base)"
+                            <CheckBox Name="ChkWallStarters" Content="Extend vertical bars straight down into the foundation (no hook)"
                                       IsChecked="False" Margin="0,8,0,4"
                                       Click="WallStarters_Click"
                                       Foreground="{DynamicResource TextColor}"/>
@@ -970,7 +970,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="Starter / lap length (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBlock Grid.Column="0" Text="Length if no foundation below (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
                                     <TextBox Grid.Column="1" Name="TxtWallStarterLength" Text="0" Style="{StaticResource RA_NumField}"/>
                                 </Grid>
                             </StackPanel>
