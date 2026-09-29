@@ -1028,6 +1028,13 @@ class RebarAutomateWindow(NOSAWindow):
                 self.TxtDowelColWidth.Text, u'Dowel column width', errors)
             values['dowel_col_depth'] = self._read_number(
                 self.TxtDowelColDepth.Text, u'Dowel column depth', errors)
+            # Dowels under a column follow the verticals the Columns tab would give it (T2.15b).
+            try:
+                values['dowel_col_bar_count'] = int(float(self.TxtColBarCount.Text))
+                values['dowel_col_bar_dia'] = float(self.TxtColBarDia.Text)
+                values['dowel_col_link_dia'] = float(self.TxtColLinkDia.Text)
+            except (TypeError, ValueError):
+                values['dowel_col_bar_count'] = None
 
         values['include_perimeter_ubars'] = self.ChkIncludePerimeterUBars.IsChecked == True
         if values['include_perimeter_ubars']:
@@ -1171,6 +1178,10 @@ class RebarAutomateWindow(NOSAWindow):
         for column_id in dowels.get('skipped_columns', []):
             errors.append(u'Footing {}: no dowels under column {} — it already has NOSA dowels '
                           u'or foundation starters.'.format(get_id_value(host.Id), get_id_value(column_id)))
+        for column_id in dowels.get('fallback_columns', []):
+            errors.append(u'Footing {}: could not lay out the Columns-tab verticals of column {} — '
+                          u'dowels placed on its bar line (Dowel Count) instead.'.format(
+                              get_id_value(host.Id), get_id_value(column_id)))
         embedded = dowels.get('embedded_mm')
         if dowels['bars'] and embedded is not None and embedded < dowels.get('anchor_length_mm', 0.0):
             errors.append(u'Footing {}: dowels embedded only {:.0f} mm, less than the {:.0f} mm '
@@ -1478,6 +1489,9 @@ class RebarAutomateWindow(NOSAWindow):
             dowel_splice_length_mm=values.get('dowel_splice'),
             dowel_column_width_mm=values.get('dowel_col_width', 400.0),
             dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
+            dowel_column_bar_count=values.get('dowel_col_bar_count'),
+            dowel_column_bar_dia_mm=values.get('dowel_col_bar_dia'),
+            dowel_column_link_dia_mm=values.get('dowel_col_link_dia'),
             include_side_rebar=values['include_side_rebar'],
             side_diameter_mm=values.get('side_diameter'),
             side_spacing_mm=values.get('side_spacing'),

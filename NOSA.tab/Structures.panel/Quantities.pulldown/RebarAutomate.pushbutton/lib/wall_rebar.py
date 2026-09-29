@@ -219,7 +219,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         foundation = engine.find_foundation_below(doc, mid.X, mid.Y, z0)
         if foundation is not None:
             own = engine.get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
-            vert_bottom_z = own.Min.Z + (cover_mm + vert_dia_mm / 2.0) / _MM_PER_FT
+            vert_bottom_z = own.Min.Z + cover_mm / _MM_PER_FT
             starter_mm = (z0 - vert_bottom_z) * _MM_PER_FT
         else:
             starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \

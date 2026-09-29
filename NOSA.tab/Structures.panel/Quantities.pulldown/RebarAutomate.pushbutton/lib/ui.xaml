@@ -300,7 +300,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Dowel Count (4 or 8)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBlock Grid.Column="0" Text="Dowel Count if no Column Above (4 or 8)" Style="{StaticResource RA_FieldLabel}"/>
                                 <ComboBox Grid.Column="1" Name="CmbDowelCount">
                                     <ComboBoxItem Content="4"/>
                                     <ComboBoxItem Content="8"/>
@@ -324,7 +324,7 @@
                                 <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
                                 <TextBox Grid.Column="1" Name="TxtDowelSplice" Text="600" Style="{StaticResource RA_NumField}"/>
                             </Grid>
-                            <TextBlock Text="Dowels go under each column resting on the footing, following its section. With no column above, a cage of this section is centred on the footing:"
+                            <TextBlock Text="Under each column resting on the footing: one dowel per column vertical (Columns tab: quantity, bar and link diameters), lapped on its inner side. With no column above, a cage of this section is centred on the footing:"
                                        TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="0,6,0,2" Foreground="{DynamicResource TextColor}"/>
                             <Grid Style="{StaticResource RA_FieldRow}">
                                 <Grid.ColumnDefinitions>

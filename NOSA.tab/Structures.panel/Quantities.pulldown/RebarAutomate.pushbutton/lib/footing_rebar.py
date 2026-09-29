@@ -1374,21 +1374,22 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
                         splice_length_mm, bar_diameter_mm=16.0,
                         column_width_mm=400.0, column_depth_mm=400.0,
                         column_cover_mm=40.0, link_diameter_mm=10.0,
-                        mat_dias_mm=None):
+                        mat_dias_mm=None, column_bar_count=None, column_bar_dia_mm=None):
     """
     Vertical L-shaped dowels ("esperas") from this footing into the column(s) above.
 
-    User decision 2026-09-29 (T2.15): one cage under each structural column
-    whose base rests on this footing, following that column's own section
-    (rectangular: corners / corners + midpoints, oriented with the column;
-    circular: evenly spaced on a circle). With no column above, one cage
+    User decisions 2026-09-29 (T2.15/T2.15b): under each structural column
+    whose base rests on this footing, one dowel per vertical the column will
+    get with the Columns-tab values (column_bar_count / column_bar_dia_mm /
+    link_diameter_mm and the column's own native cover), contact-lapped on
+    the inner side of that vertical so the two never clash, foot pointing
+    outwards. Without those values (or if they do not fit), n_dowels on the
+    column's bar line instead. With no column above, one n_dowels cage
     centred on the footing with a column_width_mm x column_depth_mm section
-    typed in the window. Bars sit on the column's bar line (column cover +
-    link + half a dowel diameter in from its faces), rest on the bottom mat
-    and rise splice_length_mm above the footing's own top; each 90° foot
-    points away from its cage centre. Columns that already have NOSA dowels
-    or foundation starters rising through them are skipped, so arming the
-    footing and the column never duplicates bars.
+    typed in the window. Dowels rest on the bottom mat and rise
+    splice_length_mm above the footing's own top. Columns that already have
+    NOSA dowels or foundation starters rising through them are skipped, so
+    arming the footing and the column never duplicates bars.
 
     Returns:
         {'bars': list[DB.Line], 'normals': list[DB.XYZ], 'embedded_mm': float,
@@ -1402,12 +1403,26 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     inset_mm = column_cover_mm + link_diameter_mm + bar_diameter_mm / 2.0
 
     cages = []
+    contact = []
     skipped_columns = []
+    fallback_columns = []
     columns = engine.find_columns_above(doc, host)
     for column in columns:
         if engine.nosa_bars_in_footprint(doc, column, (u'dowel', u'foundation_starter')):
             skipped_columns.append(column.Id)
             continue
+        if column_bar_count and column_bar_dia_mm:
+            try:
+                col_cover_mm = engine.get_native_cover_mm(doc, column, u'Exterior', column_cover_mm)
+                layout = _ensure_column_rebar().column_vertical_plan_layout(
+                    doc, column, col_cover_mm, column_bar_dia_mm, column_bar_count, link_diameter_mm)
+                lap_ft = (column_bar_dia_mm + bar_diameter_mm) / 2.0 / _MM_PER_FT
+                points = [p + d.Multiply(lap_ft) for p, d in zip(layout['points'], layout['inward'])]
+                outward = [d.Negate() for d in layout['inward']]
+                contact.append((points, outward))
+                continue
+            except Exception:
+                fallback_columns.append(column.Id)
         bbox = column.get_BoundingBox(None)
         centre = DB.XYZ((bbox.Min.X + bbox.Max.X) / 2.0, (bbox.Min.Y + bbox.Max.Y) / 2.0, 0.0)
         try:
@@ -1437,11 +1452,16 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
             p = centre + hand.Multiply(du_mm / _MM_PER_FT) + facing.Multiply(dv_mm / _MM_PER_FT)
             bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
             normals.append(engine.starter_hook_plane_normal(DB.XYZ(p.X - centre.X, p.Y - centre.Y, 0.0)))
+    for points, outward in contact:
+        for p, hook_dir in zip(points, outward):
+            bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
+            normals.append(engine.starter_hook_plane_normal(hook_dir))
 
     return {'bars': bars, 'normals': normals,
             'embedded_mm': (own.Max.Z - bottom_z_ft) * _MM_PER_FT,
             'anchor_length_mm': anchor_length_mm,
-            'columns': len(columns), 'skipped_columns': skipped_columns}
+            'columns': len(columns), 'skipped_columns': skipped_columns,
+            'fallback_columns': fallback_columns}
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1625,6 +1645,8 @@ def build_footing_reinforcement(doc, host,
                                  dowel_diameter_mm=16.0, dowel_anchor_length_mm=400.0,
                                  dowel_splice_length_mm=600.0,
                                  dowel_column_width_mm=400.0, dowel_column_depth_mm=400.0,
+                                 dowel_column_bar_count=None, dowel_column_bar_dia_mm=None,
+                                 dowel_column_link_dia_mm=10.0,
                                  include_side_rebar=False, side_diameter_mm=None,
                                  side_spacing_mm=None,
                                  include_perimeter_closure_ubars=False,
@@ -1812,7 +1834,9 @@ def build_footing_reinforcement(doc, host,
             doc, host, bottom_cover_mm, dowel_count, dowel_anchor_length_mm,
             dowel_splice_length_mm, bar_diameter_mm=dowel_diameter_mm,
             column_width_mm=dowel_column_width_mm, column_depth_mm=dowel_column_depth_mm,
-            mat_dias_mm=(bottom_dia_x_mm, bottom_dia_y_mm))
+            mat_dias_mm=(bottom_dia_x_mm, bottom_dia_y_mm),
+            link_diameter_mm=dowel_column_link_dia_mm or 10.0,
+            column_bar_count=dowel_column_bar_count, column_bar_dia_mm=dowel_column_bar_dia_mm)
 
     if include_side_rebar:
         if None in (side_diameter_mm, side_spacing_mm):

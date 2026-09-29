@@ -881,6 +881,75 @@ def compute_vertical_bar_lines(doc, host, cover_mm, n_u, n_v, bar_diameter_mm=16
     return bars
 
 
+def plan_inward_dirs(centre, points, hand, facing, circular):
+    """Unit plan vectors pointing into the section from each bar: radial, or face-normal (diagonal at corners)."""
+    offsets = [DB.XYZ(p.X - centre.X, p.Y - centre.Y, 0.0) for p in points]
+    max_u = max([abs(v.DotProduct(hand)) for v in offsets] or [0.0])
+    max_v = max([abs(v.DotProduct(facing)) for v in offsets] or [0.0])
+    tol_ft = 5.0 / _MM_PER_FT
+
+    inward_dirs = []
+    for v in offsets:
+        radial = DB.XYZ(-v.X, -v.Y, 0.0)
+        if circular:
+            inward = radial
+        else:
+            u, w = v.DotProduct(hand), v.DotProduct(facing)
+            inward = DB.XYZ(0.0, 0.0, 0.0)
+            if abs(u) > max_u - tol_ft:
+                inward = inward - hand.Multiply(1.0 if u > 0 else -1.0)
+            if abs(w) > max_v - tol_ft:
+                inward = inward - facing.Multiply(1.0 if w > 0 else -1.0)
+            if inward.GetLength() < 1e-9:
+                inward = radial
+        inward_dirs.append(inward.Normalize() if inward.GetLength() > 1e-9 else DB.XYZ.BasisX)
+    return inward_dirs
+
+
+def column_vertical_plan_layout(doc, host, cover_mm, bar_diameter_mm, bar_count,
+                                stirrup_diameter_mm):
+    """
+    Plan positions (z = 0) of the verticals build_column_reinforcement would
+    place in this column with these Columns-tab values, and their inward
+    directions — used to put footing dowels exactly where each future
+    vertical will be (T2.15b, 2026-09-29).
+
+    Returns {'centre': DB.XYZ, 'points': list[DB.XYZ], 'inward': list[DB.XYZ]}.
+    Raises ValueError when the bars do not fit inside the section.
+    """
+    engine = _ensure_engine()
+    axis = get_column_axis(host)
+    origin = axis.GetEndPoint(0)
+    centre = DB.XYZ(origin.X, origin.Y, 0.0)
+    inset_mm = cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0
+
+    geom = detect_column_geometry(doc, host)
+    circular = geom is not None and geom.get('shape') == 'circle'
+    points = []
+    if circular:
+        radius_mm = geom['diameter_mm'] / 2.0 - inset_mm
+        if radius_mm <= 0:
+            raise ValueError(u'Column bars do not fit inside the circular section.')
+        n = max(3, int(bar_count))
+        for i in range(n):
+            theta = 2.0 * math.pi * i / n
+            points.append(DB.XYZ(centre.X + radius_mm * math.cos(theta) / _MM_PER_FT,
+                                 centre.Y + radius_mm * math.sin(theta) / _MM_PER_FT, 0.0))
+        hand, facing = DB.XYZ.BasisX, DB.XYZ.BasisY
+    else:
+        source = _resolve_column_geometry_source(host, axis, engine.CoverGeometryManager(doc, host))
+        hand, facing = source['u_dir'], source['v_dir']
+        half_w_mm, half_d_mm = _half_extents_from_source(engine, axis, source, inset_mm)
+        if half_w_mm <= 0 or half_d_mm <= 0:
+            raise ValueError(u'Column bars do not fit inside the section.')
+        n_u, n_v = distribute_bar_count(bar_count, half_w_mm, half_d_mm)
+        for u_mm, v_mm in _perimeter_positions(half_w_mm, half_d_mm, n_u, n_v):
+            points.append(centre + hand.Multiply(u_mm / _MM_PER_FT) + facing.Multiply(v_mm / _MM_PER_FT))
+
+    return {'centre': centre, 'points': points,
+            'inward': plan_inward_dirs(centre, points, hand, facing, circular)}
+
+
 def build_column_foundation_starters(doc, host, bar_points, main_dia_mm, starter_dia_mm,
                                       anchor_length_mm, splice_length_mm,
                                       foundation_cover_mm, search_depth_mm=3000.0):
@@ -908,26 +977,7 @@ def build_column_foundation_starters(doc, host, bar_points, main_dia_mm, starter
     except Exception:
         hand, facing = DB.XYZ.BasisX, DB.XYZ.BasisY
 
-    offsets = [DB.XYZ(p.X - centre.X, p.Y - centre.Y, 0.0) for p in bar_points]
-    max_u = max([abs(v.DotProduct(hand)) for v in offsets] or [0.0])
-    max_v = max([abs(v.DotProduct(facing)) for v in offsets] or [0.0])
-    tol_ft = 5.0 / _MM_PER_FT
-
-    inward_dirs = []
-    for v in offsets:
-        radial = DB.XYZ(-v.X, -v.Y, 0.0)
-        if circular:
-            inward = radial
-        else:
-            u, w = v.DotProduct(hand), v.DotProduct(facing)
-            inward = DB.XYZ(0.0, 0.0, 0.0)
-            if abs(u) > max_u - tol_ft:
-                inward = inward - hand.Multiply(1.0 if u > 0 else -1.0)
-            if abs(w) > max_v - tol_ft:
-                inward = inward - facing.Multiply(1.0 if w > 0 else -1.0)
-            if inward.GetLength() < 1e-9:
-                inward = radial
-        inward_dirs.append(inward.Normalize() if inward.GetLength() > 1e-9 else DB.XYZ.BasisX)
+    inward_dirs = plan_inward_dirs(centre, bar_points, hand, facing, circular)
 
     return engine.build_contact_starters(
         doc, bar_points, inward_dirs, base_z_ft, main_dia_mm, starter_dia_mm,
