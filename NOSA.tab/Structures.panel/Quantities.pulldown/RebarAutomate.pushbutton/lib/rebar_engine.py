@@ -671,15 +671,25 @@ def starter_hook_plane_normal(hook_dir=None):
 
 
 def rebar_bar_plan_points(rebar):
-    """Start point of every bar position of a (vertical) Rebar or Rebar Set, ft."""
+    """Plan position (XY of the vertical leg) and bottom Z of every bar position of a vertical Rebar or Set, ft.
+
+    XY comes from the highest point, which is on the straight vertical leg:
+    a hooked bar's first curve is its hook, whose tip lies outside the
+    element the bar rises through (this made the no-duplicate check miss
+    existing dowels on 2026-09-29).
+    """
     points = []
     for i in range(rebar.NumberOfBarPositions):
         curves = rebar.GetTransformedCenterlineCurves(
             False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i)
         if curves is None or curves.Count == 0:
             continue
-        ends = [curves[0].GetEndPoint(0), curves[curves.Count - 1].GetEndPoint(1)]
-        points.append(min(ends, key=lambda p: p.Z))
+        ends = []
+        for curve in curves:
+            ends.extend([curve.GetEndPoint(0), curve.GetEndPoint(1)])
+        top = max(ends, key=lambda p: p.Z)
+        bottom = min(ends, key=lambda p: p.Z)
+        points.append(DB.XYZ(top.X, top.Y, bottom.Z))
     return points
 
 
