@@ -30,3 +30,12 @@ def unregister(app, guid_str=_GUID_STR):
             DB.UpdaterRegistry.UnregisterUpdater(updater_id)
     except Exception:
         pass
+
+
+ALL_GUIDS = (_GUID_STR, COMMENTS_GUID_STR)
+
+
+def unregister_all(app):
+    """Remove every NOSA DMU; a Python IUpdater left registered across a pyRevit reload can crash Revit."""
+    for guid_str in ALL_GUIDS:
+        unregister(app, guid_str)
