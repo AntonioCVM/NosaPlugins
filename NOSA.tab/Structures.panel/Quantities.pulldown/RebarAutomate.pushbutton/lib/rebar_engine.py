@@ -581,7 +581,8 @@ def find_foundation_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft=10.0, tol_
 
 def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
                                    anchor_length_mm, splice_length_mm,
-                                   cover_mm, search_depth_ft=10.0, hook_dir=None):
+                                   cover_mm, search_depth_ft=10.0, hook_dir=None,
+                                   bar_diameter_mm=None):
     """
     PHASE F7.18 (2026-09-02) — ONE straight vertical starter Line
     reaching from a detected foundation's own bottom-face elevation
@@ -645,10 +646,15 @@ def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
     # Rests on the bottom mat (bottom + cover) and always rises splice_length_mm
     # above the foundation's TOP, whatever its depth; the embedded part is the
     # anchorage, reported back so the caller can flag a too-shallow foundation.
-    p0 = DB.XYZ(x_ft, y_ft, bottom_z_ft + cover_ft)
+    foot_source = None
+    if bar_diameter_mm:
+        foot_z_ft, foot_source = starter_foot_z(doc, foundation, bbox, cover_mm, bar_diameter_mm)
+    else:
+        foot_z_ft = bottom_z_ft + cover_ft
+    p0 = DB.XYZ(x_ft, y_ft, foot_z_ft)
     p1 = DB.XYZ(x_ft, y_ft, top_z_ft + splice_length_mm / _MM_PER_FT)
     return {'line': DB.Line.CreateBound(p0, p1), 'normal': starter_hook_plane_normal(hook_dir),
-            'foundation': foundation,
+            'foundation': foundation, 'foot_source': foot_source,
             'embedded_mm': (top_z_ft - p0.Z) * _MM_PER_FT}
 
 
@@ -718,19 +724,22 @@ def build_contact_starters(doc, bar_points, inward_dirs, base_z_ft, main_dia_mm,
     """
     offset_ft = (main_dia_mm + starter_dia_mm) / 2.0 / _MM_PER_FT
     result = {'bars': [], 'normals': [], 'hosts': [], 'skipped': 0, 'short_anchor_mm': [],
-              'anchor_length_mm': anchor_length_mm}
+              'anchor_length_mm': anchor_length_mm, 'assumed_mat': 0}
     for point, inward in zip(bar_points, inward_dirs):
         x_ft = point.X + inward.X * offset_ft
         y_ft = point.Y + inward.Y * offset_ft
         starter = build_starter_into_foundation(
             doc, x_ft, y_ft, base_z_ft, anchor_length_mm, splice_length_mm, cover_mm,
-            search_depth_ft=search_depth_ft, hook_dir=DB.XYZ(-inward.X, -inward.Y, 0.0))
+            search_depth_ft=search_depth_ft, hook_dir=DB.XYZ(-inward.X, -inward.Y, 0.0),
+            bar_diameter_mm=starter_dia_mm)
         if starter is None:
             result['skipped'] += 1
             continue
         result['bars'].append(starter['line'])
         result['normals'].append(starter['normal'])
         result['hosts'].append(starter['foundation'])
+        if starter.get('foot_source') == 'assumed':
+            result['assumed_mat'] += 1
         if starter['embedded_mm'] < anchor_length_mm:
             result['short_anchor_mm'].append(starter['embedded_mm'])
     return result
@@ -802,6 +811,42 @@ def nosa_bars_in_footprint(doc, element, layers):
                for p in rebar_bar_plan_points(rebar)):
             found.append(rebar)
     return found
+
+
+def bottom_mat_top_z(doc, foundation):
+    """Z (ft) of the top face of the NOSA bottom mat already in this foundation, or None."""
+    top = None
+    for rebar in DB.FilteredElementCollector(doc).OfClass(DBS.Rebar):
+        if rebar.GetHostId() != foundation.Id:
+            continue
+        param = rebar.LookupParameter(u'NOSA_Rebar_Layer')
+        if param is None or param.AsString() not in (u'bottom_x', u'bottom_y'):
+            continue
+        curves = rebar.GetTransformedCenterlineCurves(
+            False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+        z = min(p.Z for c in curves for p in c.Tessellate())
+        level = z + rebar.GetBendData().BarModelDiameter / 2.0
+        top = level if top is None else max(top, level)
+    return top
+
+
+def starter_foot_z(doc, foundation, own_bbox, cover_mm, bar_dia_mm, mat_dias_mm=None):
+    """Centreline Z (ft) of a dowel/starter foot resting ON the foundation's bottom mat.
+
+    User decision 2026-09-29 (T2.16): the foot sits on top of the bottom mat,
+    not at cover level where it crosses the mat's first layer. mat_dias_mm
+    (the X and Y bar diameters, when the mat is generated in the same run)
+    wins; otherwise the NOSA bottom mat already in the foundation is read;
+    otherwise a two-layer mat of bar_dia_mm is assumed.
+    Returns (z_ft, source) with source 'given', 'model' or 'assumed'.
+    """
+    radius_ft = bar_dia_mm / 2.0 / _MM_PER_FT
+    if mat_dias_mm:
+        return own_bbox.Min.Z + (cover_mm + sum(mat_dias_mm)) / _MM_PER_FT + radius_ft, 'given'
+    mat_top = bottom_mat_top_z(doc, foundation)
+    if mat_top is not None:
+        return mat_top + radius_ft, 'model'
+    return own_bbox.Min.Z + (cover_mm + 2.0 * bar_dia_mm) / _MM_PER_FT + radius_ft, 'assumed'
 
 
 class CoverGeometryManager(object):

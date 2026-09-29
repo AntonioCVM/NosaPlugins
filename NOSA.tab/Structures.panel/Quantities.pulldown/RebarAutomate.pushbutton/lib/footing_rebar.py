@@ -1373,7 +1373,8 @@ def _dowel_circle_positions(radius_mm, n_dowels):
 def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
                         splice_length_mm, bar_diameter_mm=16.0,
                         column_width_mm=400.0, column_depth_mm=400.0,
-                        column_cover_mm=40.0, link_diameter_mm=10.0):
+                        column_cover_mm=40.0, link_diameter_mm=10.0,
+                        mat_dias_mm=None):
     """
     Vertical L-shaped dowels ("esperas") from this footing into the column(s) above.
 
@@ -1395,7 +1396,8 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     """
     engine = _ensure_engine()
     own = engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
-    bottom_z_ft = own.Min.Z + cover_mm / _MM_PER_FT
+    # Foot rests on the bottom mat (T2.16): mat_dias_mm = this run's X/Y mat bars.
+    bottom_z_ft, _ = engine.starter_foot_z(doc, host, own, cover_mm, bar_diameter_mm, mat_dias_mm)
     top_z_ft = own.Max.Z + splice_length_mm / _MM_PER_FT
     inset_mm = column_cover_mm + link_diameter_mm + bar_diameter_mm / 2.0
 
@@ -1809,7 +1811,8 @@ def build_footing_reinforcement(doc, host,
         result['dowels'] = build_dowel_curves(
             doc, host, bottom_cover_mm, dowel_count, dowel_anchor_length_mm,
             dowel_splice_length_mm, bar_diameter_mm=dowel_diameter_mm,
-            column_width_mm=dowel_column_width_mm, column_depth_mm=dowel_column_depth_mm)
+            column_width_mm=dowel_column_width_mm, column_depth_mm=dowel_column_depth_mm,
+            mat_dias_mm=(bottom_dia_x_mm, bottom_dia_y_mm))
 
     if include_side_rebar:
         if None in (side_diameter_mm, side_spacing_mm):

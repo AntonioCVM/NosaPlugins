@@ -1214,6 +1214,10 @@ class RebarAutomateWindow(NOSAWindow):
             else:
                 self._stamp_layer(rebar, u'foundation_starter')
                 created_rebars.append(rebar)
+        if starters.get('assumed_mat'):
+            errors.append(u'{} {}: no NOSA bottom mat found in the foundation below — {} starter '
+                          u'foot/feet placed on an assumed 2-layer mat; arm the foundation first '
+                          u'for an exact fit.'.format(label, get_id_value(host.Id), starters['assumed_mat']))
         short = starters.get('short_anchor_mm', [])
         if short:
             errors.append(u'{} {}: {} starter(s) embedded only {:.0f} mm in the foundation, less '
