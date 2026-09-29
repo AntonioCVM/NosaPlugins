@@ -634,7 +634,9 @@ def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
     foundation = find_foundation_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft)
     if foundation is None:
         return None
-    bbox = foundation.get_BoundingBox(None)
+    # The foundation's own solid, not its instance bbox: a pile cap's bbox
+    # reaches down to the tips of its nested piles (see get_isolated_solid_bbox).
+    bbox = get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
     if bbox is None:
         return None
     bottom_z_ft = bbox.Min.Z
