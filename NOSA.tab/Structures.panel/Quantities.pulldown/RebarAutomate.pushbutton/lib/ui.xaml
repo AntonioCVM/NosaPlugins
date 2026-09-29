@@ -324,6 +324,24 @@
                                 <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
                                 <TextBox Grid.Column="1" Name="TxtDowelSplice" Text="600" Style="{StaticResource RA_NumField}"/>
                             </Grid>
+                            <TextBlock Text="Dowels go under each column resting on the footing, following its section. With no column above, a cage of this section is centred on the footing:"
+                                       TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="0,6,0,2" Foreground="{DynamicResource TextColor}"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Column Width if None Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtDowelColWidth" Text="400" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Column Depth if None Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtDowelColDepth" Text="400" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -535,7 +553,7 @@
                         <CheckBox Name="ChkColFoundationStarters" Content="Add L-Shaped Starter Bars into Foundation Below"
                                   Click="ColFoundationStarters_Click"
                                   FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
-                        <TextBlock Text="4 corner bars reach down from the column's own base into whatever isolated footing, strip (wall) footing, or floor/mat slab is detected directly below, with a 90° hook at the bottom — same detail as Footings' own 'Include Dowels', generated from the column's side instead. Skipped (per bar, reported) where no foundation is found below."
+                        <TextBlock Text="One hooked starter per column vertical, contact-lapped on its inner side and hosted on the isolated footing, strip footing or floor/mat slab detected below; the 90&#176; foot points outwards and the lap is measured above the foundation top. Skipped (reported) where no foundation is found, or where the footing already has dowels under this column."
                                    FontSize="9" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
                         <StackPanel Name="PanelColFoundationStarters" IsEnabled="False">
@@ -985,7 +1003,7 @@
                                       IsChecked="False" Margin="0,12,0,4"
                                       Click="WallFoundationStarters_Click"
                                       Foreground="{DynamicResource TextColor}"/>
-                            <TextBlock Text="One hooked bar per vertical-bar position, reaching down from the wall's own base into whatever foundation is detected directly below — same detail as Footings' own 'Include Dowels', generated from the wall's side instead. Skipped (per position, reported) where no foundation is found below."
+                            <TextBlock Text="One hooked starter per wall vertical (both faces), contact-lapped on its inner side and hosted on the foundation detected below; the 90&#176; foot points outwards across the footing and the lap is measured above the foundation top. Skipped (reported) where no foundation is found below."
                                        FontSize="9" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,4,0,4"/>
                             <StackPanel Name="PanelWallFoundationStarters" IsEnabled="False">

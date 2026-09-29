@@ -756,6 +756,44 @@ def realign_closed_loop(doc, rebar, curves, tol_mm=0.05):
         DB.ElementTransformUtils.MoveElement(doc, rebar.Id, delta)
 
 
+def find_columns_above(doc, foundation, tol_mm=15.0):
+    """Structural columns whose base rests on this foundation's own top, inside its plan."""
+    own = get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
+    if own is None:
+        return []
+    tol_ft = tol_mm / _MM_PER_FT
+    columns = []
+    collector = (DB.FilteredElementCollector(doc)
+                 .OfCategory(DB.BuiltInCategory.OST_StructuralColumns)
+                 .WhereElementIsNotElementType())
+    for column in collector:
+        bbox = column.get_BoundingBox(None)
+        if bbox is None:
+            continue
+        cx = (bbox.Min.X + bbox.Max.X) / 2.0
+        cy = (bbox.Min.Y + bbox.Max.Y) / 2.0
+        if (own.Min.X <= cx <= own.Max.X and own.Min.Y <= cy <= own.Max.Y
+                and abs(bbox.Min.Z - own.Max.Z) <= tol_ft):
+            columns.append(column)
+    return columns
+
+
+def nosa_bars_in_footprint(doc, element, layers):
+    """NOSA Rebar of the given NOSA_Rebar_Layer codes with a bar rising inside element's plan footprint."""
+    bbox = element.get_BoundingBox(None)
+    if bbox is None:
+        return []
+    found = []
+    for rebar in DB.FilteredElementCollector(doc).OfClass(DBS.Rebar):
+        param = rebar.LookupParameter(u'NOSA_Rebar_Layer')
+        if param is None or param.AsString() not in layers:
+            continue
+        if any(bbox.Min.X <= p.X <= bbox.Max.X and bbox.Min.Y <= p.Y <= bbox.Max.Y
+               for p in rebar_bar_plan_points(rebar)):
+            found.append(rebar)
+    return found
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and

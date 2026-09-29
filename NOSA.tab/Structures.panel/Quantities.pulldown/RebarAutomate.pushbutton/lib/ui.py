@@ -1024,6 +1024,10 @@ class RebarAutomateWindow(NOSAWindow):
                 self.TxtDowelAnchor.Text, u'Dowel anchor length', errors)
             values['dowel_splice'] = self._read_number(
                 self.TxtDowelSplice.Text, u'Dowel splice length', errors)
+            values['dowel_col_width'] = self._read_number(
+                self.TxtDowelColWidth.Text, u'Dowel column width', errors)
+            values['dowel_col_depth'] = self._read_number(
+                self.TxtDowelColDepth.Text, u'Dowel column depth', errors)
 
         values['include_perimeter_ubars'] = self.ChkIncludePerimeterUBars.IsChecked == True
         if values['include_perimeter_ubars']:
@@ -1164,6 +1168,9 @@ class RebarAutomateWindow(NOSAWindow):
             else:
                 self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
+        for column_id in dowels.get('skipped_columns', []):
+            errors.append(u'Footing {}: no dowels under column {} — it already has NOSA dowels '
+                          u'or foundation starters.'.format(get_id_value(host.Id), get_id_value(column_id)))
         embedded = dowels.get('embedded_mm')
         if dowels['bars'] and embedded is not None and embedded < dowels.get('anchor_length_mm', 0.0):
             errors.append(u'Footing {}: dowels embedded only {:.0f} mm, less than the {:.0f} mm '
@@ -1465,6 +1472,8 @@ class RebarAutomateWindow(NOSAWindow):
             dowel_diameter_mm=values.get('dowel_diameter'),
             dowel_anchor_length_mm=values.get('dowel_anchor'),
             dowel_splice_length_mm=values.get('dowel_splice'),
+            dowel_column_width_mm=values.get('dowel_col_width', 400.0),
+            dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
             include_side_rebar=values['include_side_rebar'],
             side_diameter_mm=values.get('side_diameter'),
             side_spacing_mm=values.get('side_spacing'),
@@ -2316,7 +2325,11 @@ class RebarAutomateWindow(NOSAWindow):
         # whatever foundation is detected below this column, distinct
         # from values['starter_bars'] above (the column's OWN top, for
         # future storeys — unrelated direction/purpose).
-        if values.get('foundation_starters') and bar_type_vert is not None:
+        if values.get('foundation_starters') and bar_type_vert is not None and \
+                re_engine.nosa_bars_in_footprint(self.doc, host, (u'dowel', u'foundation_starter')):
+            errors.append(u'Column {}: foundation starters skipped — the footing below already '
+                          u'has NOSA dowels (or starters) under this column.'.format(get_id_value(host.Id)))
+        elif values.get('foundation_starters') and bar_type_vert is not None:
             points = re_engine.unique_plan_points(
                 [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = column_rebar.build_column_foundation_starters(

@@ -264,6 +264,7 @@ re_engine = None  # populated by _ensure_engine(), so this file can be
                    # a live pyRevit session
 slab_topology = None    # populated by _ensure_topology() — Phase 3.5.7
 floor_rebar_mod = None  # populated by _ensure_floor_rebar() — Phase 3.5.7
+column_rebar_mod = None  # populated by _ensure_column_rebar()
 
 
 def _ensure_engine():
@@ -289,6 +290,15 @@ def _ensure_topology():
         slab_topology = load_module(
             'slab_topology', os.path.join(_HERE, 'slab_topology.py'))
     return slab_topology
+
+
+def _ensure_column_rebar():
+    """Lazy-load column_rebar.py (its section detector), same pattern as _ensure_floor_rebar."""
+    global column_rebar_mod
+    if column_rebar_mod is None:
+        from nosa_utils.bootstrap import load_module
+        column_rebar_mod = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
+    return column_rebar_mod
 
 
 def _ensure_floor_rebar():
@@ -1342,152 +1352,94 @@ def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_
     }
 
 
-def _dowel_square_positions(half_side_mm, n_dowels):
-    """
-    (du, dv) offsets, mm, from the dowel cage's centre, for a simple
-    centred-square layout: n_dowels=4 places one bar at each corner;
-    n_dowels=8 adds one at the midpoint of each side.
-
-    Only 4 or 8 are supported — real column dowel cages are essentially
-    always one of these two symmetric layouts for a simple rectangular
-    column; an arbitrary evenly-spaced-around-the-perimeter layout for
-    other counts would not reliably match what an engineer actually
-    wants, so this raises rather than guessing at one (see
-    column_rebar._perimeter_positions for the more general layout used
-    when full column detailing is in scope, which this footing-only
-    helper deliberately does not import — the two problems look similar
-    but this one only ever needs a corners-plus-optional-midpoints
-    square, not an aribtrary n_u x n_v perimeter).
-
-    Args:
-        half_side_mm (float): half the dowel square's side length, mm.
-        n_dowels     (int): 4 or 8.
-
-    Returns:
-        list[(float, float)] — (du, dv) offsets, mm.
-
-    Raises:
-        ValueError: if n_dowels is not 4 or 8.
-    """
-    if n_dowels == 4:
-        return [(half_side_mm, half_side_mm), (half_side_mm, -half_side_mm),
-                (-half_side_mm, -half_side_mm), (-half_side_mm, half_side_mm)]
+def _dowel_rect_positions(half_u_mm, half_v_mm, n_dowels):
+    """(du, dv) offsets, mm: 4 corners, plus the 4 side midpoints when n_dowels is 8."""
+    if n_dowels not in (4, 8):
+        raise ValueError(u'Dowel count must be 4 or 8, got {}.'.format(n_dowels))
+    positions = [(-half_u_mm, -half_v_mm), (half_u_mm, -half_v_mm),
+                 (half_u_mm, half_v_mm), (-half_u_mm, half_v_mm)]
     if n_dowels == 8:
-        return [(half_side_mm, half_side_mm), (half_side_mm, -half_side_mm),
-                (-half_side_mm, -half_side_mm), (-half_side_mm, half_side_mm),
-                (half_side_mm, 0.0), (0.0, -half_side_mm),
-                (-half_side_mm, 0.0), (0.0, half_side_mm)]
-    raise ValueError(u'Only 4 or 8 dowels are supported (simple centred-square '
-                      u'layouts) — got {}.'.format(n_dowels))
+        positions += [(0.0, -half_v_mm), (half_u_mm, 0.0), (0.0, half_v_mm), (-half_u_mm, 0.0)]
+    return positions
+
+
+def _dowel_circle_positions(radius_mm, n_dowels):
+    """(du, dv) offsets, mm: n_dowels evenly spaced on a circle, none on the axes' ends."""
+    step = 2.0 * math.pi / n_dowels
+    return [(radius_mm * math.cos(step * (i + 0.5)), radius_mm * math.sin(step * (i + 0.5)))
+            for i in range(n_dowels)]
 
 
 def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
-                        splice_length_mm, bar_diameter_mm=16.0, square_fraction=0.25):
+                        splice_length_mm, bar_diameter_mm=16.0,
+                        column_width_mm=400.0, column_depth_mm=400.0,
+                        column_cover_mm=40.0, link_diameter_mm=10.0):
     """
-    A simple vertical dowel ("espera") cage for the column above this
-    footing: n_dowels straight vertical DB.Line bars at the corners (and,
-    for n_dowels=8, edge midpoints) of a square centred on the footing's
-    own plan centroid, each running from the bottom mat's own elevation
-    (cover_mm above the bottom face — i.e. "resting on the bottom mat",
-    per the brief) up through anchor_length_mm + splice_length_mm of
-    total length. Each bar is meant to get a 90° hook at its BOTTOM end
-    (start_hook, not drawn here — see module docstring) so its own
-    anchorage engages the bottom mat, while its un-hooked top end is the
-    visible splice length a column's own vertical bars lap against.
+    Vertical L-shaped dowels ("esperas") from this footing into the column(s) above.
 
-    DISCLOSED SIMPLIFICATION — the dowel square's size: this function
-    has no reference to the actual column above (a footing element
-    carries no direct API link to it), so it cannot size the cage from
-    the real column cross-section. Instead the square's half-side is
-    square_fraction (default 0.25, i.e. a 25%-of-usable-plan-dimension
-    square) times the SMALLER of the footing's own usable (cover-inset)
-    half-width/half-depth — a reasonable placeholder for a preliminary
-    layout, not a substitute for sizing this from the real column
-    dimensions. A caller who knows the column's actual footprint should
-    override square_fraction (or, in a future phase, this function
-    could take explicit column half-width/half-depth instead).
-
-    Args:
-        doc               (DB.Document)
-        host              (DB.Element): the footing.
-        cover_mm          (float): bottom cover, mm — the dowel cage
-                          sits at this same elevation (see above).
-        n_dowels          (int): 4 or 8 — see _dowel_square_positions.
-        anchor_length_mm  (float): straight vertical length WITHIN the
-                          footing, from the bottom mat elevation upward,
-                          mm — an explicit engineering input, not
-                          derived from the footing's actual depth (see
-                          module docstring's default_anchorage_length_mm
-                          for why this module doesn't calculate
-                          code-compliance lengths itself).
-        splice_length_mm  (float): additional straight length above
-                          that, mm — the visible splice for the column's
-                          own bars to lap against.
-        bar_diameter_mm   (float): used only for the cage's own edge
-                          inset from the footing's cover-inset boundary.
-        square_fraction   (float): see DISCLOSED SIMPLIFICATION above.
+    User decision 2026-09-29 (T2.15): one cage under each structural column
+    whose base rests on this footing, following that column's own section
+    (rectangular: corners / corners + midpoints, oriented with the column;
+    circular: evenly spaced on a circle). With no column above, one cage
+    centred on the footing with a column_width_mm x column_depth_mm section
+    typed in the window. Bars sit on the column's bar line (column cover +
+    link + half a dowel diameter in from its faces), rest on the bottom mat
+    and rise splice_length_mm above the footing's own top; each 90° foot
+    points away from its cage centre. Columns that already have NOSA dowels
+    or foundation starters rising through them are skipped, so arming the
+    footing and the column never duplicates bars.
 
     Returns:
-        {'bars': list[DB.Line], 'normals': list[DB.XYZ], 'face_normal': DB.XYZ,
-         'embedded_mm': float} — 'normals' holds each bar's own vertical
-        hook plane (rebar_engine.starter_hook_plane_normal), foot pointing
-        away from the cage centre like the column starters (user decision
-        2026-09-29); the bottom face's normal is NOT a valid plane for a
-        vertical bar (CreateFromCurves returns None, confirmed live). Each
-        bar rises splice_length_mm above the footing's own top, so
-        'embedded_mm' (the length inside the footing) is what the caller
-        compares with anchor_length_mm.
-
-    Raises:
-        ValueError: if the host has no identifiable bottom face, if the
-        cover-inset area is too small to fit even a minimal dowel cage,
-        or from _dowel_square_positions (n_dowels not in {4, 8}).
+        {'bars': list[DB.Line], 'normals': list[DB.XYZ], 'embedded_mm': float,
+         'anchor_length_mm': float, 'columns': int, 'skipped_columns': list[int]}
     """
     engine = _ensure_engine()
-    cover_mgr = engine.CoverGeometryManager(doc, host)
-    bottom_face = get_footing_bottom_face(cover_mgr)
-    if bottom_face is None:
-        raise ValueError(
-            u'Could not find a clearly downward-facing bottom face on this '
-            u'footing — cannot place a dowel cage without it.')
+    own = engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
+    bottom_z_ft = own.Min.Z + cover_mm / _MM_PER_FT
+    top_z_ft = own.Max.Z + splice_length_mm / _MM_PER_FT
+    inset_mm = column_cover_mm + link_diameter_mm + bar_diameter_mm / 2.0
 
-    inset_ft = (cover_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
-    bbox = bottom_face.face.GetBoundingBox()
-    u0, u1 = bbox.Min.U + inset_ft, bbox.Max.U - inset_ft
-    v0, v1 = bbox.Min.V + inset_ft, bbox.Max.V - inset_ft
-    if u1 <= u0 or v1 <= v0:
-        raise ValueError(u'Footing is too small for a dowel cage at this '
-                          u'cover/diameter.')
+    cages = []
+    skipped_columns = []
+    columns = engine.find_columns_above(doc, host)
+    for column in columns:
+        if engine.nosa_bars_in_footprint(doc, column, (u'dowel', u'foundation_starter')):
+            skipped_columns.append(column.Id)
+            continue
+        bbox = column.get_BoundingBox(None)
+        centre = DB.XYZ((bbox.Min.X + bbox.Max.X) / 2.0, (bbox.Min.Y + bbox.Max.Y) / 2.0, 0.0)
+        try:
+            hand = DB.XYZ(column.HandOrientation.X, column.HandOrientation.Y, 0.0).Normalize()
+            facing = DB.XYZ(column.FacingOrientation.X, column.FacingOrientation.Y, 0.0).Normalize()
+        except Exception:
+            hand, facing = DB.XYZ.BasisX, DB.XYZ.BasisY
+        geom = _ensure_column_rebar().detect_column_geometry(doc, column)
+        if geom is not None and geom.get('shape') == 'circle':
+            offsets = _dowel_circle_positions(geom['diameter_mm'] / 2.0 - inset_mm, n_dowels)
+        else:
+            width_mm = geom['width_mm'] if geom else (bbox.Max.X - bbox.Min.X) * _MM_PER_FT
+            depth_mm = geom['depth_mm'] if geom else (bbox.Max.Y - bbox.Min.Y) * _MM_PER_FT
+            offsets = _dowel_rect_positions(width_mm / 2.0 - inset_mm, depth_mm / 2.0 - inset_mm, n_dowels)
+        cages.append((centre, hand, facing, offsets))
 
-    half_w_ft = (u1 - u0) / 2.0
-    half_d_ft = (v1 - v0) / 2.0
-    u_center = (u0 + u1) / 2.0
-    v_center = (v0 + v1) / 2.0
-    half_side_ft = min(half_w_ft, half_d_ft) * square_fraction
-    half_side_mm = half_side_ft * _MM_PER_FT
-
-    positions = _dowel_square_positions(half_side_mm, n_dowels)
-    cover_ft = cover_mm / _MM_PER_FT
-    own_bbox = engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
-    top_z_ft = own_bbox.Max.Z
-    centre_pt = bottom_face.face.Evaluate(DB.UV(u_center, v_center))
+    if not columns:
+        centre = DB.XYZ((own.Min.X + own.Max.X) / 2.0, (own.Min.Y + own.Max.Y) / 2.0, 0.0)
+        offsets = _dowel_rect_positions(column_width_mm / 2.0 - inset_mm,
+                                        column_depth_mm / 2.0 - inset_mm, n_dowels)
+        cages.append((centre, DB.XYZ.BasisX, DB.XYZ.BasisY, offsets))
 
     bars = []
     normals = []
-    embedded_mm = None
-    for du_mm, dv_mm in positions:
-        u = u_center + du_mm / _MM_PER_FT
-        v = v_center + dv_mm / _MM_PER_FT
-        face_pt = bottom_face.face.Evaluate(DB.UV(u, v))
-        bottom_pt = face_pt - bottom_face.normal.Multiply(cover_ft)
-        top_pt = DB.XYZ(bottom_pt.X, bottom_pt.Y, top_z_ft + splice_length_mm / _MM_PER_FT)
-        bars.append(DB.Line.CreateBound(bottom_pt, top_pt))
-        outward = DB.XYZ(face_pt.X - centre_pt.X, face_pt.Y - centre_pt.Y, 0.0)
-        normals.append(engine.starter_hook_plane_normal(outward))
-        embedded_mm = (top_z_ft - bottom_pt.Z) * _MM_PER_FT
+    for centre, hand, facing, offsets in cages:
+        for du_mm, dv_mm in offsets:
+            p = centre + hand.Multiply(du_mm / _MM_PER_FT) + facing.Multiply(dv_mm / _MM_PER_FT)
+            bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
+            normals.append(engine.starter_hook_plane_normal(DB.XYZ(p.X - centre.X, p.Y - centre.Y, 0.0)))
 
-    return {'bars': bars, 'normals': normals, 'face_normal': bottom_face.normal,
-            'embedded_mm': embedded_mm, 'anchor_length_mm': anchor_length_mm}
+    return {'bars': bars, 'normals': normals,
+            'embedded_mm': (own.Max.Z - bottom_z_ft) * _MM_PER_FT,
+            'anchor_length_mm': anchor_length_mm,
+            'columns': len(columns), 'skipped_columns': skipped_columns}
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -1670,6 +1622,7 @@ def build_footing_reinforcement(doc, host,
                                  include_dowels=False, dowel_count=4,
                                  dowel_diameter_mm=16.0, dowel_anchor_length_mm=400.0,
                                  dowel_splice_length_mm=600.0,
+                                 dowel_column_width_mm=400.0, dowel_column_depth_mm=400.0,
                                  include_side_rebar=False, side_diameter_mm=None,
                                  side_spacing_mm=None,
                                  include_perimeter_closure_ubars=False,
@@ -1855,7 +1808,8 @@ def build_footing_reinforcement(doc, host,
     if include_dowels:
         result['dowels'] = build_dowel_curves(
             doc, host, bottom_cover_mm, dowel_count, dowel_anchor_length_mm,
-            dowel_splice_length_mm, bar_diameter_mm=dowel_diameter_mm)
+            dowel_splice_length_mm, bar_diameter_mm=dowel_diameter_mm,
+            column_width_mm=dowel_column_width_mm, column_depth_mm=dowel_column_depth_mm)
 
     if include_side_rebar:
         if None in (side_diameter_mm, side_spacing_mm):
