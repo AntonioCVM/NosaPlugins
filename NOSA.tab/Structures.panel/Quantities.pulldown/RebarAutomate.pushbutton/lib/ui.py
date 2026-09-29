@@ -1183,9 +1183,10 @@ class RebarAutomateWindow(NOSAWindow):
         """
         if bar_type is None:
             return
-        for line, normal in zip(starters.get('bars', []), starters.get('normals', [])):
+        for line, normal, foundation in zip(starters.get('bars', []), starters.get('normals', []),
+                                            starters.get('hosts', [])):
             rebar = wrapper.create_from_curves(
-                host, [line], bar_type,
+                foundation, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
                 start_hook_orientation=_HOOK_ORIENTATION if hook_type else None,
                 normal=normal,
@@ -1196,6 +1197,12 @@ class RebarAutomateWindow(NOSAWindow):
             else:
                 self._stamp_layer(rebar, u'foundation_starter')
                 created_rebars.append(rebar)
+        short = starters.get('short_anchor_mm', [])
+        if short:
+            errors.append(u'{} {}: {} starter(s) embedded only {:.0f} mm in the foundation, less '
+                          u'than the {:.0f} mm anchorage asked for — check the foundation depth.'.format(
+                              label, get_id_value(host.Id), len(short), min(short),
+                              starters.get('anchor_length_mm', 0.0)))
         skipped = starters.get('skipped', 0)
         if skipped:
             errors.append(u'{} {}: {} starter position(s) skipped — no foundation '
@@ -2196,6 +2203,7 @@ class RebarAutomateWindow(NOSAWindow):
                     get_id_value(host.Id)))
 
         bar_type_vert = bar_types.get(values['bar_dia'])
+        first_vertical = len(created_rebars)
         if bar_type_vert is not None:
             for vs in reinforcement['vertical_bar_sets']:
                 rebar = wrapper.create_rebar_set_fixed_number(
@@ -2221,6 +2229,8 @@ class RebarAutomateWindow(NOSAWindow):
                 else:
                     self._stamp_layer(rebar, u'vertical')
                     created_rebars.append(rebar)
+
+        vertical_rebars = created_rebars[first_vertical:]
 
         bar_type_link = bar_types.get(values['link_dia'])
         if bar_type_link is not None:
@@ -2295,9 +2305,12 @@ class RebarAutomateWindow(NOSAWindow):
         # from values['starter_bars'] above (the column's OWN top, for
         # future storeys — unrelated direction/purpose).
         if values.get('foundation_starters') and bar_type_vert is not None:
+            points = re_engine.unique_plan_points(
+                [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = column_rebar.build_column_foundation_starters(
-                self.doc, host, cover_mm, 2, 2, values['bar_dia'],
-                values['foundation_anchor_mm'], values['foundation_splice_mm'])
+                self.doc, host, points, values['bar_dia'], values['bar_dia'],
+                values['foundation_anchor_mm'], values['foundation_splice_mm'],
+                foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
                 errors.append(u'Column {}: foundation starters — no 90° RebarHookType '
@@ -3216,6 +3229,7 @@ class RebarAutomateWindow(NOSAWindow):
                 created_rebars.append(rebar)
 
         bar_type_v = bar_types.get(values['vert_dia'])
+        first_vertical = len(created_rebars)
         if bar_type_v is not None:
             for vs in reinforcement.get('vertical_sets', []):
                 if vs.get('count', 1) > 1 and vs.get('array_length_mm', 0) > 0:
@@ -3232,6 +3246,8 @@ class RebarAutomateWindow(NOSAWindow):
                 else:
                     _create_curves(vs['curves'], bar_type_v, vs.get('normal'),
                                    vs.get('label', u'Wall Vertical'), layer=u'vertical')
+
+        vertical_rebars = created_rebars[first_vertical:]
 
         bar_type_h = bar_types.get(values['horiz_dia'])
         if bar_type_h is not None:
@@ -3283,9 +3299,10 @@ class RebarAutomateWindow(NOSAWindow):
         # length, reaching down into whatever foundation is detected
         # below it.
         if values.get('foundation_starters') and bar_type_v is not None:
-            end_clear_mm = 50.0  # matches wall_rebar.build_wall_reinforcement's own default
+            points = re_engine.unique_plan_points(
+                [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = wall_rebar.build_wall_foundation_starters(
-                self.doc, host, values['vert_spacing'], end_clear_mm,
+                self.doc, host, points, values['vert_dia'], values['vert_dia'],
                 values['foundation_anchor_mm'], values['foundation_splice_mm'],
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)

@@ -104,95 +104,34 @@ def get_wall_elevation_mm(host):
     return length_mm, height_mm
 
 
-def build_wall_foundation_starters(doc, host, vert_spacing_mm, end_clear_mm,
+def build_wall_foundation_starters(doc, host, bar_points, main_dia_mm, starter_dia_mm,
                                     anchor_length_mm, splice_length_mm,
                                     foundation_cover_mm=25.0, search_depth_mm=3000.0):
     """
-    PHASE F7.18 (2026-09-02, explicit user request — "Starter bars con
-    forma de L en columnas y muros... unidas a la cimentación... zapata
-    aislada, solera o zapata corrida") — companion to column_rebar.
-    build_column_foundation_starters, same convention, for a wall: ONE
-    straight starter Line per vertical-bar position ALONG THE WALL'S
-    OWN LENGTH (_evenly_spaced_mm — the SAME spacing the real vertical
-    mesh uses), reaching DOWN from the wall's own base into whatever
-    foundation (isolated/strip footing OR floor/mat slab — see
-    rebar_engine.find_foundation_below) is detected directly below it.
-    Each returned Line is meant to get a 90° hook at its own BOTTOM end
-    (start_hook, applied by the caller at creation time — see 'normal'
-    below), exactly like footing_rebar.build_dowel_curves' own dowels.
+    PHASE F7.18 — L-shaped starters from the foundation below into the wall.
 
-    DISCLOSED SIMPLIFICATION: positioned along the wall's own AXIS
-    (centreline), not offset to either face the real vertical mesh may
-    sit on (build_wall_reinforcement's own vert_is_outer/both_faces
-    layering) — a starter bar's own exact transverse position within
-    the wall's thickness is a minor detail next to it landing on the
-    right foundation, at the right length-wise spacing; a future caller
-    that needs per-face starters can offset the returned Lines' own X/Y
-    itself before creation.
-
-    Args:
-        doc, host                    as elsewhere.
-        vert_spacing_mm                (float): the wall's own vertical
-                                      bar spacing, mm — reused so starter
-                                      positions match the real mesh.
-        end_clear_mm                     (float): end clearance from
-                                      each free end, mm — same meaning
-                                      as build_wall_reinforcement's own.
-        anchor_length_mm                   (float): straight length
-                                      WITHIN the detected foundation,
-                                      mm.
-        splice_length_mm                     (float): additional length
-                                      ABOVE the foundation's own top,
-                                      mm.
-        foundation_cover_mm                    (float): the
-                                      FOUNDATION's own bottom cover, mm
-                                      — defaults to 25mm (a normative
-                                      floor/footing minimum) since,
-                                      unlike columns, a wall has no
-                                      single "cover_mm" already in scope
-                                      here to fall back to.
-        search_depth_mm                          (float): how far below
-                                      the wall's own base to search for
-                                      a foundation, mm.
-
-    Returns:
-        {'bars': list[DB.Line], 'normals': list[DB.XYZ] (one hook-plane normal per bar), 'skipped': int} —
-        same meaning as build_column_foundation_starters' own.
+    One starter per vertical of BOTH faces (bar_points: plan start points of
+    the wall's own vertical mesh, read from the Rebar elements just created),
+    contact-lapped towards the wall's mid-plane so it stays inside the mesh,
+    with its foot pointing outwards across the footing width (user decision
+    2026-09-29). See rebar_engine.build_contact_starters for the return value.
     """
     engine = _ensure_engine()
     axis = get_wall_axis(host)
     axis_dir = axis.Direction.Normalize()
-    p0 = axis.GetEndPoint(0)
-    length_mm = axis.Length * _MM_PER_FT
-
-    base_z_ft = p0.Z
-    try:
-        bbox = host.get_BoundingBox(None)
-        if bbox is not None:
-            base_z_ft = bbox.Min.Z
-    except Exception:
-        pass
-
-    vert_positions_mm = _evenly_spaced_mm(length_mm, vert_spacing_mm, end_clear_mm)
-    search_depth_ft = search_depth_mm / _MM_PER_FT
-
-    # Hook foot points across the wall thickness, into the footing's width.
+    origin = axis.GetEndPoint(0)
     across = DB.XYZ.BasisZ.CrossProduct(axis_dir)
 
-    bars = []
-    normals = []
-    skipped = 0
-    for dist_mm in vert_positions_mm:
-        p = p0 + axis_dir.Multiply(dist_mm / _MM_PER_FT)
-        result = engine.build_starter_into_foundation(
-            doc, p.X, p.Y, base_z_ft, anchor_length_mm, splice_length_mm,
-            foundation_cover_mm, search_depth_ft=search_depth_ft, hook_dir=across)
-        if result is None:
-            skipped += 1
-            continue
-        bars.append(result['line'])
-        normals.append(result['normal'])
-    return {'bars': bars, 'normals': normals, 'skipped': skipped}
+    inward_dirs = []
+    for p in bar_points:
+        side = DB.XYZ(p.X - origin.X, p.Y - origin.Y, 0.0).DotProduct(across)
+        inward_dirs.append(across.Multiply(-1.0 if side > 0 else 1.0))
+
+    base_z_ft = min(p.Z for p in bar_points) if bar_points else origin.Z
+    return engine.build_contact_starters(
+        doc, bar_points, inward_dirs, base_z_ft, main_dia_mm, starter_dia_mm,
+        anchor_length_mm, splice_length_mm, foundation_cover_mm,
+        search_depth_ft=search_depth_mm / _MM_PER_FT)
 
 
 def build_wall_reinforcement(doc, host, cover_mm,

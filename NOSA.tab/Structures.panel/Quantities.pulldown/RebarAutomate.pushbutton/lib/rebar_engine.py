@@ -587,11 +587,11 @@ def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
     reaching from a detected foundation's own bottom-face elevation
     (offset inward by cover_mm — "resting on the bottom mat", the SAME
     phrase and convention footing_rebar.build_dowel_curves' own
-    docstring uses) UP through anchor_length_mm (inside the foundation)
-    + splice_length_mm (above it, into the column/wall's own first-run
-    bars) — same total-length split as build_dowel_curves, just found
-    via find_foundation_below instead of already knowing which footing
-    to use. The bar stays a plain straight Line here — the 90° hook
+    docstring uses) UP to splice_length_mm above the foundation's own TOP,
+    whatever the foundation depth (2026-09-29: the old anchor + splice sum
+    measured from the bottom left a 900 mm pile cap only 140 mm of lap
+    above it). The embedded length is returned as 'embedded_mm' so callers
+    can compare it with anchor_length_mm. The bar stays a plain straight Line here — the 90° hook
     itself is applied by the CALLER at creation time via RebarHookType
     (start_hook=...), matching how _create_dowel_bars already applies
     one to build_dowel_curves' own straight lines; this function has no
@@ -610,9 +610,9 @@ def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
                               position, ft, project coordinates.
         base_z_ft                (float): the column/wall's own base
                               elevation, ft.
-        anchor_length_mm            (float): straight length WITHIN the
-                              foundation, from its own bottom cover
-                              elevation upward, mm.
+        anchor_length_mm            (float): required anchorage, mm —
+                              not used for the geometry; callers compare it
+                              with the returned 'embedded_mm'.
         splice_length_mm              (float): additional length ABOVE
                               the foundation's own top, mm — the visible
                               splice for the column/wall's own bars.
@@ -640,12 +640,16 @@ def build_starter_into_foundation(doc, x_ft, y_ft, base_z_ft,
     if bbox is None:
         return None
     bottom_z_ft = bbox.Min.Z
+    top_z_ft = bbox.Max.Z
     cover_ft = cover_mm / _MM_PER_FT
-    total_len_ft = (anchor_length_mm + splice_length_mm) / _MM_PER_FT
+    # Rests on the bottom mat (bottom + cover) and always rises splice_length_mm
+    # above the foundation's TOP, whatever its depth; the embedded part is the
+    # anchorage, reported back so the caller can flag a too-shallow foundation.
     p0 = DB.XYZ(x_ft, y_ft, bottom_z_ft + cover_ft)
-    p1 = p0 + DB.XYZ(0.0, 0.0, total_len_ft)
+    p1 = DB.XYZ(x_ft, y_ft, top_z_ft + splice_length_mm / _MM_PER_FT)
     return {'line': DB.Line.CreateBound(p0, p1), 'normal': starter_hook_plane_normal(hook_dir),
-            'foundation': foundation}
+            'foundation': foundation,
+            'embedded_mm': (top_z_ft - p0.Z) * _MM_PER_FT}
 
 
 def starter_hook_plane_normal(hook_dir=None):
@@ -664,6 +668,62 @@ def starter_hook_plane_normal(hook_dir=None):
     if flat.GetLength() < 1e-9:
         return DB.XYZ.BasisX
     return DB.XYZ.BasisZ.CrossProduct(flat.Normalize())
+
+
+def rebar_bar_plan_points(rebar):
+    """Start point of every bar position of a (vertical) Rebar or Rebar Set, ft."""
+    points = []
+    for i in range(rebar.NumberOfBarPositions):
+        curves = rebar.GetTransformedCenterlineCurves(
+            False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i)
+        if curves is None or curves.Count == 0:
+            continue
+        ends = [curves[0].GetEndPoint(0), curves[curves.Count - 1].GetEndPoint(1)]
+        points.append(min(ends, key=lambda p: p.Z))
+    return points
+
+
+def unique_plan_points(points, tol_mm=5.0):
+    """Drop points that repeat in plan (stacked stock-length segments of one vertical)."""
+    tol_ft = tol_mm / _MM_PER_FT
+    kept = []
+    for p in sorted(points, key=lambda q: q.Z):
+        if all(abs(p.X - k.X) > tol_ft or abs(p.Y - k.Y) > tol_ft for k in kept):
+            kept.append(p)
+    return kept
+
+
+def build_contact_starters(doc, bar_points, inward_dirs, base_z_ft, main_dia_mm, starter_dia_mm,
+                           anchor_length_mm, splice_length_mm, cover_mm, search_depth_ft=10.0):
+    """One L-shaped starter per main vertical bar, contact-lapped on its inner side.
+
+    Each starter sits (main_dia + starter_dia) / 2 towards inward_dirs[i] from
+    its vertical, i.e. touching it inside the links, and its 90° foot points the
+    opposite way (outwards). It is hosted on the foundation found below it.
+
+    Returns {'bars', 'normals', 'hosts', 'skipped', 'short_anchor_mm'}:
+    parallel lists for the created positions, the count of positions with no
+    foundation below, and the embedded lengths that fall short of
+    anchor_length_mm.
+    """
+    offset_ft = (main_dia_mm + starter_dia_mm) / 2.0 / _MM_PER_FT
+    result = {'bars': [], 'normals': [], 'hosts': [], 'skipped': 0, 'short_anchor_mm': [],
+              'anchor_length_mm': anchor_length_mm}
+    for point, inward in zip(bar_points, inward_dirs):
+        x_ft = point.X + inward.X * offset_ft
+        y_ft = point.Y + inward.Y * offset_ft
+        starter = build_starter_into_foundation(
+            doc, x_ft, y_ft, base_z_ft, anchor_length_mm, splice_length_mm, cover_mm,
+            search_depth_ft=search_depth_ft, hook_dir=DB.XYZ(-inward.X, -inward.Y, 0.0))
+        if starter is None:
+            result['skipped'] += 1
+            continue
+        result['bars'].append(starter['line'])
+        result['normals'].append(starter['normal'])
+        result['hosts'].append(starter['foundation'])
+        if starter['embedded_mm'] < anchor_length_mm:
+            result['short_anchor_mm'].append(starter['embedded_mm'])
+    return result
 
 
 class CoverGeometryManager(object):
