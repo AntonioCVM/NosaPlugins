@@ -117,7 +117,9 @@ class RebarBatch(object):
         # {element id value: layer code} recorded by the generators; written
         # here, inside a transaction, because they create each bar in a
         # transaction of its own that is already closed when they learn it.
-        self.layers = layers or {}
+        # Keep the caller's dict itself (even while still empty): the
+        # generators fill it during run(), after this batch is built.
+        self.layers = layers if layers is not None else {}
 
     def run(self, generate_fn):
         """
