@@ -1428,10 +1428,15 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
         square_fraction   (float): see DISCLOSED SIMPLIFICATION above.
 
     Returns:
-        {'bars': list[DB.Line], 'face_normal': DB.XYZ}  — face_normal is
-        the bottom face's normal, for the caller's `normal` argument
-        (and for choosing which end gets the hook: the bottom end, where
-        this normal points away from the concrete).
+        {'bars': list[DB.Line], 'normals': list[DB.XYZ], 'face_normal': DB.XYZ,
+         'embedded_mm': float} — 'normals' holds each bar's own vertical
+        hook plane (rebar_engine.starter_hook_plane_normal), foot pointing
+        away from the cage centre like the column starters (user decision
+        2026-09-29); the bottom face's normal is NOT a valid plane for a
+        vertical bar (CreateFromCurves returns None, confirmed live). Each
+        bar rises splice_length_mm above the footing's own top, so
+        'embedded_mm' (the length inside the footing) is what the caller
+        compares with anchor_length_mm.
 
     Raises:
         ValueError: if the host has no identifiable bottom face, if the
@@ -1462,19 +1467,27 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     half_side_mm = half_side_ft * _MM_PER_FT
 
     positions = _dowel_square_positions(half_side_mm, n_dowels)
-    total_len_ft = (anchor_length_mm + splice_length_mm) / _MM_PER_FT
     cover_ft = cover_mm / _MM_PER_FT
+    own_bbox = engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
+    top_z_ft = own_bbox.Max.Z
+    centre_pt = bottom_face.face.Evaluate(DB.UV(u_center, v_center))
 
     bars = []
+    normals = []
+    embedded_mm = None
     for du_mm, dv_mm in positions:
         u = u_center + du_mm / _MM_PER_FT
         v = v_center + dv_mm / _MM_PER_FT
         face_pt = bottom_face.face.Evaluate(DB.UV(u, v))
         bottom_pt = face_pt - bottom_face.normal.Multiply(cover_ft)
-        top_pt = bottom_pt + DB.XYZ.BasisZ.Multiply(total_len_ft)
+        top_pt = DB.XYZ(bottom_pt.X, bottom_pt.Y, top_z_ft + splice_length_mm / _MM_PER_FT)
         bars.append(DB.Line.CreateBound(bottom_pt, top_pt))
+        outward = DB.XYZ(face_pt.X - centre_pt.X, face_pt.Y - centre_pt.Y, 0.0)
+        normals.append(engine.starter_hook_plane_normal(outward))
+        embedded_mm = (top_z_ft - bottom_pt.Z) * _MM_PER_FT
 
-    return {'bars': bars, 'face_normal': bottom_face.normal}
+    return {'bars': bars, 'normals': normals, 'face_normal': bottom_face.normal,
+            'embedded_mm': embedded_mm, 'anchor_length_mm': anchor_length_mm}
 
 
 # ══════════════════════════════════════════════════════════════════════════

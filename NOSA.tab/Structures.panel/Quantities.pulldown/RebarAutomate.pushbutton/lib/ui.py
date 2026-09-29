@@ -1147,18 +1147,23 @@ class RebarAutomateWindow(NOSAWindow):
         """
         if bar_type is None:
             return
-        for line in dowels['bars']:
+        for line, normal in zip(dowels['bars'], dowels['normals']):
             rebar = wrapper.create_from_curves(
                 host, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
                 start_hook_orientation=_HOOK_ORIENTATION if hook_type else None,
-                normal=dowels['face_normal'],
+                normal=normal,
                 transaction_name=u'NOSA — Create Footing Dowel')
             if rebar is None:
                 errors.append(u'Footing {}: dowel — {}'.format(get_id_value(host.Id), wrapper.last_error))
             else:
                 self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
+        embedded = dowels.get('embedded_mm')
+        if dowels['bars'] and embedded is not None and embedded < dowels.get('anchor_length_mm', 0.0):
+            errors.append(u'Footing {}: dowels embedded only {:.0f} mm, less than the {:.0f} mm '
+                          u'anchorage asked for — check the footing depth.'.format(
+                              get_id_value(host.Id), embedded, dowels['anchor_length_mm']))
 
     def _create_foundation_starter_bars(self, wrapper, host, starters, bar_type, hook_type,
                                          label, errors, created_rebars):
