@@ -168,7 +168,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        layers=window._pending_layers)
                     batch_result = batch.run(
                         lambda: window._run_column_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -189,7 +190,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        layers=window._pending_layers)
                     batch_result = batch.run(
                         lambda: window._run_beam_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -210,7 +212,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        layers=window._pending_layers)
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -243,7 +246,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'))
+                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        layers=window._pending_layers)
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
                     summary = dict(batch_result.summary)
@@ -305,6 +309,7 @@ class RebarAutomateWindow(NOSAWindow):
         self.ra_project = rebar_project.load(self.doc)
         self.ra_generator_version = _version_mod.RA_VERSION
         self._shared_params_report = None
+        self._pending_layers = {}
 
         # PHASE F2 — normativa (rebar standard) profile, resolved once at
         # launch and re-resolved whenever the user changes the "Standard:"
@@ -1225,16 +1230,18 @@ class RebarAutomateWindow(NOSAWindow):
         creation call across every typology below, with a short code
         identifying what that specific bar/Set is — never raises (same
         "fail warning, not exploding" contract as shared_params.write
-        itself); a failed stamp is silently skipped, matching how a
-        failed create_from_curves is handled elsewhere in this file
-        (the Rebar itself is still valid, only the label is missing).
+        itself).
+
+        Only RECORDS the layer: writing it here happened outside any
+        transaction (each bar's own creation transaction has already
+        committed), so Revit rejected every write and all bars ended up
+        "uncategorized" (verified live 2026-09-29, 123/123 bars).
+        RebarBatch writes the recorded layers inside its provenance
+        transaction and reports any failure.
         """
         if rebar is None or not layer:
             return
-        try:
-            shared_params.write(rebar, u'NOSA_Rebar_Layer', layer)
-        except Exception:
-            pass
+        self._pending_layers[get_id_value(rebar.Id)] = layer
 
     def _create_grouped_bars(self, wrapper, host, grouped, bar_type, errors, created_rebars, label,
                               layer=None):

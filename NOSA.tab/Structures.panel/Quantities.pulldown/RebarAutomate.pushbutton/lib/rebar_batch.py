@@ -112,8 +112,12 @@ class BatchResult(object):
 class RebarBatch(object):
     """One user-triggered generation run. See module docstring."""
 
-    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08'):
+    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08', layers=None):
         self.ctx = make_ctx(doc, standard, generator_version, standard_code)
+        # {element id value: layer code} recorded by the generators; written
+        # here, inside a transaction, because they create each bar in a
+        # transaction of its own that is already closed when they learn it.
+        self.layers = layers or {}
 
     def run(self, generate_fn):
         """
@@ -153,6 +157,10 @@ class RebarBatch(object):
                 with revit.Transaction(u'NOSA RebarAutomate — Stamp Provenance'):
                     for elem in created_rebars:
                         results = shared_params.stamp_provenance(elem, self.ctx)
+                        layer = self.layers.get(get_id_value(elem.Id))
+                        if layer:
+                            results['NOSA_Rebar_Layer'] = shared_params.write(
+                                elem, u'NOSA_Rebar_Layer', layer)
                         failed_fields = [name for name, ok in results.items() if not ok]
                         if failed_fields:
                             stamp_errors.append(
