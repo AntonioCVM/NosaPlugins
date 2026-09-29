@@ -726,6 +726,36 @@ def build_contact_starters(doc, bar_points, inward_dirs, base_z_ft, main_dia_mm,
     return result
 
 
+def _curves_min_corner(curves):
+    xs, ys, zs = [], [], []
+    for curve in curves:
+        for pt in curve.Tessellate():
+            xs.append(pt.X); ys.append(pt.Y); zs.append(pt.Z)
+    return DB.XYZ(min(xs), min(ys), min(zs))
+
+
+def realign_closed_loop(doc, rebar, curves, tol_mm=0.05):
+    """Move a closed-loop rebar (stirrup/link) back onto the curves it was created from.
+
+    Revit re-fits a closed loop to its catalogue shape and shifts the whole
+    loop by half a bar diameter, outwards from the FIRST segment (verified
+    live in Revit 2026, 2026-09-29: an H8 beam stirrup asked at 40 mm clear
+    cover came out at 36/44). Moving it back is stable across host edits.
+    Open shapes are left alone. Must run inside an open transaction.
+    """
+    if rebar is None or not curves:
+        return
+    first, last = curves[0].GetEndPoint(0), curves[-1].GetEndPoint(1)
+    if first.DistanceTo(last) > 1e-6:
+        return
+    doc.Regenerate()
+    placed = rebar.GetTransformedCenterlineCurves(
+        False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+    delta = _curves_min_corner(curves) - _curves_min_corner(list(placed))
+    if delta.GetLength() * _MM_PER_FT > tol_mm:
+        DB.ElementTransformUtils.MoveElement(doc, rebar.Id, delta)
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and
@@ -1116,6 +1146,8 @@ class RebarWrapper(object):
                 # exact check; create_from_curves did not.
                 if rebar is None:
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
+                else:
+                    realign_closed_loop(self.doc, rebar, curves)
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
@@ -1260,6 +1292,7 @@ class RebarWrapper(object):
                 except Exception as e:
                     self.last_error = (u'Rebar created as a single bar, but Rebar Set '
                                         u'propagation failed: {}'.format(e))
+                realign_closed_loop(self.doc, rebar, curves)
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
@@ -1345,6 +1378,7 @@ class RebarWrapper(object):
                 except Exception as e:
                     self.last_error = (u'Rebar created as a single bar, but Rebar Set '
                                         u'propagation failed: {}'.format(e))
+                realign_closed_loop(self.doc, rebar, curves)
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
