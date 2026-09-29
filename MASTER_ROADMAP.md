@@ -59,8 +59,8 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
 | [x] | T2.1 | Confirmar en vivo F7.16 (barras longitudinales de viga dentro de la sección) con el botón real | – | ✔ | ✔ || 2026-09-29, Revit 2026, vigas 1318407 y 1318434: 10 sets generados con el botón real, **todas las posiciones dentro del sólido** (medido por MCP). Ver T2.10 para desviaciones de recubrimiento |
-| [ ] | T2.2 | Confirmar en vivo F7.17 (mínimo 3 U-bars por lado en huecos pequeños) | – | ✔ | ✔ | |
-| [ ] | T2.3 | Confirmar en vivo F7.18 (esperas en L hacia zapata aislada / losa / zapata corrida) + decidir si lleva preview | – | ✔ | ✔ | |
+| [x] | T2.2 | Confirmar en vivo F7.17 (mínimo 3 U-bars por lado en huecos pequeños) | – | ✔ | ✔ || 2026-09-29, Revit 2026, losa 1317654 (hueco 500×500): 4 caras × set de 3 U-bars, forma Revit 21 / NOSA 51, pata ~395 mm, 0 puntos en el hueco ni fuera del hormigón; cierres exteriores creados (borde inclinado como FreeForm = forma Revit 00, compromiso documentado F7.14) |
+| [~] | T2.3 | Confirmar en vivo F7.18 (esperas en L hacia zapata aislada / losa / zapata corrida) + decidir si lleva preview | – | ✔ | ✔ || 2026-09-29: creados hosts de prueba (Comments «NOSA TEST T2.3»): pilar 1320395 sobre encepado 1317360, pilar Ø450 1320396 sobre losa 1317591, muro 1320397 + zapata corrida 1320400. 1.ª ejecución: **0 esperas en L creadas** (pendiente ver panel Result / casilla). Bug encontrado y corregido `46a691d`: fondo de la cimentación tomado de la bbox de instancia (encepado con pilotes → −6825 en vez de −900) |
 | [x] | T2.4 | Verificar `NOSA_Rebar_Layer`: el commit `6fbe47e` dice que se estampa, `ROADMAP.md` dice que no — comprobar en el modelo | – | ✔ | – || Verificado 2026-09-29: **NO se estampa** — todas las barras de viga salen `uncategorized` (el ROADMAP tenía razón, el mensaje del commit `6fbe47e` no). Implementación → T2.11 |
 | [ ] | T2.5 | Investigar los cierres de Revit al recargar pyRevit (reproducir, recoger journal de Revit) | – | ✔ | ✔ | |
 | [ ] | T2.6 | Smoke visual: pestañas normalizadas + previews (hooks, alzado de viga, 2 vistas de muro) | – | ✔ | ✔ | |
@@ -70,6 +70,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T2.10 | Vigas — recubrimiento: estribos 4 mm bajos (libre abajo 36 / arriba 44, nominal 40/40), long. superiores ~6 mm bajas (53.8 vs 48), long. descentradas 4-6 mm a lo ancho (48/54). Medido en vivo 2026-09-29 sobre 1318407/1318434 | – | ✔ | – | |
 | [ ] | T2.11 | Estampar `NOSA_Rebar_Layer` en los generadores (vigas, muros, pilares, losas, zapatas) para que marcado y filtros de color funcionen (ítem 6 del análisis SOFiSTiK) | – | ✔ | – | |
 | [ ] | T2.12 | Menores vistos en la prueba de vigas: marcas `-01` sin prefijo cuando el proyecto no tiene `mark_prefix`; estribos cerrados clasificados como forma `99` en vez del código de cerco del catálogo | ✔ | – | – | |
+| [ ] | T2.13 | Muros — la opción antigua «Starter bars into foundation (extend below base)» prolonga las verticales 500 mm fijos bajo la base sin mirar la cimentación: con la zapata corrida real de 300 mm (1320400) atraviesan su fondo 200 mm. Además, su texto se confunde con la nueva «Add L-Shaped Starter Bars into Foundation Below» → limitar a la profundidad real o retirar en favor de la nueva | – | ✔ | ✔ | |
 
 ## Fase 3 — Correcciones transversales de la extensión (paralelizable por plugin)
 
