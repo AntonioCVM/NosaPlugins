@@ -58,15 +58,18 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [ ] | T2.1 | Confirmar en vivo F7.16 (barras longitudinales de viga dentro de la sección) con el botón real | – | ✔ | ✔ | |
+| [x] | T2.1 | Confirmar en vivo F7.16 (barras longitudinales de viga dentro de la sección) con el botón real | – | ✔ | ✔ || 2026-09-29, Revit 2026, vigas 1318407 y 1318434: 10 sets generados con el botón real, **todas las posiciones dentro del sólido** (medido por MCP). Ver T2.10 para desviaciones de recubrimiento |
 | [ ] | T2.2 | Confirmar en vivo F7.17 (mínimo 3 U-bars por lado en huecos pequeños) | – | ✔ | ✔ | |
 | [ ] | T2.3 | Confirmar en vivo F7.18 (esperas en L hacia zapata aislada / losa / zapata corrida) + decidir si lleva preview | – | ✔ | ✔ | |
-| [ ] | T2.4 | Verificar `NOSA_Rebar_Layer`: el commit `6fbe47e` dice que se estampa, `ROADMAP.md` dice que no — comprobar en el modelo | – | ✔ | – | |
+| [x] | T2.4 | Verificar `NOSA_Rebar_Layer`: el commit `6fbe47e` dice que se estampa, `ROADMAP.md` dice que no — comprobar en el modelo | – | ✔ | – || Verificado 2026-09-29: **NO se estampa** — todas las barras de viga salen `uncategorized` (el ROADMAP tenía razón, el mensaje del commit `6fbe47e` no). Implementación → T2.11 |
 | [ ] | T2.5 | Investigar los cierres de Revit al recargar pyRevit (reproducir, recoger journal de Revit) | – | ✔ | ✔ | |
 | [ ] | T2.6 | Smoke visual: pestañas normalizadas + previews (hooks, alzado de viga, 2 vistas de muro) | – | ✔ | ✔ | |
 | [x] | T2.7 | Pasar `RebarAutomate/lib/ui.py:65-69` (`BuiltInCategory` a nivel de módulo) a carga perezosa | – | – | – | `eb8d4d4` — `_cat_id()` con caché + `sys.path` corregido (faltaba un `..`); 20/20 tests. Se verifica solo al abrir RebarAutomate y seleccionar elementos en T2.1 |
 | [ ] | T2.8 | **Humo en 4 versiones** (2024/2025/2026/2027) de F4, F6 y F7 según la Matriz de validación de `ROADMAP.md` | – | ✔ | ✔ | |
 | [ ] | T2.9 | Fusionar a `main` (solo tras T2.8) | – | – | ✔ | |
+| [ ] | T2.10 | Vigas — recubrimiento: estribos 4 mm bajos (libre abajo 36 / arriba 44, nominal 40/40), long. superiores ~6 mm bajas (53.8 vs 48), long. descentradas 4-6 mm a lo ancho (48/54). Medido en vivo 2026-09-29 sobre 1318407/1318434 | – | ✔ | – | |
+| [ ] | T2.11 | Estampar `NOSA_Rebar_Layer` en los generadores (vigas, muros, pilares, losas, zapatas) para que marcado y filtros de color funcionen (ítem 6 del análisis SOFiSTiK) | – | ✔ | – | |
+| [ ] | T2.12 | Menores vistos en la prueba de vigas: marcas `-01` sin prefijo cuando el proyecto no tiene `mark_prefix`; estribos cerrados clasificados como forma `99` en vez del código de cerco del catálogo | ✔ | – | – | |
 
 ## Fase 3 — Correcciones transversales de la extensión (paralelizable por plugin)
 
