@@ -382,6 +382,14 @@ assert column_rebar.top_l_foot_mm(800.0, 200.0, 20.0) == 600.0
 assert column_rebar.top_l_foot_mm(300.0, 250.0, 20.0) == 240.0, 'foot at least 12 phi'
 print("crank_offset_rule_mm / top_l_foot_mm: site rules by diameter, 12 phi minimum foot: OK")
 
+# BS 8666 shape 26: sloped leg B >= 10d (<= 16 mm) or 13d (> 16 mm); the rise lengthens to meet it.
+assert column_rebar.crank_min_sloped_leg_mm(16.0) == 160.0
+assert column_rebar.crank_min_sloped_leg_mm(20.0) == 260.0
+rise = column_rebar.crank_rise_mm(20.0, 20.0)
+assert abs(math.hypot(rise, 20.0) - 260.0) < 1e-6, 'H20 one-diameter crank: B = 13d, flatter than 1:6'
+assert column_rebar.crank_rise_mm(16.0, 50.0) == 300.0, '1:6 already gives B >= 10d'
+print("crank_rise_mm: 1:6, lengthened so the sloped leg B meets 10d / 13d: OK")
+
 # ── Test 7c (Phase 3.3): crank offset AUTO-DETECTED from the real ──────
 # column found above — 0.0 (no crank) when the SAME instance continues
 # (nothing distinct found above), the REAL section difference when a

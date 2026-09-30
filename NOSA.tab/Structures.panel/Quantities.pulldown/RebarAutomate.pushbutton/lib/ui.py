@@ -2594,7 +2594,9 @@ class RebarAutomateWindow(NOSAWindow):
             use_cranked_laps=values['cranked_laps'],
             include_crossties=values['crossties'],
             crosstie_layout=values['crosstie_layout'],
-            std=self._host_std(host), kicker_mm=self._kicker_mm())
+            std=self._host_std(host), kicker_mm=self._kicker_mm(),
+            slab_top_mat_mm=self._preview_number(self.TxtTopDiaX, 12.0)
+            + self._preview_number(self.TxtTopDiaY, 12.0))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))
@@ -2626,7 +2628,11 @@ class RebarAutomateWindow(NOSAWindow):
                 rebar = wrapper.create_rebar_set_fixed_number(
                     host, vs['curves'], bar_type_vert, vs['count'], vs['array_length_mm'],
                     normal=vs['normal'],
-                    transaction_name=u'NOSA — Create Column Vertical Bars')
+                    transaction_name=u'NOSA — Create Column Vertical Bars',
+                    shape_name=vs.get('shape'))
+                if getattr(wrapper, 'shape_warning', None):
+                    errors.append(u'Column {}: cranked bars — {}'.format(
+                        get_id_value(host.Id), wrapper.shape_warning))
                 if rebar is None:
                     errors.append(u'Column {}: vertical bars (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
@@ -2639,7 +2645,11 @@ class RebarAutomateWindow(NOSAWindow):
             for vb in reinforcement['vertical_bars']:
                 rebar = wrapper.create_from_curves(
                     host, vb['curves'], bar_type_vert, normal=vb['normal'],
-                    transaction_name=u'NOSA — Create Column Vertical Bar')
+                    transaction_name=u'NOSA — Create Column Vertical Bar',
+                    shape_name=vb.get('shape'))
+                if getattr(wrapper, 'shape_warning', None):
+                    errors.append(u'Column {}: cranked bar — {}'.format(
+                        get_id_value(host.Id), wrapper.shape_warning))
                 if rebar is None:
                     errors.append(u'Column {}: vertical bar — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))

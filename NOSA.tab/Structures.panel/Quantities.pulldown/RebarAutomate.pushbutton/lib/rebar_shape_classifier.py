@@ -176,6 +176,27 @@ def _bending(doc, rebar, curves):
         return None
 
 
+_COMPUTED_CODES = ('00', '11', '21', '51', '99')
+
+
+def _revit_shape_params(doc, rebar):
+    """A=..;B=.. read from the bar's own Revit shape family (e.g. 26, 75), in mm."""
+    try:
+        shape = doc.GetElement(rebar.GetShapeId())
+        pairs = []
+        for param_id in shape.GetRebarShapeDefinition().GetParameters():
+            name = doc.GetElement(param_id).Name
+            if len(name) > 2 or not name[:1].isalpha():
+                continue
+            param = rebar.LookupParameter(name)
+            if param is not None and param.HasValue:
+                pairs.append((name, int(round(param.AsDouble() * _FT_TO_MM))))
+        pairs = [(n, v) for n, v in sorted(pairs) if v != 0 or n in ('A', 'B', 'C')]
+        return u';'.join(u'{}={}'.format(n, v) for n, v in pairs)
+    except Exception:
+        return None
+
+
 def classify_and_stamp(doc, rebar_id, standard_code):
     """
     Clasifica la forma de una barra (ElementId) y sella NOSA_Rebar_Shape_Code + Shape_Params.
@@ -230,13 +251,10 @@ def classify_and_stamp(doc, rebar_id, standard_code):
 
         # Calcular parámetros
         shape_params = _compute_shape_params(shape_code, analysis, _bending(doc, rebar, curves))
-        if shape_code == '75':
-            try:
-                dia = rebar.LookupParameter('A').AsDouble() * _FT_TO_MM
-                lap = rebar.LookupParameter('B').AsDouble() * _FT_TO_MM
-                shape_params = u'A={};B={}'.format(int(round(dia)), int(round(lap)))
-            except Exception:
-                pass
+        if shape_code not in _COMPUTED_CODES:
+            family_params = _revit_shape_params(doc, rebar)
+            if family_params:
+                shape_params = family_params
 
         # Sellar parámetros compartidos
         # BUG FIX (2026-09-02) — same signature mismatch as

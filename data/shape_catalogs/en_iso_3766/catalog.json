@@ -2,7 +2,7 @@
   "catalog": "en_iso_3766",
   "display_name": "EN ISO 3766 Shape Codes",
   "revision": "2026-09",
-  "_comment": "Minimal shape catalog (00 straight, 11 L, 21 U-bar, 51 closed link, 75 circular link, 99 custom) — codes as in BS 8666:2020 / ISO 3766",
+  "_comment": "Minimal shape catalog (00 straight, 11 L, 21 U-bar, 26 cranked bar, 51 closed link, 75 circular link, 99 custom) — codes as in BS 8666:2020 / ISO 3766",
   "shapes": {
     "00": {
       "name": "Straight bar",
@@ -47,6 +47,24 @@
         "C_min_mm": 50,
         "angle_deg": 90,
         "angle_tolerance_deg": 5
+      }
+    },
+    "26": {
+      "name": "Cranked bar (column splice)",
+      "segments": 3,
+      "bends": 2,
+      "params": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "R"
+      ],
+      "constraints": {
+        "B_min_factor_d_le_16": 10,
+        "B_min_factor_d_gt_16": 13,
+        "max_slope": "1:6"
       }
     },
     "51": {

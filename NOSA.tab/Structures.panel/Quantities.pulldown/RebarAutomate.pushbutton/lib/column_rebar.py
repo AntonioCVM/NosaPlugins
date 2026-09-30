@@ -1411,7 +1411,7 @@ def _merge_collinear_chain(chain, tol=1e-9):
 
 MAX_CRANK_OFFSET_MM = 75.0          # SMDSC: beyond this, use separate starter bars
 CRANK_END_BELOW_SLAB_TOP_MM = 40.0  # the crank finishes just under the slab's top face
-TOP_MAT_ALLOWANCE_MM = 25.0         # two top-mat layers the L foot passes beneath
+DEFAULT_TOP_MAT_MM = 24.0           # two H12 layers, when the slab's top mat is unknown
 
 
 def crank_offset_rule_mm(bar_diameter_mm, section_reduction_mm):
@@ -1425,16 +1425,33 @@ def crank_offset_rule_mm(bar_diameter_mm, section_reduction_mm):
     return reduction + extra
 
 
+CRANK_SHAPE_CODE = u'26'   # BS 8666:2020 cranked bar, as defined by the NOSA template family
+
+
+def crank_min_sloped_leg_mm(bar_diameter_mm):
+    """BS 8666 shape 26: the sloped leg B is at least 10d (<= 16 mm) or 13d (> 16 mm)."""
+    return (10.0 if bar_diameter_mm <= 16.0 else 13.0) * bar_diameter_mm
+
+
+def crank_rise_mm(bar_diameter_mm, offset_mm, crank_slope=6.0):
+    """Rise of the crank: 1:crank_slope, lengthened (flatter) when B would fall below its minimum."""
+    b_min = crank_min_sloped_leg_mm(bar_diameter_mm)
+    rise = crank_slope * offset_mm
+    if (rise ** 2 + offset_mm ** 2) ** 0.5 < b_min:
+        rise = max(rise, (b_min ** 2 - offset_mm ** 2) ** 0.5)
+    return rise
+
+
 def top_l_foot_mm(anchorage_mm, embedment_mm, bar_diameter_mm):
     """L foot at a column top: vertical embedment + foot >= anchorage, foot >= 12 phi."""
     return max(anchorage_mm - embedment_mm, 12.0 * bar_diameter_mm)
 
 
 def crank_elevations_ft(slab_top_ft, offset_mm, crank_slope=6.0,
-                        end_below_mm=CRANK_END_BELOW_SLAB_TOP_MM):
-    """(start, end) elevations of a 1:crank_slope crank that ends just below the slab top."""
+                        end_below_mm=CRANK_END_BELOW_SLAB_TOP_MM, bar_diameter_mm=0.0):
+    """(start, end) elevations of the crank (see crank_rise_mm) ending just below the slab top."""
     end_ft = slab_top_ft - end_below_mm / _MM_PER_FT
-    return end_ft - crank_slope * offset_mm / _MM_PER_FT, end_ft
+    return end_ft - crank_rise_mm(bar_diameter_mm, offset_mm, crank_slope) / _MM_PER_FT, end_ft
 
 
 def find_slab_at_column_top(doc, axis, tol_mm=150.0):
@@ -1463,7 +1480,28 @@ def _top_face(doc, floor):
     return face.face if face is not None else None
 
 
-def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None):
+def slab_top_mat_depth_mm(doc, floor, fallback_mm=DEFAULT_TOP_MAT_MM):
+    """Depth of the slab's top mat (T1 + T2 bar diameters) from its NOSA rebar, else fallback_mm."""
+    layers = {}
+    try:
+        for rebar in DB.FilteredElementCollector(doc).OfCategory(
+                DB.BuiltInCategory.OST_Rebar).WhereElementIsNotElementType():
+            if rebar.GetHostId() != floor.Id:
+                continue
+            param = rebar.LookupParameter(u'NOSA_Rebar_Layer')
+            layer = param.AsString() if param is not None else None
+            if layer not in (u'top_x', u'top_y'):
+                continue
+            bar_type = doc.GetElement(rebar.GetTypeId())
+            dia = bar_type.BarNominalDiameter * _MM_PER_FT
+            layers[layer] = max(layers.get(layer, 0.0), dia)
+    except Exception:
+        layers = {}
+    return sum(layers.values()) if layers else fallback_mm
+
+
+def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None,
+                       slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
     """
     How this column's vertical bars finish at its top (user decision 2026-09-30):
     {'kind': 'lap'} when a column continues above; {'kind': 'l', ...} with the bend
@@ -1483,7 +1521,9 @@ def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None):
         return None
     top_cover_mm = engine.get_native_cover_mm(doc, floor, u'Top', 25.0)
     side_cover_mm = engine.get_native_cover_mm(doc, floor, u'Exterior', 25.0)
-    bend_ft = bbox.Max.Z - (top_cover_mm + TOP_MAT_ALLOWANCE_MM + bar_diameter_mm / 2.0) / _MM_PER_FT
+    # The foot passes under this slab's own top mat (its real bars, else the Floors tab's).
+    top_mat_mm = slab_top_mat_depth_mm(doc, floor, slab_top_mat_mm)
+    bend_ft = bbox.Max.Z - (top_cover_mm + top_mat_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
     slab_depth_mm = (bbox.Max.Z - bbox.Min.Z) * _MM_PER_FT
     footing_mod = _ensure_footing_rebar()
     good_bond = footing_mod.good_bond_for_top_bars(slab_depth_mm)
@@ -1520,6 +1560,15 @@ def choose_foot_direction(top, bar_points, outward_dir):
                for p in bar_points):
             return direction, True
     return outward_dir.Negate(), False
+
+
+def _chain_shape(chain):
+    """Shape code to create a vertical chain with: 26 for a crank (vertical, sloped, vertical)."""
+    if len(chain) != 3:
+        return None
+    dirs = [c.Direction for c in chain]
+    vertical = abs(dirs[0].Z) > 0.999 and abs(dirs[2].Z) > 0.999
+    return CRANK_SHAPE_CODE if vertical and abs(dirs[1].Z) < 0.999 else None
 
 
 def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
@@ -1577,7 +1626,8 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
         if offset_mm <= 0.0:
             chains.append([DB.Line.CreateBound(seg_start, at(lap_top_ft))])
             continue
-        start_ft, end_ft = crank_elevations_ft(slab_top_ft, offset_mm, crank_slope)
+        start_ft, end_ft = crank_elevations_ft(slab_top_ft, offset_mm, crank_slope,
+                                               bar_diameter_mm=bar_diameter_mm)
         shift = inward_dir.Multiply(offset_mm / _MM_PER_FT)
         if start_ft - seg_start.Z < 50.0 / _MM_PER_FT:
             # Storey too short for the crank below the slab: crank above it, as before.
@@ -2289,7 +2339,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
                                           starter_bar_length_mm, starter_bar_multiplier,
                                           use_cranked_laps, crank_offset_mm, crank_slope,
                                           joint_zone_length_mm, start_offset_mm, end_offset_mm,
-                                          std=None, kicker_mm=0.0):
+                                          std=None, kicker_mm=0.0,
+                                          slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
     """
     PHASE 3.5.7 item 1 — circular column reinforcement: radial vertical
     bars (pure trigonometry — DB.XYZ(cos, sin)) and circular ties.
@@ -2369,7 +2420,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
 
     n = max(3, int(bar_count))
     vertical_bars = []
-    top = resolve_column_top(doc, host, axis, bar_diameter_mm, std)
+    top = resolve_column_top(doc, host, axis, bar_diameter_mm, std, slab_top_mat_mm)
     for i in range(n):
         theta = 2.0 * math.pi * i / n
         offset = u_dir.Multiply(bar_radius_mm * math.cos(theta) / _MM_PER_FT) \
@@ -2406,7 +2457,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
             bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
             foot_dir=foot_dir, warnings=warnings)
         for chain in chains_per_segment:
-            vertical_bars.append({'curves': chain, 'normal': tangent_dir})
+            vertical_bars.append({'curves': chain, 'normal': tangent_dir,
+                                  'shape': _chain_shape(chain)})
 
     stirrup_inset_mm = cover_mm + stirrup_diameter_mm / 2.0
     stirrup_radius_mm = radius_mm - stirrup_inset_mm
@@ -2462,7 +2514,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 crank_slope=6.0, include_crossties=False,
                                 crosstie_layout='all',
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
-                                end_offset_mm=50.0, std=None, kicker_mm=0.0):
+                                end_offset_mm=50.0, std=None, kicker_mm=0.0,
+                                slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
     """
     PHASE 3 (multi-story + Rebar-Set verticals — PHASE 3.2) — the
     ui.py-facing pipeline for one rectangular column host, matching the
@@ -2681,7 +2734,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             stirrup_diameter_mm, dense_spacing_mm, normal_spacing_mm, densify_at_nodes,
             include_starter_bars, starter_bar_length_mm, starter_bar_multiplier,
             use_cranked_laps, crank_offset_mm, crank_slope,
-            joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std, kicker_mm=kicker_mm)
+            joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std, kicker_mm=kicker_mm,
+            slab_top_mat_mm=slab_top_mat_mm)
 
     engine = _ensure_engine()
     cover_mgr = engine.CoverGeometryManager(doc, host)
@@ -2748,7 +2802,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
 
     vertical_bars = []
     vertical_bar_sets = []
-    top = resolve_column_top(doc, host, axis, bar_diameter_mm, std)
+    top = resolve_column_top(doc, host, axis, bar_diameter_mm, std, slab_top_mat_mm)
     base = axis.GetEndPoint(0)
     for face in _face_groups(bar_half_w_mm, bar_half_d_mm, n_u, n_v):
         positions = face['positions']
@@ -2784,7 +2838,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
 
         if len(positions) == 1:
             for chain in chains_per_segment:
-                vertical_bars.append({'curves': chain, 'normal': edge_dir})
+                vertical_bars.append({'curves': chain, 'normal': edge_dir,
+                                      'shape': _chain_shape(chain)})
             continue
 
         u_last_mm, v_last_mm = positions[-1]
@@ -2794,6 +2849,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             vertical_bar_sets.append({
                 'curves': chain, 'normal': edge_dir, 'count': len(positions),
                 'array_length_mm': array_length_mm, 'style': None,
+                'shape': _chain_shape(chain),
             })
 
     stirrup_inset_mm = cover_mm + stirrup_diameter_mm / 2.0

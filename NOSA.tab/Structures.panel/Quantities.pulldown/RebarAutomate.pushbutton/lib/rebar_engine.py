@@ -1049,6 +1049,48 @@ def starter_l_curves(line, hook_dir, bar_dia_mm, foundation=None, cover_mm=None)
     return [DB.Line.CreateBound(tip, corner), DB.Line.CreateBound(corner, top)], foot_ft * _MM_PER_FT
 
 
+def find_rebar_shape(doc, name):
+    """The project's RebarShape called `name` (e.g. u'26'), or None."""
+    for shape in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape):
+        try:
+            if DB.Element.Name.GetValue(shape) == name:  # .Name fails on RebarShape in IronPython
+                return shape
+        except Exception:
+            continue
+    return None
+
+
+def rebar_from_curves_and_shape(doc, shape, bar_type, host, normal, curves):
+    """Rebar.CreateFromCurvesAndShape, no hooks, across API versions; raises if Revit rejects it."""
+    if getattr(DBS, 'RebarHookOrientation', None) is not None:
+        return DBS.Rebar.CreateFromCurvesAndShape(
+            doc, shape, bar_type, None, None, host, normal, curves,
+            hook_orientation_left(), hook_orientation_left())
+    terminations = DBS.BarTerminationsData(doc)
+    return DBS.Rebar.CreateFromCurvesAndShape(
+        doc, shape, bar_type, host, normal, curves, terminations)
+
+
+def _create_rebar(wrapper, style, bar_type, host, normal, curve_list, shape_name):
+    """The named shape when asked for and Revit accepts the curves, else CreateFromCurves."""
+    if shape_name:
+        shape = find_rebar_shape(wrapper.doc, shape_name)
+        if shape is not None:
+            try:
+                rebar = rebar_from_curves_and_shape(
+                    wrapper.doc, shape, bar_type, host, normal, curve_list)
+                if rebar is not None:
+                    return rebar
+            except Exception as e:
+                wrapper.shape_warning = u'shape {} rejected ({}); created by curves'.format(
+                    shape_name, e)
+        else:
+            wrapper.shape_warning = u'shape {} is not loaded in this project'.format(shape_name)
+    return rebar_from_curves(
+        wrapper.doc, style, bar_type, None, None, host, normal, curve_list,
+        hook_orientation_left(), hook_orientation_left(), True, True)
+
+
 def find_lapped_circle_shape(doc):
     """The project's closed lapped circular link RebarShape (BS 8666 / ISO 3766 code 75), or None."""
     fallback = None
@@ -1342,7 +1384,7 @@ class RebarWrapper(object):
                             use_existing_shape_if_possible=True,
                             create_new_shape=True,
                             transaction_name=u'NOSA — Create Rebar',
-                            start_hook_direction=None):
+                            start_hook_direction=None, shape_name=None):
         """
         Create one Rebar element following an ordered list of curves —
         typically one RebarSegment.curve from
@@ -1438,14 +1480,19 @@ class RebarWrapper(object):
                 return None
 
         curve_list = List[DB.Curve](curves)
+        self.shape_warning = None
 
         try:
             with revit.Transaction(transaction_name):
-                rebar = rebar_from_curves(
-                    self.doc, style, bar_type, start_hook, end_hook,
-                    host, normal, curve_list,
-                    start_hook_orientation, end_hook_orientation,
-                    use_existing_shape_if_possible, create_new_shape)
+                if shape_name and start_hook is None and end_hook is None:
+                    rebar = _create_rebar(self, style, bar_type, host, normal, curve_list,
+                                          shape_name)
+                else:
+                    rebar = rebar_from_curves(
+                        self.doc, style, bar_type, start_hook, end_hook,
+                        host, normal, curve_list,
+                        start_hook_orientation, end_hook_orientation,
+                        use_existing_shape_if_possible, create_new_shape)
                 # BUG FIX (2026-09-01) — CreateFromCurves can reject a
                 # shape by returning None WITHOUT raising, which this
                 # branch never checked: self.last_error was left at its
@@ -1661,7 +1708,8 @@ class RebarWrapper(object):
                                        normal=None, style=None,
                                        bars_on_normal_side=True, include_first_bar=True,
                                        include_last_bar=True,
-                                       transaction_name=u'NOSA — Create Rebar Set'):
+                                       transaction_name=u'NOSA — Create Rebar Set',
+                                       shape_name=None):
         """
         PHASE 3.2 — sibling of create_rebar_set, for a Set whose bar
         COUNT is the fixed, known quantity (e.g. a column face's own
@@ -1718,14 +1766,11 @@ class RebarWrapper(object):
 
         curve_list = List[DB.Curve](curves)
         array_length_ft = array_length_mm / _MM_PER_FT
+        self.shape_warning = None
 
         try:
             with revit.Transaction(transaction_name):
-                rebar = rebar_from_curves(
-                    self.doc, style, bar_type, None, None,
-                    host, normal, curve_list,
-                    hook_orientation_left(), hook_orientation_left(),
-                    True, True)
+                rebar = _create_rebar(self, style, bar_type, host, normal, curve_list, shape_name)
                 if rebar is None:
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
                     return None
