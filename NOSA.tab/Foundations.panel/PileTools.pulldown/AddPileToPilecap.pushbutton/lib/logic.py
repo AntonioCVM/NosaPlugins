@@ -17,6 +17,7 @@ if _lib not in sys.path:
 from nosa_utils import geometry, config_manager
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.pilecap_utils import point_in_polygon, distance_to_polygon_edge
 
 # Configuration
 PILE_FAMILY_NAMES = ["Pile Square piling", "Pile-Steel Pipe Circular"]
@@ -126,8 +127,8 @@ def generate_hexagonal_grid(slab_center, span_dir, perp_dir, slab_z,
 def point_inside_check(x_g, y_g, slab_z, slab_boundary_polygon, face_inf, min_edge_distance):
     """Return True if point is inside the slab boundary with minimum edge clearance."""
     if slab_boundary_polygon and len(slab_boundary_polygon) >= 3:
-        if point_in_polygon_2d(x_g, y_g, slab_boundary_polygon):
-            d = point_distance_to_polygon_edge(x_g, y_g, slab_boundary_polygon)
+        if point_in_polygon(x_g, y_g, slab_boundary_polygon):
+            d = distance_to_polygon_edge(x_g, y_g, slab_boundary_polygon)
             return d >= min_edge_distance
         return False
     # Fallback: face projection
@@ -747,65 +748,6 @@ def extract_face_boundary_points(face):
         pass
     return boundary_points
 
-def point_in_polygon_2d(x, y, polygon):
-    """
-    Check if point (x,y) is inside polygon using ray casting algorithm.
-    polygon is a list of (x, y) tuples.
-    """
-    if len(polygon) < 3:
-        return False
-    
-    n = len(polygon)
-    inside = False
-    
-    p1x, p1y = polygon[0]
-    for i in range(1, n + 1):
-        p2x, p2y = polygon[i % n]
-        if y > min(p1y, p2y):
-            if y <= max(p1y, p2y):
-                if x <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or x <= xinters:
-                        inside = not inside
-        p1x, p1y = p2x, p2y
-    
-    return inside
-
-def point_distance_to_polygon_edge(x, y, polygon):
-    """Calculate minimum distance from point to polygon edges."""
-    if len(polygon) < 2:
-        return float('inf')
-    
-    min_dist = float('inf')
-    n = len(polygon)
-    
-    for i in range(n):
-        p1x, p1y = polygon[i]
-        p2x, p2y = polygon[(i + 1) % n]
-        
-        # Vector from p1 to p2
-        dx = p2x - p1x
-        dy = p2y - p1y
-        
-        # Length squared
-        len_sq = dx * dx + dy * dy
-        if len_sq == 0:
-            # p1 and p2 are the same point
-            dist = math.sqrt((x - p1x)**2 + (y - p1y)**2)
-        else:
-            # Parameter t for closest point on line segment
-            t = max(0, min(1, ((x - p1x) * dx + (y - p1y) * dy) / len_sq))
-            
-            # Closest point on segment
-            closest_x = p1x + t * dx
-            closest_y = p1y + t * dy
-            
-            dist = math.sqrt((x - closest_x)**2 + (y - closest_y)**2)
-        
-        min_dist = min(min_dist, dist)
-    
-    return min_dist
 def get_pile_height(symbol):
     """Get pile height from family symbol parameters."""
     height = None
@@ -903,8 +845,8 @@ def generate_irregular_grid(slab_center, span_dir, perp_dir, slab_z, spacing_ft,
             pt_valid = False
             edge_dist = None
             if slab_boundary_polygon and len(slab_boundary_polygon) >= 3:
-                if point_in_polygon_2d(x_global, y_global, slab_boundary_polygon):
-                    edge_dist = point_distance_to_polygon_edge(
+                if point_in_polygon(x_global, y_global, slab_boundary_polygon):
+                    edge_dist = distance_to_polygon_edge(
                         x_global, y_global, slab_boundary_polygon)
                     if edge_dist >= min_edge_distance:
                         pt_valid = True
@@ -921,7 +863,7 @@ def generate_irregular_grid(slab_center, span_dir, perp_dir, slab_z, spacing_ft,
                                 (projected_pt.Y - y_global) ** 2)
                             if xy_distance < 0.1:
                                 if edge_dist is None and slab_boundary_polygon:
-                                    edge_dist = point_distance_to_polygon_edge(
+                                    edge_dist = distance_to_polygon_edge(
                                         x_global, y_global, slab_boundary_polygon)
                                 if edge_dist is not None:
                                     if edge_dist >= min_edge_distance:

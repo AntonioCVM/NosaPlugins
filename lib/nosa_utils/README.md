@@ -11,6 +11,13 @@ Geometric calculations and element analysis:
 - `point_in_polygon()` - Check if point is inside polygon
 - Cached geometry operations for performance
 
+### 🏗️ pilecap_utils.py
+Helpers shared by the pile tools (PileMaster, AddPileToPilecap, CreatePilecapType):
+- `point_in_polygon()` / `distance_to_polygon_edge()` - pile-centre vs cap/slab outline checks
+- `ungroup_targets()` / `regroup_restore()` - edit grouped piles inside one Transaction
+
+(The older top-level `lib/pilecap_utils/` package is not used by any plugin.)
+
 ### 📏 unit_conversion.py
 Unit conversions between Revit internal units and metric:
 - `mm_to_feet()` / `feet_to_mm()` - Simple conversions

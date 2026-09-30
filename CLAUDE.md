@@ -297,6 +297,7 @@ _FT_TO_MM = 304.8
 | `logging.py` | `Logger` — debug logging wrapper |
 | `revit_helpers.py` | `get_id_value(eid)` and other Revit utility functions |
 | `text_utils.py` | Case conversion helpers |
+| `pilecap_utils.py` | Pile tools: polygon checks, ungroup/regroup round-trip |
 
 ---
 

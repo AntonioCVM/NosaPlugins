@@ -2,54 +2,11 @@
 from Autodesk.Revit import DB
 from pyrevit import revit
 import math
-from System.Collections.Generic import List as _CsList
 
-
-# ---------------------------------------------------------------------------
-# Group helpers (duplicated from logic_numbering — same Transaction pattern)
-# ---------------------------------------------------------------------------
-
-from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
+from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
 
-
-def _eid_val(eid):
-    return get_id_value(eid)
-
-
-def _ungroup_targets(doc, elements):
-    """Ungroup Model Groups containing *elements*. Returns restore data."""
-    seen    = set()
-    restore = []
-    invalid = DB.ElementId.InvalidElementId
-    for el in elements:
-        gid = el.GroupId
-        if gid == invalid:
-            continue
-        gid_val = _eid_val(gid)
-        if gid_val in seen:
-            continue
-        seen.add(gid_val)
-        grp = doc.GetElement(gid)
-        if grp is None:
-            continue
-        try:
-            member_ids  = list(grp.GetMemberIds())
-            grp_type_id = grp.GetTypeId()
-            grp.UngroupMembers()
-            restore.append((grp_type_id, member_ids))
-        except Exception:
-            pass
-    return restore
-
-
-def _regroup_restore(doc, restore_data):
-    """Recreate groups after editing. Must be inside same Transaction."""
-    for _grp_type_id, member_ids in restore_data:
-        try:
-            doc.Create.NewGroup(_CsList[DB.ElementId](member_ids))
-        except Exception:
-            pass
 
 class CoordinateLogic:
     def __init__(self, doc):
