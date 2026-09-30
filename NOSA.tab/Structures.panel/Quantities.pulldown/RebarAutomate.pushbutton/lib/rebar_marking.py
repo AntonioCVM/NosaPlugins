@@ -20,6 +20,7 @@ if _lib not in sys.path:
 
 from nosa_utils import compat, shared_params, standards
 from nosa_utils.compat import text_type
+from nosa_utils.revit_helpers import get_id_value
 
 _FT_TO_MM = 304.8
 
@@ -221,6 +222,11 @@ def deduplicate_and_mark(doc, rebars, ctx):
         # Obtener host_mark del primer elemento
         first_id = ids[0]
         host_id = _read(doc, first_id, "NOSA_Rebar_Host_Element_Id")
+        if not host_id:
+            try:
+                host_id = u'{}'.format(get_id_value(doc.GetElement(first_id).GetHostId()))
+            except Exception:
+                host_id = None
         host_mark = ""
         host_elem = None
         if host_id:
