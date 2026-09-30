@@ -1572,7 +1572,7 @@ def build_perimeter_closure_ubars_topology(doc, host,
                                             top_cover_mm, top_dia_x_mm, top_dia_y_mm,
                                             x_anchor_dia_mm, x_anchor_spacing_mm,
                                             y_anchor_dia_mm, y_anchor_spacing_mm,
-                                            std=None):
+                                            std=None, bottom_spacing_mm=None):
     """
     PHASE 3.5.7 item 3 — topology-aware counterpart of
     build_perimeter_closure_ubar_sets: walks the footing's REAL
@@ -1634,10 +1634,19 @@ def build_perimeter_closure_ubars_topology(doc, host,
     x_leg_mm = default_anchorage_length_mm(x_anchor_dia_mm, std=std)
     y_leg_mm = default_anchorage_length_mm(y_anchor_dia_mm, std=std)
 
+    # T2.17: one U-bar beside each bottom-mat bar, over the mat's whole zone.
+    rows = None
+    if bottom_spacing_mm:
+        xmin_mm, xmax_mm, ymin_mm, ymax_mm = topo.polygon_bbox_mm(bottom_outer)
+        rows = floor_mod.mat_rows_mm(xmin_mm, xmax_mm, ymin_mm, ymax_mm,
+                                     bottom_dia_x_mm, bottom_dia_y_mm, bottom_spacing_mm,
+                                     sys.modules[__name__])
+        rows.update({'x_dia_mm': bottom_dia_x_mm, 'y_dia_mm': bottom_dia_y_mm,
+                     'x_ubar_dia_mm': x_anchor_dia_mm, 'y_ubar_dia_mm': y_anchor_dia_mm})
     return floor_mod._build_edge_ubars(
         topo, sys.modules[__name__], DB, bottom_outer, bottom_holes,
         x_leg_mm, x_anchor_spacing_mm, b1_z_ft, t1_z_ft,
-        y_leg_mm, y_anchor_spacing_mm, b2_z_ft, t2_z_ft)
+        y_leg_mm, y_anchor_spacing_mm, b2_z_ft, t2_z_ft, mat_rows=rows)
 
 
 def build_footing_reinforcement(doc, host,
@@ -1866,6 +1875,7 @@ def build_footing_reinforcement(doc, host,
             doc, host, bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm,
             top_cover_mm, top_dia_x_mm, top_dia_y_mm,
             x_anchor_ubar_dia_mm, x_anchor_ubar_spacing_mm,
-            y_anchor_ubar_dia_mm, y_anchor_ubar_spacing_mm, std=std)
+            y_anchor_ubar_dia_mm, y_anchor_ubar_spacing_mm, std=std,
+            bottom_spacing_mm=bottom_spacing_mm)
 
     return result

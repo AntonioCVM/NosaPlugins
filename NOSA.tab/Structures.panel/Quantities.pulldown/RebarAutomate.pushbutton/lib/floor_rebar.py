@@ -667,11 +667,73 @@ def _link_loop_edge(DB, p0_mm, p1_mm, bottom_z_ft, top_z_ft):
     corners = [c0, c1, c2, c3]
     return [DB.Line.CreateBound(corners[i], corners[(i + 1) % 4]) for i in range(4)]
 
+_LEG_SAMPLE_STEP_MM = 50.0
+_SET_SPACING_SLACK_MM = 0.01
+
+
+def mat_rows_mm(xmin_mm, xmax_mm, ymin_mm, ymax_mm, dia_x_mm, dia_y_mm, spacing_mm, footing_mod):
+    """
+    Row coordinates of a main mat, exactly as _build_direction_bars lays them:
+    along_x rows are Y values, along_y rows are X values.
+    """
+    return {'x': footing_mod._evenly_spaced(ymin_mm + dia_y_mm / 2.0, ymax_mm - dia_y_mm / 2.0, spacing_mm),
+            'y': footing_mod._evenly_spaced(xmin_mm + dia_x_mm / 2.0, xmax_mm - dia_x_mm / 2.0, spacing_mm)}
+
+
+def _leg_in_material(topo, pos, inward_normal, leg_mm, outer, large_holes):
+    """True if the whole leg (sampled every 50 mm, tip included) stays in material."""
+    d = min(25.0, leg_mm)
+    while True:
+        if not topo.point_in_material_mm(pos[0] + inward_normal[0] * d,
+                                         pos[1] + inward_normal[1] * d, outer, large_holes):
+            return False
+        if d >= leg_mm:
+            return True
+        d = min(d + _LEG_SAMPLE_STEP_MM, leg_mm)
+
+
+def _edge_positions_at_mat_rows(p0, unit_dir, length_mm, rows, coord, contact_mm):
+    """
+    Distances along one edge where a closure U-bar sits beside each mat bar
+    that ends on this edge (T2.17, user decision 2026-09-30): the U touches
+    its bar, shifted by contact_mm towards the middle of the edge's rows so
+    none leaves the mat zone. Returns [(dist_mm, side)] sorted by distance,
+    side = +1/-1 grouping the two halves into uniform runs.
+    """
+    if abs(unit_dir[coord]) < 1e-6:
+        return []
+    hits = [r for r in rows
+            if 0.0 <= (r - p0[coord]) / unit_dir[coord] <= length_mm]
+    if not hits:
+        return []
+    mid = (min(hits) + max(hits)) / 2.0
+    out = []
+    for r in hits:
+        side = 1.0 if r <= mid else -1.0
+        dist = (r + side * contact_mm - p0[coord]) / unit_dir[coord]
+        if 0.0 <= dist <= length_mm:
+            out.append((dist, side))
+    return sorted(out)
+
+
+def _uniform_runs(dists, tol_mm=0.5):
+    """Split sorted distances into maximal runs of equal step."""
+    runs = []
+    for d in dists:
+        if len(runs) and len(runs[-1]) >= 2 and \
+                abs((d - runs[-1][-1]) - (runs[-1][1] - runs[-1][0])) <= tol_mm:
+            runs[-1].append(d)
+        elif len(runs) and len(runs[-1]) == 1:
+            runs[-1].append(d)
+        else:
+            runs.append([d])
+    return runs
+
 
 def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                        x_leg_mm, x_spacing_mm, b1_z_ft, t1_z_ft,
                        y_leg_mm, y_spacing_mm, b2_z_ft, t2_z_ft,
-                       raw_holes=None):
+                       raw_holes=None, mat_rows=None):
     """
     PHASE 3.5 item 5 — STRUCTURAL REWRITE: perimeter closure U-bars are
     no longer derived from the main grid's scanline (which fragmented a
@@ -767,6 +829,18 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                                 Pass None (the old behaviour) only from a
                                 caller that genuinely has no raw loops on
                                 hand.
+
+        mat_rows                (dict or None): T2.17 (user decision
+                                2026-09-30) — {'x': along_x row Y values,
+                                'y': along_y row X values, 'x_dia_mm',
+                                'y_dia_mm' (mat bars), 'x_ubar_dia_mm',
+                                'y_ubar_dia_mm'}. When given, every edge
+                                gets one U-bar beside each mat bar that
+                                ends on it, over the mat's whole zone,
+                                grouped into uniform Rebar Sets; a position
+                                whose leg would leave the material is
+                                dropped on its own. None keeps the older
+                                corner-inset spacing.
 
     Returns:
         {'x_bars': {'sets':[...],'bars':[...]},
@@ -971,6 +1045,46 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                     'materialized_bars': materialized, 'style': None,
                     'is_hole': is_hole,
                 }
+
+            if mat_rows is not None:
+                axis_key = 'x' if is_x_anchor else 'y'
+                contact_mm = (mat_rows[axis_key + '_dia_mm'] + mat_rows[axis_key + '_ubar_dia_mm']) / 2.0
+                # along_x rows are Y values (coord 1); along_y rows are X values (coord 0)
+                slots = _edge_positions_at_mat_rows(
+                    p0, unit_dir, length_mm, mat_rows[axis_key], 1 if is_x_anchor else 0, contact_mm)
+                if not slots:
+                    continue
+                kept = [(d, side) for d, side in slots
+                        if _leg_in_material(topo, (p0[0] + unit_dir[0] * d, p0[1] + unit_dir[1] * d),
+                                            inward_normal, nominal_leg_mm, outer, large_holes)]
+                dropped = len(slots) - len(kept)
+                if dropped:
+                    print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm — {} of {} closure U-bar(s) '
+                          u'dropped: their {:.0f}mm leg would leave the material.'.format(
+                              p0[0], p0[1], dropped, len(slots), nominal_leg_mm))
+                if not kept:
+                    target_bars.append({'curves': _link_loop_edge(DB, p0, p1, bz, tz), 'normal': leg_dir,
+                                        'style': 'StirrupTie', 'is_hole': is_hole})
+                    continue
+                try:
+                    for side in (1.0, -1.0):
+                        for run in _uniform_runs([d for d, sd in kept if sd == side]):
+                            positions = [(p0[0] + unit_dir[0] * d, p0[1] + unit_dir[1] * d) for d in run]
+                            if len(run) == 1:
+                                target_bars.append({'curves': _chain_at(positions[0]), 'normal': normal_vec,
+                                                    'style': None, 'is_hole': is_hole})
+                                continue
+                            ubar_set = _make_set(run, positions)
+                            # a hair over the true step, so Revit's maximum-spacing
+                            # layout never rounds up to one bar too many
+                            ubar_set['spacing_mm'] = (run[1] - run[0]) + _SET_SPACING_SLACK_MM
+                            target_sets.append(ubar_set)
+                except _EDGE_EXCEPTION_TYPES as e:
+                    print(u'WARNING [floor_rebar]: closure U-bars on edge at ({:.0f},{:.0f})mm FAILED '
+                          u'({}) — skipping this edge only.'.format(p0[0], p0[1], e))
+                    debug_failed_edges.append({'p0_mm': p0, 'p1_mm': p1, 'bz_ft': bz, 'tz_ft': tz,
+                                               'inward_normal': inward_normal, 'error': str(e)})
+                continue
 
             try:
                 usable_lo, usable_hi = nominal_leg_mm, length_mm - nominal_leg_mm
@@ -1417,10 +1531,14 @@ def build_floor_reinforcement(doc, host,
         # closure bar's own diameter/cover is independent of the main
         # mat's) — walked EDGE BY EDGE now (Phase 3.5 item 5), not
         # derived from the main grid's scanline.
+        rows = mat_rows_mm(xmin_mm, xmax_mm, ymin_mm, ymax_mm,
+                           bottom_dia_x_mm, bottom_dia_y_mm, bottom_spacing_mm, footing_mod)
+        rows.update({'x_dia_mm': bottom_dia_x_mm, 'y_dia_mm': bottom_dia_y_mm,
+                     'x_ubar_dia_mm': x_anchor_ubar_dia_mm, 'y_ubar_dia_mm': y_anchor_ubar_dia_mm})
         result['perimeter_closure_ubars'] = _build_edge_ubars(
             topo, footing_mod, DB, bottom_outer, bottom_holes,
             x_leg_mm, x_anchor_ubar_spacing_mm, b1_z_ft, t1_z_ft,
             y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
-            raw_holes=raw_holes)
+            raw_holes=raw_holes, mat_rows=rows)
 
     return result
