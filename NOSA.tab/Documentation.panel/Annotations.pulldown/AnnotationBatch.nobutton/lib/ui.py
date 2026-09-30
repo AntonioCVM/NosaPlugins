@@ -17,7 +17,7 @@ get_spot_elevation_types = _logic.get_spot_elevation_types
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.logging import Logger
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from Autodesk.Revit import DB
 logger = Logger()
 
@@ -70,7 +70,7 @@ class AnnotationBatchWindow(NOSAWindow):
             self.CboSpotType.Items.Clear()
             self.CboSpotType.Items.Add(u'(default style)')
             for st in self._spot_types:
-                self.CboSpotType.Items.Add(st.Name or str(st.Id))
+                self.CboSpotType.Items.Add(element_name(st) or str(st.Id))
             self.CboSpotType.SelectedIndex = 0
         except Exception:
             self._spot_types = []

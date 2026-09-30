@@ -14,6 +14,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.revit_helpers import element_name
 
 from Autodesk.Revit import DB
 from pyrevit import forms
@@ -95,7 +96,7 @@ def create_section_box(doc, uidoc):
         t.Start()
         view3d = DB.View3D.CreateIsometric(doc, vt_3d.Id)
         view3d.Name = u'NOSA — Section Box {}'.format(
-            ', '.join(doc.GetElement(eid).Name
+            ', '.join(element_name(doc.GetElement(eid))
                       for eid in sel_ids[:2]
                       if doc.GetElement(eid) is not None))[:60]
 

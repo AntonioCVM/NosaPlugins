@@ -20,7 +20,7 @@ _QR_SIZE_FT = _QR_SIZE_MM * _uc10.MM_TO_FT
 _loop_debug = []
 
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 
 def _eid(element_id):
@@ -301,7 +301,7 @@ def _find_vector_qr_elements(fam_doc):
     qr_type_ids = set()
     for frt in DB.FilteredElementCollector(fam_doc).OfClass(DB.FilledRegionType).ToElements():
         try:
-            if frt.Name.startswith('NOSA_QR_'):
+            if element_name(frt).startswith('NOSA_QR_'):
                 qr_type_ids.add(frt.Id)
         except Exception:
             pass

@@ -14,7 +14,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 _VIS = System.Windows.Visibility.Visible
 _COL = System.Windows.Visibility.Collapsed
@@ -122,7 +122,7 @@ class AnnotationSuiteWindow(NOSAWindow):
             self.CboSpotType.Items.Clear()
             self.CboSpotType.Items.Add(u'(default style)')
             for st in self._spot_types:
-                self.CboSpotType.Items.Add(st.Name or str(st.Id))
+                self.CboSpotType.Items.Add(element_name(st) or str(st.Id))
             self.CboSpotType.SelectedIndex = 0
         except Exception:
             self._spot_types = []

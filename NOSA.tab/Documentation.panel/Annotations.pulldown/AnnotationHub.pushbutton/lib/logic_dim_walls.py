@@ -1,6 +1,7 @@
 ﻿# -*- coding: utf-8 -*-
 from Autodesk.Revit import DB
 from pyrevit import revit
+from nosa_utils.revit_helpers import element_name
 
 class DimensionLogic:
     def __init__(self, doc):
@@ -15,10 +16,7 @@ class DimensionLogic:
         return list(collector.ToElements())
 
     def get_name(self, element):
-        try:
-            return element.Name
-        except Exception:
-            return str(element.Id)
+        return element_name(element) or str(element.Id)
 
     def get_dimension_types(self):
         """Get all Linear and Radial dimension types."""
