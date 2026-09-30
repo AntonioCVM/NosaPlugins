@@ -590,6 +590,18 @@ def default_anchorage_length_mm(bar_diameter_mm, multiplier=40.0, std=None,
     return bar_diameter_mm * multiplier
 
 
+def default_lap_mm(bar_diameter_mm, std=None, good_bond=True, pct_lapped=100.0):
+    """Lap length (EC2 / BS 8110 through std, else 40 phi), never below max(15 phi, 300 mm)."""
+    if std is not None:
+        return standards.lap_length_mm(std, bar_diameter_mm, False, pct_lapped, good_bond)
+    return max(40.0 * bar_diameter_mm, 15.0 * bar_diameter_mm, 300.0)
+
+
+def good_bond_for_top_bars(host_depth_mm):
+    """EC2 8.4.2 / Fig. 8.2: top bars of members deeper than 250 mm are in poor bond."""
+    return host_depth_mm <= 250.0
+
+
 def add_end_hooks(line, hook_length_mm, direction, at_start=False, at_end=False):
     """
     Return `line` as a curve CHAIN (list of DB.Line) with a straight
@@ -1631,8 +1643,10 @@ def build_perimeter_closure_ubars_topology(doc, host,
     # into the opposite mat (not a lap, not compression) — matches
     # default_anchorage_length_mm's own defaults (good_bond=True,
     # in_compression=False), just now sourced from `std` when resolved.
-    x_leg_mm = default_anchorage_length_mm(x_anchor_dia_mm, std=std)
-    y_leg_mm = default_anchorage_length_mm(y_anchor_dia_mm, std=std)
+    # Edge U-bar legs lap with the mat bars: a full lap, every bar at one section.
+    good = good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT)
+    x_leg_mm = default_lap_mm(x_anchor_dia_mm, std=std, good_bond=good)
+    y_leg_mm = default_lap_mm(y_anchor_dia_mm, std=std, good_bond=good)
 
     # T2.17: one U-bar beside each bottom-mat bar, over the mat's whole zone.
     rows = None

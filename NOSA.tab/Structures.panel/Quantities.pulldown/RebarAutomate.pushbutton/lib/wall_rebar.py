@@ -223,7 +223,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
             starter_mm = (z0 - vert_bottom_z) * _MM_PER_FT
         else:
             starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \
-                else max(40.0 * vert_dia_mm, 500.0)
+                else max(40.0 * vert_dia_mm, 15.0 * vert_dia_mm, 500.0)
             vert_bottom_z = z0 - starter_mm / _MM_PER_FT
             warnings.append(u'No foundation detected below the wall — straight starter '
                             u'extension uses the typed length ({:.0f} mm).'.format(starter_mm))

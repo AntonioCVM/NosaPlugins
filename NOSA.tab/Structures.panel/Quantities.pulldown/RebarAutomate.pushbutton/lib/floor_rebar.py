@@ -401,7 +401,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
                            own_dia_mm, perp_dia_mm, row_spacing_mm,
                            xmin_mm, xmax_mm, ymin_mm, ymax_mm, own_z_ft,
                            max_stock_length_mm, use_legs, leg_length_mm, leg_direction,
-                           narrow_threshold_mm=None, std=None):
+                           narrow_threshold_mm=None, std=None, good_bond=True):
     """
     Every bar for ONE main-grid direction ('x' = along_x/Layer 1,
     running in X, one row per Y; 'y' = along_y/Layer 2, running in Y,
@@ -447,7 +447,9 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     rows_mm = footing_mod._evenly_spaced(row_lo, row_hi, row_spacing_mm)
     # PHASE F2.5 — main-mat bar lap/anchorage for stock-length splicing;
     # std=None reproduces exactly the pre-F2.5 default multiplier.
-    lap_length_mm = footing_mod.default_anchorage_length_mm(own_dia_mm, std=std)
+    # Stock-length splices are a lap, not an anchorage; every row is cut at the
+    # same section, so 100 % lapped until splices are staggered.
+    lap_length_mm = footing_mod.default_lap_mm(own_dia_mm, std=std, good_bond=good_bond)
     # PHASE 2.6 FIX ("flying bars") — bar_direction x global-Z has a
     # FIXED rotational handedness (see
     # rebar_engine.compute_vertical_hook_plane_normal's own Phase 5.6
@@ -1491,8 +1493,10 @@ def build_floor_reinforcement(doc, host,
                               u'x_anchor_ubar_dia_mm, x_anchor_ubar_spacing_mm, '
                               u'y_anchor_ubar_dia_mm and y_anchor_ubar_spacing_mm '
                               u'to all be given.')
-        x_leg_mm = footing_mod.default_anchorage_length_mm(x_anchor_ubar_dia_mm, std=std)
-        y_leg_mm = footing_mod.default_anchorage_length_mm(y_anchor_ubar_dia_mm, std=std)
+        # Edge U-bar legs lap with the mat bars (every bar at one section).
+        good = footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT)
+        x_leg_mm = footing_mod.default_lap_mm(x_anchor_ubar_dia_mm, std=std, good_bond=good)
+        y_leg_mm = footing_mod.default_lap_mm(y_anchor_ubar_dia_mm, std=std, good_bond=good)
         # Slab edge U-bars: legs of at least twice the slab depth (EC2 9.3.1.4,
         # IStructE SMDSC Fig. 6.8) — user decision 2026-09-30.
         two_h_mm = 2.0 * (top_z_ft - bottom_z_ft) * _MM_PER_FT
@@ -1600,7 +1604,8 @@ def build_floor_reinforcement(doc, host,
             leg_length_mm=(abs(top_target_z_ft - t1_z_ft) * _MM_PER_FT) if top_hooks else 0.0,
             leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
             narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None,
-            std=std)
+            std=std,
+            good_bond=footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT))
         along_y_top = _build_direction_bars(
             topo, footing_mod, engine, DB, top_outer, top_holes, 'y',
             top_dia_y_mm, top_dia_x_mm, top_spacing_mm,
@@ -1609,7 +1614,8 @@ def build_floor_reinforcement(doc, host,
             leg_length_mm=(abs(top_target_z_ft - t2_z_ft) * _MM_PER_FT) if top_hooks else 0.0,
             leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
             narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None,
-            std=std)
+            std=std,
+            good_bond=footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT))
         result['top_mat'] = {'along_x': along_x_top, 'along_y': along_y_top}
 
     if include_perimeter_closure_ubars:

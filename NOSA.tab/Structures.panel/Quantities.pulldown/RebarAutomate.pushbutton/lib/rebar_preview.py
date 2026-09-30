@@ -677,7 +677,7 @@ def compute_column_elevation_preview(width_mm, height_mm, cover_mm, bar_diameter
     bar_x_positions = sorted(set(round(u, 3) for u, _ in positions))
 
     lap_mm = (starter_bar_length_mm if starter_bar_length_mm is not None
-              else bar_diameter_mm * 40.0)
+              else max(bar_diameter_mm * 40.0, 15.0 * bar_diameter_mm, 300.0))
     starter_mm = lap_mm if include_starter_bars else 0.0
 
     splits_mm = sorted(z for z in (floor_splits_mm or [])

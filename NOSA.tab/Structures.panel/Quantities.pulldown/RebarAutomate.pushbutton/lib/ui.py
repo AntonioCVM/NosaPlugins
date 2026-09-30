@@ -976,7 +976,8 @@ class RebarAutomateWindow(NOSAWindow):
             ubars=include_ubars, ubar_dia=ubar_dia, is_floor=kind == u'slab',
             bottom_hooks=bottom_hooks, top_hooks=top_hooks, dowels=dowels,
             dowel_dia=self._preview_number(self.TxtDowelDiameter, 16.0),
-            dowel_splice_mm=self._preview_number(self.TxtDowelSplice, 600.0),
+            dowel_splice_mm=self._preview_splice(
+                self.TxtDowelSplice, self._preview_number(self.TxtDowelDiameter, 16.0)),
             kicker_mm=self._kicker_mm(),
             column_width_mm=self._preview_number(self.TxtDowelColWidth, 400.0))
 
@@ -1250,6 +1251,35 @@ class RebarAutomateWindow(NOSAWindow):
 
     # ── input parsing ────────────────────────────────────────────────────
 
+    def _read_splice(self, text, label, errors):
+        """'Auto' (or blank / 0) -> None: the lap is computed per host; otherwise a length in mm."""
+        if (text or u'').strip().lower() in (u'', u'auto', u'0'):
+            return None
+        return self._read_number(text, label, errors)
+
+    def _splice_mm(self, typed_mm, bar_dia_mm, host, errors=None, label=u'Splice'):
+        """Starter / dowel lap: typed length, else l0 for this host; never below max(15 phi, 300 mm)."""
+        floor_mm = max(15.0 * bar_dia_mm, 300.0)
+        if typed_mm is None:
+            try:
+                return standards.lap_length_mm(self._host_std(host), bar_dia_mm, False, 100.0, True)
+            except Exception:
+                return max(40.0 * bar_dia_mm, floor_mm)
+        if typed_mm < floor_mm and errors is not None:
+            errors.append(u'{} {:.0f} mm raised to {:.0f} mm: no lap may be shorter than '
+                          u'max(15 bar diameters, 300 mm).'.format(label, typed_mm, floor_mm))
+        return max(typed_mm, floor_mm)
+
+    def _preview_splice(self, textbox, bar_dia_mm):
+        """Preview lap: the typed length, else l0 with the project concrete."""
+        typed = None
+        try:
+            if (textbox.Text or u'').strip().lower() not in (u'', u'auto', u'0'):
+                typed = float(textbox.Text)
+        except (TypeError, ValueError):
+            typed = None
+        return self._splice_mm(typed, bar_dia_mm, None)
+
     def _read_number(self, text, label, errors):
         try:
             value = float(text)
@@ -1310,7 +1340,7 @@ class RebarAutomateWindow(NOSAWindow):
                 errors.append(u'Dowel count must be 4 or 8.')
             values['dowel_anchor'] = self._read_number(
                 self.TxtDowelAnchor.Text, u'Dowel anchor length', errors)
-            values['dowel_splice'] = self._read_number(
+            values['dowel_splice'] = self._read_splice(
                 self.TxtDowelSplice.Text, u'Dowel splice length', errors)
             values['dowel_col_width'] = self._read_number(
                 self.TxtDowelColWidth.Text, u'Dowel column width', errors)
@@ -1801,7 +1831,9 @@ class RebarAutomateWindow(NOSAWindow):
             dowel_count=values.get('dowel_count'),
             dowel_diameter_mm=values.get('dowel_diameter'),
             dowel_anchor_length_mm=values.get('dowel_anchor'),
-            dowel_splice_length_mm=(values.get('dowel_splice') or 0.0) + self._kicker_mm(),
+            dowel_splice_length_mm=self._splice_mm(
+                values.get('dowel_splice'), values.get('dowel_diameter') or 16.0, host, errors,
+                u'Dowel splice') + self._kicker_mm(),
             dowel_column_width_mm=values.get('dowel_col_width', 400.0),
             dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
             dowel_column_bar_count=values.get('dowel_col_bar_count'),
@@ -2247,10 +2279,10 @@ class RebarAutomateWindow(NOSAWindow):
             width_mm, height_mm, cover, bar_dia, link_dia, normal_spacing,
             dense_spacing=dense_spacing if densify else None,
             dense_zone_mm=max(width_mm, height_mm / 6.0, 450.0) if densify else None,
-            top_starters=starter_bars, top_lap_mm=40.0 * bar_dia,
+            top_starters=starter_bars, top_lap_mm=self._splice_mm(None, bar_dia, None),
             foundation_starters=self.ChkColFoundationStarters.IsChecked == True,
             starter_dia=bar_dia,
-            starter_splice_mm=self._preview_number(self.TxtColFoundationSplice, 600.0),
+            starter_splice_mm=self._preview_splice(self.TxtColFoundationSplice, bar_dia),
             kicker_mm=self._kicker_mm(), floor_levels_mm=base_levels))
 
     def _draw_column_elevation_preview(self, data):
@@ -2492,7 +2524,7 @@ class RebarAutomateWindow(NOSAWindow):
         if values['foundation_starters']:
             values['foundation_anchor_mm'] = self._read_number(
                 self.TxtColFoundationAnchor.Text, u'Foundation starter anchor length', errors)
-            values['foundation_splice_mm'] = self._read_number(
+            values['foundation_splice_mm'] = self._read_splice(
                 self.TxtColFoundationSplice.Text, u'Foundation starter splice length', errors)
 
         if errors:
@@ -2721,7 +2753,9 @@ class RebarAutomateWindow(NOSAWindow):
                 [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = column_rebar.build_column_foundation_starters(
                 self.doc, host, points, values['bar_dia'], values['bar_dia'],
-                values['foundation_anchor_mm'], values['foundation_splice_mm'] + self._kicker_mm(),
+                values['foundation_anchor_mm'],
+                self._splice_mm(values['foundation_splice_mm'], values['bar_dia'], host, errors,
+                                u'Starter splice') + self._kicker_mm(),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
@@ -3024,12 +3058,8 @@ class RebarAutomateWindow(NOSAWindow):
             include_starters = self.ChkWallStarters.IsChecked == True
             starter_length = None
             if include_starters:
-                try:
-                    starter_length = float(self.TxtWallStarterLength.Text)
-                    if starter_length <= 0:
-                        starter_length = None  # 0 = auto, matches build_wall_reinforcement
-                except (TypeError, ValueError):
-                    starter_length = None
+                starter_length = self._preview_splice(
+                    self.TxtWallStarterLength, self._preview_number(self.TxtWallVertDia, 12.0))
             try:
                 data = rebar_preview.compute_wall_elevation_preview(
                     length_mm=length_mm, height_mm=height_mm, cover_mm=cover,
@@ -3087,7 +3117,7 @@ class RebarAutomateWindow(NOSAWindow):
             top_ubar=self.ChkWallEndUBars.IsChecked == True, straight_extension=straight,
             foundation_starters=self.ChkWallFoundationStarters.IsChecked == True,
             starter_dia=vert_dia,
-            starter_splice_mm=self._preview_number(self.TxtWallFoundationSplice, 600.0),
+            starter_splice_mm=self._preview_splice(self.TxtWallFoundationSplice, vert_dia),
             kicker_mm=self._kicker_mm()))
 
     def _draw_simple_section_preview(self, canvas, data, draw_stirrup=False):
@@ -3288,10 +3318,14 @@ class RebarAutomateWindow(NOSAWindow):
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
         lap_mm = None
         try:
+            # Top bars of beams deeper than 250 mm are in poor bond (EC2 Fig. 8.2): the
+            # one lap length used for every bar is the longer, top-bar one.
+            bbox = host.get_BoundingBox(None)
+            depth_mm = (bbox.Max.Z - bbox.Min.Z) * 304.8 if bbox is not None else 0.0
             lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['bar_dia'], in_compression=False)
+                self._host_std(host), values['bar_dia'], False, 100.0, depth_mm <= 250.0)
         except Exception:
-            lap_mm = max(40.0 * values['bar_dia'], 200.0)
+            lap_mm = max(40.0 * values['bar_dia'], 15.0 * values['bar_dia'], 300.0)
 
         curves = beam_rebar.build_beam_rebar_curves(
             self.doc, host,
@@ -3527,15 +3561,8 @@ class RebarAutomateWindow(NOSAWindow):
                 self.TxtWallUBarSpacing.Text, u'U-bar spacing', errors)
         values['include_starter_bars'] = self.ChkWallStarters.IsChecked == True
         if values['include_starter_bars']:
-            try:
-                sl = float(self.TxtWallStarterLength.Text)
-            except (TypeError, ValueError):
-                errors.append(u'"Starter length" must be a number (0 = auto).')
-                sl = None
-            if sl is not None and sl < 0:
-                errors.append(u'"Starter length" cannot be negative.')
-                sl = None
-            values['starter_length'] = sl if (sl and sl > 0) else None
+            values['starter_length'] = self._read_splice(
+                self.TxtWallStarterLength.Text, u'Starter length', errors)
         # PHASE F7.18 (2026-09-02, explicit request) — L-shaped starters
         # into whatever foundation (isolated/strip footing or floor/mat
         # slab) is detected below the wall, distinct from include_
@@ -3545,7 +3572,7 @@ class RebarAutomateWindow(NOSAWindow):
         if values['foundation_starters']:
             values['foundation_anchor_mm'] = self._read_number(
                 self.TxtWallFoundationAnchor.Text, u'Foundation starter anchor length', errors)
-            values['foundation_splice_mm'] = self._read_number(
+            values['foundation_splice_mm'] = self._read_splice(
                 self.TxtWallFoundationSplice.Text, u'Foundation starter splice length', errors)
         values['stock_length'] = self._read_number(
             self.TxtWallStockLength.Text, u'Max stock length', errors)
@@ -3614,18 +3641,18 @@ class RebarAutomateWindow(NOSAWindow):
         lap_mm = None
         try:
             lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['vert_dia'], in_compression=False)
+                self._host_std(host), values['vert_dia'], False, 100.0, True)
         except Exception:
-            lap_mm = max(40.0 * values['vert_dia'], 200.0)
+            lap_mm = max(40.0 * values['vert_dia'], 15.0 * values['vert_dia'], 300.0)
         # BUG FIX (2026-09-01) — horiz_dia's own lap, not vert_dia's
         # reused unchanged (see wall_rebar.build_wall_reinforcement's
         # own docstring note on horiz_lap_length_mm).
         horiz_lap_mm = None
         try:
             horiz_lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['horiz_dia'], in_compression=False)
+                self._host_std(host), values['horiz_dia'], False, 100.0, True)
         except Exception:
-            horiz_lap_mm = max(40.0 * values['horiz_dia'], 200.0)
+            horiz_lap_mm = max(40.0 * values['horiz_dia'], 15.0 * values['horiz_dia'], 300.0)
 
         reinforcement = wall_rebar.build_wall_reinforcement(
             self.doc, host,
@@ -3643,7 +3670,8 @@ class RebarAutomateWindow(NOSAWindow):
             ubar_spacing_mm=values.get('ubar_spacing'),
             include_top_ubars=values.get('include_end_ubars', False),
             include_starter_bars=values.get('include_starter_bars', False),
-            starter_length_mm=values.get('starter_length'),
+            starter_length_mm=self._splice_mm(values.get('starter_length'), values['vert_dia'],
+                                              host, errors, u'Wall starter length'),
             stock_length_mm=values.get('stock_length', 12000.0),
             lap_length_mm=lap_mm,
             horiz_lap_length_mm=horiz_lap_mm,
@@ -3740,7 +3768,9 @@ class RebarAutomateWindow(NOSAWindow):
                 [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = wall_rebar.build_wall_foundation_starters(
                 self.doc, host, points, values['vert_dia'], values['vert_dia'],
-                values['foundation_anchor_mm'], values['foundation_splice_mm'] + self._kicker_mm(),
+                values['foundation_anchor_mm'],
+                self._splice_mm(values['foundation_splice_mm'], values['vert_dia'], host, errors,
+                                u'Starter splice') + self._kicker_mm(),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:

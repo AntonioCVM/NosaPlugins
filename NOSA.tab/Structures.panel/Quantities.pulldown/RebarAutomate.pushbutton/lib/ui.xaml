@@ -344,7 +344,7 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtDowelSplice" Text="600" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtDowelSplice" Text="Auto" Style="{StaticResource RA_NumField}"/>
                             </Grid>
                             <TextBlock Text="Under each column resting on the footing: one dowel per column vertical (Columns tab: quantity, bar and link diameters), lapped on its inner side. With no column above, a cage of this section is centred on the footing:"
                                        TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="0,6,0,2" Foreground="{DynamicResource TextColor}"/>
@@ -593,7 +593,7 @@
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                <TextBox Grid.Column="1" Name="TxtColFoundationSplice" Text="600" Style="{StaticResource RA_NumField}"/>
+                                <TextBox Grid.Column="1" Name="TxtColFoundationSplice" Text="Auto" Style="{StaticResource RA_NumField}"/>
                             </Grid>
                         </StackPanel>
                     </StackPanel>
@@ -1011,7 +1011,7 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Length if no foundation below (mm, 0=auto)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtWallStarterLength" Text="0" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallStarterLength" Text="Auto" Style="{StaticResource RA_NumField}"/>
                                 </Grid>
                             </StackPanel>
 
@@ -1043,7 +1043,7 @@
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Text="Visible Splice Length Above (mm)" Style="{StaticResource RA_FieldLabel}"/>
-                                    <TextBox Grid.Column="1" Name="TxtWallFoundationSplice" Text="600" Style="{StaticResource RA_NumField}"/>
+                                    <TextBox Grid.Column="1" Name="TxtWallFoundationSplice" Text="Auto" Style="{StaticResource RA_NumField}"/>
                                 </Grid>
                             </StackPanel>
                         </StackPanel>

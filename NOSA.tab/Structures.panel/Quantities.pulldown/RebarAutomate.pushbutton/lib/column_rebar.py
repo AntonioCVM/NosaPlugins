@@ -991,7 +991,7 @@ def build_column_foundation_starters(doc, host, bar_points, main_dia_mm, starter
 # ══════════════════════════════════════════════════════════════════════════
 
 def default_lap_length_mm(bar_diameter_mm, multiplier=40.0, std=None,
-                           in_compression=False, pct_lapped=25.0):
+                           in_compression=False, pct_lapped=100.0, good_bond=True):
     """
     Rule-of-thumb lap ("empalme") length for a vertical bar splicing
     into the column above: bar_diameter_mm * multiplier. multiplier
@@ -1008,9 +1008,10 @@ def default_lap_length_mm(bar_diameter_mm, multiplier=40.0, std=None,
     omits `std` (the default, None) is completely unaffected — same
     bar_diameter_mm * multiplier as before this phase.
     """
+    # Column splices and starters lap every bar at one section: 100 % lapped (alpha6 1.5).
     if std is not None:
-        return standards.lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped)
-    return bar_diameter_mm * multiplier
+        return standards.lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond)
+    return max(bar_diameter_mm * multiplier, 15.0 * bar_diameter_mm, 300.0)
 
 
 def extend_bar_for_lap(line, extension_mm, direction, at_start=False, at_end=False):
