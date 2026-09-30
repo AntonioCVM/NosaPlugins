@@ -130,6 +130,7 @@ these phases change WHERE reinforcement is grouped, how narrow zones
 are handled, and how leg-length/coordinates are computed, not the
 underlying cover/Z/hook conventions.
 """
+import math
 import os
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1320,6 +1321,76 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
 # Orchestration
 # ══════════════════════════════════════════════════════════════════════════
 
+# Diagonal bars at opening corners (IStructE SMDSC 6.x(vii), D3 / T4.6):
+# one 45° bar per convex corner, an anchorage length either side of the
+# corner's bisector, set clear of the cover zone round the opening.
+_DIAGONAL_MAX_CORNER_COS = -0.5   # corners sharper than 120° only
+_DIAGONAL_MIN_HALF_FRACTION = 0.5
+
+
+def _reach_in_material(topo, start, direction, max_mm, outer, large_holes):
+    """Distance from start along direction that stays in material, up to max_mm."""
+    reach = 0.0
+    d = min(_LEG_SAMPLE_STEP_MM, max_mm)
+    while True:
+        if not topo.point_in_material_mm(start[0] + direction[0] * d,
+                                         start[1] + direction[1] * d, outer, large_holes):
+            return reach
+        reach = d
+        if d >= max_mm:
+            return reach
+        d = min(d + _LEG_SAMPLE_STEP_MM, max_mm)
+
+
+def opening_corner_diagonals_mm(topo, raw_holes, outer, large_holes, cover_mm, bar_dia_mm,
+                                half_length_mm):
+    """Plan segments ((x0, y0), (x1, y1)) of the corner diagonals, and how many corners had no room."""
+    segments = []
+    skipped = 0
+    offset_mm = math.sqrt(2.0) * cover_mm + bar_dia_mm
+    for hole in raw_holes:
+        n = len(hole)
+        for i in range(n):
+            vx, vy = hole[i]
+            ux, uy = hole[i - 1][0] - vx, hole[i - 1][1] - vy
+            wx, wy = hole[(i + 1) % n][0] - vx, hole[(i + 1) % n][1] - vy
+            lu, lw = math.hypot(ux, uy), math.hypot(wx, wy)
+            if lu < 1e-6 or lw < 1e-6:
+                continue
+            ux, uy, wx, wy = ux / lu, uy / lu, wx / lw, wy / lw
+            if ux * wx + uy * wy < _DIAGONAL_MAX_CORNER_COS:
+                continue
+            sx, sy = ux + wx, uy + wy
+            ls = math.hypot(sx, sy)
+            bx, by = -sx / ls, -sy / ls
+            cx, cy = vx + bx * offset_mm, vy + by * offset_mm
+            # A re-entrant corner of the opening points its bisector into the hole.
+            if not topo.point_in_material_mm(cx, cy, outer, large_holes):
+                continue
+            px, py = -by, bx
+            reach_a = _reach_in_material(topo, (cx, cy), (px, py), half_length_mm, outer, large_holes)
+            reach_b = _reach_in_material(topo, (cx, cy), (-px, -py), half_length_mm,
+                                         outer, large_holes)
+            if min(reach_a, reach_b) < _DIAGONAL_MIN_HALF_FRACTION * half_length_mm:
+                skipped += 1
+                continue
+            segments.append(((cx - px * reach_b, cy - py * reach_b),
+                             (cx + px * reach_a, cy + py * reach_a)))
+    return segments, skipped
+
+
+def _diagonal_bars(engine, DB, segments, z_ft):
+    bars = []
+    for (x0, y0), (x1, y1) in segments:
+        p0 = DB.XYZ(x0 / _MM_PER_FT, y0 / _MM_PER_FT, z_ft)
+        p1 = DB.XYZ(x1 / _MM_PER_FT, y1 / _MM_PER_FT, z_ft)
+        direction = (p1 - p0).Normalize()
+        bars.append({'curves': [DB.Line.CreateBound(p0, p1)],
+                     'normal': engine.compute_vertical_hook_plane_normal(direction),
+                     'is_hole': True})
+    return {'sets': [], 'bars': bars}
+
+
 def build_floor_reinforcement(doc, host,
                                bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm,
                                bottom_spacing_mm, bottom_hooks=False,
@@ -1329,7 +1400,8 @@ def build_floor_reinforcement(doc, host,
                                include_perimeter_closure_ubars=False,
                                x_anchor_ubar_dia_mm=None, x_anchor_ubar_spacing_mm=None,
                                y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
-                               max_stock_length_mm=12000.0, std=None):
+                               max_stock_length_mm=12000.0, std=None,
+                               include_opening_diagonals=False, opening_diagonal_dia_mm=None):
     """
     Phase 2.3 pipeline for one floor/slab host. See module docstring
     for the four hardening fixes over Phase 2.2. Real cover is applied
@@ -1361,6 +1433,8 @@ def build_floor_reinforcement(doc, host,
               'debug_failed_edges': [...],  # Phase 3.5.3 item 3
           } or None,
           'n_small_holes_ignored': int,
+          'opening_diagonals': {'bottom': {...}, 'top': {...} or None,
+                                'n_skipped': int} or None,
         }
         Each entry in 'sets' is ready for
         rebar_engine.RebarWrapper.create_rebar_set; each entry in
@@ -1490,6 +1564,7 @@ def build_floor_reinforcement(doc, host,
         'top_mat': None,
         'perimeter_closure_ubars': None,
         'n_small_holes_ignored': n_small_holes,
+        'opening_diagonals': None,
     }
 
     top_outer = top_holes = None
@@ -1552,5 +1627,22 @@ def build_floor_reinforcement(doc, host,
             x_leg_mm, x_anchor_ubar_spacing_mm, b1_z_ft, t1_z_ft,
             y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
             raw_holes=raw_holes, mat_rows=rows)
+
+    if include_opening_diagonals and raw_holes:
+        if not opening_diagonal_dia_mm:
+            raise ValueError(u'include_opening_diagonals requires opening_diagonal_dia_mm.')
+        dia = opening_diagonal_dia_mm
+        half_mm = footing_mod.default_anchorage_length_mm(dia, std=std)
+        segments, n_skipped = opening_corner_diagonals_mm(
+            topo, raw_holes, bottom_outer, bottom_holes, side_cover_mm, dia, half_mm)
+        # Each diagonal sits on the inner face of its mat, clear of both layers.
+        diag_bottom_z = b2_z_ft + (bottom_dia_y_mm + dia) / 2.0 / _MM_PER_FT
+        diagonals = {'bottom': _diagonal_bars(engine, DB, segments, diag_bottom_z),
+                     'top': None, 'n_skipped': n_skipped}
+        if include_top_mat:
+            diag_top_z = t2_z_ft - (top_dia_y_mm + dia) / 2.0 / _MM_PER_FT
+            if diag_top_z - diag_bottom_z >= dia / _MM_PER_FT:
+                diagonals['top'] = _diagonal_bars(engine, DB, segments, diag_top_z)
+        result['opening_diagonals'] = diagonals
 
     return result

@@ -723,6 +723,11 @@ class RebarAutomateWindow(NOSAWindow):
         self.PanelPerimeterUBars.IsEnabled = self.ChkIncludePerimeterUBars.IsChecked == True
         self._update_preview()
 
+    def IncludeOpeningDiagonals_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self.PanelOpeningDiagonals.IsEnabled = self.ChkOpeningDiagonals.IsChecked == True
+
     # ── section preview (Phase 2) ────────────────────────────────────────
     # Recomputed and redrawn on every keystroke in a cover/diameter/
     # spacing field, or when Top Mat is toggled — never touches the Revit
@@ -1276,6 +1281,11 @@ class RebarAutomateWindow(NOSAWindow):
             values['y_anchor_ubar_spacing'] = self._read_number(
                 self.TxtYAnchorUBarSpacing.Text, u'Y-Bars Anchoring U-Bar spacing', errors)
 
+        values['include_opening_diagonals'] = self.ChkOpeningDiagonals.IsChecked == True
+        if values['include_opening_diagonals']:
+            values['opening_diagonal_dia'] = self._read_number(
+                self.TxtOpeningDiagonalDia.Text, u'Opening corner diagonal bar diameter', errors)
+
         values['generate_sections'] = self.ChkGenerateSections.IsChecked == True
 
         if errors:
@@ -1332,6 +1342,8 @@ class RebarAutomateWindow(NOSAWindow):
         if values['include_perimeter_ubars']:
             diameters.add(values['x_anchor_ubar_dia'])
             diameters.add(values['y_anchor_ubar_dia'])
+        if values.get('include_opening_diagonals'):
+            diameters.add(values['opening_diagonal_dia'])
 
         bar_types = {}
         for dia_mm in diameters:
@@ -1836,7 +1848,9 @@ class RebarAutomateWindow(NOSAWindow):
             y_anchor_ubar_dia_mm=values.get('y_anchor_ubar_dia'),
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
             max_stock_length_mm=values['max_stock_length'],
-            std=getattr(self, 'ra_standard', None))
+            std=getattr(self, 'ra_standard', None),
+            include_opening_diagonals=values.get('include_opening_diagonals', False),
+            opening_diagonal_dia_mm=values.get('opening_diagonal_dia'))
 
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(
@@ -1878,6 +1892,20 @@ class RebarAutomateWindow(NOSAWindow):
                 errors.append(u'Floor {}: {} perimeter closure U-bar edge(s) failed — '
                               u'see the pyRevit console output for exact coordinates.'.format(
                                   get_id_value(host.Id), len(debug_failed_edges)))
+
+        diagonals = reinforcement.get('opening_diagonals')
+        if diagonals is not None:
+            diagonal_type = bar_types.get(values.get('opening_diagonal_dia'))
+            for mat, layer in (('bottom', u'diagonal_bottom'), ('top', u'diagonal_top')):
+                if diagonals.get(mat) is not None:
+                    self._create_grouped_bars(
+                        wrapper, host, diagonals[mat], diagonal_type, errors, created_rebars,
+                        u'Floor Opening Corner Diagonal ({})'.format(mat.capitalize()),
+                        layer=layer)
+            if diagonals.get('n_skipped'):
+                errors.append(u'Floor {}: {} opening corner(s) too close to an edge or another '
+                              u'opening for a 45° diagonal bar — detail by hand.'.format(
+                                  get_id_value(host.Id), diagonals['n_skipped']))
 
         if reinforcement.get('n_small_holes_ignored'):
             errors.append(u'Floor {}: {} small opening(s) (≤200x200mm) ignored — '

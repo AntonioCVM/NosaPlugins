@@ -251,6 +251,28 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ═══ OPENING CORNER DIAGONALS (Floors only) ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkOpeningDiagonals" Content="Add 45° Diagonal Bars at Opening Corners (Floors only)"
+                                  Click="IncludeOpeningDiagonals_Click"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <StackPanel Name="PanelOpeningDiagonals" IsEnabled="False">
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Diagonal Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtOpeningDiagonalDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <TextBlock Text="One 45° bar at each corner of every opening larger than 200x200 mm, on the inner face of the bottom mat and of the top mat (if any), extending an anchorage length either side of the corner (IStructE SMDSC 6.x). Recommended for slabs deeper than 250 mm with openings of 500 mm or more."
+                                       FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,8,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- ═══ SIDE REBAR (Footings only) ═══ -->
                 <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                     <StackPanel>
