@@ -7,6 +7,7 @@ from Autodesk.Revit import DB
 from System.Collections.Generic import List
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils.revit_helpers import element_name
 import math
 
 
@@ -77,7 +78,7 @@ def find_unused_families(doc):
                 except Exception:
                     fam_name = '—'
                 try:
-                    type_name = sym.Name or '—'
+                    type_name = element_name(sym) or '—'
                 except Exception:
                     type_name = '—'
                 try:

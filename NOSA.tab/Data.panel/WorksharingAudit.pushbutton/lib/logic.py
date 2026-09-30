@@ -15,7 +15,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 _CHECKOUT_LABELS = {
     u'OwnedByCurrentUser': u'Owned by me',
@@ -103,10 +103,7 @@ def audit(doc, active_view=None, scan_entire_model=False):
         except Exception:
             cat_name = u'—'
 
-        try:
-            name = el.Name
-        except Exception:
-            name = u'—'
+        name = element_name(el) or u'—'
 
         try:
             tooltip = DB.WorksharingUtils.GetWorksharingTooltipInfo(doc, el.Id)
