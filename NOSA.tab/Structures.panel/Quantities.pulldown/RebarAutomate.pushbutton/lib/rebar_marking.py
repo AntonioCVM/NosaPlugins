@@ -126,6 +126,23 @@ def _get_dedup_key(doc, rebar_id, std, tolerance_mm):
     return (bar_type_id, shape_code, shape_params_tuple, start_hook, end_hook, layer, host_key)
 
 
+_HOST_CODES = (('OST_StructuralFraming', u'B'), ('OST_StructuralColumns', u'C'),
+               ('OST_Walls', u'W'), ('OST_StructuralFoundation', u'F'), ('OST_Floors', u'S'))
+
+
+def _host_code(host_elem):
+    """One-letter host category code for marks of hosts that have no Mark."""
+    try:
+        from Autodesk.Revit import DB  # Lazy import
+        cat_id = host_elem.Category.Id
+        for bic_name, code in _HOST_CODES:
+            if cat_id == DB.ElementId(getattr(DB.BuiltInCategory, bic_name)):
+                return code
+    except Exception:
+        pass
+    return u'H'
+
+
 def deduplicate_and_mark(doc, rebars, ctx):
     """
     Agrupa 'rebars' (lista de Rebar ElementIds) por posición según tolerancia.
@@ -137,6 +154,8 @@ def deduplicate_and_mark(doc, rebars, ctx):
     marking_cfg = std.get("marking", {}) if std else {}
     tolerance_mm = marking_cfg.get("dedup_tolerance_mm", 5.0)
     mark_format = marking_cfg.get("mark_format", "{host_mark}-{number:02d}")
+    prefix = ctx.get("mark_prefix", "") or ""
+    hosts_without_mark = set()
     
     # Agrupar barras por clave de deduplicación
     clusters = {}
@@ -203,6 +222,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
         first_id = ids[0]
         host_id = _read(doc, first_id, "NOSA_Rebar_Host_Element_Id")
         host_mark = ""
+        host_elem = None
         if host_id:
             try:
                 from Autodesk.Revit import DB  # Lazy import
@@ -211,8 +231,13 @@ def deduplicate_and_mark(doc, rebars, ctx):
                     host_mark_param = host_elem.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
                     if host_mark_param and host_mark_param.HasValue:
                         host_mark = host_mark_param.AsString() or ""
-            except:
-                pass
+            except Exception:
+                host_elem = None
+        if not host_mark:
+            # Host without a Mark (T2.12): a bare "-01" repeats across hosts, so
+            # use a category letter + the element id, e.g. "B1318407-01".
+            host_mark = u'{}{}'.format(_host_code(host_elem), host_id or u'')
+            hosts_without_mark.add(host_id)
         
         # Leer layer del primer elemento
         layer_key = _read(doc, first_id, "NOSA_Rebar_Layer") or "uncategorized"
@@ -239,11 +264,13 @@ def deduplicate_and_mark(doc, rebars, ctx):
                 number=position_number,
                 diameter=int(diameter_mm),
                 layer=layer_name,
-                prefix=ctx.get("mark_prefix", "")
+                prefix=prefix
             )
         except (KeyError, ValueError):
             # Fallback si el formato falla
             mark = "{}-{:02d}".format(host_mark or "?", position_number)
+        if prefix and "{prefix}" not in mark_format:
+            mark = prefix + mark
         
         # Asignar a todas las barras del cluster
         for pos_idx, rebar_id in enumerate(ids, start=1):
@@ -256,7 +283,8 @@ def deduplicate_and_mark(doc, rebars, ctx):
     return {
         "total_positions": len(sorted_clusters),
         "total_bars": total_bars,
-        "largest_cluster": largest_cluster
+        "largest_cluster": largest_cluster,
+        "hosts_without_mark": len(hosts_without_mark)
     }
 
 

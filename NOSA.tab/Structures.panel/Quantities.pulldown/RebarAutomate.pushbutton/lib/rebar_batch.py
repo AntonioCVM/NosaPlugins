@@ -112,8 +112,10 @@ class BatchResult(object):
 class RebarBatch(object):
     """One user-triggered generation run. See module docstring."""
 
-    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08', layers=None):
+    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08', layers=None,
+                 mark_prefix=u''):
         self.ctx = make_ctx(doc, standard, generator_version, standard_code)
+        self.ctx['mark_prefix'] = mark_prefix or u''
         # {element id value: layer code} recorded by the generators; written
         # here, inside a transaction, because they create each bar in a
         # transaction of its own that is already closed when they learn it.
@@ -198,6 +200,12 @@ class RebarBatch(object):
                         rebar_marking.assign_layers_and_lengths(doc, all_created_ids, self.ctx)
                         print(u'[RebarBatch] Marking: {} positions, {} bars'.format(
                             mark_summary['total_positions'], mark_summary['total_bars']))
+                        if mark_summary.get('hosts_without_mark'):
+                            stamp_errors.append(
+                                u'{} host(s) have no Mark — their bar marks use a category letter '
+                                u'and the element id (e.g. B1318407-01); give the hosts a Mark and '
+                                u'renumber the batch for shorter marks.'.format(
+                                    mark_summary['hosts_without_mark']))
                     except Exception as mark_err:
                         stamp_errors.append(u'Marking failed: {}'.format(mark_err))
 

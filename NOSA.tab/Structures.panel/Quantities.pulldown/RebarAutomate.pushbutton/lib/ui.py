@@ -169,7 +169,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers)
+                        layers=window._pending_layers,
+                        mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_column_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -191,7 +192,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers)
+                        layers=window._pending_layers,
+                        mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_beam_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -213,7 +215,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers)
+                        layers=window._pending_layers,
+                        mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -247,7 +250,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers)
+                        layers=window._pending_layers,
+                        mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
                     summary = dict(batch_result.summary)
