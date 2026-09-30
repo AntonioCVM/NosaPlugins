@@ -1324,9 +1324,12 @@ def build_floor_reinforcement(doc, host,
     bottom_holes = [topo.offset_polygon_mm(h, -side_cover_mm) for h in raw_holes]
     xmin_mm, xmax_mm, ymin_mm, ymax_mm = topo.polygon_bbox_mm(bottom_outer)
 
-    b1_z_ft = _clamp_z_to_solid_ft(bottom_z_ft + bottom_cover_mm / _MM_PER_FT, z_extent_ft)
+    # Bar centrelines: cover + radius (T2.10b — they were a radius too close).
+    b1_z_ft = _clamp_z_to_solid_ft(
+        bottom_z_ft + (bottom_cover_mm + bottom_dia_x_mm / 2.0) / _MM_PER_FT, z_extent_ft)
     b2_z_ft = _clamp_z_to_solid_ft(
-        bottom_z_ft + (bottom_cover_mm + bottom_dia_x_mm) / _MM_PER_FT, z_extent_ft)
+        bottom_z_ft + (bottom_cover_mm + bottom_dia_x_mm + bottom_dia_y_mm / 2.0) / _MM_PER_FT,
+        z_extent_ft)
 
     bottom_target_z_ft = None
     if bottom_hooks:
@@ -1369,9 +1372,9 @@ def build_floor_reinforcement(doc, host,
         top_outer = topo.offset_polygon_mm(raw_outer, side_cover_mm)
         top_holes = [topo.offset_polygon_mm(h, -side_cover_mm) for h in raw_holes]
         t1_z_ft = _clamp_z_to_solid_ft(
-            top_z_ft - (top_cover_mm + top_dia_x_mm) / _MM_PER_FT, z_extent_ft)
+            top_z_ft - (top_cover_mm + top_dia_x_mm / 2.0) / _MM_PER_FT, z_extent_ft)
         t2_z_ft = _clamp_z_to_solid_ft(
-            top_z_ft - (top_cover_mm + top_dia_x_mm + top_dia_y_mm) / _MM_PER_FT, z_extent_ft)
+            top_z_ft - (top_cover_mm + top_dia_x_mm + top_dia_y_mm / 2.0) / _MM_PER_FT, z_extent_ft)
 
         top_target_z_ft = None
         if top_hooks:

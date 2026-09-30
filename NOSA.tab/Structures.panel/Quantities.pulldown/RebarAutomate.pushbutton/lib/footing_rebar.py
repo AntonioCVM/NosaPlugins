@@ -921,11 +921,13 @@ def build_mat_bar_set(host, is_top, cover_mm, dia_x_mm, dia_y_mm,
     layer." Concretely, with Zmin/Zmax the host's own global bounding
     box extents:
         Bottom mat (is_top=False):
-            z_layer1 = Zmin + cover_mm
-            z_layer2 = Zmin + cover_mm + dia_x_mm      (rests on layer 1)
+            z_layer1 = Zmin + cover_mm + dia_x_mm/2
+            z_layer2 = Zmin + cover_mm + dia_x_mm + dia_y_mm/2      (rests on layer 1)
         Top mat (is_top=True):
-            z_layer1 = Zmax - cover_mm - dia_x_mm
-            z_layer2 = Zmax - cover_mm - dia_x_mm - dia_y_mm   (hangs below layer 1)
+            z_layer1 = Zmax - cover_mm - dia_x_mm/2
+            z_layer2 = Zmax - cover_mm - dia_x_mm - dia_y_mm/2   (hangs below layer 1)
+    These are bar CENTRELINES (T2.10b, 2026-09-30: the old values were a
+    radius off, so the bottom X layer broke cover and Y overlapped X).
 
     Args:
         host             (DB.Element): the footing.
@@ -989,11 +991,11 @@ def build_mat_bar_set(host, is_top, cover_mm, dia_x_mm, dia_y_mm,
         return result
 
     if is_top:
-        z_layer1_ft = global_bbox.Max.Z - (cover_mm + dia_x_mm) / _MM_PER_FT
-        z_layer2_ft = global_bbox.Max.Z - (cover_mm + dia_x_mm + dia_y_mm) / _MM_PER_FT
+        z_layer1_ft = global_bbox.Max.Z - (cover_mm + dia_x_mm / 2.0) / _MM_PER_FT
+        z_layer2_ft = global_bbox.Max.Z - (cover_mm + dia_x_mm + dia_y_mm / 2.0) / _MM_PER_FT
     else:
-        z_layer1_ft = global_bbox.Min.Z + cover_mm / _MM_PER_FT
-        z_layer2_ft = global_bbox.Min.Z + (cover_mm + dia_x_mm) / _MM_PER_FT
+        z_layer1_ft = global_bbox.Min.Z + (cover_mm + dia_x_mm / 2.0) / _MM_PER_FT
+        z_layer2_ft = global_bbox.Min.Z + (cover_mm + dia_x_mm + dia_y_mm / 2.0) / _MM_PER_FT
 
     use_legs = target_z_mm is not None and leg_direction is not None
     target_z_ft = (target_z_mm / _MM_PER_FT) if use_legs else None
@@ -1147,10 +1149,10 @@ def build_perimeter_closure_ubar_sets(host,
     if edge_cover_mm is None:
         edge_cover_mm = bottom_cover_mm
 
-    z_b1_ft = global_bbox.Min.Z + bottom_cover_mm / _MM_PER_FT
-    z_t1_ft = global_bbox.Max.Z - (top_cover_mm + top_dia_x_mm) / _MM_PER_FT
-    z_b2_ft = global_bbox.Min.Z + (bottom_cover_mm + bottom_dia_x_mm) / _MM_PER_FT
-    z_t2_ft = global_bbox.Max.Z - (top_cover_mm + top_dia_x_mm + top_dia_y_mm) / _MM_PER_FT
+    z_b1_ft = global_bbox.Min.Z + (bottom_cover_mm + bottom_dia_x_mm / 2.0) / _MM_PER_FT
+    z_t1_ft = global_bbox.Max.Z - (top_cover_mm + top_dia_x_mm / 2.0) / _MM_PER_FT
+    z_b2_ft = global_bbox.Min.Z + (bottom_cover_mm + bottom_dia_x_mm + bottom_dia_y_mm / 2.0) / _MM_PER_FT
+    z_t2_ft = global_bbox.Max.Z - (top_cover_mm + top_dia_x_mm + top_dia_y_mm / 2.0) / _MM_PER_FT
 
     if z_t1_ft <= z_b1_ft:
         raise ValueError(u'No vertical gap between B1 and T1 for the X-edge '
@@ -1541,11 +1543,11 @@ def build_mat_bars_topology(doc, host, is_top, cover_mm, dia_x_mm, dia_y_mm,
 
     face_z_ft = face_info.origin.Z
     if is_top:
-        z_layer1_ft = face_z_ft - (cover_mm + dia_x_mm) / _MM_PER_FT
-        z_layer2_ft = face_z_ft - (cover_mm + dia_x_mm + dia_y_mm) / _MM_PER_FT
+        z_layer1_ft = face_z_ft - (cover_mm + dia_x_mm / 2.0) / _MM_PER_FT
+        z_layer2_ft = face_z_ft - (cover_mm + dia_x_mm + dia_y_mm / 2.0) / _MM_PER_FT
     else:
-        z_layer1_ft = face_z_ft + cover_mm / _MM_PER_FT
-        z_layer2_ft = face_z_ft + (cover_mm + dia_x_mm) / _MM_PER_FT
+        z_layer1_ft = face_z_ft + (cover_mm + dia_x_mm / 2.0) / _MM_PER_FT
+        z_layer2_ft = face_z_ft + (cover_mm + dia_x_mm + dia_y_mm / 2.0) / _MM_PER_FT
 
     use_legs = target_z_mm is not None and leg_direction is not None
     leg1_mm = abs(target_z_mm - z_layer1_ft * _MM_PER_FT) if use_legs else 0.0
@@ -1619,10 +1621,11 @@ def build_perimeter_closure_ubars_topology(doc, host,
 
     bottom_z_ft = bottom_face.origin.Z
     top_z_ft = top_face.origin.Z
-    b1_z_ft = bottom_z_ft + bottom_cover_mm / _MM_PER_FT
-    b2_z_ft = bottom_z_ft + (bottom_cover_mm + bottom_dia_x_mm) / _MM_PER_FT
-    t1_z_ft = top_z_ft - (top_cover_mm + top_dia_x_mm) / _MM_PER_FT
-    t2_z_ft = top_z_ft - (top_cover_mm + top_dia_x_mm + top_dia_y_mm) / _MM_PER_FT
+    # Same centrelines as the mats they close (T2.10b).
+    b1_z_ft = bottom_z_ft + (bottom_cover_mm + bottom_dia_x_mm / 2.0) / _MM_PER_FT
+    b2_z_ft = bottom_z_ft + (bottom_cover_mm + bottom_dia_x_mm + bottom_dia_y_mm / 2.0) / _MM_PER_FT
+    t1_z_ft = top_z_ft - (top_cover_mm + top_dia_x_mm / 2.0) / _MM_PER_FT
+    t2_z_ft = top_z_ft - (top_cover_mm + top_dia_x_mm + top_dia_y_mm / 2.0) / _MM_PER_FT
 
     # PHASE F2.5 — a closure U-bar's leg is a "good bond, tension" anchorage
     # into the opposite mat (not a lap, not compression) — matches
