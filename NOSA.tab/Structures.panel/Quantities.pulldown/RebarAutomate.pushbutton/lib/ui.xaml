@@ -1277,6 +1277,12 @@
                             </UniformGrid>
                             <Button Name="BtnAutoSections" Content="Auto Detail Sections (X + Y)..."
                                     Click="AutoSections_Click" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnLoadContent" Content="Load NOSA Families"
+                                    Click="LoadContent_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                    ToolTip="Load the packaged NOSA annotation families (data/content_manifest.json), replacing missing or out-of-date copies."/>
+                            <TextBlock Name="TxtContentStatus" Text="" FontSize="11"
+                                       Foreground="{DynamicResource AccentColor}"
+                                       TextWrapping="Wrap" Margin="0,8,0,0"/>
                             <TextBlock Name="TxtDetailingStatus" Text="" FontSize="11"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.8"
                                        TextWrapping="Wrap" Margin="0,8,0,0"/>

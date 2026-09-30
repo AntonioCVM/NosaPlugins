@@ -64,6 +64,7 @@ _version_mod = load_module('rebarautomate_version', os.path.join(_HERE, '_versio
 rebar_schedule = load_module('rebar_schedule', os.path.join(_HERE, 'rebar_schedule.py'))
 rebar_export_bvbs = load_module('rebar_export_bvbs', os.path.join(_HERE, 'rebar_export_bvbs.py'))
 rebar_marking = load_module('rebar_marking', os.path.join(_HERE, 'rebar_marking.py'))
+rebar_content = load_module('rebar_content', os.path.join(_HERE, 'rebar_content.py'))
 
 _CAT_ID_CACHE = {}
 
@@ -367,6 +368,7 @@ class RebarAutomateWindow(NOSAWindow):
         self._populate_standard_dropdown()
         self._populate_project_header()
         self._populate_detailing_combos()
+        self._refresh_content_status()
 
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
@@ -3963,6 +3965,32 @@ class RebarAutomateWindow(NOSAWindow):
                 item.Tag = mt.Id
                 self.CmbMraType.Items.Add(item)
             self.CmbMraType.SelectedIndex = 0
+
+    def _refresh_content_status(self):
+        """Warn on the Detailing card when a NOSA family is missing or out of date (T4.3)."""
+        try:
+            self._content_report = rebar_content.check(self.doc)
+            lines = rebar_content.status_lines(self._content_report)
+        except Exception as e:
+            self._content_report = []
+            lines = [u'Could not read data/content_manifest.json: {}'.format(e)]
+        self.TxtContentStatus.Text = u'\n'.join(lines)
+
+    def LoadContent_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._load_content)
+
+    def _load_content(self):
+        report = rebar_content.check(self.doc)
+        with revit.Transaction(u'NOSA — Load NOSA Families'):
+            loaded, skipped = rebar_content.load_packaged(self.doc, report)
+        self._populate_detailing_combos()
+        self._refresh_content_status()
+        lines = [u'{} family(ies) loaded: {}'.format(len(loaded), u', '.join(loaded) or u'none')]
+        if skipped:
+            lines.append(u'Not found in the extension content folder: {}'.format(u', '.join(skipped)))
+        forms.alert(u'\n'.join(lines), title=u'RebarAutomate — NOSA Families')
 
     def _combo_selected_element_id(self, combo):
         selected = combo.SelectedItem

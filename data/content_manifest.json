@@ -1,4 +1,12 @@
 {
-  "_comment": "PHASE F0 STUB -- populated starting F6/F13 as each NOSA_*.rfa family is delivered. See docs/REBARAUTOMATE_BLUEPRINT.md Part 13.",
-  "families": []
+  "_comment": "NOSA content families (T4.3). version is compared with the family type parameter NOSA_Content_Version of the family loaded in the project; file is relative to the extension root. Families are saved in Revit 2024 so they load in 2024-2027.",
+  "families": [
+    {
+      "name": "NOSA Rebar Tag",
+      "category": "Structural Rebar Tags",
+      "version": "1.0.0",
+      "file": "content/tags/NOSA Rebar Tag.rfa",
+      "changes": "1.0.0 - Label reads Schedule Mark: the BS 8666 bar mark (01, 02 ...) written by RebarAutomate."
+    }
+  ]
 }
