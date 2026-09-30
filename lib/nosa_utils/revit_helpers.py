@@ -4,12 +4,15 @@ Revit API Helper Utilities
 Provides safer wrappers and common Revit API operations.
 """
 
-from Autodesk.Revit.DB import (
-    Transaction,
-    FilteredElementCollector,
-    BuiltInParameter,
-    StorageType
-)
+try:
+    from Autodesk.Revit.DB import (
+        Transaction,
+        FilteredElementCollector,
+        BuiltInParameter,
+        StorageType
+    )
+except ImportError:  # outside Revit (unit tests): only the pure helpers are usable
+    Transaction = FilteredElementCollector = BuiltInParameter = StorageType = None
 
 # =============================================================================
 # ELEMENT ID COMPATIBILITY (Revit 2024–2027)
@@ -54,6 +57,39 @@ def coerce_element_id(val):
     except Exception:
         pass
     return element_id_from_int(val)
+
+
+def element_name(element):
+    """Return an element's name, u'' if unreadable (.Name fails on some types in IronPython/pythonnet)."""
+    if element is None:
+        return u''
+    try:
+        name = element.Name
+    except Exception:
+        name = None
+    if name is not None:
+        return name
+    try:
+        from Autodesk.Revit.DB import Element
+        name = Element.Name.GetValue(element)
+    except Exception:
+        name = None
+    if name is not None:
+        return name
+    try:
+        from Autodesk.Revit.DB import BuiltInParameter as _BIP
+        bips = (_BIP.ALL_MODEL_TYPE_NAME, _BIP.SYMBOL_NAME_PARAM)
+    except Exception:
+        bips = ()
+    for bip in bips:
+        try:
+            param = element.get_Parameter(bip)
+            name = param.AsString() if param is not None else None
+        except Exception:
+            name = None
+        if name:
+            return name
+    return u''
 
 
 # =============================================================================
