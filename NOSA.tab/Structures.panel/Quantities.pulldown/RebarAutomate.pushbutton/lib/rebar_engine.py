@@ -839,14 +839,18 @@ def starter_foot_z(doc, foundation, own_bbox, cover_mm, bar_dia_mm, mat_dias_mm=
     wins; otherwise the NOSA bottom mat already in the foundation is read;
     otherwise a two-layer mat of bar_dia_mm is assumed.
     Returns (z_ft, source) with source 'given', 'model' or 'assumed'.
+
+    The value is the TOP of the mat, not the foot's centreline: for a bar
+    with a start hook Revit reads the line's start as the hook's outer
+    face (measured live 2026-09-30 — a centreline value left the foot one
+    radius above the mat).
     """
-    radius_ft = bar_dia_mm / 2.0 / _MM_PER_FT
     if mat_dias_mm:
-        return own_bbox.Min.Z + (cover_mm + sum(mat_dias_mm)) / _MM_PER_FT + radius_ft, 'given'
+        return own_bbox.Min.Z + (cover_mm + sum(mat_dias_mm)) / _MM_PER_FT, 'given'
     mat_top = bottom_mat_top_z(doc, foundation)
     if mat_top is not None:
-        return mat_top + radius_ft, 'model'
-    return own_bbox.Min.Z + (cover_mm + 2.0 * bar_dia_mm) / _MM_PER_FT + radius_ft, 'assumed'
+        return mat_top, 'model'
+    return own_bbox.Min.Z + (cover_mm + 2.0 * bar_dia_mm) / _MM_PER_FT, 'assumed'
 
 
 def link_corner_extra_inset_mm(bar_dia_mm, link_dia_mm, link_bend_dia_mm=None):
