@@ -193,7 +193,8 @@ def classify_and_stamp(doc, rebar_id, standard_code):
         shape_code = None
         try:
             revit_shape = doc.GetElement(rebar.GetShapeId())
-            name = revit_shape.Name if revit_shape is not None else None
+            from Autodesk.Revit.DB import Element  # Lazy import; .Name fails on RebarShape in IronPython
+            name = Element.Name.GetValue(revit_shape) if revit_shape is not None else None
             if name and name not in ('00', '99') and standard_code and \
                     rebar_catalog.is_valid_shape_code(standard_code, name):
                 shape_code = name

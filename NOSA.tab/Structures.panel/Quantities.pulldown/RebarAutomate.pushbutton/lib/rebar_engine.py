@@ -1010,7 +1010,7 @@ def find_lapped_circle_shape(doc):
                 continue
         except Exception:
             continue
-        if shape.Name == u'75':
+        if DB.Element.Name.GetValue(shape) == u'75':  # .Name fails on RebarShape in IronPython
             return shape
         fallback = fallback or shape
     return fallback
