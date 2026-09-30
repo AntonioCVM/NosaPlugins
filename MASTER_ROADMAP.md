@@ -111,7 +111,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [ ] | T4.1 | F8: conseguir un `.abs` real o el spec BVBS y validar `bar_to_bvbs_line`/`_compute_checksum`; poner `BVBS_FORMAT_VERIFIED = True` | ✔ | – | ✔ | |
+| [x] | T4.1 | F8: conseguir un `.abs` real o el spec BVBS y validar `bar_to_bvbs_line`/`_compute_checksum`; poner `BVBS_FORMAT_VERIFIED = True` | ✔ | – | ✔ | `80686fb`, `86fd8af` — reescrito según la **BVBS Guideline 3.1** (bvbs.de, 2021): bloques H/G/C, checksum 96−Σ mod 32; los tests reproducen byte a byte los ejemplos oficiales 1, 3, 9 (escalonadas `p10.1…@c10@`) y ZEICON. Nuevo `rebar_bending` (cotas exteriores, ángulos con signo, mandril real). Arreglado de paso: el clasificador sellaba tangentes de eje y R=50 (ahora cotas exteriores BS 8666 y R real); la planilla contaba un Rebar Set como 1 barra con la longitud de todo el set; diámetro truncado (H8→7). Probado en `Rebar test` 2026: 65 posiciones → 197 registros en 0,8 s. **Pendiente (usuario)**: pasar un `.abs` por la máquina/validador del ferrallista. **Hallazgo fuera de alcance**: una marca que viene de un grupo FreeForm puede mezclar formas (p. ej. rectas y L en `F1317591-02`); el BVBS lo exporta bien por variante, pero la planilla BBS la muestra como una sola marca |
 | [ ] | T4.2 | Familias de anotación: auditar `NOSA Rebar Tag`/MRA, ajustar labels a `NOSA_Rebar_*`, empaquetar `.rfa` en Revit 2024 | ✔ | ✔ | – | |
 | [ ] | T4.3 | `data/content_manifest.json` (versión de familias + aviso de obsoletas) | ✔ | – | – | |
 | [ ] | T4.4 | `docs/USER_GUIDE.md` | ✔ | – | – | |
