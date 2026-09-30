@@ -109,6 +109,15 @@ class _CategorySelectionFilter(ISelectionFilter):
         return True
 
 
+def _is_valid_rebar_host(element):
+    """True if Revit accepts rebar hosted on this element."""
+    try:
+        host_data = DBS.RebarHostData.GetRebarHostData(element)
+        return host_data is not None and host_data.IsValidHost()
+    except Exception:
+        return True
+
+
 class _ReinforcementEventHandler(IExternalEventHandler):
     """
     PHASE 3.5.7 item 4 — parametrized IExternalEventHandler for the
@@ -156,6 +165,14 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 return
 
             elements = [uidoc.Document.GetElement(r.ElementId) for r in refs]
+            invalid = [e for e in elements if not _is_valid_rebar_host(e)]
+            if invalid:
+                forms.alert(u'{} selected element(s) cannot host rebar and were skipped: {}. '
+                            u'Revit only accepts structural concrete hosts — for a floor or '
+                            u'foundation slab, tick "Structural" and give it a concrete '
+                            u'structural layer.'.format(
+                                len(invalid), u', '.join(str(get_id_value(e.Id)) for e in invalid)))
+                elements = [e for e in elements if e not in invalid]
             if elements and not window._ensure_shared_params():
                 return
 

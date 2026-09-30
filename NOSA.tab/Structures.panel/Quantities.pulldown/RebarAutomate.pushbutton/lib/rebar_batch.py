@@ -178,7 +178,11 @@ class RebarBatch(object):
                         rebar_shape_classifier = imp.load_source('rebar_shape_classifier',
                             os.path.join(os.path.dirname(__file__), 'rebar_shape_classifier.py'))
                         all_created_ids = [e.Id for e in created_rebars]
-                        standard_code = self.ctx.get('standard_code', 'en_iso_3766')
+                        # The shape catalogue is named by the standard profile ("EHE-08" ->
+                        # en_iso_3766); looking it up by the standard's own code found no
+                        # catalogue for EHE-08 and stamped every bar as shape 99.
+                        standard = self.ctx.get('standard') or {}
+                        standard_code = standard.get('shape_catalog') or self.ctx.get('standard_code', 'en_iso_3766')
                         shape_summary = rebar_shape_classifier.batch_classify(doc, all_created_ids, standard_code)
                         print(u'[RebarBatch] Shape classification: {} classified, {} failed'.format(
                             shape_summary['classified'], shape_summary['failed']))
