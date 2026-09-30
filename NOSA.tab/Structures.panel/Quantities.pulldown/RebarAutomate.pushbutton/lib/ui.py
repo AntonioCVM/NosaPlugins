@@ -370,6 +370,7 @@ class RebarAutomateWindow(NOSAWindow):
         # column_rebar.detect_column_geometry, so re-calling it is
         # enough; no separate "diff the selection" tracking needed.
         self.Loaded += self._on_window_loaded
+        self._wire_live_previews()
 
         self._is_loaded = True
         self._refresh_batch_list()
@@ -524,7 +525,11 @@ class RebarAutomateWindow(NOSAWindow):
         self.BtnExportBvbs.Click += self.BtnExportBvbs_Click
 
     def _kicker_mm(self):
-        """Kicker height (mm) from the project settings; laps are measured above it."""
+        """Kicker height (mm): the value in the box, else the project setting; laps are measured above it."""
+        try:
+            return max(0.0, float(self.TxtKickerHeight.Text))
+        except (TypeError, ValueError, AttributeError):
+            pass
         try:
             return max(0.0, float(self.ra_project.get('kicker_mm', 75.0)))
         except (TypeError, ValueError):
@@ -725,6 +730,39 @@ class RebarAutomateWindow(NOSAWindow):
     # this stays cheap even on a fast typist. Invalid/incomplete input
     # mid-typing is handled by simply skipping the redraw (not erroring
     # the user) until the fields parse again.
+
+    def _wire_live_previews(self):
+        """Every check box, text box and combo box of a tab refreshes that tab's preview at once."""
+        from System.Windows import LogicalTreeHelper, DependencyObject
+        handlers = (self.Preview_Changed, self.ColumnPreview_Changed,
+                    self.BeamPreview_Changed, self.WallPreview_Changed)
+
+        def descendants(node):
+            for child in LogicalTreeHelper.GetChildren(node):
+                if isinstance(child, DependencyObject):
+                    yield child
+                    for grandchild in descendants(child):
+                        yield grandchild
+
+        for index, handler in enumerate(handlers):
+            if index >= self.MainTabControl.Items.Count:
+                break
+            for control in descendants(self.MainTabControl.Items[index]):
+                if isinstance(control, SWC.CheckBox):
+                    control.Click += handler
+                elif isinstance(control, SWC.TextBox):
+                    control.TextChanged += handler
+                elif isinstance(control, SWC.ComboBox):
+                    control.SelectionChanged += handler
+        self.TxtKickerHeight.TextChanged += self._all_previews_changed
+
+    def _all_previews_changed(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._update_preview()
+        self._update_column_preview()
+        self._update_beam_preview()
+        self._update_wall_preview()
 
     def Preview_Changed(self, sender, args):
         if not getattr(self, '_is_loaded', False):
