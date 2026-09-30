@@ -144,6 +144,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
         mode = ctx['mode']
         values = ctx['values']
         try:
+            if not window._same_document(uiapp):
+                return
             if mode == 'columns':
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralColumns')])
                 prompt = u'Select Structural Columns to reinforce, then click Finish.'
@@ -288,6 +290,26 @@ class _ReinforcementEventHandler(IExternalEventHandler):
         return u'NOSA RebarAutomate — Reinforcement Generation'
 
 
+class _ModelActionHandler(IExternalEventHandler):
+    """Runs one queued window action inside Revit's API context (modeless window, D3)."""
+
+    def __init__(self, window):
+        self.window = window
+        self.pending = None
+
+    def Execute(self, uiapp):
+        action, self.pending = self.pending, None
+        if action is None or not self.window._same_document(uiapp):
+            return
+        try:
+            action()
+        except Exception as e:
+            forms.alert(u'RebarAutomate action failed:\n{}'.format(e), title=u'RebarAutomate')
+
+    def GetName(self):
+        return u'NOSA RebarAutomate — Model Action'
+
+
 class RebarAutomateWindow(NOSAWindow):
 
     def __init__(self, doc):
@@ -324,6 +346,8 @@ class RebarAutomateWindow(NOSAWindow):
         # Raise()) is still alive.
         self._reinforcement_handler = _ReinforcementEventHandler(self)
         self._reinforcement_event = ExternalEvent.Create(self._reinforcement_handler)
+        self._model_action_handler = _ModelActionHandler(self)
+        self._model_action_event = ExternalEvent.Create(self._model_action_handler)
 
         # Shared parameters are bound lazily by _ensure_shared_params(),
         # right before the first generation writes NOSA data: opening the
@@ -3758,6 +3782,25 @@ class RebarAutomateWindow(NOSAWindow):
             return None
         return getattr(selected, 'Tag', None)
 
+    def _same_document(self, uiapp):
+        """The window stays bound to the model it was opened on; refuse to act on another."""
+        uidoc = uiapp.ActiveUIDocument
+        try:
+            if self.doc.IsValidObject and uidoc is not None and uidoc.Document.Equals(self.doc):
+                return True
+            title = self.doc.Title if self.doc.IsValidObject else u'a closed model'
+        except Exception:
+            title = u'a closed model'
+        forms.alert(u'RebarAutomate is open for "{}". Switch back to that model, or close '
+                    u'and reopen RebarAutomate for the current one.'.format(title),
+                    title=u'RebarAutomate')
+        return False
+
+    def _in_revit(self, action):
+        """Queue a model change for Revit's next API call (the window is modeless)."""
+        self._model_action_handler.pending = action
+        self._model_action_event.Raise()
+
     def RefreshBatches_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
@@ -3766,6 +3809,9 @@ class RebarAutomateWindow(NOSAWindow):
     def SelectBatch_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
+        self._in_revit(self._select_batch)
+
+    def _select_batch(self):
         batch_id = self._selected_batch_id()
         if not batch_id:
             forms.alert(u'Select a batch from the list first.')
@@ -3786,6 +3832,9 @@ class RebarAutomateWindow(NOSAWindow):
     def DeleteBatch_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
+        self._in_revit(self._delete_batch)
+
+    def _delete_batch(self):
         batch_id = self._selected_batch_id()
         if not batch_id:
             forms.alert(u'Select a batch from the list first.')
@@ -3943,6 +3992,9 @@ class RebarAutomateWindow(NOSAWindow):
     def AutoTag_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
+        self._in_revit(self._auto_tag)
+
+    def _auto_tag(self):
         rebars = self._selected_rebars()
         if not rebars:
             forms.alert(u'Select one or more rebar elements in the model first.',
@@ -3977,6 +4029,9 @@ class RebarAutomateWindow(NOSAWindow):
     def AutoMRA_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
+        self._in_revit(self._auto_mra)
+
+    def _auto_mra(self):
         rebars = self._selected_rebars()
         if len(rebars) < 1:
             forms.alert(
@@ -4024,6 +4079,9 @@ class RebarAutomateWindow(NOSAWindow):
     def AutoSections_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
+        self._in_revit(self._auto_sections)
+
+    def _auto_sections(self):
         hosts = self._selected_detail_hosts()
         if not hosts:
             forms.alert(

@@ -22,11 +22,8 @@ from nosa_utils.logging import Logger
 logger = Logger()
 
 
-def launch_nosa_window(window_class, *args, **kwargs):
-    """
-    Instantiate a NOSAWindow subclass and show it.
-    Surfaces init / ShowDialog failures via forms.alert (avoids blank AzureAD window).
-    """
+def _create_nosa_window(window_class, args, kwargs):
+    """Instantiate a NOSAWindow subclass, reporting init failures; None if it failed."""
     from pyrevit import forms
     name = getattr(window_class, '__name__', 'NOSA plugin')
     win = None
@@ -74,6 +71,30 @@ def launch_nosa_window(window_class, *args, **kwargs):
         except Exception:
             pass
         return None
+    return win
+
+
+def _record_launch(window_class, win):
+    try:
+        from nosa_utils import usage as _usage
+        name = getattr(window_class, '__name__', 'NOSA plugin')
+        _key = _usage.resolve_launch_key(
+            window_class, getattr(win, '_plugin_key', None) or name)
+        _usage.record(_key)
+    except Exception:
+        pass
+
+
+def launch_nosa_window(window_class, *args, **kwargs):
+    """
+    Instantiate a NOSAWindow subclass and show it.
+    Surfaces init / ShowDialog failures via forms.alert (avoids blank AzureAD window).
+    """
+    from pyrevit import forms
+    name = getattr(window_class, '__name__', 'NOSA plugin')
+    win = _create_nosa_window(window_class, args, kwargs)
+    if win is None:
+        return None
     try:
         win.ShowDialog()
     except Exception as e:
@@ -81,13 +102,34 @@ def launch_nosa_window(window_class, *args, **kwargs):
             u'{} error while open:\n{}'.format(name, e),
             title=u'NOSA — Window Error')
         return win
-    try:
-        from nosa_utils import usage as _usage
-        _key = _usage.resolve_launch_key(
-            window_class, getattr(win, '_plugin_key', None) or name)
-        _usage.record(_key)
-    except Exception:
-        pass
+    _record_launch(window_class, win)
+    return win
+
+
+def launch_nosa_window_modeless(window_class, *args, **kwargs):
+    """
+    Show a NOSAWindow subclass modeless, one instance per Revit session:
+    a second click brings the open window forward. The window must run
+    every model change through an ExternalEvent, and the calling
+    script.py must set __persistentengine__ = True.
+    """
+    key = u'NOSA.modeless.{}'.format(getattr(window_class, '__name__', 'window'))
+    domain = System.AppDomain.CurrentDomain
+    existing = domain.GetData(key)
+    if existing is not None:
+        try:
+            if existing.IsLoaded:
+                existing.Activate()
+                return existing
+        except Exception:
+            pass
+    win = _create_nosa_window(window_class, args, kwargs)
+    if win is None:
+        return None
+    domain.SetData(key, win)
+    win.Closed += lambda sender, e: domain.SetData(key, None)
+    win.Show()
+    _record_launch(window_class, win)
     return win
 
 
