@@ -152,7 +152,9 @@ def test_lap_length_mm_compression_uses_its_own_factor():
 
 
 def test_lap_length_mm_clamps_to_min_mm():
-    assert standards.lap_length_mm(_std, 1.0) == 200.0
+    # Absolute minimum max(15 phi, 300 mm) for every lap (user rule 2026-09-30).
+    assert standards.lap_length_mm(_std, 1.0) == 300.0
+    assert standards.lap_length_mm(_std, 25.0, pct_lapped=0.0) >= 25.0 * 15
 
 
 def test_anchorage_length_mm_good_vs_poor_bond():

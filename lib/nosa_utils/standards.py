@@ -217,28 +217,41 @@ def _interpolated_tension_factor(std, pct_lapped):
     return low + span * (high - low)
 
 
-def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=25.0):
+def concrete_fck_mpa(std):
+    """fck of the host being reinforced (set per host by the caller), else the profile default."""
+    concrete = std.get('concrete') or {}
+    return float(concrete.get('fck_mpa') or concrete.get('default_fck_mpa') or 32.0)
+
+
+def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True):
     """
-    Lap ("empalme") length, mm, for a bar of `bar_diameter_mm`.
-    Compression laps use std.lap.compression_factor directly; tension
-    laps use the tension_factor table (interpolated between its two
-    named points for the band it doesn't name explicitly — see
-    _interpolated_tension_factor). Clamped to std.lap.min_mm.
+    Lap length, mm. lap.mode "ec2" / "bs8110" use nosa_utils.laps (EC2 8.7 with alpha6
+    from pct_lapped; BS 8110 Table 3.27); "factor" keeps the profile's diameter multiples.
+    Never below max(15 phi, 300 mm) in any mode (user rule 2026-09-30).
     """
+    from nosa_utils import laps
     lap_block = std['lap']
+    mode = lap_block.get('mode', 'factor')
+    if mode in (laps.EC2, laps.BS8110):
+        return laps.lap_mm(bar_diameter_mm, concrete_fck_mpa(std), good_bond, pct_lapped,
+                           in_compression, mode)
     factor = (lap_block['compression_factor'] if in_compression
               else _interpolated_tension_factor(std, pct_lapped))
-    return max(bar_diameter_mm * factor, lap_block['min_mm'])
+    return max(bar_diameter_mm * factor, lap_block['min_mm'],
+               laps.ABS_MIN_LAP_FACTOR * bar_diameter_mm, laps.ABS_MIN_LAP_MM)
 
 
 def anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False):
     """
-    Anchorage length, mm, for a bar of `bar_diameter_mm`. Uses
-    std.anchorage.basic_length_factor['good_bond' or 'poor_bond'],
-    scaled by compression_factor if in_compression, clamped to both
-    min_mm and min_factor * bar_diameter_mm (whichever is larger).
+    Anchorage length, mm. anchorage.mode "ec2" / "bs8110" use nosa_utils.laps; "factor"
+    uses basic_length_factor (x compression_factor), clamped to min_mm / min_factor.
     """
+    from nosa_utils import laps
     anchorage_block = std['anchorage']
+    mode = anchorage_block.get('mode', 'factor')
+    if mode in (laps.EC2, laps.BS8110):
+        return laps.anchorage_mm(bar_diameter_mm, concrete_fck_mpa(std), good_bond,
+                                 in_compression, mode)
     factor_key = 'good_bond' if good_bond else 'poor_bond'
     factor = anchorage_block['basic_length_factor'][factor_key]
     if in_compression:

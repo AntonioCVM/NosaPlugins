@@ -292,6 +292,9 @@ class _ReinforcementEventHandler(IExternalEventHandler):
         return u'NOSA RebarAutomate — Reinforcement Generation'
 
 
+_LAP_RULES = (u'EC2 — BS EN 1992-1-1 (UK NA)', u'BS 8110 — legacy multiples')
+
+
 class _ModelActionHandler(IExternalEventHandler):
     """Runs one queued window action inside Revit's API context (modeless window, D3)."""
 
@@ -495,6 +498,25 @@ class RebarAutomateWindow(NOSAWindow):
                     pass
             return None
 
+    def _host_std(self, host):
+        """The standard profile with this host's concrete fck and the project's lap rules."""
+        std = getattr(self, 'ra_standard', None)
+        if std is None:
+            return None
+        std = dict(std)
+        concrete = dict(std.get('concrete') or {})
+        try:
+            fck = re_engine.host_fck_mpa(self.doc, host) if host is not None else None
+        except Exception:
+            fck = None
+        concrete['fck_mpa'] = fck or self.ra_project.get('default_fck_mpa') or \
+            concrete.get('default_fck_mpa') or 32.0
+        std['concrete'] = concrete
+        if self.ra_project.get('lap_rules') == u'bs8110':
+            std['lap'] = dict(std['lap'], mode=u'bs8110')
+            std['anchorage'] = dict(std['anchorage'], mode=u'bs8110')
+        return std
+
     def _populate_standard_dropdown(self):
         """Global "Standard:" selector (ui.xaml, outside the TabControl).
         Populated here in code from standards.list_available() — never
@@ -538,6 +560,11 @@ class RebarAutomateWindow(NOSAWindow):
         self.TxtMarkPrefix.Text = self.ra_project.get('mark_prefix', u'')
         self.TxtRevision.Text = self.ra_project.get('revision', u'')
         self.TxtKickerHeight.Text = u'{:g}'.format(self._kicker_mm())
+        self.TxtDefaultFck.Text = u'{:g}'.format(float(self.ra_project.get('default_fck_mpa') or 32.0))
+        self.CmbLapRules.Items.Clear()
+        for label in _LAP_RULES:
+            self.CmbLapRules.Items.Add(label)
+        self.CmbLapRules.SelectedIndex = 1 if self.ra_project.get('lap_rules') == u'bs8110' else 0
         current_status = self.ra_project.get('status', u'Design')
         if current_status in statuses:
             self.CmbProjectStatus.SelectedItem = current_status
@@ -574,6 +601,15 @@ class RebarAutomateWindow(NOSAWindow):
         except (TypeError, ValueError):
             forms.alert(u'Kicker height must be a number (mm).', title=u'RebarAutomate')
             return
+        try:
+            fck = float(self.TxtDefaultFck.Text)
+            if not 12.0 <= fck <= 90.0:
+                raise ValueError
+            self.ra_project['default_fck_mpa'] = fck
+        except (TypeError, ValueError):
+            forms.alert(u'Default concrete fck must be between 12 and 90 MPa.', title=u'RebarAutomate')
+            return
+        self.ra_project['lap_rules'] = u'bs8110' if self.CmbLapRules.SelectedIndex == 1 else u'ec2'
         rebar_project.save(self.doc, self.ra_project)
         forms.alert(u'Project settings saved.', title=u'RebarAutomate')
     
@@ -1780,7 +1816,7 @@ class RebarAutomateWindow(NOSAWindow):
             y_anchor_ubar_dia_mm=values.get('y_anchor_ubar_dia'),
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
             max_stock_length_mm=values['max_stock_length'],
-            std=getattr(self, 'ra_standard', None))
+            std=self._host_std(host))
 
         # PHASE 3.5.7 item 3 — bottom_mat/top_mat/perimeter_closure_ubars
         # now come from footing_rebar's topology-aware builders (real
@@ -1870,7 +1906,7 @@ class RebarAutomateWindow(NOSAWindow):
             y_anchor_ubar_dia_mm=values.get('y_anchor_ubar_dia'),
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
             max_stock_length_mm=values['max_stock_length'],
-            std=getattr(self, 'ra_standard', None),
+            std=self._host_std(host),
             include_opening_diagonals=values.get('include_opening_diagonals', False),
             opening_diagonal_dia_mm=values.get('opening_diagonal_dia'))
 
@@ -2526,7 +2562,7 @@ class RebarAutomateWindow(NOSAWindow):
             use_cranked_laps=values['cranked_laps'],
             include_crossties=values['crossties'],
             crosstie_layout=values['crosstie_layout'],
-            std=getattr(self, 'ra_standard', None))
+            std=self._host_std(host))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))
@@ -3253,7 +3289,7 @@ class RebarAutomateWindow(NOSAWindow):
         lap_mm = None
         try:
             lap_mm = standards.lap_length_mm(
-                self.ra_standard, values['bar_dia'], in_compression=False)
+                self._host_std(host), values['bar_dia'], in_compression=False)
         except Exception:
             lap_mm = max(40.0 * values['bar_dia'], 200.0)
 
@@ -3578,7 +3614,7 @@ class RebarAutomateWindow(NOSAWindow):
         lap_mm = None
         try:
             lap_mm = standards.lap_length_mm(
-                self.ra_standard, values['vert_dia'], in_compression=False)
+                self._host_std(host), values['vert_dia'], in_compression=False)
         except Exception:
             lap_mm = max(40.0 * values['vert_dia'], 200.0)
         # BUG FIX (2026-09-01) — horiz_dia's own lap, not vert_dia's
@@ -3587,7 +3623,7 @@ class RebarAutomateWindow(NOSAWindow):
         horiz_lap_mm = None
         try:
             horiz_lap_mm = standards.lap_length_mm(
-                self.ra_standard, values['horiz_dia'], in_compression=False)
+                self._host_std(host), values['horiz_dia'], in_compression=False)
         except Exception:
             horiz_lap_mm = max(40.0 * values['horiz_dia'], 200.0)
 

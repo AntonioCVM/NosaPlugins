@@ -405,6 +405,57 @@ _COVER_BIP_BY_FACE = {
 }
 
 
+def _material_fck_mpa(doc, material_id):
+    """Concrete compressive strength of a material's structural asset, MPa, or None."""
+    material = doc.GetElement(material_id) if material_id is not None else None
+    if material is None:
+        return None
+    asset_elem = doc.GetElement(material.StructuralAssetId)
+    asset = asset_elem.GetStructuralAsset() if asset_elem is not None else None
+    if asset is not None and asset.StructuralAssetClass == DB.StructuralAssetClass.Concrete:
+        try:
+            fck = DB.UnitUtils.ConvertFromInternalUnits(asset.ConcreteCompression,
+                                                        DB.UnitTypeId.Megapascals)
+            if fck > 1.0:
+                return fck
+        except Exception:
+            pass
+    # UK templates carry the class in the name only ("Concrete - RC32/40").
+    from nosa_utils import laps
+    return laps.fck_from_material_name(DB.Element.Name.GetValue(material))
+
+
+def host_fck_mpa(doc, host):
+    """fck of the host's structural concrete (instance/type material, or its structural layer), or None."""
+    candidates = []
+    for elem in (host, doc.GetElement(host.GetTypeId())):
+        if elem is None:
+            continue
+        try:
+            param = elem.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
+            if param is not None and param.AsElementId() != DB.ElementId.InvalidElementId:
+                candidates.append(param.AsElementId())
+        except Exception:
+            pass
+        try:
+            structure = elem.GetCompoundStructure()
+            if structure is not None:
+                index = structure.StructuralMaterialIndex
+                if index >= 0:
+                    candidates.append(structure.GetMaterialId(index))
+                candidates.extend(layer.MaterialId for layer in structure.GetLayers())
+        except Exception:
+            pass
+    for material_id in candidates:
+        try:
+            fck = _material_fck_mpa(doc, material_id)
+        except Exception:
+            fck = None
+        if fck:
+            return fck
+    return None
+
+
 def get_native_cover_mm(doc, host, face_type_name, default_mm=DEFAULT_COVER_MM):
     """
     PHASE 3.5.3/3.5.4/3.5.5 item 4 — read the host's own NATIVE clear

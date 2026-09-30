@@ -39,15 +39,16 @@
     "min_hook_extension_mm": 70
   },
 
+  "concrete": { "default_fck_mpa": 32, "_comment": "Used when a host has no concrete strength in its structural material (C32/40)." },
   "anchorage": {
-    "mode": "factor",
+    "mode": "ec2",
     "basic_length_factor": { "good_bond": 40, "poor_bond": 57 },
     "min_factor": 10, "min_mm": 150,
     "compression_factor": 0.7
   },
 
   "lap": {
-    "mode": "factor",
+    "mode": "ec2",
     "tension_factor": { "pct_lapped_le_25": 40, "pct_lapped_gt_50": 57 },
     "compression_factor": 40,
     "min_mm": 200,

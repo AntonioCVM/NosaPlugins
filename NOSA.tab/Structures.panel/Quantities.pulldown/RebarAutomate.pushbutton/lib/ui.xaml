@@ -1159,6 +1159,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Partition:" VerticalAlignment="Center" Margin="0,0,8,8"
@@ -1176,6 +1177,13 @@
                                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Kicker Height (mm):" VerticalAlignment="Center" Margin="0,8,8,0"
                                            ToolTip="Column and wall kicker cast with the foundation. Starter and dowel laps are measured above it (IStructE SMDSC: 75 mm). 0 = no kicker."/>
                                 <TextBox Grid.Row="2" Grid.Column="1" Name="TxtKickerHeight" MaxLength="5" Margin="0,8,16,0"/>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Lap rules:" VerticalAlignment="Center" Margin="0,8,8,0"
+                                           ToolTip="EC2: l0 = alpha6 x lb,rqd from the host's concrete (fbd, bond position, % lapped). BS 8110: Table 3.27 multiples. Every lap is at least max(15 bar diameters, 300 mm)."/>
+                                <ComboBox Grid.Row="3" Grid.Column="1" Name="CmbLapRules" Margin="0,8,16,0"/>
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="Default fck (MPa):" VerticalAlignment="Center" Margin="0,8,8,0"
+                                           ToolTip="Used for hosts whose structural material has no concrete strength (32 = C32/40)."/>
+                                <TextBox Grid.Row="3" Grid.Column="3" Name="TxtDefaultFck" MaxLength="4" Margin="0,8,0,0"/>
                             </Grid>
                         </StackPanel>
                     </Border>
