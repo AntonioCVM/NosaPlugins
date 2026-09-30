@@ -8,6 +8,7 @@ import re
 import json
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.collectors import collect_views, has_view_template
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'rules.json')
 
 _DEFAULT_RULES = {
@@ -71,16 +72,13 @@ def _view_type_name(view):
 
 def _collect_views(doc):
     return [
-        v for v in DB.FilteredElementCollector(doc)
-              .OfClass(DB.View)
-              .ToElements()
-        if not v.IsTemplate and hasattr(v, 'ViewType')
-        and v.ViewType not in (
+        v for v in collect_views(doc, exclude_types=(
             DB.ViewType.Schedule,
             DB.ViewType.DrawingSheet,
             DB.ViewType.Legend,
             DB.ViewType.Undefined,
-        )
+        ))
+        if hasattr(v, 'ViewType')
     ]
 
 
@@ -137,8 +135,7 @@ def check_views_without_template(doc, rules):
         if vtype not in required_types:
             continue
         try:
-            tid = v.ViewTemplateId
-            if tid == DB.ElementId.InvalidElementId:
+            if not has_view_template(v):
                 issues.append({
                     'id':    get_id_value(v.Id),
                     'sheet': _sheet_for_view(doc, v),

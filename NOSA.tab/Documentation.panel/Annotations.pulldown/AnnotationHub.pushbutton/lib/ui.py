@@ -13,6 +13,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.collectors import collect_views
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _dw_logic = imp.load_source('annhub_dw_logic',  os.path.join(_here, 'logic_dim_walls.py'))
@@ -55,17 +56,9 @@ class AnnotationHubWindow(NOSAWindow):
         if types:
             self.DW_ComboDimTypes.SelectedIndex = 0
 
-        collector = (DB.FilteredElementCollector(self.doc)
-                     .OfClass(DB.View)
-                     .WhereElementIsNotElementType())
-        views = []
-        for v in collector:
-            if v.IsTemplate:
-                continue
-            if v.ViewType in (DB.ViewType.FloorPlan,
-                              DB.ViewType.EngineeringPlan,
-                              DB.ViewType.AreaPlan):
-                views.append(v)
+        views = collect_views(self.doc, include_types=(DB.ViewType.FloorPlan,
+                                                       DB.ViewType.EngineeringPlan,
+                                                       DB.ViewType.AreaPlan))
         views.sort(key=lambda x: x.Name)
 
         self._dw_all_views = [_ViewItem(v) for v in views]

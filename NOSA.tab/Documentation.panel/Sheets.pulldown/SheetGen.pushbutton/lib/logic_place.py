@@ -8,6 +8,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.collectors import collect_views, placed_view_ids
 from nosa_utils import unit_conversion as _uc10
 
 _MM_TO_FT = _uc10.MM_TO_FT
@@ -26,26 +27,12 @@ def _placeable_types():
     return result
 
 
-def _placed_ids(doc):
-    placed = set()
-    for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet).ToElements():
-        try:
-            for vid in sheet.GetAllPlacedViews():
-                placed.add(get_id_value(vid))
-        except Exception:
-            pass
-    return placed
-
-
 def unplaced_views(doc):
     """Placeable model/drafting views not on any sheet."""
-    placed = _placed_ids(doc)
-    ok_types = _placeable_types()
+    placed = placed_view_ids(doc, all_placed=True)
     result = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, include_types=_placeable_types()):
         try:
-            if v.IsTemplate or v.ViewType not in ok_types:
-                continue
             if get_id_value(v.Id) in placed:
                 continue
             result.append({'view': v, 'name': v.Name or u'',
@@ -62,10 +49,9 @@ def legend_views(doc):
         legend_t = DB.ViewType.Legend
     except AttributeError:
         return result
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, include_types=(legend_t,)):
         try:
-            if not v.IsTemplate and v.ViewType == legend_t:
-                result.append({'view': v, 'name': v.Name or u''})
+            result.append({'view': v, 'name': v.Name or u''})
         except Exception:
             pass
     result.sort(key=lambda r: r['name'].lower())
