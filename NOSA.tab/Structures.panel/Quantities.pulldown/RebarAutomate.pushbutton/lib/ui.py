@@ -1178,6 +1178,10 @@ class RebarAutomateWindow(NOSAWindow):
         for column_id in dowels.get('skipped_columns', []):
             errors.append(u'Footing {}: no dowels under column {} — it already has NOSA dowels '
                           u'or foundation starters.'.format(get_id_value(host.Id), get_id_value(column_id)))
+        if dowels.get('wall_footing'):
+            errors.append(u'Footing {}: no dowels — it is a strip footing with no column above; '
+                          u'use the wall foundation starters (Walls tab) instead.'.format(
+                              get_id_value(host.Id)))
         for column_id in dowels.get('fallback_columns', []):
             errors.append(u'Footing {}: could not lay out the Columns-tab verticals of column {} — '
                           u'dowels placed on its bar line (Dowel Count) instead.'.format(

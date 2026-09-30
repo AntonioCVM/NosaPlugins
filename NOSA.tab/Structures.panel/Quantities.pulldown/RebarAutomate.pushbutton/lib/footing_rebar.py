@@ -382,16 +382,16 @@ def _footing_bbox(host):
     if bbox is None:
         return None
 
-    width_mm = (bbox.Max.X - bbox.Min.X) * _MM_PER_FT
-    length_mm = (bbox.Max.Y - bbox.Min.Y) * _MM_PER_FT
+    plan_mm = ((bbox.Max.X - bbox.Min.X) * _MM_PER_FT, (bbox.Max.Y - bbox.Min.Y) * _MM_PER_FT)
     thickness_mm = (bbox.Max.Z - bbox.Min.Z) * _MM_PER_FT
-    param_checks = (
-        (u'Width', width_mm), (u'Length', length_mm),
-        (u'Foundation Thickness', thickness_mm),
-    )
-    for name, geom_mm in param_checks:
+    for name in (u'Width', u'Length', u'Foundation Thickness'):
         param_mm = _lookup_length_param_mm(host, [name])
-        if param_mm is None or geom_mm <= 0:
+        if param_mm is None:
+            continue
+        # Plan dimensions are checked against the closer bbox side: a rotated
+        # family or a strip footing (Width across the wall) swaps X and Y.
+        geom_mm = thickness_mm if name == u'Foundation Thickness' else             min(plan_mm, key=lambda g: abs(g - param_mm))
+        if geom_mm <= 0:
             continue
         if param_mm > geom_mm * 2.0 or geom_mm > param_mm * 2.0:
             print(u'WARNING [footing_rebar]: isolated-solid {} ({:.0f}mm) differs '
@@ -1386,7 +1386,8 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     outwards. Without those values (or if they do not fit), n_dowels on the
     column's bar line instead. With no column above, one n_dowels cage
     centred on the footing with a column_width_mm x column_depth_mm section
-    typed in the window. Dowels rest on the bottom mat and rise
+    typed in the window — except on a strip footing (DB.WallFoundation),
+    which gets none: its wall brings its own starters. Dowels rest on the bottom mat and rise
     splice_length_mm above the footing's own top. Columns that already have
     NOSA dowels or foundation starters rising through them are skipped, so
     arming the footing and the column never duplicates bars.
@@ -1439,7 +1440,8 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
             offsets = _dowel_rect_positions(width_mm / 2.0 - inset_mm, depth_mm / 2.0 - inset_mm, n_dowels)
         cages.append((centre, hand, facing, offsets))
 
-    if not columns:
+    wall_footing = not columns and isinstance(host, DB.WallFoundation)
+    if not columns and not wall_footing:
         centre = DB.XYZ((own.Min.X + own.Max.X) / 2.0, (own.Min.Y + own.Max.Y) / 2.0, 0.0)
         offsets = _dowel_rect_positions(column_width_mm / 2.0 - inset_mm,
                                         column_depth_mm / 2.0 - inset_mm, n_dowels)
@@ -1461,7 +1463,7 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
             'embedded_mm': (own.Max.Z - bottom_z_ft) * _MM_PER_FT,
             'anchor_length_mm': anchor_length_mm,
             'columns': len(columns), 'skipped_columns': skipped_columns,
-            'fallback_columns': fallback_columns}
+            'fallback_columns': fallback_columns, 'wall_footing': wall_footing}
 
 
 # ══════════════════════════════════════════════════════════════════════════
