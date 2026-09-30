@@ -1187,6 +1187,7 @@ class RebarAutomateWindow(NOSAWindow):
             rebar = wrapper.create_from_curves(
                 host, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
+                start_hook_direction=normal.CrossProduct(DB.XYZ.BasisZ) if normal is not None else None,
                 start_hook_orientation=re_engine.hook_orientation_left() if hook_type else None,
                 normal=normal,
                 transaction_name=u'NOSA — Create Footing Dowel')
@@ -1240,6 +1241,7 @@ class RebarAutomateWindow(NOSAWindow):
             rebar = wrapper.create_from_curves(
                 foundation, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
+                start_hook_direction=normal.CrossProduct(DB.XYZ.BasisZ) if normal is not None else None,
                 start_hook_orientation=re_engine.hook_orientation_left() if hook_type else None,
                 normal=normal,
                 transaction_name=u'NOSA — Create {} Foundation Starter'.format(label))

@@ -928,6 +928,39 @@ def rebar_from_curves(doc, style, bar_type, start_hook, end_hook, host, normal, 
         use_existing_shape, create_new_shape)
 
 
+def point_start_hook(doc, rebar, hook_dir):
+    """
+    Flip the start hook of a vertical bar if its foot does not point along
+    hook_dir (plan vector). Call inside a transaction; returns True if flipped.
+
+    Measured 2026-09-30: the same normal + 'Left' orientation gives feet
+    pointing outwards in Revit 2026/2027 but inwards in 2024/2025 (Revit
+    stores it as 'Right'), so the foot is checked on the built geometry.
+    """
+    doc.Regenerate()
+    curves = list(rebar.GetCenterlineCurves(False, False, False,
+                                            DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0))
+    points = [c.GetEndPoint(i) for c in curves for i in (0, 1)]
+    if len(points) < 3:
+        return False
+    top = max(points, key=lambda p: p.Z)
+    z_low = min(p.Z for p in points)
+    tip = max((p for p in points if abs(p.Z - z_low) < 1e-3),
+              key=lambda p: (p.X - top.X) ** 2 + (p.Y - top.Y) ** 2)
+    foot = DB.XYZ(tip.X - top.X, tip.Y - top.Y, 0.0)
+    if foot.GetLength() < 1e-6 or foot.DotProduct(DB.XYZ(hook_dir.X, hook_dir.Y, 0.0)) >= 0.0:
+        return False
+    if hasattr(rebar, 'GetHookOrientation'):
+        enum = DBS.RebarHookOrientation
+        current = rebar.GetHookOrientation(0)
+        rebar.SetHookOrientation(0, enum.Right if current == enum.Left else enum.Left)
+    else:
+        enum = DBS.RebarTerminationOrientation  # Revit 2027
+        current = rebar.GetTerminationOrientation(0)
+        rebar.SetTerminationOrientation(0, enum.Right if current == enum.Left else enum.Left)
+    return True
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and
@@ -1202,7 +1235,8 @@ class RebarWrapper(object):
                             end_hook_orientation=None,
                             use_existing_shape_if_possible=True,
                             create_new_shape=True,
-                            transaction_name=u'NOSA — Create Rebar'):
+                            transaction_name=u'NOSA — Create Rebar',
+                            start_hook_direction=None):
         """
         Create one Rebar element following an ordered list of curves —
         typically one RebarSegment.curve from
@@ -1320,6 +1354,8 @@ class RebarWrapper(object):
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
                 else:
                     realign_closed_loop(self.doc, rebar, curves)
+                    if start_hook is not None and start_hook_direction is not None:
+                        point_start_hook(self.doc, rebar, start_hook_direction)
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
