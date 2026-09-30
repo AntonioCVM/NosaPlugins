@@ -123,7 +123,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [ ] | T5.1 | CenterBeamToColumn al patrón estándar (`lib/`, `NOSAWindow`, `ui.xaml`) — único plugin activo que no lo sigue | ✔ | ✔ | – | |
+| [x] | T5.1 | CenterBeamToColumn al patrón estándar (`lib/`, `NOSAWindow`, `ui.xaml`) — único plugin activo que no lo sigue | ✔ | ✔ | – | `c00305d` (rama `claude/elegant-goldstine-4a8bfb`): ventana única (recuento de selección, «Align both ends», distancia máx. antes solo en config, vista previa en vivo) sustituye los 2 diálogos Sí/No; lógica/avisos/informe iguales. Config → `NOSA_Configs/_center_beam_to_column.json` (`config.json` versionado eliminado). Lint: solo NOSA204 (icono 65×65, sin `icon.svg` → T6.4); pyright 0. Humo en Revit 2027 / `Project1` con TransactionGroup revertido: 2 vigas + 5 encepados alineados, 0 fallos |
 | [x] | T5.2 | Mapear las 58 carpetas `.nobutton` (29.6k LOC): cuáles cargan los hubs y cuáles son código muerto; borrar las muertas. Mapa: `docs/NOBUTTON_MAP.md` (57 carpetas reales). **Notas fuera de alcance:** (a) `IssueWorkflowHub/script.py:31` encadena Export con el retirado `ExportSheets.nobutton` en vez de `SheetExportHub`; (b) `lib/nosa_utils/error_registry.py:145` cita la ruta inexistente `Sheets.pulldown/ExportSheets.pushbutton` | ✔ | – | – | `claude/recursing-babbage-a21ec0` — mapa `49ab4e3`, borrado 44 carpetas `577881e` |
 | [ ] | T5.3 | Adoptar `nosa_utils.collectors` en los 8 sitios duplicados de "vistas sin plantilla"/"aplicar plantilla" | ✔ | – | – | |
 | [ ] | T5.4 | Adoptar `nosa_utils.bootstrap` en lugar de `imp.load_source` (preparación CPython) | – | – | – | |
