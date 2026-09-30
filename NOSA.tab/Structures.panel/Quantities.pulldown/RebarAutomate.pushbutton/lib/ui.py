@@ -1886,7 +1886,7 @@ class RebarAutomateWindow(NOSAWindow):
                     cover_mgr = engine.CoverGeometryManager(self.doc, host)
                     u_pos, u_neg, v_pos, v_neg, u_dir, v_dir = column_rebar._column_faces(
                         cover_mgr, axis.Direction)
-                    bar_inset_mm = cover + link_dia + bar_dia / 2.0
+                    bar_inset_mm = cover + link_dia + bar_dia / 2.0 +                         engine.link_corner_extra_inset_mm(bar_dia, link_dia)
                     bar_half_w_mm, bar_half_d_mm = column_rebar._cross_section_half_extents(
                         engine, axis, u_pos, u_neg, v_pos, v_neg, u_dir, v_dir, bar_inset_mm)
                     top_elevation_ft = floor_entries[-1]['top_ft'] if floor_entries else axis.GetEndPoint(1).Z

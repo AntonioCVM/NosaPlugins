@@ -849,6 +849,25 @@ def starter_foot_z(doc, foundation, own_bbox, cover_mm, bar_dia_mm, mat_dias_mm=
     return own_bbox.Min.Z + (cover_mm + 2.0 * bar_dia_mm) / _MM_PER_FT + radius_ft, 'assumed'
 
 
+def link_corner_extra_inset_mm(bar_dia_mm, link_dia_mm, link_bend_dia_mm=None):
+    """
+    Extra inset (mm) of a corner bar nested in its link's bend, beyond
+    touching the two straight legs.
+
+    Measured live 2026-09-30 (T2.10b): Revit seats a column's corner
+    vertical inside the link's bend (Ø10 link, 40 mm tie mandrel, Ø20 bar
+    -> centre 62.9 mm from the face, not 60), so a design that ignores the
+    bend is pulled 3 mm inwards and anything lapped against it (dowels)
+    clashes. link_bend_dia_mm is the inner mandrel diameter (Revit's
+    StirrupTieBendDiameter); None assumes 4 x link diameter.
+    """
+    bar_r = bar_dia_mm / 2.0
+    bend_r = (link_bend_dia_mm if link_bend_dia_mm else 4.0 * link_dia_mm) / 2.0
+    if bend_r <= bar_r:
+        return 0.0
+    return bend_r - (bend_r - bar_r) / math.sqrt(2.0) - bar_r
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and

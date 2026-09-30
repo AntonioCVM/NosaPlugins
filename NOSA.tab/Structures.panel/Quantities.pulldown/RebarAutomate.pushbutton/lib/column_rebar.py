@@ -939,6 +939,7 @@ def column_vertical_plan_layout(doc, host, cover_mm, bar_diameter_mm, bar_count,
     else:
         source = _resolve_column_geometry_source(host, axis, engine.CoverGeometryManager(doc, host))
         hand, facing = source['u_dir'], source['v_dir']
+        inset_mm += engine.link_corner_extra_inset_mm(bar_diameter_mm, stirrup_diameter_mm)
         half_w_mm, half_d_mm = _half_extents_from_source(engine, axis, source, inset_mm)
         if half_w_mm <= 0 or half_d_mm <= 0:
             raise ValueError(u'Column bars do not fit inside the section.')
@@ -2551,7 +2552,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     section_source = _resolve_column_geometry_source(host, axis, cover_mgr)
     u_dir, v_dir = section_source['u_dir'], section_source['v_dir']
 
-    bar_inset_mm = cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0
+    # Corner bars seat in the link's bend (T2.10b); each face set shares their plane.
+    bar_inset_mm = cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0 +         engine.link_corner_extra_inset_mm(bar_diameter_mm, stirrup_diameter_mm)
     bar_half_w_mm, bar_half_d_mm = _half_extents_from_source(
         engine, axis, section_source, bar_inset_mm)
 

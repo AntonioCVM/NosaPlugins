@@ -1401,7 +1401,7 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     # Foot rests on the bottom mat (T2.16): mat_dias_mm = this run's X/Y mat bars.
     bottom_z_ft, _ = engine.starter_foot_z(doc, host, own, cover_mm, bar_diameter_mm, mat_dias_mm)
     top_z_ft = own.Max.Z + splice_length_mm / _MM_PER_FT
-    inset_mm = column_cover_mm + link_diameter_mm + bar_diameter_mm / 2.0
+    inset_mm = column_cover_mm + link_diameter_mm + bar_diameter_mm / 2.0 +         engine.link_corner_extra_inset_mm(bar_diameter_mm, link_diameter_mm)
 
     cages = []
     contact = []
