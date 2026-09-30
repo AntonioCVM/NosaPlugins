@@ -698,3 +698,18 @@ print("build_column_reinforcement (crossties ON, 4-bar column): no "
       "positives: OK")
 
 print("\nALL COLUMN_REBAR PHASE 3 CHECKS PASSED")
+
+
+# ── T4.6 (D3): densification at intermediate nodes of multi-storey columns ──
+storey_zones = column_rebar.generate_storey_stirrup_zones(
+    6300.0, 450.0, 100.0, 200.0, True, 50.0, 50.0, floor_bands_mm=[(3000.0, 3300.0)])
+dense = [z for z in storey_zones if z['spacing_mm'] == 100.0]
+assert len(dense) == 4, "each storey is densified at both ends: 4 dense zones, got {}".format(len(dense))
+assert any(abs(z['end_mm'] - 2950.0) < 1e-6 for z in dense), "dense zone just under the slab"
+assert any(abs(z['start_mm'] - 3350.0) < 1e-6 for z in dense), "dense zone just above the slab"
+assert all(z['end_mm'] <= 3000.0 or z['start_mm'] >= 3300.0 for z in storey_zones), \
+    "no link inside the slab"
+single = column_rebar.generate_storey_stirrup_zones(3000.0, 450.0, 100.0, 200.0, True)
+assert len(single) == 3, "a single-storey column keeps its 3 zones"
+print("generate_storey_stirrup_zones: intermediate node densified above and below "
+      "the slab, no link inside it: OK")

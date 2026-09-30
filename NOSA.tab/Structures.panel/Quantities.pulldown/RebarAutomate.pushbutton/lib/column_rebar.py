@@ -1794,6 +1794,39 @@ def build_stirrup_sets(axis, u_dir, v_dir, half_w_mm, half_d_mm, zones):
     return sets
 
 
+def generate_storey_stirrup_zones(clear_height_mm, larger_dim_mm, dense_spacing_mm,
+                                  normal_spacing_mm, densify_at_nodes, start_offset_mm=50.0,
+                                  end_offset_mm=50.0, floor_bands_mm=None, joint_zone_length_mm=None,
+                                  std=None, floor_offset_mm=50.0):
+    """
+    Link zones for a column that may cross floors: every storey segment
+    between floor slabs is densified at both of its ends, so intermediate
+    nodes get confinement above and below the slab (D3 / T4.6, 2026-09-30).
+    Each segment's joint zone uses its own clear height unless
+    joint_zone_length_mm is given. No link falls inside a slab.
+    """
+    bands = sorted(floor_bands_mm or [])
+    edges = [0.0]
+    for lo, hi in bands:
+        edges += [lo, hi]
+    edges.append(clear_height_mm)
+    zones = []
+    for i in range(0, len(edges), 2):
+        seg_lo, seg_hi = edges[i], edges[i + 1]
+        height = seg_hi - seg_lo
+        if height <= 0:
+            continue
+        joint = joint_zone_length_mm or default_joint_zone_length_mm(larger_dim_mm, height, std=std)
+        first, last = i == 0, i + 2 >= len(edges)
+        for z in generate_column_stirrup_zones(
+                height, joint, dense_spacing_mm, normal_spacing_mm, densify_at_nodes,
+                start_offset_mm if first else floor_offset_mm,
+                end_offset_mm if last else floor_offset_mm):
+            zones.append({'start_mm': z['start_mm'] + seg_lo, 'end_mm': z['end_mm'] + seg_lo,
+                          'spacing_mm': z['spacing_mm']})
+    return zones
+
+
 def _subtract_floor_bands(zones, floor_bands_mm):
     """
     PHASE 3.4 item 2 — cut every floor's own thickness OUT of a
@@ -2278,23 +2311,16 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
     stirrup_radius_ft = stirrup_radius_mm / _MM_PER_FT
 
     clear_height_mm = axis.Length * _MM_PER_FT
-    if joint_zone_length_mm is None:
-        # The circular analogue of "larger cross-section dimension" —
-        # a rectangle's max(2*half_w, 2*half_d) collapses to the tie's
-        # own diameter for a circle.
-        larger_dim_mm = 2.0 * stirrup_radius_mm
-        joint_zone_length_mm = default_joint_zone_length_mm(
-            larger_dim_mm, clear_height_mm, std=std)
+    # A circle's "larger cross-section dimension" is the tie's own diameter;
+    # the joint zone is resolved per storey by generate_storey_stirrup_zones.
 
-    zones = generate_column_stirrup_zones(
-        clear_height_mm, joint_zone_length_mm, dense_spacing_mm, normal_spacing_mm,
-        densify_at_nodes, start_offset_mm, end_offset_mm)
-
-    if floor_entries:
-        axis_base_ft = axis.GetEndPoint(0).Z
-        floor_bands_mm = [((e['bottom_ft'] - axis_base_ft) * _MM_PER_FT,
-                            (e['top_ft'] - axis_base_ft) * _MM_PER_FT) for e in floor_entries]
-        zones = _subtract_floor_bands(zones, floor_bands_mm)
+    axis_base_ft = axis.GetEndPoint(0).Z
+    floor_bands_mm = [((e['bottom_ft'] - axis_base_ft) * _MM_PER_FT,
+                        (e['top_ft'] - axis_base_ft) * _MM_PER_FT) for e in (floor_entries or [])]
+    zones = generate_storey_stirrup_zones(
+        clear_height_mm, 2.0 * stirrup_radius_mm, dense_spacing_mm, normal_spacing_mm,
+        densify_at_nodes, start_offset_mm, end_offset_mm, floor_bands_mm=floor_bands_mm,
+        joint_zone_length_mm=joint_zone_length_mm, std=std)
 
     stirrup_sets = []
     for zone in zones:
@@ -2660,20 +2686,14 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
         engine, axis, section_source, stirrup_inset_mm)
 
     clear_height_mm = axis.Length * _MM_PER_FT
-    if joint_zone_length_mm is None:
-        larger_dim_mm = max(2 * stirrup_half_w_mm, 2 * stirrup_half_d_mm)
-        joint_zone_length_mm = default_joint_zone_length_mm(
-            larger_dim_mm, clear_height_mm, std=std)
-
-    zones = generate_column_stirrup_zones(
-        clear_height_mm, joint_zone_length_mm, dense_spacing_mm, normal_spacing_mm,
-        densify_at_nodes, start_offset_mm, end_offset_mm)
-
-    if floor_entries:
-        axis_base_ft = axis.GetEndPoint(0).Z
-        floor_bands_mm = [((e['bottom_ft'] - axis_base_ft) * _MM_PER_FT,
-                            (e['top_ft'] - axis_base_ft) * _MM_PER_FT) for e in floor_entries]
-        zones = _subtract_floor_bands(zones, floor_bands_mm)
+    larger_dim_mm = max(2 * stirrup_half_w_mm, 2 * stirrup_half_d_mm)
+    axis_base_ft = axis.GetEndPoint(0).Z
+    floor_bands_mm = [((e['bottom_ft'] - axis_base_ft) * _MM_PER_FT,
+                        (e['top_ft'] - axis_base_ft) * _MM_PER_FT) for e in (floor_entries or [])]
+    zones = generate_storey_stirrup_zones(
+        clear_height_mm, larger_dim_mm, dense_spacing_mm, normal_spacing_mm, densify_at_nodes,
+        start_offset_mm, end_offset_mm, floor_bands_mm=floor_bands_mm,
+        joint_zone_length_mm=joint_zone_length_mm, std=std)
 
     stirrup_sets = build_stirrup_sets(
         axis, u_dir, v_dir, stirrup_half_w_mm, stirrup_half_d_mm, zones)
