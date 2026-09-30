@@ -2951,6 +2951,7 @@ class RebarAutomateWindow(NOSAWindow):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
 
         bar_type_long = bar_types.get(values['bar_dia'])
+        first_long = len(created_rebars)
         long_normal = curves.get('long_bar_normal') or DB.XYZ.BasisZ
 
         def _create_bar_group_or_fallback(group, label, layer):
@@ -3040,6 +3041,8 @@ class RebarAutomateWindow(NOSAWindow):
                         self._stamp_layer(rebar, u'bottom')
                         created_rebars.append(rebar)
 
+        long_rebars = created_rebars[first_long:]
+
         bar_type_st = bar_types.get(values['stirrup_dia'])
         stirrup_sets = curves.get('stirrup_sets') or []
         if bar_type_st is not None and stirrup_sets:
@@ -3098,6 +3101,18 @@ class RebarAutomateWindow(NOSAWindow):
                 else:
                     self._stamp_layer(rebar, u'stirrup')
                     created_rebars.append(rebar)
+
+        if long_rebars and curves.get('bar_inset_mm'):
+            # T2.10b: stirrups re-snap the longitudinals; pin them back to the design inset.
+            try:
+                with DB.Transaction(self.doc, u'NOSA — Pin Beam Longitudinal Bars') as t:
+                    t.Start()
+                    for rebar in long_rebars:
+                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, curves['bar_inset_mm'])
+                    t.Commit()
+            except Exception as e:
+                errors.append(u'Beam {}: longitudinal bars left where Revit snapped them '
+                              u'(could not pin to the faces: {}).'.format(get_id_value(host.Id), e))
 
     def _run_beam_reinforcement(self, beams, values):
         errors = []

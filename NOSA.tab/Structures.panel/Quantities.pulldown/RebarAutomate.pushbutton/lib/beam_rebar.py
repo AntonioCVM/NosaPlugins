@@ -258,6 +258,11 @@ def _cross_section_point(p_ref, width_dir, height_dir, transverse_pt, vertical_p
     return p_ref + width_dir.Multiply(w) + height_dir.Multiply(h)
 
 
+def longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_diameter_mm):
+    """Face-to-centreline distance of a beam's longitudinal bars (sides, top and bottom)."""
+    return cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0 +         _ensure_engine().link_corner_extra_inset_mm(bar_diameter_mm, stirrup_diameter_mm)
+
+
 def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
                                     cover_mm, n_bars, bar_diameter_mm=0.0,
                                     stirrup_diameter_mm=0.0, seed_side_normal=None):
@@ -342,8 +347,11 @@ def compute_longitudinal_bar_lines(axis_curve, face_info, side_a, side_b,
     height_dir = face_info.normal.Normalize()
     width_dir = axis_dir.CrossProduct(height_dir).Normalize()
 
-    vertical_pt = engine.compute_cover_point(face_info, cover_mm + stirrup_diameter_mm)
-    side_inset_mm = cover_mm + stirrup_diameter_mm + bar_diameter_mm / 2.0
+    # T2.10b (measured live 2026-09-30): the bar centreline sits a full radius
+    # behind the stirrup, plus the seat in the stirrup's bend at the corners;
+    # the old cover + stirrup put the top row 12 mm too close to the face.
+    side_inset_mm = longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_diameter_mm)
+    vertical_pt = engine.compute_cover_point(face_info, side_inset_mm)
     edge_a = engine.compute_cover_point(side_a, side_inset_mm)
     edge_b = engine.compute_cover_point(side_b, side_inset_mm)
 
@@ -896,5 +904,6 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'beam_width_mm': half_width_mm * 2.0 + 2.0 * inset_mm,
         'confine_length_mm': confine_length_mm if densify_ends else 0.0,
         'long_bar_normal': width_dir,
+        'bar_inset_mm': longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm),
         'warnings': warnings,
     }
