@@ -3,6 +3,8 @@
 import sys, os
 from Autodesk.Revit import DB
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'ModelHealthHub/level_grid_sync'
 _TOL_DEFAULT_MM = 1.0  # default elevation tolerance in mm
 _MM_PER_FOOT    = _uc10.FT_TO_MM
 
@@ -26,7 +28,7 @@ def get_linked_models(doc):
                 title = u'{} (not loaded)'.format(link.Name or u'Link')
             links.append((link, title))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_linked_models')
     links.sort(key=lambda x: x[1].lower())
     return links
 
@@ -41,7 +43,7 @@ def _collect_levels(doc):
         try:
             result[lvl.Name.strip().lower()] = (_ft_to_mm(lvl.Elevation), lvl.Name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_collect_levels')
     return result
 
 
@@ -58,7 +60,7 @@ def _collect_grids(doc):
             pos   = _ft_to_mm((mid.X + mid.Y) / 2.0)  # simplified midpoint signature
             result[g.Name.strip().lower()] = (g.Name, pos)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_collect_grids')
     return result
 
 

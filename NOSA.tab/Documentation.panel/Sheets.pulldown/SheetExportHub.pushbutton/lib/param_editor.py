@@ -14,6 +14,8 @@ from Autodesk.Revit import DB
 from pyrevit import revit
 
 from nosa_utils import sheet_protocol as _sp
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'SheetExportHub/param_editor'
 
 # Parameters this plugin will never write, even if present in a column
 # preset. Sheet Number renumbering belongs to Sheet Hub; Document Number
@@ -50,7 +52,7 @@ def resolve_parameter(element, param_name):
         if p:
             return p
     except Exception:
-        pass
+        log_swallowed(_LOG, u'resolve_parameter')
     bip = _bip_fallback(param_name)
     if bip is not None:
         try:
@@ -58,7 +60,7 @@ def resolve_parameter(element, param_name):
             if p:
                 return p
         except Exception:
-            pass
+            log_swallowed(_LOG, u'resolve_parameter#2')
     return None
 
 

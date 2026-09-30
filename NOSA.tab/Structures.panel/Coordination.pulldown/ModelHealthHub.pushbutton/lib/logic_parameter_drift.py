@@ -10,6 +10,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'ModelHealthHub/parameter_drift'
 
 
 def get_shared_param_names(doc):
@@ -21,9 +23,9 @@ def get_shared_param_names(doc):
             try:
                 names.append(spe.GetDefinition().Name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_shared_param_names')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_shared_param_names#2')
     return sorted(set(names))
 
 
@@ -67,7 +69,7 @@ def snapshot_model(doc, param_names):
                     if p and p.HasValue:
                         vals[pname] = p.AsValueString() or p.AsString() or u''
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'snapshot_model')
             if vals:
                 try:
                     mark_p = el.LookupParameter(u'Mark')
@@ -162,7 +164,7 @@ def resolve_key_elements(doc, keys):
                 ids.append(element_id_from_int(int(suffix)))
                 continue
             except Exception:
-                pass
+                log_swallowed(_LOG, u'resolve_key_elements')
         marks.setdefault(cat, set()).add(suffix)
     if marks:
         for el in (DB.FilteredElementCollector(doc)
@@ -177,7 +179,7 @@ def resolve_key_elements(doc, keys):
                 if mark and mark in marks[cat.Name]:
                     ids.append(el.Id)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'resolve_key_elements#2')
     return ids
 
 

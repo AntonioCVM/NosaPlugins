@@ -16,7 +16,9 @@ import datetime
 
 from config import Config
 from nosa_utils import sheet_protocol as _sp
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils.logging import Logger
+_LOG = u'SheetExportHub/column_presets'
 
 logger = Logger()
 
@@ -50,7 +52,7 @@ class ColumnPresetManager(object):
                     if filename.endswith('.json'):
                         custom.append(filename.replace('.json', ''))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_preset_names')
         return list(BUILTIN_PRESETS.keys()) + sorted(custom)
 
     @staticmethod
@@ -123,5 +125,5 @@ class ColumnPresetManager(object):
                         if p.Definition:
                             names.add(p.Definition.Name)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'get_available_columns')
         return sorted(names)

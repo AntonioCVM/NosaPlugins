@@ -7,6 +7,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'StructuralQA/family_audit'
 
 # StorageType.None is a reserved Python keyword — use getattr to access it
 _STORAGETYPE_NONE = getattr(DB.StorageType, 'None', None)
@@ -24,7 +26,7 @@ def _size_mb(family):
             if path and os.path.isfile(path):
                 size_bytes = os.path.getsize(path)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_size_mb')
         fam_doc.Close(False)
         return round(size_bytes / (1024 * 1024), 3)
     except Exception:
@@ -48,7 +50,7 @@ def _build_instance_index(doc):
                 k = get_id_value(sym.Id)
                 idx[k] = idx.get(k, 0) + 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_build_instance_index')
     return idx
 
 
@@ -127,7 +129,7 @@ def collect_families(doc):
                 'family':         fam,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_families')
 
     rows.sort(key=lambda r: (r['category'], r['name'].lower()))
     return rows

@@ -7,6 +7,8 @@ import os
 import json
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'ModelHealthHub/warnings_triage'
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'warning_rules.json')
 
 
@@ -18,7 +20,7 @@ def load_warning_rules():
             with open(_RULES_FILE, 'r') as f:
                 return json.load(f)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'load_warning_rules')
     return {"rules": [], "default_severity": "Low",
             "default_action": "Review the warning description."}
 
@@ -88,7 +90,7 @@ def classify_warnings(doc, active_severities=None):
                 'ignored':        False,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'classify_warnings')
 
     # Sort: High -> Medium -> Low, then by description
     _order = {'High': 0, 'Medium': 1, 'Low': 2}
@@ -160,7 +162,7 @@ def _fix_unjoin(doc, element_ids):
                 if el is not None:
                     elements.append(el)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_fix_unjoin')
 
         if len(elements) < 2:
             return False, "Need at least 2 valid elements to unjoin."
@@ -206,7 +208,7 @@ def _fix_delete_room_separation(doc, element_ids):
                         doc.Delete(el.Id)
                         deleted += 1
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_fix_delete_room_separation')
             t.Commit()
     except Exception as e:
         return False, "Transaction failed: {}".format(e)

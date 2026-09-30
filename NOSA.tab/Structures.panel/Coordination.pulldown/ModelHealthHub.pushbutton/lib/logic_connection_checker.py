@@ -6,6 +6,8 @@ for structural beams and columns.
 from Autodesk.Revit import DB
 from System.Collections.Generic import List
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'ModelHealthHub/connection_checker'
 
 
 def _collect(doc, bic):
@@ -18,7 +20,7 @@ def _level_name(doc, el):
         if lid and lid != DB.ElementId.InvalidElementId:
             lv = doc.GetElement(lid)
             if lv: return lv.Name
-    except Exception: pass
+    except Exception: log_swallowed(_LOG, u'_level_name')
     return '—'
 
 # ── Analytical model check ────────────────────────────────────────────────────
@@ -37,7 +39,7 @@ def check_analytical_disabled(doc):
                     issues.append({'id': get_id_value(el.Id), 'name': el.Name,
                                    'category': label, 'level': _level_name(doc, el),
                                    'check': 'Analytical disabled', 'severity': 'High'})
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'check_analytical_disabled')
     return issues
 
 # ── End join / structural usage ───────────────────────────────────────────────
@@ -53,7 +55,7 @@ def check_structural_usage(doc):
                 issues.append({'id': get_id_value(el.Id), 'name': el.Name,
                                'category': 'Beam', 'level': _level_name(doc, el),
                                'check': 'Structural usage empty', 'severity': 'Medium'})
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'check_structural_usage')
     return issues
 
 # ── Column base / top attachment ──────────────────────────────────────────────
@@ -74,7 +76,7 @@ def check_column_attachment(doc):
                 issues.append({'id': get_id_value(el.Id), 'name': el.Name,
                                'category': 'Column', 'level': _level_name(doc, el),
                                'check': 'Column top not attached', 'severity': 'Low'})
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'check_column_attachment')
     return issues
 
 # ── Beam end join check ───────────────────────────────────────────────────────
@@ -124,7 +126,7 @@ def check_beam_joins(doc):
                         'check': 'End {} — no adjacent element'.format(end_idx),
                         'severity': 'Medium'
                     })
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'check_beam_joins')
     return issues
 
 # ── Custom rules engine ───────────────────────────────────────────────────────
@@ -146,7 +148,7 @@ def load_custom_rules():
             with io.open(_RULES_FILE, encoding='utf-8') as f:
                 return json.load(f)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'load_custom_rules')
     return []
 
 
@@ -223,10 +225,10 @@ def run_custom_rules(doc, rules):
                     fail = thr_l in raw_l
                 elif op == 'greater_than':
                     try: fail = float(raw) > float(threshold)
-                    except ValueError: pass
+                    except ValueError: pass  # nosa-lint: disable=NOSA006 - non-numeric value simply does not fail a numeric rule
                 elif op == 'less_than':
                     try: fail = float(raw) < float(threshold)
-                    except ValueError: pass
+                    except ValueError: pass  # nosa-lint: disable=NOSA006 - non-numeric value simply does not fail a numeric rule
 
                 if fail:
                     issues.append({
@@ -238,7 +240,7 @@ def run_custom_rules(doc, rules):
                         'severity': severity,
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'run_custom_rules')
     return issues
 
 

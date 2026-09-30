@@ -11,7 +11,9 @@ Checks:
 """
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils import unit_conversion as _uc10
+_LOG = u'ModelHealthHub/analytical_health'
 FT2MM = _uc10.FT_TO_MM
 
 def _struct_bics():
@@ -40,7 +42,7 @@ def _param_int(el, bip, default=0):
         if p and p.HasValue:
             return p.AsInteger()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_int')
     return default
 
 
@@ -50,7 +52,7 @@ def _mark(el):
         if p and p.HasValue:
             return p.AsString() or ''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_mark')
     return ''
 
 
@@ -65,7 +67,7 @@ def _level_name(el, doc):
                 if lv:
                     return lv.Name or ''
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_level_name')
     return ''
 
 
@@ -117,7 +119,7 @@ def check_analytical_disabled(doc):
                         'severity': u'WARNING',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_analytical_disabled')
     return rows
 
 
@@ -139,14 +141,14 @@ def check_unsupported_columns(doc):
             if bb:
                 found_elevations.add(round(bb.Max.Z * FT2MM, 0))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_unsupported_columns')
     for f in _collect_bic(doc, DB.BuiltInCategory.OST_Floors):
         try:
             bb = f.get_BoundingBox(None)
             if bb:
                 found_elevations.add(round(bb.Max.Z * FT2MM, 0))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_unsupported_columns#2')
 
     for col in cols:
         try:
@@ -154,7 +156,7 @@ def check_unsupported_columns(doc):
             anal = None
             try:
                 anal = col.GetAnalyticalModel()
-            except Exception:
+            except Exception:  # nosa-lint: disable=NOSA006 - GetAnalyticalModel() was removed in Revit 2023+; fails by design on 2024-2027
                 pass
 
             if anal is not None:
@@ -173,7 +175,7 @@ def check_unsupported_columns(doc):
                         })
                     continue
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'check_unsupported_columns#3')
 
             # Fallback: check if column base Z is near a known foundation/floor elevation
             try:
@@ -199,9 +201,9 @@ def check_unsupported_columns(doc):
                         'severity': u'WARNING',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_unsupported_columns#4')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_unsupported_columns#5')
     return rows
 
 
@@ -254,7 +256,7 @@ def check_structural_warnings(doc):
                     'severity': u'WARNING',
                 })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_structural_warnings')
     return rows
 
 
@@ -279,7 +281,7 @@ def check_elements_without_level(doc):
                         'severity': u'WARNING',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_elements_without_level')
     return rows
 
 
@@ -298,7 +300,7 @@ def check_beam_connectivity(doc):
             anal = None
             try:
                 anal = beam.GetAnalyticalModel()
-            except Exception:
+            except Exception:  # nosa-lint: disable=NOSA006 - GetAnalyticalModel() was removed in Revit 2023+; fails by design on 2024-2027
                 pass
 
             if anal is None:
@@ -335,11 +337,11 @@ def check_beam_connectivity(doc):
                                 'severity': u'WARNING',
                             })
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'check_beam_connectivity')
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_beam_connectivity#2')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_beam_connectivity#3')
     return rows
 
 

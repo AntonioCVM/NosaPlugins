@@ -12,7 +12,9 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
 from nosa_utils import unit_conversion as _uc10
+_LOG = u'ModelHealthHub/health_score'
 
 _HISTORY_FILE = os.path.join(
     os.path.dirname(__file__), '..', '..', '..', '..', '..', 'NOSA_Configs', '_healthscore_history.json'
@@ -68,7 +70,7 @@ def check_elements_without_material(doc, categories=None):
                         'category': el.Category.Name if el.Category else 'Unknown',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_elements_without_material')
     return issues
 
 
@@ -91,7 +93,7 @@ def check_elements_without_analytical(doc, categories=None):
                         'category': el.Category.Name if el.Category else 'Unknown',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_elements_without_analytical')
     return issues
 
 
@@ -123,7 +125,7 @@ def check_orphan_foundations(doc, tolerance_mm=2000.0):
                     'category': 'Structural Foundation',
                 })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_orphan_foundations')
     return issues
 
 
@@ -136,7 +138,7 @@ def check_elements_with_warnings(doc):
             for eid in w.GetFailingElements():
                 issues.append({'id': get_id_value(eid), 'warning': desc[:120] if desc else ''})
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_elements_with_warnings')
     return issues
 
 
@@ -167,7 +169,7 @@ def check_parameter_completeness(doc, required_params=None):
                         'missing': ', '.join(missing),
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_parameter_completeness')
     return issues
 
 
@@ -198,7 +200,7 @@ def check_level_offsets(doc, max_offset_mm=3000.0):
                         })
                         break
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_level_offsets')
     return issues
 
 
@@ -233,7 +235,7 @@ def check_duplicate_marks(doc):
                     'mark': mark,
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_duplicate_marks')
     issues = []
     for mark, elems in mark_map.items():
         if len(elems) > 1:
@@ -274,7 +276,7 @@ def check_elements_not_on_level(doc):
                         'category': el.Category.Name if el.Category else 'Unknown',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_elements_not_on_level')
     return issues
 
 
@@ -298,9 +300,9 @@ def check_unhosted_rebar(doc):
                         'category': 'Structural Rebar',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_unhosted_rebar')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_unhosted_rebar#2')
     return issues
 
 
@@ -368,12 +370,12 @@ def save_score_history(doc_title, score, counts):
     try:
         try:
             os.makedirs(os.path.dirname(_HISTORY_FILE))
-        except OSError:
+        except OSError:  # nosa-lint: disable=NOSA006 - makedirs raises when the folder already exists
             pass
         with open(_HISTORY_FILE, 'w') as f:
             json.dump(history, f, indent=2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'save_score_history')
 
 
 def _load_history():

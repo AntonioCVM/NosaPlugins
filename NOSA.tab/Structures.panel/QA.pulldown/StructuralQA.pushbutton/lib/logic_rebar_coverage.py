@@ -5,6 +5,8 @@ Groups results by category and level.
 """
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'StructuralQA/rebar_coverage'
 _STRUCTURAL_BICS = None
 
 
@@ -37,14 +39,14 @@ def _level_name(doc, el):
             lv = doc.GetElement(lid)
             if lv: return lv.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_level_name')
     try:
         p = el.get_Parameter(DB.BuiltInParameter.FAMILY_LEVEL_PARAM)
         if p:
             lv = doc.GetElement(p.AsElementId())
             if lv: return lv.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_level_name#2')
     return 'No Level'
 
 
@@ -67,9 +69,9 @@ def _build_rebar_host_index(doc):
                 if hasattr(r, 'GetHostId'):
                     host_ids.add(get_id_value(r.GetHostId()))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_build_rebar_host_index')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_build_rebar_host_index#2')
     return host_ids
 
 
@@ -87,7 +89,7 @@ def _has_rebar(doc, el, index_cache):
         )
         return len(list(dep)) > 0
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_has_rebar')
     if 'index' not in index_cache:
         index_cache['index'] = _build_rebar_host_index(doc)
     return get_id_value(el.Id) in index_cache['index']
@@ -120,7 +122,7 @@ def check_rebar_coverage(doc, selected_cats=None):
                 else:
                     without_rebar.append(entry)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_rebar_coverage')
 
     total = len(with_rebar) + len(without_rebar)
     coverage_pct = round(len(with_rebar) / float(total) * 100, 1) if total else 0.0

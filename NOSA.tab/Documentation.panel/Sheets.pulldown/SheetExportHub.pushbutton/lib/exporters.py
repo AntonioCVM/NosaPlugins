@@ -4,8 +4,10 @@ import time
 from System.Collections.Generic import List
 from Autodesk.Revit import DB
 from nosa_utils.logging import Logger
+from nosa_utils.telemetry import log_swallowed
 from config import Config
 from utils import Utils
+_LOG = u'SheetExportHub/exporters'
 try:
     from pyrevit import script
     output = script.get_output()
@@ -184,7 +186,7 @@ class ExportManager:
                         try:
                             import System.Windows.Forms
                             System.Windows.Forms.Application.DoEvents()
-                        except Exception:
+                        except Exception:  # nosa-lint: disable=NOSA006 - UI message pump during export, called per sheet; failure is harmless
                             pass
                         
                         # Limpieza de memoria cada 10 elementos
@@ -267,7 +269,7 @@ class ExportManager:
                 except Exception:
                     try:
                         pdf_options.ColorDepth = DB.ColorDepthType.GrayScale
-                    except Exception:
+                    except Exception:  # nosa-lint: disable=NOSA006 - last step of a per-version ColorDepth enum fallback
                         pass
             elif 'pdf_color_depth' in self.preset_config:
                 pdf_options.ColorDepth = self.preset_config['pdf_color_depth']
@@ -341,7 +343,7 @@ class ExportManager:
                 except Exception:
                     try:
                         pdf_options.ColorDepth = DB.ColorDepthType.GrayScale
-                    except Exception:
+                    except Exception:  # nosa-lint: disable=NOSA006 - last step of a per-version ColorDepth enum fallback
                         pass
             elif 'pdf_color_depth' in self.preset_config:
                 pdf_options.ColorDepth = self.preset_config['pdf_color_depth']
@@ -487,7 +489,7 @@ class ExportManager:
                 except Exception:
                     try:
                         pdf_options.ColorDepth = DB.ColorDepthType.GrayScale
-                    except Exception:
+                    except Exception:  # nosa-lint: disable=NOSA006 - last step of a per-version ColorDepth enum fallback
                         pass
             elif 'pdf_color_depth' in self.preset_config:
                 pdf_options.ColorDepth = self.preset_config['pdf_color_depth']
@@ -583,7 +585,7 @@ class ExportManager:
             if hasattr(dwg_options, 'LayerSettings'):
                 dwg_options.LayerSettings = DB.ExportLayerOptions.AIA
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_build_dwg_options')
         return dwg_options
 
     def export_view_dwg(self, view, filename):
@@ -631,7 +633,7 @@ class ExportManager:
                 try:
                     os.remove(dxf_path)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'export_view_dxf')
 
             # Setup Options
             dxf_options = DB.DXFExportOptions()
@@ -677,7 +679,7 @@ class ExportManager:
             dwg_path = os.path.join(self.output_folder, "{}.dwg".format(filename))
             if os.path.exists(dwg_path):
                 try: os.remove(dwg_path)
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'export_sheet_dwg')
 
             dwg_options = self._build_dwg_options()
 
@@ -716,7 +718,7 @@ class ExportManager:
                 try:
                     os.remove(dxf_path)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'export_sheet_dxf')
 
             # Setup Options
             dxf_options = DB.DXFExportOptions()
