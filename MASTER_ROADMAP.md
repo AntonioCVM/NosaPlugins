@@ -98,7 +98,9 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
   - `error_registry.py` ERR005 apunta a "ClashReport logic.py"; el fichero vivo es `logic_clash_report.py`.
   - Volumen: cada par con fallo booleano escribe una entrada; en modelos grandes puede llenar el log (rotación 3×5 MB). Valorar agregar/contar en vez de loguear por par.
 | [ ] | T3.5 | AddPileToPilecap: config en dos sistemas (`ConfigManager` + `NOSAWindow`) y `NameError` latente en `point_in_face` | ✔ | ✔ | – | |
-| [ ] | T3.6 | Telemetría: unificar claves de `_usage.json` (`export_sheets`/`exportsheets`/`sheet_export_hub`, `qrcode`/`qr_code`, `pilemaster`/`pile_master`…) para poder medir uso real | ✔ | – | – | |
+| [x] | T3.6 | Telemetría: unificar claves de `_usage.json` (`export_sheets`/`exportsheets`/`sheet_export_hub`, `qrcode`/`qr_code`, `pilemaster`/`pile_master`…) para poder medir uso real | ✔ | – | – | `claude/upbeat-dubinsky-cd6a8b` @ `819065c` |
+
+> **Nota T3.6 (fuera de alcance):** `python tools/nosa_lint.py lib --fail-on critical` sale con código 1 por 6 hallazgos CRITICAL NOSA002 preexistentes en `lib/nosa_utils/sheet_protocol.py:105-107,130-132` (`BuiltInParameter` en el cuerpo de módulo/clase). No tocado. También: `smartjoin_pro`→`element_join` y `export_sheets`/`exportsheets`→`sheet_export_hub` se fusionan por indicación explícita; claves sin carpeta activa (`parameterinspector`, `tag_all` de `TagAll2.pushbutton.DISABLED`, al que se suma `tagall`) se conservan como clave propia.
 
 ## Fase 4 — RebarAutomate 1.0.0 (F8 + F9)
 
