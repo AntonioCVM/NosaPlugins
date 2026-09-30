@@ -10,7 +10,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from rebar_export_bvbs import BVBS_FORMAT_VERIFIED, bvbs_record, checksum, export_bvbs_file  # noqa: E402
+from rebar_export_bvbs import (BVBS_FORMAT_VERIFIED, bvbs_record, checksum,  # noqa: E402
+                               expand_variants, export_bvbs_file)
 from rebar_bending import arc_segment, bending_legs, line_segment  # noqa: E402
 
 # Header shared by the guideline's BF2D examples (pages 20-21).
@@ -48,6 +49,23 @@ def test_guideline_zeicon_decimal_angles():
     body = rec[:rec.index(u'@C') + 2]
     assert body == (u'BF2D@HjZEICON Bewehrungslis@rZEICON@i1@p3@l4600@n51@e7.268@d16@gBSt500S@s64@v@'
                     u'Gl1135@w79.7@l350@w90@l1630@w90@l350@w79.7@l1135@w0@C')
+
+
+def test_guideline_example_9_staggered_bars():
+    base = {'mark': u'10', 'diameter_mm': 12, 'mandrel_mm': 48, 'count': 3,
+            'variants': [{'legs': [(400, 90), (900, 0)], 'count': 1, 'unit_length_mm': 1300.0},
+                         {'legs': [(400, 90), (300, 0)], 'count': 1, 'unit_length_mm': 700.0},
+                         {'legs': [(400, 90), (600, 0)], 'count': 1, 'unit_length_mm': 1000.0}]}
+    rows = expand_variants(base)
+    weights = {u'10.1': 0.522, u'10.2': 0.888, u'10.3': 1.154}   # as printed in the guideline
+    for row in rows:
+        row['unit_weight_kg'] = weights[row['mark']]
+    recs = [bvbs_record(row, **_JOB) for row in rows]
+    assert recs == [
+        u'BF2D@HjTestPDF@r417@ia@p10.1@l700@n1@e0.522@d12@gB500A@s48@v@c10@Gl400@w90@l300@w0@C65@',
+        u'BF2D@HjTestPDF@r417@ia@p10.2@l1000@n1@e0.888@d12@gB500A@s48@v@c10@Gl400@w90@l600@w0@C68@',
+        u'BF2D@HjTestPDF@r417@ia@p10.3@l1300@n1@e1.154@d12@gB500A@s48@v@c10@Gl400@w90@l900@w0@C74@',
+    ], recs
 
 
 def test_no_geometry_record_has_header_and_checksum_only():
