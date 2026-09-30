@@ -342,24 +342,45 @@ print("build_column_reinforcement (starter bars): each vertical bar's TOP "
       "end is extended for a lap splice as ONE merged straight Line (not two "
       "collinear segments), base untouched: OK")
 
-# ── Test 7b (Phase 3.2): cranked laps kink inward before the straight lap ──
-result_cranked = column_rebar.build_column_reinforcement(
-    doc, host, cover_mm=40.0, bar_diameter_mm=20.0, bar_count=8,
-    stirrup_diameter_mm=10.0, dense_spacing_mm=100.0, normal_spacing_mm=200.0,
-    include_starter_bars=True, use_cranked_laps=True, crank_offset_mm=30.0)
-assert len(result_cranked['vertical_bar_sets']) > 0
-for s in result_cranked['vertical_bar_sets']:
-    assert len(s['curves']) == 3  # [main line, crank diagonal, straight lap]
-    main_line, crank_line, lap_line = s['curves']
-    main_top = main_line.GetEndPoint(1)
-    crank_top = crank_line.GetEndPoint(1)
-    lap_top = lap_line.GetEndPoint(1)
-    assert crank_top.Z > main_top.Z  # the crank rises
-    assert abs(crank_top.X - main_top.X) > 1e-6 or abs(crank_top.Y - main_top.Y) > 1e-6  # AND shifts inward
-    assert lap_top.Z > crank_top.Z  # the straight lap continues rising
-    assert abs(lap_top.X - crank_top.X) < 1e-9 and abs(lap_top.Y - crank_top.Y) < 1e-9  # lap stays vertical
-print("build_column_reinforcement (cranked laps): every starter kinks "
-      "inward before continuing straight up for the lap length: OK")
+# ── Test 7b (user decision 2026-09-30): the crank finishes just below the slab top ──
+# A 20 mm bar at a floor the column crosses cranks one diameter (+ the given reduction)
+# at 1:6, the diagonal ending 40 mm under the slab's top face; the straight lap above it
+# runs kicker + lap above the slab top. A roof projection with nothing above stays straight.
+try:
+    _FLOORS_IN_DOC[:] = [FakeFloor(-1000.0, 1000.0, -1000.0, 1000.0, top_z_mm=1500.0)]
+    result_cranked = column_rebar.build_column_reinforcement(
+        doc, host, cover_mm=40.0, bar_diameter_mm=20.0, bar_count=8,
+        stirrup_diameter_mm=10.0, dense_spacing_mm=100.0, normal_spacing_mm=200.0,
+        include_starter_bars=True, use_cranked_laps=True, crank_offset_mm=30.0,
+        starter_bar_length_mm=1000.0, kicker_mm=75.0)
+    cranked = [s for s in result_cranked['vertical_bar_sets'] if len(s['curves']) == 3]
+    assert cranked, 'the storey below the floor must crank'
+    for s in cranked:
+        main_line, crank_line, lap_line = s['curves']
+        start_z = main_line.GetEndPoint(1).Z * _MM_PER_FT
+        end_z = crank_line.GetEndPoint(1).Z * _MM_PER_FT
+        assert abs(end_z - (1500.0 - 40.0)) < 1e-6, end_z
+        assert abs((end_z - start_z) - 6.0 * 50.0) < 1e-6, 'offset 30 + one diameter, at 1:6'
+        shift = crank_line.GetEndPoint(1) - crank_line.GetEndPoint(0)
+        assert abs(math.hypot(shift.X, shift.Y) * _MM_PER_FT - 50.0) < 1e-6
+        assert abs(lap_line.GetEndPoint(1).Z * _MM_PER_FT - (1500.0 + 75.0 + 1000.0)) < 1e-6
+        assert abs(lap_line.GetEndPoint(1).X - lap_line.GetEndPoint(0).X) < 1e-9
+    roof = [s for s in result_cranked['vertical_bar_sets'] if len(s['curves']) == 1]
+    assert roof, 'the roof projection has nothing above it: straight'
+finally:
+    _FLOORS_IN_DOC[:] = []
+print("build_column_reinforcement (cranked laps): 1:6 crank of one diameter + reduction, "
+      "ending 40 mm below the slab top; lap measured above the kicker: OK")
+
+# Pure rules.
+assert column_rebar.crank_offset_rule_mm(16.0, 0.0) == 0.0, 'H16 and under: straight'
+assert column_rebar.crank_offset_rule_mm(20.0, 0.0) == 20.0, 'H20 and over: one diameter'
+assert column_rebar.crank_offset_rule_mm(12.0, 50.0) == 50.0, 'section change always cranks'
+assert column_rebar.crank_offset_rule_mm(25.0, 50.0) == 75.0
+assert column_rebar.crank_offset_rule_mm(25.0, -50.0) == 25.0, 'a larger column above adds nothing'
+assert column_rebar.top_l_foot_mm(800.0, 200.0, 20.0) == 600.0
+assert column_rebar.top_l_foot_mm(300.0, 250.0, 20.0) == 240.0, 'foot at least 12 phi'
+print("crank_offset_rule_mm / top_l_foot_mm: site rules by diameter, 12 phi minimum foot: OK")
 
 # ── Test 7c (Phase 3.3): crank offset AUTO-DETECTED from the real ──────
 # column found above — 0.0 (no crank) when the SAME instance continues

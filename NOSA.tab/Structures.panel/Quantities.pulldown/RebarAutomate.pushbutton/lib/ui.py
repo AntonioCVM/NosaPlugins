@@ -2594,7 +2594,7 @@ class RebarAutomateWindow(NOSAWindow):
             use_cranked_laps=values['cranked_laps'],
             include_crossties=values['crossties'],
             crosstie_layout=values['crosstie_layout'],
-            std=self._host_std(host))
+            std=self._host_std(host), kicker_mm=self._kicker_mm())
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))

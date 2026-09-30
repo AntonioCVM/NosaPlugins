@@ -79,6 +79,15 @@ from nosa_utils import standards  # noqa: E402
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 re_engine = None
+footing_rebar_mod = None
+
+
+def _ensure_footing_rebar():
+    global footing_rebar_mod
+    if footing_rebar_mod is None:
+        from nosa_utils.bootstrap import load_module
+        footing_rebar_mod = load_module('footing_rebar', os.path.join(_HERE, 'footing_rebar.py'))
+    return footing_rebar_mod
 
 
 def _ensure_engine():
@@ -1400,103 +1409,185 @@ def _merge_collinear_chain(chain, tol=1e-9):
     return merged
 
 
+MAX_CRANK_OFFSET_MM = 75.0          # SMDSC: beyond this, use separate starter bars
+CRANK_END_BELOW_SLAB_TOP_MM = 40.0  # the crank finishes just under the slab's top face
+TOP_MAT_ALLOWANCE_MM = 25.0         # two top-mat layers the L foot passes beneath
+
+
+def crank_offset_rule_mm(bar_diameter_mm, section_reduction_mm):
+    """
+    Site practice (user decision 2026-09-30): bars of 20 mm and over always crank one
+    diameter inward so the bar above starts straight at its cover; 16 mm and under lap
+    straight, side by side. A smaller column above always cranks by the reduction.
+    """
+    reduction = max(0.0, section_reduction_mm or 0.0)
+    extra = bar_diameter_mm if bar_diameter_mm >= 20.0 else 0.0
+    return reduction + extra
+
+
+def top_l_foot_mm(anchorage_mm, embedment_mm, bar_diameter_mm):
+    """L foot at a column top: vertical embedment + foot >= anchorage, foot >= 12 phi."""
+    return max(anchorage_mm - embedment_mm, 12.0 * bar_diameter_mm)
+
+
+def crank_elevations_ft(slab_top_ft, offset_mm, crank_slope=6.0,
+                        end_below_mm=CRANK_END_BELOW_SLAB_TOP_MM):
+    """(start, end) elevations of a 1:crank_slope crank that ends just below the slab top."""
+    end_ft = slab_top_ft - end_below_mm / _MM_PER_FT
+    return end_ft - crank_slope * offset_mm / _MM_PER_FT, end_ft
+
+
+def find_slab_at_column_top(doc, axis, tol_mm=150.0):
+    """The floor the column top lands in or under (its XY inside the floor's bbox), or None."""
+    p1 = axis.GetEndPoint(1)
+    tol = tol_mm / _MM_PER_FT
+    best = None
+    collector = DB.FilteredElementCollector(doc).OfCategory(
+        DB.BuiltInCategory.OST_Floors).WhereElementIsNotElementType()
+    for floor in collector:
+        bbox = floor.get_BoundingBox(None)
+        if bbox is None:
+            continue
+        if not (bbox.Min.X <= p1.X <= bbox.Max.X and bbox.Min.Y <= p1.Y <= bbox.Max.Y):
+            continue
+        if bbox.Min.Z - tol <= p1.Z <= bbox.Max.Z + tol:
+            if best is None or bbox.Max.Z < best[1].Max.Z:
+                best = (floor, bbox)
+    return best
+
+
+def _top_face(doc, floor):
+    engine = _ensure_engine()
+    footing_mod = _ensure_footing_rebar()
+    face = footing_mod.get_footing_top_face(engine.CoverGeometryManager(doc, floor))
+    return face.face if face is not None else None
+
+
+def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None):
+    """
+    How this column's vertical bars finish at its top (user decision 2026-09-30):
+    {'kind': 'lap'} when a column continues above; {'kind': 'l', ...} with the bend
+    elevation, foot length and the slab top face when the column stops in a slab;
+    None otherwise (a straight end under the cover, as before).
+    """
+    engine = _ensure_engine()
+    p1 = axis.GetEndPoint(1)
+    if find_column_above(doc, host, p1.Z, p1.X, p1.Y) is not None:
+        return {'kind': 'lap'}
+    found = find_slab_at_column_top(doc, axis)
+    if found is None:
+        return None
+    floor, bbox = found
+    face = _top_face(doc, floor)
+    if face is None:
+        return None
+    top_cover_mm = engine.get_native_cover_mm(doc, floor, u'Top', 25.0)
+    side_cover_mm = engine.get_native_cover_mm(doc, floor, u'Exterior', 25.0)
+    bend_ft = bbox.Max.Z - (top_cover_mm + TOP_MAT_ALLOWANCE_MM + bar_diameter_mm / 2.0) / _MM_PER_FT
+    slab_depth_mm = (bbox.Max.Z - bbox.Min.Z) * _MM_PER_FT
+    footing_mod = _ensure_footing_rebar()
+    good_bond = footing_mod.good_bond_for_top_bars(slab_depth_mm)
+    if std is not None:
+        anchorage_mm = standards.anchorage_length_mm(std, bar_diameter_mm, good_bond)
+    else:
+        anchorage_mm = footing_mod.default_anchorage_length_mm(bar_diameter_mm)
+    embedment_mm = max(0.0, (bend_ft - bbox.Min.Z) * _MM_PER_FT)
+    return {'kind': 'l', 'bend_ft': bend_ft, 'face': face, 'side_cover_mm': side_cover_mm,
+            'foot_mm': top_l_foot_mm(anchorage_mm, embedment_mm, bar_diameter_mm)}
+
+
+def _foot_fits(face, point, direction, foot_mm, side_cover_mm):
+    """Every sample of the foot (and its end cover) lies over the slab's top face."""
+    reach = foot_mm + side_cover_mm
+    for frac in (0.25, 0.5, 0.75, 1.0):
+        p = point + direction.Multiply(reach * frac / _MM_PER_FT)
+        try:
+            if face.Project(p) is None:
+                return False
+        except Exception:
+            return False
+    return True
+
+
+def choose_foot_direction(top, bar_points, outward_dir):
+    """
+    Outward (away from the column) when the foot fits in the slab for every bar of the
+    group, else inward — edge and corner columns turn their feet into the slab.
+    Returns (direction, fits).
+    """
+    for direction in (outward_dir, outward_dir.Negate()):
+        if all(_foot_fits(top['face'], p, direction, top['foot_mm'], top['side_cover_mm'])
+               for p in bar_points):
+            return direction, True
+    return outward_dir.Negate(), False
+
+
 def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
                                 include_starter_bars, use_cranked_laps,
-                                inward_dir, crank_offset_fn, crank_slope=6.0):
+                                inward_dir, crank_offset_fn, crank_slope=6.0,
+                                bar_diameter_mm=0.0, kicker_mm=0.0, top=None,
+                                foot_dir=None, warnings=None):
     """
-    PHASE 3.2 item 1 (crank offset made per-split — PHASE 3.3) — ONE
-    vertical bar position's full set of per-story curve chains: splits
-    the bar at every intersecting floor's top elevation
-    (split_elevations_ft) instead of returning a single base-to-top
-    line, so a column spanning several storeys gets one properly
-    lapped bar per storey instead of one continuous bar the length of
-    the whole column (the previous behaviour, which is also what
-    produced starters projecting an unbounded distance beyond a single
-    storey's own solid). Every INTERMEDIATE split ALWAYS gets its own
-    starter regardless of include_starter_bars — a multi-storey bar
-    MUST lap at every storey join to physically continue upward at
-    all; include_starter_bars only controls whether the column's OWN
-    final top (the last segment) also gets one, for the storey above
-    THIS column entirely.
-
-    Args:
-        axis                  (DB.Line): column centreline.
-        offset                (DB.XYZ): this bar's horizontal offset
-                              from the axis, in FEET (already scaled —
-                              see compute_vertical_bar_lines's own use
-                              of the same pattern).
-        split_elevations_ft   (list[float]): from
-                              find_floor_split_elevations_ft.
-        lap_length_mm         (float): starter/dowel lap length at
-                              every split AND at the column's own top
-                              (if include_starter_bars).
-        include_starter_bars  (bool): whether the column's OWN top also
-                              gets a starter.
-        use_cranked_laps      (bool): if True, every starter cranks
-                              first via build_cranked_starter, using
-                              crank_offset_fn to resolve HOW MUCH at
-                              each point; if False, a plain straight
-                              extension via extend_bar_for_lap,
-                              unchanged from before Phase 3.2.
-        inward_dir            (DB.XYZ): this bar's own face's inward
-                              normal — only used if use_cranked_laps.
-        crank_offset_fn       (callable or None): called as
-                              crank_offset_fn(elevation_ft) -> float
-                              (mm) for the elevation of EACH point
-                              needing a starter — lets the caller
-                              resolve a DIFFERENT, REAL crank offset
-                              per split (see resolve_crank_offset_mm);
-                              a plain `lambda z: constant` reproduces
-                              the old fixed-heuristic behaviour. Only
-                              used if use_cranked_laps.
-        crank_slope           (float): see build_cranked_starter.
-
-    Returns:
-        list[list[DB.Curve]] — one curve chain per storey segment,
-        ordered bottom to top. A column crossing NO floors (the
-        ordinary single-story case) returns exactly ONE chain,
-        identical to this module's pre-Phase-3.2 single-chain output.
+    One vertical bar position, one curve chain per storey segment. At every splice (a
+    floor the column crosses, or its own top when a column continues above) the bar laps
+    kicker + lap above the slab top; with use_cranked_laps it cranks per
+    crank_offset_rule_mm, the 1:6 crank finishing just below the slab's top face so the
+    bar above starts straight at its cover. At a top that stops in a slab (top['kind'] ==
+    'l') the bar ends in an L foot along foot_dir. include_starter_bars keeps the old
+    straight projection above a final top with nothing above it.
     """
     p_start = axis.GetEndPoint(0) + offset
     p_end = axis.GetEndPoint(1) + offset
     axis_dir = axis.Direction
-
-    points = [p_start]
-    for z in split_elevations_ft:
-        points.append(DB.XYZ(p_start.X, p_start.Y, z))
-    points.append(p_end)
+    points = [p_start] + [DB.XYZ(p_start.X, p_start.Y, z) for z in split_elevations_ft] + [p_end]
     elevations_ft = [axis.GetEndPoint(0).Z] + list(split_elevations_ft) + [axis.GetEndPoint(1).Z]
+
+    def at(z_ft, shift=None):
+        p = DB.XYZ(p_start.X, p_start.Y, z_ft)
+        return p + shift if shift is not None else p
 
     chains = []
     n_segments = len(points) - 1
     for i in range(n_segments):
         seg_start, seg_end = points[i], points[i + 1]
         is_last = (i == n_segments - 1)
-        needs_starter = (not is_last) or include_starter_bars
-        main_line = DB.Line.CreateBound(seg_start, seg_end)
-        if not needs_starter:
-            chains.append([main_line])
+        top_kind = (top or {}).get('kind') if is_last else 'lap'
+        if is_last and top_kind != 'lap' and include_starter_bars:
+            top_kind = 'projection'
+
+        if top_kind == 'l' and foot_dir is not None:
+            bend = at(top['bend_ft'])
+            chains.append([DB.Line.CreateBound(seg_start, bend),
+                           DB.Line.CreateBound(bend, bend + foot_dir.Multiply(
+                               top['foot_mm'] / _MM_PER_FT))])
             continue
-        if use_cranked_laps:
-            offset_mm = crank_offset_fn(elevations_ft[i + 1])
-            if offset_mm == 0.0:
-                extra = extend_bar_for_lap(main_line, lap_length_mm, axis_dir, at_end=True)[1:]
-            else:
-                extra = build_cranked_starter(
-                    seg_end, inward_dir, axis_dir, lap_length_mm, offset_mm, crank_slope)
-        else:
-            extra = extend_bar_for_lap(main_line, lap_length_mm, axis_dir, at_end=True)[1:]
-        # PHASE 3.5.9 item 2 FIX — telemetry (Phase 3.5.8 item 6)
-        # confirmed a straight lap extension produces two COLLINEAR
-        # segments ([main_line, extension_line], zero-degree kink at
-        # the join), which Rebar.CreateFromCurves rejects outright
-        # ("CreateFromCurves returned None"). Merged here — see
-        # _merge_collinear_chain's own docstring. This applies to BOTH
-        # the offset_mm == 0.0 cranked branch above AND the plain
-        # (use_cranked_laps=False) branch, which has the identical
-        # collinear shape.
-        chain = _merge_collinear_chain([main_line] + extra)
-        chains.append(chain)
+        if top_kind not in ('lap', 'projection'):
+            chains.append([DB.Line.CreateBound(seg_start, seg_end)])
+            continue
+
+        slab_top_ft = elevations_ft[i + 1]
+        lap_top_ft = slab_top_ft + (kicker_mm + lap_length_mm) / _MM_PER_FT
+        offset_mm = 0.0
+        if use_cranked_laps and top_kind == 'lap':
+            offset_mm = crank_offset_rule_mm(bar_diameter_mm, crank_offset_fn(slab_top_ft))
+        if offset_mm > MAX_CRANK_OFFSET_MM and warnings is not None:
+            warnings.append(u'Crank of {:.0f} mm at {:.0f} mm exceeds {:.0f} mm: separate starter '
+                            u'bars are advisable (IStructE SMDSC).'.format(
+                                offset_mm, slab_top_ft * _MM_PER_FT, MAX_CRANK_OFFSET_MM))
+        if offset_mm <= 0.0:
+            chains.append([DB.Line.CreateBound(seg_start, at(lap_top_ft))])
+            continue
+        start_ft, end_ft = crank_elevations_ft(slab_top_ft, offset_mm, crank_slope)
+        shift = inward_dir.Multiply(offset_mm / _MM_PER_FT)
+        if start_ft - seg_start.Z < 50.0 / _MM_PER_FT:
+            # Storey too short for the crank below the slab: crank above it, as before.
+            extra = build_cranked_starter(seg_end, inward_dir, axis_dir,
+                                          kicker_mm + lap_length_mm, offset_mm, crank_slope)
+            chains.append(_merge_collinear_chain([DB.Line.CreateBound(seg_start, seg_end)] + extra))
+            continue
+        chains.append([DB.Line.CreateBound(seg_start, at(start_ft)),
+                       DB.Line.CreateBound(at(start_ft), at(end_ft, shift)),
+                       DB.Line.CreateBound(at(end_ft, shift), at(lap_top_ft, shift))])
     return chains
 
 
@@ -2198,7 +2289,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
                                           starter_bar_length_mm, starter_bar_multiplier,
                                           use_cranked_laps, crank_offset_mm, crank_slope,
                                           joint_zone_length_mm, start_offset_mm, end_offset_mm,
-                                          std=None):
+                                          std=None, kicker_mm=0.0):
     """
     PHASE 3.5.7 item 1 — circular column reinforcement: radial vertical
     bars (pure trigonometry — DB.XYZ(cos, sin)) and circular ties.
@@ -2278,6 +2369,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
 
     n = max(3, int(bar_count))
     vertical_bars = []
+    top = resolve_column_top(doc, host, axis, bar_diameter_mm, std)
     for i in range(n):
         theta = 2.0 * math.pi * i / n
         offset = u_dir.Multiply(bar_radius_mm * math.cos(theta) / _MM_PER_FT) \
@@ -2301,9 +2393,18 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
             crank_offset_fn = lambda z_ft: _resolve_circular_crank_offset_mm(
                 doc, host, axis, z_ft, bar_inset_mm, bar_radius_mm)
 
+        foot_dir = None
+        if top is not None and top['kind'] == 'l':
+            bar_point = DB.XYZ(axis.GetEndPoint(0).X, axis.GetEndPoint(0).Y, top['bend_ft']) + offset
+            foot_dir, fits = choose_foot_direction(top, [bar_point], inward_dir.Negate())
+            if not fits:
+                warnings.append(u'L foot of {:.0f} mm does not fit in the slab at bar {}: '
+                                u'check its anchorage.'.format(top['foot_mm'], i + 1))
         chains_per_segment = build_story_segment_chains(
             axis, offset, split_elevations_ft, lap_mm, include_starter_bars,
-            use_cranked_laps, inward_dir, crank_offset_fn, crank_slope)
+            use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
+            bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
+            foot_dir=foot_dir, warnings=warnings)
         for chain in chains_per_segment:
             vertical_bars.append({'curves': chain, 'normal': tangent_dir})
 
@@ -2361,7 +2462,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 crank_slope=6.0, include_crossties=False,
                                 crosstie_layout='all',
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
-                                end_offset_mm=50.0, std=None):
+                                end_offset_mm=50.0, std=None, kicker_mm=0.0):
     """
     PHASE 3 (multi-story + Rebar-Set verticals — PHASE 3.2) — the
     ui.py-facing pipeline for one rectangular column host, matching the
@@ -2580,7 +2681,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             stirrup_diameter_mm, dense_spacing_mm, normal_spacing_mm, densify_at_nodes,
             include_starter_bars, starter_bar_length_mm, starter_bar_multiplier,
             use_cranked_laps, crank_offset_mm, crank_slope,
-            joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std)
+            joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std, kicker_mm=kicker_mm)
 
     engine = _ensure_engine()
     cover_mgr = engine.CoverGeometryManager(doc, host)
@@ -2647,6 +2748,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
 
     vertical_bars = []
     vertical_bar_sets = []
+    top = resolve_column_top(doc, host, axis, bar_diameter_mm, std)
+    base = axis.GetEndPoint(0)
     for face in _face_groups(bar_half_w_mm, bar_half_d_mm, n_u, n_v):
         positions = face['positions']
         if not positions:
@@ -2664,9 +2767,20 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                 doc, host, axis, z_ft, _k, engine, bar_inset_mm,
                 bar_half_w_mm, bar_half_d_mm)
 
+        foot_dir = None
+        if top is not None and top['kind'] == 'l':
+            bar_points = [DB.XYZ(base.X, base.Y, top['bend_ft'])
+                          + u_dir.Multiply(pu / _MM_PER_FT) + v_dir.Multiply(pv / _MM_PER_FT)
+                          for pu, pv in (positions[0], positions[-1])]
+            foot_dir, fits = choose_foot_direction(top, bar_points, inward_dir.Negate())
+            if not fits:
+                warnings.append(u'L foot of {:.0f} mm does not fit in the slab on one face: '
+                                u'check its anchorage.'.format(top['foot_mm']))
         chains_per_segment = build_story_segment_chains(
             axis, offset0, split_elevations_ft, lap_mm, include_starter_bars,
-            use_cranked_laps, inward_dir, crank_offset_fn, crank_slope)
+            use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
+            bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
+            foot_dir=foot_dir, warnings=warnings)
 
         if len(positions) == 1:
             for chain in chains_per_segment:
