@@ -43,6 +43,37 @@ def bending_from_curves(curves, bar_dia_mm):
     return bending_legs(segments, bar_dia_mm)
 
 
+def bar_variants(rebar, bar_dia_mm):
+    """(bending geometry or None, cut length mm) for every bar of a Revit Rebar element."""
+    from Autodesk.Revit.DB.Structure import MultiplanarOption
+    try:
+        indices = range(rebar.NumberOfBarPositions)
+    except Exception:
+        indices = [0]
+    bars = []
+    for i in indices:
+        try:
+            if not rebar.DoesBarExistAtPosition(i):
+                continue
+        except Exception:
+            pass
+        try:
+            curves = list(rebar.GetCenterlineCurves(False, False, False,
+                                                    MultiplanarOption.IncludeOnlyPlanarCurves, i))
+            bars.append((bending_from_curves(curves, bar_dia_mm),
+                         round(sum(c.Length for c in curves) * _FT_TO_MM, 1)))
+        except Exception:
+            continue
+    return bars
+
+
+def variant_key(geometry, length_mm):
+    """Bars with the same key are the same bar for the schedule (legs to 1 mm, else length)."""
+    if geometry:
+        return tuple((int(round(l)), round(a, 1)) for l, a in geometry['legs'])
+    return ('length', int(round(length_mm)))
+
+
 def bending_legs(segments, bar_dia_mm):
     """
     From a bar's centreline (alternating straight lines and bend arcs, in order)

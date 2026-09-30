@@ -81,31 +81,12 @@ def bvbs_record(position, project_no=u'', schedule_no=u'', revision=u'', steel_g
     return u'{}{}@'.format(body, checksum(body))
 
 
-def expand_variants(position):
-    """
-    A position whose bars differ in length (a Set clipped by an opening or a chamfer)
-    becomes one staggered-bar record per length: marks <mark>.1, .2 ... grouped by c<mark>.
-    """
-    variants = position.get('variants') or []
-    if len(variants) < 2:
-        return [position]
-    rows = []
-    for k, var in enumerate(sorted(variants, key=lambda v: v['unit_length_mm']), 1):
-        row = dict(position)
-        row.update(var)
-        row['mark'] = u'{}.{}'.format(position.get('mark', u'?'), k)
-        row['group'] = position.get('mark', u'?')
-        row['unit_weight_kg'] = None
-        rows.append(row)
-    return rows
-
-
 def export_bvbs_file(schedule_data, output_path, project_no=u'', schedule_no=u'',
                      revision=u'', steel_grade=u'B500B'):
     """Write one .abs file; returns (records written, records without geometry)."""
     lines = []
     without_geometry = 0
-    for pos in [row for position in schedule_data for row in expand_variants(position)]:
+    for pos in schedule_data:
         if not pos.get('legs'):
             without_geometry += 1
         lines.append(bvbs_record(pos, project_no, schedule_no, revision, steel_grade))

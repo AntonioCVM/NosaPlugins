@@ -1161,7 +1161,8 @@
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Mark Prefix:" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Partition:" VerticalAlignment="Center" Margin="0,0,8,8"
+                                           ToolTip="Schedule / drawing the bar marks belong to. Marks are numbered 01, 02 ... within each partition (BS 8666); also written to the native Rebar Partition."/>
                                 <TextBox Grid.Row="0" Grid.Column="1" Name="TxtMarkPrefix" MaxLength="10" Margin="0,0,16,8"/>
                                 
                                 <TextBlock Grid.Row="0" Grid.Column="2" Text="Revision:" VerticalAlignment="Center" Margin="0,0,8,8"/>
@@ -1190,13 +1191,16 @@
                                        FontSize="11" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
                             <ListBox Name="LstBatches" Height="120" Margin="0,0,0,8"/>
-                            <UniformGrid Columns="3">
+                            <UniformGrid Columns="4">
                                 <Button Name="BtnRefreshBatches" Content="Refresh"
                                         Click="RefreshBatches_Click" Margin="0,0,4,0"/>
                                 <Button Name="BtnSelectBatch" Content="Select in Model"
                                         Click="SelectBatch_Click" Margin="4,0,4,0"/>
                                 <Button Name="BtnDeleteBatch" Content="Delete Batch"
-                                        Click="DeleteBatch_Click" Margin="4,0,0,0"/>
+                                        Click="DeleteBatch_Click" Margin="4,0,4,0"/>
+                                <Button Name="BtnRenumberPartition" Content="Renumber Partition"
+                                        Click="RenumberPartition_Click" Margin="4,0,0,0"
+                                        ToolTip="Give every non-finalized bar of this partition a BS 8666 mark (01, 02 ...). Finalized bars keep theirs."/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>

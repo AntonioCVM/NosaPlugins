@@ -65,8 +65,8 @@
   "stock_length_mm": 12000,
 
   "marking": {
-    "mark_format": "{host_mark}-{number:02d}",
-    "number_scope": "per_host",
+    "mark_format": "{number:02d}",
+    "number_scope": "per_partition",
     "dedup_tolerance_mm": 2.0,
     "layer_names": {
       "bottom_x":"Inf-X","bottom_y":"Inf-Y","top_x":"Sup-X","top_y":"Sup-Y",

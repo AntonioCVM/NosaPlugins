@@ -63,6 +63,7 @@ _version_mod = load_module('rebarautomate_version', os.path.join(_HERE, '_versio
 # load once, at import time, via the real bootstrap.load_module facade.
 rebar_schedule = load_module('rebar_schedule', os.path.join(_HERE, 'rebar_schedule.py'))
 rebar_export_bvbs = load_module('rebar_export_bvbs', os.path.join(_HERE, 'rebar_export_bvbs.py'))
+rebar_marking = load_module('rebar_marking', os.path.join(_HERE, 'rebar_marking.py'))
 
 _CAT_ID_CACHE = {}
 
@@ -3795,6 +3796,27 @@ class RebarAutomateWindow(NOSAWindow):
         """Queue a model change for Revit's next API call (the window is modeless)."""
         self._model_action_handler.pending = action
         self._model_action_event.Raise()
+
+    def RenumberPartition_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._renumber_partition)
+
+    def _renumber_partition(self):
+        partition = self.ra_project.get('mark_prefix', u'') or u''
+        confirmed = forms.alert(
+            u'Renumber every non-finalized NOSA bar of partition "{}" with BS 8666 marks '
+            u'(01, 02 ...)? Bar tags and schedules will show the new marks.'.format(
+                partition or u'(none)'),
+            title=u'RebarAutomate — Renumber Partition', yes=True, no=True)
+        if not confirmed:
+            return
+        ctx = {'standard': self.ra_standard, 'mark_prefix': partition}
+        with revit.Transaction(u'NOSA — Renumber Partition'):
+            summary = rebar_marking.renumber_partition(self.doc, ctx)
+        forms.alert(u'{} bar mark(s) given to {} Rebar element(s); {} varying set(s).'.format(
+            summary.get('total_positions', 0), summary.get('total_bars', 0),
+            summary.get('varying_sets', 0)), title=u'RebarAutomate — Renumber Partition')
 
     def RefreshBatches_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):

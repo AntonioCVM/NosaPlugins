@@ -90,7 +90,8 @@ class SchedulePosition(object):
     def add_variants(self, bars):
         """Tally each bar's bending geometry; bars with equal legs share one variant."""
         for geometry, length_mm in bars:
-            key = tuple((int(round(l)), round(a, 1)) for l, a in geometry['legs']) if geometry else None
+            import rebar_bending
+            key = rebar_bending.variant_key(geometry, length_mm)
             var = self.variants.get(key)
             if var is None:
                 self.variants[key] = var = {
@@ -164,35 +165,6 @@ def _unit_length_mm(rebar):
         return 0.0
 
 
-def _bar_variants(rebar, bar_dia_mm):
-    """(bending geometry or None, cut length mm) for every bar of a Rebar element."""
-    try:
-        from Autodesk.Revit.DB.Structure import MultiplanarOption
-        import rebar_bending
-    except Exception:
-        return []
-    try:
-        indices = range(rebar.NumberOfBarPositions)
-    except Exception:
-        indices = [0]
-    bars = []
-    for i in indices:
-        try:
-            if not rebar.DoesBarExistAtPosition(i):
-                continue
-        except Exception:
-            pass
-        try:
-            curves = list(rebar.GetCenterlineCurves(False, False, False,
-                                                    MultiplanarOption.IncludeOnlyPlanarCurves, i))
-            geometry = rebar_bending.bending_from_curves(curves, bar_dia_mm)
-            length_mm = round(sum(c.Length for c in curves) * _FT_TO_MM, 1)
-        except Exception:
-            geometry, length_mm = None, _unit_length_mm(rebar)
-        bars.append((geometry, length_mm))
-    return bars
-
-
 def group_by_position(doc, rebar_ids):
     """
     Agrupa barras por NOSA_Rebar_Mark (posición).
@@ -246,13 +218,44 @@ def group_by_position(doc, rebar_ids):
         
         rebar = doc.GetElement(rid)
         positions[mark].add_bar(rid, _bar_quantity(rebar))
-        positions[mark].add_variants(_bar_variants(rebar, positions[mark].diameter_mm))
+        import rebar_bending
+        try:
+            bars = rebar_bending.bar_variants(rebar, positions[mark].diameter_mm)
+        except Exception:
+            bars = []
+        positions[mark].add_variants(bars)
     
     # Calcular totales para todas las posiciones
     for pos in positions.values():
         pos.compute_totals()
     
     return positions
+
+
+def _variant_rows(pos):
+    """A varying set: one row per bar length, marks 05A, 05B ... (BS 8666, T4.2)."""
+    import rebar_marking
+    rows = []
+    variants = sorted(pos.variants.values(), key=lambda v: v['unit_length_mm'])
+    for k, var in enumerate(variants):
+        total_mm = var['count'] * var['unit_length_mm']
+        rows.append({
+            'mark': pos.mark + rebar_marking.variant_suffix(k),
+            'group': pos.mark,
+            'host_mark': pos.host_mark,
+            'layer': pos.layer,
+            'diameter_mm': pos.diameter_mm,
+            'shape_code': pos.shape_code,
+            'shape_params': pos.shape_params,
+            'count': var['count'],
+            'unit_length_mm': var['unit_length_mm'],
+            'total_length_mm': total_mm,
+            'total_weight_kg': (total_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
+            'unit_weight_kg': (var['unit_length_mm'] / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
+            'legs': var['legs'],
+            'mandrel_mm': var['mandrel_mm'],
+        })
+    return rows
 
 
 def generate_schedule_data(doc, batch_id=None, include_finalized=False):
@@ -272,6 +275,9 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
     for mark in sorted(positions.keys()):
         pos = positions[mark]
         weight_kg = (pos.total_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm)
+        if len(pos.variants) > 1:
+            schedule.extend(_variant_rows(pos))
+            continue
         schedule.append({
             'mark': pos.mark,
             'host_mark': pos.host_mark,
@@ -286,7 +292,6 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
             'unit_weight_kg': (pos.unit_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
             'legs': pos.legs,
             'mandrel_mm': pos.mandrel_mm,
-            'variants': list(pos.variants.values()) if len(pos.variants) > 1 else [],
         })
 
     return schedule

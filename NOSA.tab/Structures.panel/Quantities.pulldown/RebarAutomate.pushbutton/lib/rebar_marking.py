@@ -1,19 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — Motor de numeración y marcado.
-Blueprint Parte 8.
+NOSA.RebarAutomate — bar marking (BS 8666:2020).
 
-Deduplicación: dos barras comparten posición (y marca) si:
-- mismo RebarBarType (diámetro)
-- misma forma normalizada (Shape_Code + parámetros A,B,C… redondeados)
-- mismos ganchos
-- mismo NOSA_Rebar_Layer y mismo host (según number_scope)
-
-Barras con Is_Variable=1 nunca deduplicam.
+Identical bars (diameter, shape code, outer dimensions, hooks, cut length) share one
+plain sequential mark per partition — 01, 02 ... — reused across batches. A varying
+set keeps one mark; its lengths are told apart in the schedule and the BVBS file by
+letter suffixes (05A, 05B ... without I, O, Q). Host ids never enter the mark.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 import sys, os
 
+_here = os.path.dirname(os.path.abspath(__file__))
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -83,218 +82,172 @@ def _parse_shape_params(shape_params_str, tolerance_mm):
     return tuple(_round_to_tolerance(params[k], tolerance_mm) for k in sorted_keys)
 
 
-def _get_dedup_key(doc, rebar_id, std, tolerance_mm):
-    """
-    Devuelve tuple que identifica unicidad de la barra:
-    (bar_type_id, shape_code, shape_params_tuple, start_hook_id, end_hook_id, layer, host_id_or_scope)
-    
-    Si Is_Variable=1, devuelve clave única (el propio rebar_id).
-    """
-    from Autodesk.Revit import DB  # Lazy import
-    
-    # Leer shared params
-    is_variable = _read(doc, rebar_id, "NOSA_Rebar_Is_Variable")
-    if is_variable == 1 or is_variable == "1":
-        # Barras variables no deduplicam
-        return (rebar_id,)
-    
-    rebar = doc.GetElement(rebar_id)
-    if not rebar:
-        return (rebar_id,)
-    
-    bar_type_id = rebar.GetTypeId()
-    shape_code = _read(doc, rebar_id, "NOSA_Rebar_Shape_Code") or "99"
-    shape_params_str = _read(doc, rebar_id, "NOSA_Rebar_Shape_Params") or ""
-    start_hook = _read(doc, rebar_id, "NOSA_Rebar_Start_Hook_Type") or ""
-    end_hook = _read(doc, rebar_id, "NOSA_Rebar_End_Hook_Type") or ""
-    layer = _read(doc, rebar_id, "NOSA_Rebar_Layer") or "uncategorized"
-    host_id = _read(doc, rebar_id, "NOSA_Rebar_Host_Element_Id")
-    
-    shape_params_tuple = _parse_shape_params(shape_params_str, tolerance_mm)
-    
-    # number_scope: "per_host" (por defecto), "per_project", "per_view"
-    marking_cfg = std.get("marking", {}) if std else {}
-    number_scope = marking_cfg.get("number_scope", "per_host")
-    
-    if number_scope == "per_project":
-        host_key = None  # Todas las barras del proyecto comparten numeración
-    elif number_scope == "per_view":
-        host_key = None  # Por ahora, tratar como per_project (view requiere contexto de vista)
-    else:  # per_host
-        host_key = host_id
-    
-    return (bar_type_id, shape_code, shape_params_tuple, start_hook, end_hook, layer, host_key)
+_SUFFIX_LETTERS = u'ABCDEFGHJKLMNPRSTUVWXYZ'   # I, O and Q left out: read as 1 and 0 on site
 
 
-# Beam, Column, Wall, Foundation, Slab — one letter per category below, in order.
-_HOST_CATEGORIES = ('OST_StructuralFraming', 'OST_StructuralColumns', 'OST_Walls',
-                    'OST_StructuralFoundation', 'OST_Floors')
-_HOST_CODES = tuple(zip(_HOST_CATEGORIES, 'BCWFS'))
+def variant_suffix(index):
+    """Letter suffix of the index-th bar length of a varying set: A..Z, then AA, AB ..."""
+    n = index + 1
+    out = u''
+    while n > 0:
+        n, r = divmod(n - 1, len(_SUFFIX_LETTERS))
+        out = _SUFFIX_LETTERS[r] + out
+    return out
 
 
-def _host_code(host_elem):
-    """One-letter host category code for marks of hosts that have no Mark."""
+def format_mark(number):
+    """BS 8666 bar mark: a plain sequential number, 01, 02 ... 100."""
+    return u'{:02d}'.format(int(number))
+
+
+def _bar_diameter_mm(doc, rebar):
     try:
-        from Autodesk.Revit import DB  # Lazy import
-        from nosa_utils.revit_helpers import get_id_value
-        cat_value = get_id_value(host_elem.Category.Id)
-        for bic_name, code in _HOST_CODES:
-            if cat_value == int(getattr(DB.BuiltInCategory, bic_name)):
-                return code
+        bar_type = doc.GetElement(rebar.GetTypeId())
+        try:
+            return bar_type.BarNominalDiameter * _FT_TO_MM
+        except AttributeError:
+            return bar_type.BarModelDiameter * _FT_TO_MM
     except Exception:
-        pass
-    return 'H'
+        return 0.0
+
+
+def _partition(rebar):
+    from Autodesk.Revit import DB  # Lazy import
+    try:
+        return rebar.get_Parameter(DB.BuiltInParameter.NUMBER_PARTITION_PARAM).AsString() or u''
+    except Exception:
+        return u''
+
+
+def _is_varying(doc, rebar):
+    """True if the bars of this Rebar element differ in shape or length (a varying set)."""
+    import rebar_bending
+    bars = rebar_bending.bar_variants(rebar, _bar_diameter_mm(doc, rebar))
+    return len(set(rebar_bending.variant_key(geometry, length) for geometry, length in bars)) > 1
+
+
+def _dedup_key(doc, rebar, tolerance_mm, is_varying):
+    """
+    Identical bars share a mark (BS 8666): same diameter, shape code, outer dimensions,
+    hooks and cut length. A varying set is unique: it keeps one mark of its own.
+    """
+    rid = rebar.Id
+    if is_varying:
+        from nosa_utils.revit_helpers import get_id_value
+        return ('varying', get_id_value(rid))
+    try:
+        unit_length_mm = rebar.TotalLength * _FT_TO_MM / max(1, int(rebar.Quantity))
+    except Exception:
+        unit_length_mm = 0.0
+    return (int(round(_bar_diameter_mm(doc, rebar))),
+            _read(doc, rid, "NOSA_Rebar_Shape_Code") or "99",
+            _parse_shape_params(_read(doc, rid, "NOSA_Rebar_Shape_Params") or "", tolerance_mm),
+            _read(doc, rid, "NOSA_Rebar_Start_Hook_Type") or "",
+            _read(doc, rid, "NOSA_Rebar_End_Hook_Type") or "",
+            _round_to_tolerance(unit_length_mm, tolerance_mm))
+
+
+def _existing_marks(doc, exclude_ids, partition, tolerance_mm):
+    """Marks already given in this partition: ({dedup key: number}, highest number)."""
+    from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    numbers = {}
+    highest = 0
+    collector = FilteredElementCollector(doc).OfCategory(
+        BuiltInCategory.OST_Rebar).WhereElementIsNotElementType()
+    for rebar in collector:
+        if get_id_value(rebar.Id) in exclude_ids or _partition(rebar) != partition:
+            continue
+        if not _read(doc, rebar.Id, "NOSA_Rebar_Batch_Id"):
+            continue
+        try:
+            number = int(_read(doc, rebar.Id, "NOSA_Rebar_Number") or 0)
+        except (TypeError, ValueError):
+            continue
+        if number <= 0:
+            continue
+        highest = max(highest, number)
+        varying = _read(doc, rebar.Id, "NOSA_Rebar_Is_Variable") in (1, u'1')
+        numbers.setdefault(_dedup_key(doc, rebar, tolerance_mm, varying), number)
+    return numbers, highest
 
 
 def deduplicate_and_mark(doc, rebars, ctx):
     """
-    Agrupa 'rebars' (lista de Rebar ElementIds) por posición según tolerancia.
-    Asigna NOSA_Rebar_Mark, NOSA_Rebar_Number, NOSA_Rebar_Position_In_Host.
-    
-    Devuelve dict summary {total_positions: int, total_bars: int, largest_cluster: int}.
+    BS 8666 marking (T4.2, user decision 2026-09-30): identical bars share one sequential
+    number per partition (01, 02 ...), reused across batches; host ids never enter the mark.
+    Stamps NOSA_Rebar_Mark / _Number / _Is_Variable, the native Schedule Mark (what the tag
+    shows; the native Mark would raise duplicate-Mark warnings) and the native Partition.
     """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
     std = ctx.get("standard")
     marking_cfg = std.get("marking", {}) if std else {}
     tolerance_mm = marking_cfg.get("dedup_tolerance_mm", 5.0)
-    mark_format = marking_cfg.get("mark_format", "{host_mark}-{number:02d}")
-    prefix = ctx.get("mark_prefix", "") or ""
-    hosts_without_mark = set()
-    
-    # Agrupar barras por clave de deduplicación
+    partition = (ctx.get("mark_prefix") or u'').strip()
+
+    elements = [doc.GetElement(rid) for rid in rebars]
+    elements = [e for e in elements if e is not None]
+    known, highest = _existing_marks(
+        doc, set(get_id_value(e.Id) for e in elements), partition, tolerance_mm)
+
     clusters = {}
-    for rebar_id in rebars:
-        key = _get_dedup_key(doc, rebar_id, std, tolerance_mm)
-        if key not in clusters:
-            clusters[key] = []
-        clusters[key].append(rebar_id)
-    
-    # Ordenar clusters por (layer, diámetro desc, primer parámetro A desc)
-    # Para orden estable, extraer info del primer elemento de cada cluster
-    def cluster_sort_key(kv):
-        key, ids = kv
-        if not ids:
-            return ("", 0, 0)
-        
-        first_id = ids[0]
-        layer = _read(doc, first_id, "NOSA_Rebar_Layer") or "zzz"
-        rebar = doc.GetElement(first_id)
-        if rebar:
-            bar_type = doc.GetElement(rebar.GetTypeId())
-            if bar_type:
-                try:
-                    diameter_mm = bar_type.BarModelDiameter * _FT_TO_MM
-                except AttributeError:
-                    try:
-                        diameter_mm = bar_type.BarNominalDiameter * _FT_TO_MM
-                    except AttributeError:
-                        diameter_mm = 0.0
-            else:
-                diameter_mm = 0.0
-        else:
-            diameter_mm = 0.0
-        
-        # Primer parámetro A (si existe)
-        shape_params_str = _read(doc, first_id, "NOSA_Rebar_Shape_Params") or ""
-        first_param = 0.0
-        if shape_params_str and 'A=' in shape_params_str:
+    varying_ids = set()
+    for rebar in elements:
+        varying = _is_varying(doc, rebar)
+        if varying:
+            varying_ids.add(get_id_value(rebar.Id))
+        clusters.setdefault(_dedup_key(doc, rebar, tolerance_mm, varying), []).append(rebar)
+
+    def cluster_order(item):
+        key, members = item
+        first = members[0]
+        params = _read(doc, first.Id, "NOSA_Rebar_Shape_Params") or ""
+        a_mm = 0.0
+        if 'A=' in params:
             try:
-                a_val = shape_params_str.split('A=')[1].split(';')[0]
-                first_param = float(a_val.strip())
+                a_mm = float(params.split('A=')[1].split(';')[0])
             except (IndexError, ValueError):
                 pass
-        
-        return (layer, -diameter_mm, -first_param)
-    
-    sorted_clusters = sorted(clusters.items(), key=cluster_sort_key)
-    
-    # Asignar números correlativos
-    position_number = 1
+        return (-_bar_diameter_mm(doc, first), _read(doc, first.Id, "NOSA_Rebar_Shape_Code") or "99",
+                -a_mm, get_id_value(first.Id))
+
+    next_number = highest + 1
     total_bars = 0
     largest_cluster = 0
-    
-    for key, ids in sorted_clusters:
-        if not ids:
-            continue
-        
-        cluster_size = len(ids)
-        total_bars += cluster_size
-        if cluster_size > largest_cluster:
-            largest_cluster = cluster_size
-        
-        # Obtener host_mark del primer elemento
-        first_id = ids[0]
-        host_id = _read(doc, first_id, "NOSA_Rebar_Host_Element_Id")
-        if not host_id:
-            try:
-                from nosa_utils.revit_helpers import get_id_value  # Lazy: imports the Revit API
-                host_id = u'{}'.format(get_id_value(doc.GetElement(first_id).GetHostId()))
-            except Exception:
-                host_id = None
-        host_mark = ""
-        host_elem = None
-        if host_id:
-            try:
-                from Autodesk.Revit import DB  # Lazy import
-                from nosa_utils.revit_helpers import element_id_from_int
-                host_elem = doc.GetElement(element_id_from_int(host_id))
-                if host_elem:
-                    host_mark_param = host_elem.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
-                    if host_mark_param and host_mark_param.HasValue:
-                        host_mark = host_mark_param.AsString() or ""
-            except Exception:
-                host_elem = None
-        if not host_mark:
-            # Host without a Mark (T2.12): a bare "-01" repeats across hosts, so
-            # use a category letter + the element id, e.g. "B1318407-01".
-            host_mark = u'{}{}'.format(_host_code(host_elem), host_id or u'')
-            hosts_without_mark.add(host_id)
-        
-        # Leer layer del primer elemento
-        layer_key = _read(doc, first_id, "NOSA_Rebar_Layer") or "uncategorized"
-        layer_name = marking_cfg.get("layer_names", {}).get(layer_key, layer_key)
-        
-        # Leer diámetro
-        rebar = doc.GetElement(first_id)
-        diameter_mm = 0.0
-        if rebar:
-            bar_type = doc.GetElement(rebar.GetTypeId())
-            if bar_type:
+    reused = 0
+    for key, members in sorted(clusters.items(), key=cluster_order):
+        number = known.get(key)
+        if number is None:
+            number = next_number
+            next_number += 1
+            known[key] = number
+        else:
+            reused += 1
+        mark = format_mark(number)
+        total_bars += len(members)
+        largest_cluster = max(largest_cluster, len(members))
+        for pos_idx, rebar in enumerate(members, start=1):
+            _write(doc, rebar.Id, "NOSA_Rebar_Mark", mark)
+            _write(doc, rebar.Id, "NOSA_Rebar_Number", number)
+            _write(doc, rebar.Id, "NOSA_Rebar_Position_In_Host", pos_idx)
+            _write(doc, rebar.Id, "NOSA_Rebar_Is_Variable",
+                   1 if get_id_value(rebar.Id) in varying_ids else 0)
+            for bip, value in ((DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, mark),
+                               (DB.BuiltInParameter.NUMBER_PARTITION_PARAM, partition)):
                 try:
-                    diameter_mm = bar_type.BarModelDiameter * _FT_TO_MM
-                except AttributeError:
-                    try:
-                        diameter_mm = bar_type.BarNominalDiameter * _FT_TO_MM
-                    except AttributeError:
-                        pass
-        
-        # Formatear marca
-        try:
-            mark = mark_format.format(
-                host_mark=host_mark,
-                number=position_number,
-                diameter=int(diameter_mm),
-                layer=layer_name,
-                prefix=prefix
-            )
-        except (KeyError, ValueError):
-            # Fallback si el formato falla
-            mark = "{}-{:02d}".format(host_mark or "?", position_number)
-        if prefix and "{prefix}" not in mark_format:
-            mark = prefix + mark
-        
-        # Asignar a todas las barras del cluster
-        for pos_idx, rebar_id in enumerate(ids, start=1):
-            _write(doc, rebar_id, "NOSA_Rebar_Mark", mark)
-            _write(doc, rebar_id, "NOSA_Rebar_Number", position_number)
-            _write(doc, rebar_id, "NOSA_Rebar_Position_In_Host", pos_idx)
-        
-        position_number += 1
-    
+                    param = rebar.get_Parameter(bip)
+                    if param is not None and not param.IsReadOnly:
+                        param.Set(value)
+                except Exception:
+                    pass
+
     return {
-        "total_positions": len(sorted_clusters),
+        "total_positions": len(clusters),
         "total_bars": total_bars,
         "largest_cluster": largest_cluster,
-        "hosts_without_mark": len(hosts_without_mark)
+        "reused_marks": reused,
+        "varying_sets": len(varying_ids),
     }
 
 
@@ -330,31 +283,23 @@ def assign_layers_and_lengths(doc, rebars, ctx):
             _write(doc, rebar_id, "NOSA_Rebar_Total_Length", total_length)
 
 
-def renumber_batch(doc, batch_id, ctx):
-    """
-    Re-ejecuta deduplicate_and_mark + assign_layers_and_lengths sobre todas las barras del lote.
-    Respeta Finalized=1 (no renumera barras finalizadas).
-    Devuelve summary.
-    """
+def renumber_partition(doc, ctx):
+    """Renumber every non-finalized NOSA bar of the partition; finalized bars keep their marks."""
     from Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory  # Lazy import
-    
-    # Recolectar todas las Rebar del documento
-    all_rebars = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rebar).WhereElementIsNotElementType().ToElementIds()
-    
-    # Filtrar por batch_id y Finalized != 1
-    batch_rebars = []
-    for rid in all_rebars:
-        stored_batch = _read(doc, rid, "NOSA_Rebar_Batch_Id")
-        finalized = _read(doc, rid, "NOSA_Rebar_Finalized")
-        
-        if stored_batch == batch_id and finalized != 1 and finalized != "1":
-            batch_rebars.append(rid)
-    
-    if not batch_rebars:
+    partition = (ctx.get("mark_prefix") or u'').strip()
+    rebars = []
+    collector = FilteredElementCollector(doc).OfCategory(
+        BuiltInCategory.OST_Rebar).WhereElementIsNotElementType()
+    for rebar in collector:
+        if not _read(doc, rebar.Id, "NOSA_Rebar_Batch_Id"):
+            continue
+        if _read(doc, rebar.Id, "NOSA_Rebar_Finalized") in (1, u'1'):
+            continue
+        current = _partition(rebar)
+        if current and current != partition:
+            continue
+        rebars.append(rebar.Id)
+    if not rebars:
         return {"total_positions": 0, "total_bars": 0, "largest_cluster": 0}
-    
-    # Re-marcar
-    assign_layers_and_lengths(doc, batch_rebars, ctx)
-    summary = deduplicate_and_mark(doc, batch_rebars, ctx)
-    
-    return summary
+    assign_layers_and_lengths(doc, rebars, ctx)
+    return deduplicate_and_mark(doc, rebars, ctx)

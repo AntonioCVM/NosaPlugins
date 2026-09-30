@@ -116,7 +116,7 @@
       "required": ["mark_format", "number_scope", "layer_names"],
       "properties": {
         "mark_format": { "type": "string" },
-        "number_scope": { "type": "string", "enum": ["per_host", "per_project", "per_view"] },
+        "number_scope": { "type": "string", "enum": ["per_partition", "per_host", "per_project", "per_view"] },
         "dedup_tolerance_mm": { "type": "number" },
         "layer_names": { "type": "object" }
       }

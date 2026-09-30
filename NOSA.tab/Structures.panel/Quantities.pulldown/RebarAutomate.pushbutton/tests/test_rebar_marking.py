@@ -12,7 +12,7 @@ if _LIB_ROOT not in sys.path:
 
 # Importar helpers internos de rebar_marking sin Revit
 sys.path.insert(0, os.path.join(_HERE, '..', 'lib'))
-from rebar_marking import _round_to_tolerance, _parse_shape_params
+from rebar_marking import _round_to_tolerance, _parse_shape_params, format_mark, variant_suffix
 
 
 def test_round_to_tolerance():
@@ -131,7 +131,24 @@ def test_is_variable_no_dedup_concept():
     print(u"[PASS] test_is_variable_no_dedup_concept")
 
 
+def test_format_mark_is_plain_sequential_number():
+    """BS 8666: marks are 01, 02 ... with no host id or prefix."""
+    assert [format_mark(n) for n in (1, 9, 10, 99, 100)] == [u'01', u'09', u'10', u'99', u'100']
+    print(u"[PASS] test_format_mark_is_plain_sequential_number")
+
+
+def test_variant_suffix_skips_i_o_q_and_rolls_over():
+    """Varying sets: 05A, 05B ... no I, O or Q; after Z comes AA, AB ..."""
+    letters = [variant_suffix(i) for i in range(23)]
+    assert letters == list(u'ABCDEFGHJKLMNPRSTUVWXYZ')
+    assert not set(u'IOQ') & set(u''.join(variant_suffix(i) for i in range(600)))
+    assert [variant_suffix(i) for i in (23, 24, 45, 46)] == [u'AA', u'AB', u'AZ', u'BA']
+    assert u'05' + variant_suffix(0) == u'05A'
+    print(u"[PASS] test_variant_suffix_skips_i_o_q_and_rolls_over")
+
 if __name__ == "__main__":
+    test_format_mark_is_plain_sequential_number()
+    test_variant_suffix_skips_i_o_q_and_rolls_over()
     test_round_to_tolerance()
     test_parse_shape_params()
     test_mark_format_tokens()
