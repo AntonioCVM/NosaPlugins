@@ -507,6 +507,7 @@ class RebarAutomateWindow(NOSAWindow):
         # Cargar valores desde rebar_project.json
         self.TxtMarkPrefix.Text = self.ra_project.get('mark_prefix', u'')
         self.TxtRevision.Text = self.ra_project.get('revision', u'')
+        self.TxtKickerHeight.Text = u'{:g}'.format(self._kicker_mm())
         current_status = self.ra_project.get('status', u'Design')
         if current_status in statuses:
             self.CmbProjectStatus.SelectedItem = current_status
@@ -520,6 +521,13 @@ class RebarAutomateWindow(NOSAWindow):
         self.BtnGenerateSchedule.Click += self.BtnGenerateSchedule_Click
         self.BtnExportBvbs.Click += self.BtnExportBvbs_Click
 
+    def _kicker_mm(self):
+        """Kicker height (mm) from the project settings; laps are measured above it."""
+        try:
+            return max(0.0, float(self.ra_project.get('kicker_mm', 75.0)))
+        except (TypeError, ValueError):
+            return 75.0
+
     def BtnSaveProjectHeader_Click(self, sender, args):
         """Guarda prefijo de marca, revisión y estado en rebar_project.json."""
         if not getattr(self, '_is_loaded', False):
@@ -527,6 +535,11 @@ class RebarAutomateWindow(NOSAWindow):
         self.ra_project['mark_prefix'] = (self.TxtMarkPrefix.Text or u'').strip()
         self.ra_project['revision'] = (self.TxtRevision.Text or u'').strip()
         self.ra_project['status'] = self.CmbProjectStatus.SelectedItem or u'Design'
+        try:
+            self.ra_project['kicker_mm'] = max(0.0, float(self.TxtKickerHeight.Text))
+        except (TypeError, ValueError):
+            forms.alert(u'Kicker height must be a number (mm).', title=u'RebarAutomate')
+            return
         rebar_project.save(self.doc, self.ra_project)
         forms.alert(u'Project settings saved.', title=u'RebarAutomate')
     
@@ -1183,19 +1196,26 @@ class RebarAutomateWindow(NOSAWindow):
         """
         if bar_type is None:
             return
+        bar_dia_mm = bar_type.BarModelDiameter * 304.8
+        cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Exterior', 40.0)
+        short_feet = []
         for line, normal in zip(dowels['bars'], dowels['normals']):
+            curves, foot_mm = re_engine.starter_l_curves(
+                line, normal.CrossProduct(DB.XYZ.BasisZ), bar_dia_mm, host, cover_mm)
+            if foot_mm < re_engine.MIN_STARTER_FOOT_MM - 1.0:
+                short_feet.append(foot_mm)
             rebar = wrapper.create_from_curves(
-                host, [line], bar_type,
-                start_hook=hook_type, end_hook=None,
-                start_hook_direction=normal.CrossProduct(DB.XYZ.BasisZ) if normal is not None else None,
-                start_hook_orientation=re_engine.hook_orientation_left() if hook_type else None,
-                normal=normal,
+                host, curves, bar_type, normal=normal,
                 transaction_name=u'NOSA — Create Footing Dowel')
             if rebar is None:
                 errors.append(u'Footing {}: dowel — {}'.format(get_id_value(host.Id), wrapper.last_error))
             else:
                 self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
+        if short_feet:
+            errors.append(u'Footing {}: {} dowel foot/feet shortened to {:.0f} mm to stay inside the '
+                          u'footing (450 mm recommended).'.format(
+                              get_id_value(host.Id), len(short_feet), min(short_feet)))
         for column_id in dowels.get('skipped_columns', []):
             errors.append(u'Footing {}: no dowels under column {} — it already has NOSA dowels '
                           u'or foundation starters.'.format(get_id_value(host.Id), get_id_value(column_id)))
@@ -1236,14 +1256,17 @@ class RebarAutomateWindow(NOSAWindow):
         """
         if bar_type is None:
             return
+        bar_dia_mm = bar_type.BarModelDiameter * 304.8
+        short_feet = []
         for line, normal, foundation in zip(starters.get('bars', []), starters.get('normals', []),
                                             starters.get('hosts', [])):
+            curves, foot_mm = re_engine.starter_l_curves(
+                line, normal.CrossProduct(DB.XYZ.BasisZ), bar_dia_mm, foundation,
+                re_engine.get_native_cover_mm(self.doc, foundation, u'Exterior', 40.0))
+            if foot_mm < re_engine.MIN_STARTER_FOOT_MM - 1.0:
+                short_feet.append(foot_mm)
             rebar = wrapper.create_from_curves(
-                foundation, [line], bar_type,
-                start_hook=hook_type, end_hook=None,
-                start_hook_direction=normal.CrossProduct(DB.XYZ.BasisZ) if normal is not None else None,
-                start_hook_orientation=re_engine.hook_orientation_left() if hook_type else None,
-                normal=normal,
+                foundation, curves, bar_type, normal=normal,
                 transaction_name=u'NOSA — Create {} Foundation Starter'.format(label))
             if rebar is None:
                 errors.append(u'{} {}: foundation starter — {}'.format(
@@ -1251,6 +1274,10 @@ class RebarAutomateWindow(NOSAWindow):
             else:
                 self._stamp_layer(rebar, u'foundation_starter')
                 created_rebars.append(rebar)
+        if short_feet:
+            errors.append(u'{} {}: {} starter foot/feet shortened to {:.0f} mm to stay inside the '
+                          u'foundation (450 mm recommended).'.format(
+                              label, get_id_value(host.Id), len(short_feet), min(short_feet)))
         if starters.get('assumed_mat'):
             errors.append(u'{} {}: no NOSA bottom mat found in the foundation below — {} starter '
                           u'foot/feet placed on an assumed 2-layer mat; arm the foundation first '
@@ -1512,7 +1539,7 @@ class RebarAutomateWindow(NOSAWindow):
             dowel_count=values.get('dowel_count'),
             dowel_diameter_mm=values.get('dowel_diameter'),
             dowel_anchor_length_mm=values.get('dowel_anchor'),
-            dowel_splice_length_mm=values.get('dowel_splice'),
+            dowel_splice_length_mm=(values.get('dowel_splice') or 0.0) + self._kicker_mm(),
             dowel_column_width_mm=values.get('dowel_col_width', 400.0),
             dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
             dowel_column_bar_count=values.get('dowel_col_bar_count'),
@@ -2391,7 +2418,7 @@ class RebarAutomateWindow(NOSAWindow):
                 [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = column_rebar.build_column_foundation_starters(
                 self.doc, host, points, values['bar_dia'], values['bar_dia'],
-                values['foundation_anchor_mm'], values['foundation_splice_mm'],
+                values['foundation_anchor_mm'], values['foundation_splice_mm'] + self._kicker_mm(),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
@@ -3400,7 +3427,7 @@ class RebarAutomateWindow(NOSAWindow):
                 [p for r in vertical_rebars for p in re_engine.rebar_bar_plan_points(r)])
             starters = wall_rebar.build_wall_foundation_starters(
                 self.doc, host, points, values['vert_dia'], values['vert_dia'],
-                values['foundation_anchor_mm'], values['foundation_splice_mm'],
+                values['foundation_anchor_mm'], values['foundation_splice_mm'] + self._kicker_mm(),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:

@@ -245,23 +245,23 @@ result_closure = floor_rebar.build_floor_reinforcement(
     x_anchor_ubar_dia_mm=8.0, x_anchor_ubar_spacing_mm=200.0,
     y_anchor_ubar_dia_mm=8.0, y_anchor_ubar_spacing_mm=200.0)
 closure = result_closure['perimeter_closure_ubars']
-nominal_leg_mm = 40.0 * 8.0  # default_anchorage_length_mm(8mm) = 320mm
+# max(40d = 320mm, 2h = 400mm on this 200mm slab): EC2 9.3.1.4 edge U-bars (2026-09-30)
+nominal_leg_mm = max(40.0 * 8.0, 2.0 * 200.0)
 cover_mm = 25.0  # the outer boundary is cover-offset BEFORE the edges are walked
 # T2.17 (2026-09-30): one U-bar beside each mat bar ending on the edge,
 # over the mat's whole zone, in two uniform halves per edge (each half
 # shifted towards the middle so none leaves the zone) -> 2 Sets per edge.
 contact_mm = (10.0 + 8.0) / 2.0
-assert len(closure['x_bars']['sets']) == 4 and closure['x_bars']['bars'] == [],     "the left AND right edges must each be exactly TWO Sets (two halves) — no loose bars"
-assert len(closure['y_bars']['sets']) == 4 and closure['y_bars']['bars'] == [],     "the top AND bottom edges must each be exactly TWO Sets"
+assert len(closure['x_bars']['sets']) == 2 and closure['x_bars']['bars'] == [],     "the left AND right edges must each be exactly ONE Set (T2.17: one Rebar Set per side)"
+assert len(closure['y_bars']['sets']) == 2 and closure['y_bars']['bars'] == [],     "the top AND bottom edges must each be exactly ONE Set"
 for key, edge_mm in (('x_bars', 4000.0), ('y_bars', 6000.0)):
     zone_mm = edge_mm - 2 * cover_mm - 10.0  # mat rows run cover + d/2 .. edge - cover - d/2
-    spans = sorted(s['array_length_mm'] for s in closure[key]['sets'])
-    for s in closure[key]['sets']:
-        assert s['style'] is None
-    covered = sum(spans) + 2 * contact_mm
-    assert covered > zone_mm - 2 * 400.0,         "the two halves must cover the mat zone, not stop an anchorage length short of each corner"
-print("build_floor_reinforcement (closure U-bars, wide floor): each edge is two "
-      "uniform Sets over the whole mat zone, one U beside each mat bar: OK")
+    for s_ in closure[key]['sets']:
+        assert s_['style'] is None
+        # one U beside every mat bar except the last: the Set spans the mat rows less one spacing
+        assert s_['array_length_mm'] > zone_mm - 2 * 200.0 - 1.0,             "the Set must cover the mat zone (less one spacing), not stop an anchorage short of each corner"
+print("build_floor_reinforcement (closure U-bars, wide floor): each edge is ONE "
+      "uniform Set over the whole mat zone, one U beside each mat bar: OK")
 
 # ── Test 4b: an L-shaped (non-convex) floor also closes with continuous ──
 # edges, including around its own reflex/notch corner — no fragmentation.
@@ -523,7 +523,7 @@ for e in tiny_hole_entries:
         continue
     leg0 = e['curves'][0]
     leg_len_mm = leg0.GetEndPoint(0).DistanceTo(leg0.GetEndPoint(1)) * _MM_PER_FT
-    assert abs(leg_len_mm - 320.0) < 1e-3, \
+    assert abs(leg_len_mm - 400.0) < 1e-3, \
         "every non-link U-bar leg must be the FULL nominal length, never shrunk"
 print("_build_edge_ubars: a hole too short for the main perimeter's own corner-"
       "inset spacing now tries a relaxed margin at the SAME spacing_mm first — "

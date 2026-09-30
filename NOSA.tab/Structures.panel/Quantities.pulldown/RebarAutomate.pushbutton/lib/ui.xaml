@@ -1136,6 +1136,7 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Mark Prefix:" VerticalAlignment="Center" Margin="0,0,8,8"/>
@@ -1148,6 +1149,10 @@
                                 <ComboBox Grid.Row="1" Grid.Column="1" Name="CmbProjectStatus" Margin="0,0,16,0"/>
                                 
                                 <Button Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" Name="BtnSaveProjectHeader" Content="Save Project Settings" Margin="0,0,0,0"/>
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Kicker Height (mm):" VerticalAlignment="Center" Margin="0,8,8,0"
+                                           ToolTip="Column and wall kicker cast with the foundation. Starter and dowel laps are measured above it (IStructE SMDSC: 75 mm). 0 = no kicker."/>
+                                <TextBox Grid.Row="2" Grid.Column="1" Name="TxtKickerHeight" MaxLength="5" Margin="0,8,16,0"/>
                             </Grid>
                         </StackPanel>
                     </Border>

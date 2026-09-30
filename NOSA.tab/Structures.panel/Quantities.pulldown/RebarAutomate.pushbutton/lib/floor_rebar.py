@@ -695,24 +695,21 @@ def _leg_in_material(topo, pos, inward_normal, leg_mm, outer, large_holes):
 def _edge_positions_at_mat_rows(p0, unit_dir, length_mm, rows, coord, contact_mm):
     """
     Distances along one edge where a closure U-bar sits beside each mat bar
-    that ends on this edge (T2.17, user decision 2026-09-30): the U touches
-    its bar, shifted by contact_mm towards the middle of the edge's rows so
-    none leaves the mat zone. Returns [(dist_mm, side)] sorted by distance,
-    side = +1/-1 grouping the two halves into uniform runs.
+    that ends on this edge: every U touches its bar on the same side
+    (+coord), so the edge is ONE uniform Rebar Set; the U of the last bar,
+    which would enter the side cover, is left out (the perpendicular edge's
+    U-bars already close that corner). User decisions 2026-09-30 (T2.17).
+    Returns [(dist_mm, side)] sorted by distance, side always +1.
     """
     if abs(unit_dir[coord]) < 1e-6:
         return []
-    hits = [r for r in rows
-            if 0.0 <= (r - p0[coord]) / unit_dir[coord] <= length_mm]
-    if not hits:
-        return []
-    mid = (min(hits) + max(hits)) / 2.0
     out = []
-    for r in hits:
-        side = 1.0 if r <= mid else -1.0
-        dist = (r + side * contact_mm - p0[coord]) / unit_dir[coord]
+    for r in rows:
+        if not 0.0 <= (r - p0[coord]) / unit_dir[coord] <= length_mm:
+            continue
+        dist = (r + contact_mm - p0[coord]) / unit_dir[coord]
         if 0.0 <= dist <= length_mm:
-            out.append((dist, side))
+            out.append((dist, 1.0))
     return sorted(out)
 
 
@@ -1422,6 +1419,11 @@ def build_floor_reinforcement(doc, host,
                               u'to all be given.')
         x_leg_mm = footing_mod.default_anchorage_length_mm(x_anchor_ubar_dia_mm, std=std)
         y_leg_mm = footing_mod.default_anchorage_length_mm(y_anchor_ubar_dia_mm, std=std)
+        # Slab edge U-bars: legs of at least twice the slab depth (EC2 9.3.1.4,
+        # IStructE SMDSC Fig. 6.8) — user decision 2026-09-30.
+        two_h_mm = 2.0 * (top_z_ft - bottom_z_ft) * _MM_PER_FT
+        x_leg_mm = max(x_leg_mm, two_h_mm)
+        y_leg_mm = max(y_leg_mm, two_h_mm)
 
     # PHASE 3.5.8 item 1 FIX — the PLAN (X/Y) boundary offset is a
     # LATERAL cover, not the bottom/top mat's own Z-direction FACE

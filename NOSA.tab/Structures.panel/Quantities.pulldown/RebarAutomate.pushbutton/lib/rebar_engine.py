@@ -961,6 +961,43 @@ def point_start_hook(doc, rebar, hook_dir):
     return True
 
 
+MIN_STARTER_FOOT_MM = 450.0
+
+
+def starter_l_curves(line, hook_dir, bar_dia_mm, foundation=None, cover_mm=None):
+    """
+    [foot, vertical] centreline curves of an L-shaped dowel/starter.
+
+    `line` runs from the top of the mat the foot rests on (its start) up to
+    the lap end. The foot is max(450 mm, 12 d) long (IStructE SMDSC 6.7:
+    column starters need a horizontal leg of at least 450 mm) along
+    hook_dir, shortened only where it would leave the foundation's cover.
+    Built as explicit curves, not a hook type, so length and direction are
+    the same in every Revit version (T2.18, 2026-09-30).
+    Returns (curves, foot_mm).
+    """
+    radius_ft = bar_dia_mm / 2.0 / _MM_PER_FT
+    start, top = line.GetEndPoint(0), line.GetEndPoint(1)
+    corner = DB.XYZ(start.X, start.Y, start.Z + radius_ft)
+    direction = DB.XYZ(hook_dir.X, hook_dir.Y, 0.0).Normalize()
+    foot_ft = max(MIN_STARTER_FOOT_MM, 12.0 * bar_dia_mm) / _MM_PER_FT
+    if foundation is not None and cover_mm is not None:
+        bbox = get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
+        if bbox is not None:
+            inset_ft = (cover_mm + bar_dia_mm / 2.0) / _MM_PER_FT
+            for axis, lo, hi in (('X', bbox.Min.X, bbox.Max.X), ('Y', bbox.Min.Y, bbox.Max.Y)):
+                d = getattr(direction, axis)
+                here = getattr(corner, axis)
+                if d > 1e-9:
+                    foot_ft = min(foot_ft, (hi - inset_ft - here) / d)
+                elif d < -1e-9:
+                    foot_ft = min(foot_ft, (here - lo - inset_ft) / -d)
+    foot_ft = max(foot_ft, 4.0 * bar_dia_mm / _MM_PER_FT)
+    tip = corner + direction.Multiply(foot_ft)
+    top = DB.XYZ(top.X, top.Y, top.Z)
+    return [DB.Line.CreateBound(tip, corner), DB.Line.CreateBound(corner, top)], foot_ft * _MM_PER_FT
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and
