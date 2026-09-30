@@ -24,10 +24,10 @@ Creado: 2026-09-28 · Rama de integración: **`develop`** (= `fix/rebar-f7-...` 
 |---|---|---|---|
 | D1 | Estrategia de ramas | T0.4 | [x] `develop` como integración; `main` solo tras humo 4 versiones |
 | D2 | `NOSA_Configs` en git | T0.3 | [x] Personales fuera de git; presets compartidos (NamingProfiles, ColumnPresets, ExportPresets) versionados |
-| D3 | Bugs legacy de RebarAutomate (densificación en nudos intermedios, esquineras 45° en huecos, ventana modeless): ¿dentro de 1.0 o post-1.0? | T4.6 | [ ] |
-| D4 | Fase 13 de `PLAN_MEJORA` (migrar pilecap tools a `pilecap_utils`): ¿se desbloquea? | T5.5 | [ ] |
-| D5 | Hubs grandes con uso casi nulo (ModelHealthHub, StructuralQA, DataToolsHub, IssueWorkflowHub): ¿mantener, simplificar o fusionar? | T6.2 | [ ] |
-| D7 | 8 iconos de 65×65 (AnnotationHub, TextTools, ViewUtilities, AddPileToPilecap, CreatePilecapType, CenterBeamToColumn, WaffleSlab, StructuralQA) frente a la convención 32×32: ¿redimensionar, o aceptar iconos grandes (mejor en HiDPI) y relajar la regla NOSA202? | — | [ ] |
+| D3 | Bugs legacy de RebarAutomate (densificación en nudos intermedios, esquineras 45° en huecos, ventana modeless): ¿dentro de 1.0 o post-1.0? | T4.6 | [x] 2026-09-30: las tres dentro de 1.0 |
+| D4 | Fase 13 de `PLAN_MEJORA` (migrar pilecap tools a `pilecap_utils`): ¿se desbloquea? | T5.5 | [x] 2026-09-30: sí, con pruebas en Revit |
+| D5 | Hubs grandes con uso casi nulo (ModelHealthHub, StructuralQA, DataToolsHub, IssueWorkflowHub): ¿mantener, simplificar o fusionar? | T6.2 | [x] 2026-09-30: mantener y pulir (solo correcciones/limpieza) |
+| D7 | Tamaño de iconos | — | [x] 2026-09-30: **96×96** (estándar pyRevit, nítido en HiDPI). Regla NOSA204 (medium) + CLAUDE.md. Los 7 con `icon.svg` ya regenerados a 96; los 51 restantes (solo PNG 32/65) → T6.4 |
 | D6 | ¿Adoptar GSD (`/gsd-new-project`) para gestionar este roadmap, o seguir con este fichero + sesiones? | — | [ ] |
 
 ---
@@ -138,6 +138,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T6.1 | Auditoría de 3 ejes (código · apariencia XAML · utilidad) con ficha por plugin; convertirla en `/audit-nosa-full` | – | – | – | |
 | [ ] | T6.2 | Aplicar D5 a los hubs grandes poco usados | ✔ | – | ✔ | |
 | [ ] | T6.3 | Tests sin Revit para los plugins más usados: SheetExportHub, PileMaster, QRCode, MaterialManager, AddPileToPilecap, CreatePilecapType | ✔ | – | – | |
+| [ ] | T6.4 | Rediseñar en vectorial (`icon.svg` maestro + `icon.png` 96×96 + `icon.dark.png`) los 51 iconos sin fuente, con la identidad NOSA (#FF5F00). Enseñar propuestas al usuario antes de sustituir | ✔ | – | ✔ | |
 
 ---
 

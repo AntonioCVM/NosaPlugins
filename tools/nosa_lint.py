@@ -37,7 +37,8 @@ RULES = {
     'NOSA105': ('high', 'Window is missing NOSA colour resources'),
     'NOSA106': ('medium', 'SelectedIndex/SelectionChanged set in XAML - convention is to wire it in code after LoadComponent'),
     'NOSA201': ('critical', 'Pushbutton has no script.py'),
-    'NOSA202': ('high', 'Pushbutton icon missing or not 32x32'),
+    'NOSA202': ('high', 'Pushbutton icon missing (or wrong filename case)'),
+    'NOSA204': ('medium', 'Pushbutton icon is not 96x96 (pyRevit HiDPI standard, D7 2026-09-30)'),
     'NOSA203': ('high', 'Window class does not inherit NOSAWindow'),
 }
 
@@ -286,8 +287,8 @@ def lint_pushbutton(folder):
         findings.append(Finding('NOSA202', folder, 0, 'wrong case: %s' % alt[0] if alt else 'missing'))
     else:
         size = _png_size(icon)
-        if size != (32, 32):
-            findings.append(Finding('NOSA202', icon, 0, 'size %s' % (size,)))
+        if size != (96, 96):
+            findings.append(Finding('NOSA204', icon, 0, 'size %s' % (size,)))
     lib = os.path.join(folder, 'lib')
     if os.path.isdir(lib):
         for name in os.listdir(lib):

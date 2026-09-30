@@ -73,14 +73,14 @@ NOSA.tab/
   Panel.panel/
     Plugin.pushbutton/          ← pushbutton (depth 0)
       script.py
-      icon.png                  ← 32×32 RGBA PNG, transparent bg, #FF5F00
+      icon.png                  ← 96×96 RGBA PNG, transparent bg, #FF5F00
       lib/
         ui.py
         logic.py
         ui.xaml
 
     Pulldown.pulldown/          ← pulldown (adds one depth level)
-      icon.png                  ← pulldown icon, also 32×32
+      icon.png                  ← pulldown icon, also 96×96
       Plugin.pushbutton/
         script.py
         icon.png
@@ -259,7 +259,8 @@ Target: **Revit 2024, 2025, 2026, 2027**.
 ### NOSA Visual Identity
 - **Accent colour:** `#FF5F00` (NOSA orange)
 - **Font:** Century Gothic (fallback: Segoe UI)
-- **Icon size:** 32 × 32 px, RGBA PNG, transparent background
+- **Icon size:** 96 × 96 px, RGBA PNG, transparent background (pyRevit scales it to the
+  32/16 px ribbon sizes and it stays sharp on HiDPI). Keep an `icon.svg` master next to it.
 - **Dark mode:** toggled per-plugin via `ChkDarkMode`, persisted in config JSON
 
 ### Code style
