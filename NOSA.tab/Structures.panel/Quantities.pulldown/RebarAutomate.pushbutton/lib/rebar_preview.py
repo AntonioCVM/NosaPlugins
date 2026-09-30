@@ -1150,16 +1150,12 @@ def compute_wall_elevation_preview(length_mm, height_mm, cover_mm,
             ]
             ubars.append({'points': pts, 'kind': u'top'})
     if include_end_ubars:
+        # One end U-bar at every horizontal bar level, as the generator sets them out.
+        leg_len = min(max(15.0 * vert_dia_mm, 300.0), length_mm * 0.2)
         for x in (end_clear_mm, length_mm - end_clear_mm):
-            leg_len = min(max(15.0 * vert_dia_mm, 300.0), length_mm * 0.2)
             inward = 1.0 if x < length_mm / 2.0 else -1.0
-            pts = [
-                (x, vert_top * 0.35),
-                (x + inward * leg_len, vert_top * 0.35),
-                (x + inward * leg_len, vert_top * 0.35 + inset * 0.6),
-                (x, vert_top * 0.35 + inset * 0.6),
-            ]
-            ubars.append({'points': pts, 'kind': u'end'})
+            for y in horiz_y_positions:
+                ubars.append({'points': [(x + inward * leg_len, y), (x, y)], 'kind': u'end'})
 
     return {
         'section': {'width_mm': length_mm, 'height_mm': height_mm, 'shape': 'rect'},

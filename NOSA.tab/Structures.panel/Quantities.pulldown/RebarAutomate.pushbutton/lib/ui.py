@@ -7,6 +7,7 @@ from Autodesk.Revit.DB import Structure as DBS
 from Autodesk.Revit.UI import IExternalEventHandler, ExternalEvent
 from Autodesk.Revit.UI.Selection import ObjectType, ISelectionFilter
 from Autodesk.Revit.Exceptions import OperationCanceledException
+import System
 import System.Windows.Media as SWM
 import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
@@ -49,6 +50,7 @@ beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
 wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
+preview_shapes = load_module('rebar_preview_shapes', os.path.join(_HERE, 'rebar_preview_shapes.py'))
 # PHASE F1
 rebar_batch = load_module('rebar_batch', os.path.join(_HERE, 'rebar_batch.py'))
 rebar_project = load_module('rebar_project', os.path.join(_HERE, 'rebar_project.py'))
@@ -838,10 +840,148 @@ class RebarAutomateWindow(NOSAWindow):
         except ValueError:
             return
 
-        self._draw_preview(data)
+        self._draw_shapes(self.PreviewCanvas, self._mat_preview_shapes(
+            preview_host, preview_kind, cover, dia_x, dia_y, include_top, top_cover,
+            top_dia_x, top_dia_y, include_ubars, x_anchor_dia, bottom_hooks, top_hooks))
         self._update_adopted_solution_label(cover, dia_x, dia_y, include_top,
                                             top_cover, top_dia_x, top_dia_y,
                                             include_ubars)
+
+    def _preview_number(self, box, default):
+        """Float from a text box for the previews; the default if empty or invalid."""
+        try:
+            value = float(box.Text)
+            return value if value > 0 else default
+        except (TypeError, ValueError, AttributeError):
+            return default
+
+    def _mat_preview_shapes(self, host, kind, cover, dia_x, dia_y, include_top, top_cover,
+                            top_dia_x, top_dia_y, include_ubars, ubar_dia, bottom_hooks, top_hooks):
+        """Section through the selected footing/slab (or a typical one) with every active option."""
+        width_mm, thickness_mm = (1500.0, 500.0) if kind != u'slab' else (3000.0, 300.0)
+        if host is not None:
+            try:
+                bbox = re_engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
+                width_mm = min((bbox.Max.X - bbox.Min.X) * 304.8, 4000.0)
+                thickness_mm = (bbox.Max.Z - bbox.Min.Z) * 304.8
+            except Exception:
+                pass
+        spacing = self._preview_number(self.TxtSpacing, 200.0)
+        dowels = kind != u'slab' and self.ChkIncludeDowels.IsChecked == True
+        return preview_shapes.mat_section_shapes(
+            width_mm, thickness_mm, cover, dia_x, dia_y, spacing,
+            include_top=include_top, top_cover_mm=top_cover, top_dia_x=top_dia_x,
+            top_dia_y=top_dia_y, top_spacing_mm=self._preview_number(self.TxtTopSpacing, spacing),
+            ubars=include_ubars, ubar_dia=ubar_dia, is_floor=kind == u'slab',
+            bottom_hooks=bottom_hooks, top_hooks=top_hooks, dowels=dowels,
+            dowel_dia=self._preview_number(self.TxtDowelDiameter, 16.0),
+            dowel_splice_mm=self._preview_number(self.TxtDowelSplice, 600.0),
+            kicker_mm=self._kicker_mm(),
+            column_width_mm=self._preview_number(self.TxtDowelColWidth, 400.0))
+
+    def _draw_shapes(self, canvas, shapes):
+        """Draw rebar_preview_shapes output (real mm, y up) fitted to the canvas, labels on the right."""
+        canvas.Children.Clear()
+        geo = [sh for sh in shapes if sh['kind'] != 'text']
+        xs, ys = [], []
+        for sh in geo:
+            if sh['kind'] in ('concrete', 'ground', 'ghost_column'):
+                xs += [sh['x0'], sh['x1']]
+                ys += [sh['y0'], sh['y1']]
+            elif sh['kind'] == 'circle':
+                xs += [sh['x'] - sh['r'], sh['x'] + sh['r']]
+                ys += [sh['y'] - sh['r'], sh['y'] + sh['r']]
+            elif sh['kind'] == 'bar':
+                xs += [p[0] for p in sh['points']]
+                ys += [p[1] for p in sh['points']]
+            elif sh['kind'] == 'dot':
+                xs.append(sh['x'])
+                ys.append(sh['y'])
+            elif sh['kind'] == 'level':
+                xs += [sh['x0'], sh['x1']]
+                ys.append(sh['y'])
+        if not xs:
+            return
+        texts = [sh for sh in shapes if sh['kind'] == 'text']
+        label_px = 6.2 * max([len(t['text']) for t in texts] or [0]) + 10.0
+        cw, ch, margin = canvas.Width, canvas.Height, 12.0
+        x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+        scale = min((cw - 2 * margin - label_px) / max(x1 - x0, 1.0),
+                    (ch - 2 * margin) / max(y1 - y0, 1.0))
+        off_x = margin + (cw - 2 * margin - label_px - (x1 - x0) * scale) / 2.0
+        off_y = margin + (ch - 2 * margin - (y1 - y0) * scale) / 2.0
+
+        def sx(x):
+            return off_x + (x - x0) * scale
+
+        def sy(y):
+            return off_y + (y1 - y) * scale
+
+        colours = {'main': _PREVIEW_BAR_FILL, 'link': SolidColorBrush(Color.FromRgb(110, 110, 110)),
+                   'ubar': SolidColorBrush(Color.FromRgb(150, 75, 20)),
+                   'starter': _PREVIEW_SECTION_STROKE, 'dowel': _PREVIEW_SECTION_STROKE,
+                   'ghost': SolidColorBrush(Color.FromRgb(160, 160, 160))}
+        for sh in geo:
+            kind = sh['kind']
+            if kind in ('concrete', 'ground', 'ghost_column'):
+                rect = SWS.Rectangle()
+                rect.Width = max(1.0, (sh['x1'] - sh['x0']) * scale)
+                rect.Height = max(1.0, (sh['y1'] - sh['y0']) * scale)
+                if kind == 'concrete':
+                    rect.Stroke, rect.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                elif kind == 'ground':
+                    rect.Stroke = colours['ghost']
+                    rect.Fill = SolidColorBrush(Color.FromArgb(40, 128, 128, 128))
+                else:
+                    rect.Stroke = colours['ghost']
+                    rect.StrokeDashArray = SWM.DoubleCollection([4.0, 3.0])
+                rect.StrokeThickness = 1.2
+                SWC.Canvas.SetLeft(rect, sx(sh['x0']))
+                SWC.Canvas.SetTop(rect, sy(sh['y1']))
+                canvas.Children.Add(rect)
+            elif kind == 'circle':
+                ell = SWS.Ellipse()
+                ell.Width = ell.Height = 2 * sh['r'] * scale
+                ell.Stroke, ell.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                ell.StrokeThickness = 1.2
+                SWC.Canvas.SetLeft(ell, sx(sh['x'] - sh['r']))
+                SWC.Canvas.SetTop(ell, sy(sh['y'] + sh['r']))
+                canvas.Children.Add(ell)
+            elif kind == 'bar':
+                line = SWS.Polyline()
+                for x, y in sh['points']:
+                    line.Points.Add(System.Windows.Point(sx(x), sy(y)))
+                line.Stroke = colours.get(sh['role'], _PREVIEW_BAR_FILL)
+                line.StrokeThickness = max(1.2, sh['dia_mm'] * scale)
+                line.StrokeLineJoin = SWM.PenLineJoin.Round
+                canvas.Children.Add(line)
+            elif kind == 'dot':
+                d = max(4.0, sh['dia_mm'] * scale)
+                ell = SWS.Ellipse()
+                ell.Width = ell.Height = d
+                brush = colours.get(sh['role'], _PREVIEW_BAR_FILL)
+                if sh.get('hollow'):
+                    ell.Stroke, ell.StrokeThickness = brush, 1.5
+                else:
+                    ell.Fill = brush
+                SWC.Canvas.SetLeft(ell, sx(sh['x']) - d / 2.0)
+                SWC.Canvas.SetTop(ell, sy(sh['y']) - d / 2.0)
+                canvas.Children.Add(ell)
+            elif kind == 'level':
+                line = SWS.Line()
+                line.X1, line.Y1, line.X2, line.Y2 = sx(sh['x0']), sy(sh['y']), sx(sh['x1']), sy(sh['y'])
+                line.Stroke = colours['ghost']
+                line.StrokeDashArray = SWM.DoubleCollection([6.0, 4.0])
+                canvas.Children.Add(line)
+        text_x = sx(x1) + 8.0
+        for t in texts:
+            tb = SWC.TextBlock()
+            tb.Text = t['text']
+            tb.FontSize = 10.5
+            tb.SetResourceReference(SWC.TextBlock.ForegroundProperty, 'TextColor')
+            SWC.Canvas.SetLeft(tb, text_x if t['x'] >= x1 else sx(t['x']))
+            SWC.Canvas.SetTop(tb, min(max(0.0, sy(t['y']) - 7.0), ch - 14.0))
+            canvas.Children.Add(tb)
 
     def _draw_preview(self, data):
         canvas = self.PreviewCanvas
@@ -1859,7 +1999,13 @@ class RebarAutomateWindow(NOSAWindow):
         except ValueError:
             return
 
-        self._draw_column_preview(data)
+        positions = [(b['x_mm'], b['y_mm']) for b in data['bars']]
+        starters = self.ChkColFoundationStarters.IsChecked == True
+        self._draw_shapes(self.ColumnPreviewCanvas, preview_shapes.column_section_shapes(
+            diameter_mm if shape == 'circle' else width_mm,
+            diameter_mm if shape == 'circle' else depth_mm,
+            cover, bar_dia, positions, link_dia, shape=shape, starters=starters,
+            starter_dia=bar_dia, link_spacing=self._preview_number(self.TxtColLinkSpacing, None)))
         self._update_column_adopted_solution_label(cover, bar_dia, int(bar_count), link_dia)
         self._update_column_elevation_preview()
 
@@ -1958,7 +2104,16 @@ class RebarAutomateWindow(NOSAWindow):
         except ValueError:
             return
 
-        self._draw_column_elevation_preview(data)
+        base_levels = [y for y in (floor_splits_mm or []) if 0.0 < y < height_mm - 1.0]
+        self._draw_shapes(self.ColumnElevationCanvas, preview_shapes.column_elevation_shapes(
+            width_mm, height_mm, cover, bar_dia, link_dia, normal_spacing,
+            dense_spacing=dense_spacing if densify else None,
+            dense_zone_mm=max(width_mm, height_mm / 6.0, 450.0) if densify else None,
+            top_starters=starter_bars, top_lap_mm=40.0 * bar_dia,
+            foundation_starters=self.ChkColFoundationStarters.IsChecked == True,
+            starter_dia=bar_dia,
+            starter_splice_mm=self._preview_number(self.TxtColFoundationSplice, 600.0),
+            kicker_mm=self._kicker_mm(), floor_levels_mm=base_levels))
 
     def _draw_column_elevation_preview(self, data):
         canvas = self.ColumnElevationCanvas
@@ -2568,7 +2723,9 @@ class RebarAutomateWindow(NOSAWindow):
                 width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
         except Exception:
             return
-        self._draw_simple_section_preview(canvas, data, draw_stirrup=True)
+        self._draw_shapes(canvas, preview_shapes.beam_section_shapes(
+            width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia,
+            link_spacing=self._preview_number(self.TxtBeamStirrupSpacing, None)))
         self._update_beam_elevation_preview()
 
     def _update_beam_elevation_preview(self):
@@ -2775,7 +2932,15 @@ class RebarAutomateWindow(NOSAWindow):
                 include_ubars=self.ChkWallEndUBars.IsChecked == True)
         except Exception:
             return
-        self._draw_simple_section_preview(section_canvas, section_data)
+        straight = self.ChkWallStarters.IsChecked == True
+        self._draw_shapes(section_canvas, preview_shapes.wall_section_shapes(
+            thickness_mm, min(height_mm, 2400.0), cover, vert_dia, vert_sp, horiz_dia, horiz_sp,
+            both_faces=both_faces, vert_outer=self.ChkWallVertOuter.IsChecked == True,
+            top_ubar=self.ChkWallEndUBars.IsChecked == True, straight_extension=straight,
+            foundation_starters=self.ChkWallFoundationStarters.IsChecked == True,
+            starter_dia=vert_dia,
+            starter_splice_mm=self._preview_number(self.TxtWallFoundationSplice, 600.0),
+            kicker_mm=self._kicker_mm()))
 
     def _draw_simple_section_preview(self, canvas, data, draw_stirrup=False):
         canvas.Children.Clear()
