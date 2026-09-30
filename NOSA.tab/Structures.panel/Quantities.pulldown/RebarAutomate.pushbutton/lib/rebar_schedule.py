@@ -167,8 +167,9 @@ def group_by_position(doc, rebar_ids):
             host_id = _read(doc, rid, "NOSA_Rebar_Host_Element_Id")
             if host_id:
                 try:
-                    from Autodesk.Revit.DB import ElementId, BuiltInParameter
-                    host = doc.GetElement(ElementId(int(host_id)))
+                    from Autodesk.Revit.DB import BuiltInParameter
+                    from nosa_utils.revit_helpers import element_id_from_int
+                    host = doc.GetElement(element_id_from_int(host_id))
                     if host:
                         mark_param = host.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)
                         if mark_param and mark_param.HasValue:

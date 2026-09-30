@@ -244,7 +244,10 @@ Target: **Revit 2024, 2025, 2026, 2027**.
 
 - Use `try/except` around any API call that may differ between versions.
 - Never use deprecated APIs without a fallback.
-- `ElementId` constructor: `DB.ElementId(int_value)` — works across all.
+- `ElementId` from an int: `nosa_utils.revit_helpers.element_id_from_int(value)`.
+  Never `DB.ElementId(int(x))`: in Revit 2026 IronPython it is ambiguous
+  (`ElementId(BuiltInParameter|BuiltInCategory|Int64)`) and raises TypeError
+  (lint rule NOSA010). Read ids back with `get_id_value(eid)`.
 - `Element.GetTypeId()` → returns ElementId; `doc.GetElement(id)` to resolve.
 - Avoid `FilteredElementCollector(...).ToElementIds()` in tight loops — prefer
   `.ToElements()` to avoid repeated `doc.GetElement()` calls.

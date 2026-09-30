@@ -18,6 +18,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _pc_logic  = imp.load_source('iwh_pc_logic',  os.path.join(_here, 'logic_protocol_checker.py'))
@@ -720,7 +721,7 @@ class IssueWorkflowHubWindow(NOSAWindow):
         if not row or not row.Id:
             return
         try:
-            ids = List[DB.ElementId]([DB.ElementId(int(row.Id))])
+            ids = List[DB.ElementId]([element_id_from_int(row.Id)])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:

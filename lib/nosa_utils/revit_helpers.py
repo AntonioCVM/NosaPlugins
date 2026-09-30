@@ -41,7 +41,7 @@ def element_id_from_int(val):
         from System import Int64
         return ElementId(Int64(int(val)))
     except Exception:
-        return ElementId(int(val))
+        return ElementId(int(val))  # nosa-lint: disable=NOSA010 (pre-2024 fallback)
 
 
 def coerce_element_id(val):

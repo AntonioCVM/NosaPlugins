@@ -10,6 +10,7 @@ from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import geometry as _geometry
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.revit_helpers import element_id_from_int
 _FT_TO_MM = _uc10.FT_TO_MM
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'pilecap_rules.json')
 
@@ -436,7 +437,7 @@ def get_editable_params(doc, cap_id):
     """
     results = []
     try:
-        el = doc.GetElement(DB.ElementId(int(cap_id)))
+        el = doc.GetElement(element_id_from_int(cap_id))
         if el is None:
             return results
 

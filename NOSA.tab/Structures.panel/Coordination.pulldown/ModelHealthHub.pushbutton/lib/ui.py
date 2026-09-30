@@ -18,6 +18,7 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.telemetry import log_swallowed
 from nosa_utils.logging import Logger
+from nosa_utils.revit_helpers import element_id_from_int
 _LOG = u'ModelHealthHub/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -327,7 +328,7 @@ class ModelHealthHubWindow(NOSAWindow):
             return
         try:
             from System.Collections.Generic import List
-            ids = List[DB.ElementId]([DB.ElementId(int(x)) for x in row._items
+            ids = List[DB.ElementId]([element_id_from_int(x) for x in row._items
                                       if str(x).isdigit()])
             if ids.Count:
                 revit.uidoc.Selection.SetElementIds(ids)
@@ -551,7 +552,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
                 forms.alert(u'No suitable view found to jump to.', title=u'Jump to View')
                 return
             revit.uidoc.RequestViewChange(target_view)
-            ids = List[DB.ElementId]([DB.ElementId(int(x)) for x in ids_raw])
+            ids = List[DB.ElementId]([element_id_from_int(x) for x in ids_raw])
             if ids.Count:
                 revit.uidoc.Selection.SetElementIds(ids)
         except Exception as e:
@@ -564,7 +565,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
         try:
             ids_raw = row._raw.get('element_ids', [])
             from System.Collections.Generic import List
-            ids = List[DB.ElementId]([DB.ElementId(int(x)) for x in ids_raw])
+            ids = List[DB.ElementId]([element_id_from_int(x) for x in ids_raw])
             if ids.Count:
                 revit.uidoc.Selection.SetElementIds(ids)
         except Exception as e:
@@ -646,7 +647,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
             ids = List[DB.ElementId]()
             for row in self._sc_rows:
                 if row.status == u'OK' and row.revit_id.isdigit():
-                    ids.Add(DB.ElementId(int(row.revit_id)))
+                    ids.Add(element_id_from_int(row.revit_id))
             if ids.Count:
                 revit.uidoc.Selection.SetElementIds(ids)
         except Exception as e:
@@ -872,7 +873,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
         row = self.CC_GridResults.SelectedItem
         if not row: return
         try:
-            ids = List[DB.ElementId]([DB.ElementId(int(row.Id))])
+            ids = List[DB.ElementId]([element_id_from_int(row.Id)])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:

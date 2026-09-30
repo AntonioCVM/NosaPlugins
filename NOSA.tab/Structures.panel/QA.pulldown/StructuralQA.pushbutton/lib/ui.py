@@ -15,7 +15,7 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.telemetry import log_swallowed
 from nosa_utils.logging import Logger
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_id_from_int
 _LOG = u'StructuralQA/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -334,8 +334,8 @@ class StructuralQAWindow(NOSAWindow):
         if not item:
             return
         try:
-            ids = List[DB.ElementId]([DB.ElementId(int(item.Id1)),
-                                      DB.ElementId(int(item.Id2))])
+            ids = List[DB.ElementId]([element_id_from_int(item.Id1),
+                                      element_id_from_int(item.Id2)])
             revit.uidoc.Selection.SetElementIds(ids)
             try:
                 revit.uidoc.ShowElements(ids)
@@ -349,8 +349,8 @@ class StructuralQAWindow(NOSAWindow):
         if not item:
             return
         try:
-            ids = List[DB.ElementId]([DB.ElementId(int(item.Id1)),
-                                      DB.ElementId(int(item.Id2))])
+            ids = List[DB.ElementId]([element_id_from_int(item.Id1),
+                                      element_id_from_int(item.Id2)])
             with revit.Transaction("Isolate Clash"):
                 revit.active_view.IsolateElementsTemporary(ids)
             revit.uidoc.ShowElements(ids)
@@ -980,7 +980,7 @@ class StructuralQAWindow(NOSAWindow):
         if not rows: return
         try:
             from System.Collections.Generic import List
-            ids = List[DB.ElementId]([DB.ElementId(int(r.Id)) for r in rows])
+            ids = List[DB.ElementId]([element_id_from_int(r.Id) for r in rows])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:
@@ -1119,7 +1119,7 @@ class StructuralQAWindow(NOSAWindow):
             return
         try:
             from System.Collections.Generic import List
-            ids = List[DB.ElementId]([DB.ElementId(int(r.Id)) for r in rows if r.Id])
+            ids = List[DB.ElementId]([element_id_from_int(r.Id) for r in rows if r.Id])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:
@@ -1151,7 +1151,7 @@ class StructuralQAWindow(NOSAWindow):
                 for row in rows:
                     assigned = False
                     try:
-                        el = self.doc.GetElement(DB.ElementId(int(row.Id)))
+                        el = self.doc.GetElement(element_id_from_int(row.Id))
                         if not el:
                             fail += 1
                             continue

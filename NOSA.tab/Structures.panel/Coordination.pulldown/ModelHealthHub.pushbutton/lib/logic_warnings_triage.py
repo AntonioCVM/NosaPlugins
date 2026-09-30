@@ -8,6 +8,7 @@ import json
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils.revit_helpers import element_id_from_int
 _LOG = u'ModelHealthHub/warnings_triage'
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'warning_rules.json')
 
@@ -158,7 +159,7 @@ def _fix_unjoin(doc, element_ids):
         elements = []
         for eid in element_ids:
             try:
-                el = doc.GetElement(DB.ElementId(int(eid)))
+                el = doc.GetElement(element_id_from_int(eid))
                 if el is not None:
                     elements.append(el)
             except Exception:
@@ -199,7 +200,7 @@ def _fix_delete_room_separation(doc, element_ids):
             t.Start()
             for eid in element_ids:
                 try:
-                    el = doc.GetElement(DB.ElementId(int(eid)))
+                    el = doc.GetElement(element_id_from_int(eid))
                     if el is None:
                         continue
                     cat = el.Category

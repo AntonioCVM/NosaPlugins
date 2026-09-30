@@ -13,6 +13,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import element_id_from_int
 
 _SKIP_TYPES = {
     DB.ViewType.DrawingSheet,
@@ -70,7 +71,7 @@ def analyse_view(doc, view_id_int):
         'dependent_views': [],
     }
     try:
-        eid  = DB.ElementId(int(view_id_int))
+        eid  = element_id_from_int(view_id_int)
         view = doc.GetElement(eid)
         if view is None:
             return result
@@ -132,7 +133,7 @@ def analyse_view(doc, view_id_int):
     rev_seen = set()
     for sh in result['sheets']:
         try:
-            sheet = doc.GetElement(DB.ElementId(int(sh['id'])))
+            sheet = doc.GetElement(element_id_from_int(sh['id']))
             if sheet is None:
                 continue
             for rid in sheet.GetAdditionalRevisionIds():

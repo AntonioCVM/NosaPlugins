@@ -6,6 +6,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import element_id_from_int
 
 
 _STORAGE_LABELS = {
@@ -140,7 +141,7 @@ def set_param_value(doc, params, new_value_str):
                 elif st == DB.StorageType.Double:
                     param.Set(float(new_value_str))
                 elif st == DB.StorageType.ElementId:
-                    param.Set(DB.ElementId(int(new_value_str)))
+                    param.Set(element_id_from_int(new_value_str))
                 ok += 1
             except Exception:
                 fail += 1

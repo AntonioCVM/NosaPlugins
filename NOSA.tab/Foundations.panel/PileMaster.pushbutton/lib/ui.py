@@ -10,6 +10,7 @@ _ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '
 if _ext_lib not in sys.path:
     sys.path.insert(0, _ext_lib)
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.revit_helpers import element_id_from_int
 
 # Import Logic Modules (absolute — lib_path injected by script.py)
 from logic_coords    import CoordinateLogic
@@ -592,7 +593,7 @@ class PileMasterWindow(NOSAWindow):
             return
         _name, eid = self._schedule_items[idx]
         try:
-            sched = self.doc.GetElement(DB.ElementId(int(eid)))
+            sched = self.doc.GetElement(element_id_from_int(eid))
             if sched:
                 self.uidoc.ActiveView = sched
                 self.TxtSchedStatus.Text = u'Opened: {}'.format(sched.Name)

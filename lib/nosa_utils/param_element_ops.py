@@ -4,6 +4,7 @@
 from Autodesk.Revit import DB
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import element_id_from_int
 
 
 def param_value_display(param):
@@ -229,7 +230,7 @@ def set_param_from_string(param, txt):
         if st == DB.StorageType.ElementId:
             if not txtu.strip():
                 return False
-            param.Set(DB.ElementId(int(txtu.strip())))
+            param.Set(element_id_from_int(txtu.strip()))
             return True
     except Exception:
         return False

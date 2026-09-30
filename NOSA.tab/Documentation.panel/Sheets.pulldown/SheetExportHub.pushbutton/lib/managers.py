@@ -7,6 +7,7 @@ from config import Config
 from utils import Utils
 from nosa_utils.logging import Logger
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils.revit_helpers import element_id_from_int
 _LOG = u'SheetExportHub/managers'
 
 logger = Logger()
@@ -48,7 +49,7 @@ class ViewSetManager:
             if os.path.exists(filepath):
                 with open(filepath, 'r') as f:
                     data = json.load(f)
-                    return [DB.ElementId(int(sid)) for sid in data.get('sheet_ids', [])]
+                    return [element_id_from_int(sid) for sid in data.get('sheet_ids', [])]
         except Exception:
             log_swallowed(_LOG, u'load_set')
         return []

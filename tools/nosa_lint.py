@@ -28,6 +28,7 @@ RULES = {
     'NOSA007': ('medium', 'unicode() used without the CPython compat shim'),
     'NOSA008': ('low', "'from pyrevit import DB' inside a function - prefer 'from Autodesk.Revit import DB'"),
     'NOSA009': ('high', 'Spanish text in a user-facing Python string'),
+    'NOSA010': ('high', "ElementId(int(...)) is ambiguous in Revit 2026 IronPython - use nosa_utils.revit_helpers.element_id_from_int"),
     'NOSA100': ('critical', 'XAML is not well-formed'),
     'NOSA101': ('critical', "'{Binding type}' collides with a Python keyword - rename the attribute"),
     'NOSA102': ('critical', "'{Binding _x}' - underscore-prefixed attributes cannot be bound"),
@@ -186,6 +187,8 @@ def lint_python(path):
                     text = _str_value(arg)
                     if text is not None and not text.strip().startswith('NOSA'):
                         findings.append(Finding('NOSA005', path, node.lineno, text[:60]))
+            if name == 'ElementId' and len(node.args) == 1 and isinstance(node.args[0], ast.Call)                     and _call_name(node.args[0]) == 'int':
+                findings.append(Finding('NOSA010', path, node.lineno))
             if name in UI_CALLS:
                 for arg in node.args:
                     text = _str_value(arg)

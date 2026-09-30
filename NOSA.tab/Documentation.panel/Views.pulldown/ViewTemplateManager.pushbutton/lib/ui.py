@@ -13,6 +13,7 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
 _tg_logic = imp.load_source('vtm_tg_logic', os.path.join(_here, 'logic_template_guard.py'))
@@ -151,7 +152,7 @@ class ViewTemplateManagerWindow(NOSAWindow):
         if not row or row.Id is None: return
         try:
             from System.Collections.Generic import List
-            ids = List[DB.ElementId]([DB.ElementId(int(row.Id))])
+            ids = List[DB.ElementId]([element_id_from_int(row.Id)])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:

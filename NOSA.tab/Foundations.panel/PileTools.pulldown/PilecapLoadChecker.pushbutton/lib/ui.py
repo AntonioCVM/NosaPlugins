@@ -16,6 +16,7 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.revit_helpers import element_id_from_int
 _logic = imp.load_source('pilechk_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -177,7 +178,7 @@ class PilecapLoadCheckerWindow(NOSAWindow):
             return
         try:
             from System.Collections.Generic import List
-            ids = List[DB.ElementId]([DB.ElementId(int(row.Id))])
+            ids = List[DB.ElementId]([element_id_from_int(row.Id)])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:
@@ -189,7 +190,7 @@ class PilecapLoadCheckerWindow(NOSAWindow):
         if not row:
             return
         try:
-            el = self.doc.GetElement(DB.ElementId(int(row.Id)))
+            el = self.doc.GetElement(element_id_from_int(row.Id))
             if el is None:
                 forms.alert("Element not found.")
                 return

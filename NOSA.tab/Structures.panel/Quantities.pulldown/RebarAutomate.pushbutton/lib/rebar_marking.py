@@ -126,8 +126,10 @@ def _get_dedup_key(doc, rebar_id, std, tolerance_mm):
     return (bar_type_id, shape_code, shape_params_tuple, start_hook, end_hook, layer, host_key)
 
 
-_HOST_CODES = (('OST_StructuralFraming', u'B'), ('OST_StructuralColumns', u'C'),
-               ('OST_Walls', u'W'), ('OST_StructuralFoundation', u'F'), ('OST_Floors', u'S'))
+# Beam, Column, Wall, Foundation, Slab — one letter per category below, in order.
+_HOST_CATEGORIES = ('OST_StructuralFraming', 'OST_StructuralColumns', 'OST_Walls',
+                    'OST_StructuralFoundation', 'OST_Floors')
+_HOST_CODES = tuple(zip(_HOST_CATEGORIES, 'BCWFS'))
 
 
 def _host_code(host_elem):
@@ -141,7 +143,7 @@ def _host_code(host_elem):
                 return code
     except Exception:
         pass
-    return u'H'
+    return 'H'
 
 
 def deduplicate_and_mark(doc, rebars, ctx):
@@ -233,7 +235,8 @@ def deduplicate_and_mark(doc, rebars, ctx):
         if host_id:
             try:
                 from Autodesk.Revit import DB  # Lazy import
-                host_elem = doc.GetElement(DB.ElementId(int(host_id)))
+                from nosa_utils.revit_helpers import element_id_from_int
+                host_elem = doc.GetElement(element_id_from_int(host_id))
                 if host_elem:
                     host_mark_param = host_elem.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
                     if host_mark_param and host_mark_param.HasValue:

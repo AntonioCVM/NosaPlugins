@@ -16,6 +16,7 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import element_id_from_int
 _logic = imp.load_source('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -324,8 +325,8 @@ class ElementJoinWindow(NOSAWindow):
         try:
             from System.Collections.Generic import List
             ids = List[DB.ElementId]([
-                DB.ElementId(int(row.Id1)),
-                DB.ElementId(int(row.Id2)),
+                element_id_from_int(row.Id1),
+                element_id_from_int(row.Id2),
             ])
             revit.uidoc.Selection.SetElementIds(ids)
             revit.uidoc.ShowElements(ids)
