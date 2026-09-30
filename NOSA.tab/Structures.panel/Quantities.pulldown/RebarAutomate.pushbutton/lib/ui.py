@@ -2347,6 +2347,19 @@ class RebarAutomateWindow(NOSAWindow):
         # whatever foundation is detected below this column, distinct
         # from values['starter_bars'] above (the column's OWN top, for
         # future storeys — unrelated direction/purpose).
+        if vertical_rebars and reinforcement.get('bar_inset_mm'):
+            # T2.10b: links re-snap the verticals; pin them back to the design inset.
+            try:
+                with DB.Transaction(self.doc, u'NOSA — Pin Column Vertical Bars') as t:
+                    t.Start()
+                    for rebar in vertical_rebars:
+                        re_engine.pin_rebar_to_host_faces(
+                            self.doc, rebar, host, reinforcement['bar_inset_mm'])
+                    t.Commit()
+            except Exception as e:
+                errors.append(u'Column {}: vertical bars left where Revit snapped them '
+                              u'(could not pin to the faces: {}).'.format(get_id_value(host.Id), e))
+
         if values.get('foundation_starters') and bar_type_vert is not None and \
                 re_engine.nosa_bars_in_footprint(self.doc, host, (u'dowel', u'foundation_starter')):
             errors.append(u'Column {}: foundation starters skipped — the footing below already '

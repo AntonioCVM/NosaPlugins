@@ -868,6 +868,34 @@ def link_corner_extra_inset_mm(bar_dia_mm, link_dia_mm, link_bend_dia_mm=None):
     return bend_r - (bend_r - bar_r) / math.sqrt(2.0) - bar_r
 
 
+def pin_rebar_to_host_faces(doc, rebar, host, inset_mm):
+    """
+    Replace Revit's snaps of this rebar to other bars with a fixed distance
+    (inset_mm, to the bar centreline) from the nearest host face. Call inside
+    a transaction, after every bar it could snap to exists.
+
+    Measured live 2026-09-30 (T2.10b): a column vertical set snapped to its
+    link ends one bar 5 mm inwards (67.9 mm from the face instead of 62.9);
+    pinning that handle to the face puts both face sets back symmetric.
+    Returns the number of handles re-pinned.
+    """
+    mgr = rebar.GetRebarConstraintsManager()
+    pinned = 0
+    for handle in mgr.GetAllHandles():
+        current = mgr.GetCurrentConstraintOnHandle(handle)
+        if current is None or current.GetConstraintType() != DBS.RebarConstraintType.ToOtherRebar:
+            continue
+        candidates = [cand for cand in mgr.GetConstraintCandidatesForHandle(handle, host.Id)
+                      if cand.GetConstraintType() == DBS.RebarConstraintType.FixedDistanceToHostFace]
+        if not candidates:
+            continue
+        nearest = min(candidates, key=lambda cand: abs(cand.GetDistanceToTargetHostFace()))
+        nearest.SetDistanceToTargetHostFace(-inset_mm / _MM_PER_FT)
+        mgr.SetPreferredConstraint(nearest)
+        pinned += 1
+    return pinned
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and

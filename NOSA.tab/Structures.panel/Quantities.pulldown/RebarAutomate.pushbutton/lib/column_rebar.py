@@ -2680,6 +2680,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
         interior_stirrup_sets = crossties['interior_stirrup_sets']
 
     return {'vertical_bars': vertical_bars, 'vertical_bar_sets': vertical_bar_sets,
+            'bar_inset_mm': bar_inset_mm,
             'stirrup_sets': stirrup_sets, 'crosstie_sets': crosstie_sets,
             'interior_stirrup_sets': interior_stirrup_sets,
             'warnings': warnings}
