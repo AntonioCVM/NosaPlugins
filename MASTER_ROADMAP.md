@@ -116,7 +116,7 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 | [ ] | T4.3 | `data/content_manifest.json` (versión de familias + aviso de obsoletas) | ✔ | – | – | |
 | [ ] | T4.4 | `docs/USER_GUIDE.md` | ✔ | – | – | |
 | [ ] | T4.5 | Humo completo F9 en 4 versiones con un proyecto real armado de principio a fin | – | ✔ | ✔ | |
-| [ ] | T4.6 | Según D3: densificación en nudos intermedios · esquineras 45° en huecos · ventana modeless | – | ✔ | – | |
+| [x] | T4.6 | Según D3: densificación en nudos intermedios · esquineras 45° en huecos · ventana modeless | – | ✔ | – | `dfe4916` nudos intermedios (probado 2026: 0 cercos en forjado, sin duplicados) · `a0f641d` diagonales 45° en esquinas de huecos, SMDSC 6.x(vii) (probado 2026: 8 barras dentro del hormigón) · `074ae66` ventana modeless (acciones de modelo vía ExternalEvent, guarda de documento, instancia única). **Pendiente**: reiniciar Revit (`__persistentengine__`) y probar la ventana modeless a mano |
 | [ ] | T4.7 | Tag `1.0.0` + `RELEASE_CHANGELOG` | – | – | ✔ | |
 
 ## Fase 5 — Deuda estructural
