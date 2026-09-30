@@ -2,6 +2,8 @@
 """Harness: schedule + BVBS export of the test model to OUT_PATH (scope: doc, EXT_ROOT, OUT_PATH)."""
 import os
 import sys
+import clr
+clr.AddReference('RevitAPI')
 _rb = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown',
                    'RebarAutomate.pushbutton', 'lib')
 for p in (os.path.join(EXT_ROOT, 'lib'), _rb):
