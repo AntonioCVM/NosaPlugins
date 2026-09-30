@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import math
 import os
 import re
@@ -36,28 +37,49 @@ _geometry_cache = {}
 # =============================================================================
 # CONFIGURATION MANAGEMENT
 # =============================================================================
+# Last-used values live in the window's own NOSAWindow config
+# (_addpiletopilecap.json). Before that they were kept by a separate
+# ConfigManager file, which is still read once so nobody loses their values.
 
-config = config_manager.ConfigManager("add_pile_to_pilecap")
+_LEGACY_CONFIG_FILE = os.path.join(config_manager.ConfigManager.DEFAULT_CONFIG_DIR,
+                                   'add_pile_to_pilecap.json')
+_LAST_KEYS = ('last_spacing_mm', 'last_pile_type', 'last_embedment_mm', 'last_clearance_mm')
 
-def save_last_config(spacing_mm, pile_type_name, embedment_mm, clearance_mm=None):
-    """Save last used configuration."""
-    data = {
-        "last_spacing_mm": spacing_mm,
-        "last_pile_type": pile_type_name,
-        "last_embedment_mm": embedment_mm
-    }
-    if clearance_mm is not None:
-        data["last_clearance_mm"] = clearance_mm
-    config.update(data)
 
-def load_last_config():
-    """Load last used configuration."""
+def _read_legacy_config(path=None):
+    path = path or _LEGACY_CONFIG_FILE
+    try:
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def load_last_config(cfg, legacy_path=None):
+    """Last-used values from the window config, falling back to the legacy file."""
+    src = cfg if any(k in cfg for k in _LAST_KEYS) else _read_legacy_config(legacy_path)
     return {
-        "spacing_mm": config.get("last_spacing_mm", DEFAULT_SPACING_MM),
-        "pile_type": config.get("last_pile_type", None),
-        "embedment_mm": config.get("last_embedment_mm", DEFAULT_EMBEDMENT_MM),
-        "clearance_mm": config.get("last_clearance_mm", DEFAULT_CLEARANCE_MM)
+        "spacing_mm": src.get("last_spacing_mm", DEFAULT_SPACING_MM),
+        "pile_type": src.get("last_pile_type", None),
+        "embedment_mm": src.get("last_embedment_mm", DEFAULT_EMBEDMENT_MM),
+        "clearance_mm": src.get("last_clearance_mm", DEFAULT_CLEARANCE_MM)
     }
+
+
+def save_last_config(cfg, spacing_mm, pile_type_name, embedment_mm, clearance_mm=None):
+    """Write last-used values into the window config dict (caller persists it)."""
+    cfg["last_spacing_mm"] = spacing_mm
+    cfg["last_pile_type"] = pile_type_name
+    cfg["last_embedment_mm"] = embedment_mm
+    if clearance_mm is not None:
+        cfg["last_clearance_mm"] = clearance_mm
+    return cfg
+
+
 def generate_triangular_grid(slab_center, span_dir, perp_dir, slab_z,
                                spacing_ft, slab_width, slab_height,
                                slab_boundary_polygon, face_inf, min_edge_distance):
@@ -422,49 +444,8 @@ def point_in_face(face, point):
     except Exception:
         pass
     return False
-    
-    try:
-        solid_bbox = solid.GetBoundingBox()
-    except Exception:
-        solid_bbox = None
-    
-    if not solid_bbox:
-        return polygons
-    
-    poly_bbox = get_polygons_bbox(polygons)
-    if not poly_bbox:
-        return polygons
-    
-    poly_center_x = (poly_bbox[0] + poly_bbox[2]) / 2.0
-    poly_center_y = (poly_bbox[1] + poly_bbox[3]) / 2.0
-    
-    solid_center_x = (solid_bbox.Min.X + solid_bbox.Max.X) / 2.0
-    solid_center_y = (solid_bbox.Min.Y + solid_bbox.Max.Y) / 2.0
-    
-    solid_size_x = abs(solid_bbox.Max.X - solid_bbox.Min.X)
-    solid_size_y = abs(solid_bbox.Max.Y - solid_bbox.Min.Y)
-    threshold = max(solid_size_x, solid_size_y) * 2.0
-    
-    # If polygon center is far away, apply transform or translation
-    if abs(poly_center_x - solid_center_x) > threshold or abs(poly_center_y - solid_center_y) > threshold:
-        dx = solid_center_x - poly_center_x
-        dy = solid_center_y - poly_center_y
-        
-        if transform and not (hasattr(transform, 'IsIdentity') and transform.IsIdentity):
-            transformed = apply_transform_to_polygons(polygons, transform, z_value)
-            transformed_bbox = get_polygons_bbox(transformed)
-            if transformed_bbox:
-                t_center_x = (transformed_bbox[0] + transformed_bbox[2]) / 2.0
-                t_center_y = (transformed_bbox[1] + transformed_bbox[3]) / 2.0
-                if abs(t_center_x - solid_center_x) > threshold or abs(t_center_y - solid_center_y) > threshold:
-                    dx_t = solid_center_x - t_center_x
-                    dy_t = solid_center_y - t_center_y
-                    return translate_polygons(transformed, dx_t, dy_t)
-            return transformed
-        
-        return translate_polygons(polygons, dx, dy)
-    
-    return polygons
+
+
 def extract_contour_polygons(face, transform=None):
     """Extract exterior and hole polygons from face using robust methods.
 
