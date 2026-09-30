@@ -2497,10 +2497,20 @@ class RebarAutomateWindow(NOSAWindow):
         if bar_type_link is not None:
             for s in reinforcement['stirrup_sets']:
                 style = DBS.RebarStyle.StirrupTie if s.get('style') == 'StirrupTie' else None
-                rebar = wrapper.create_rebar_set(
-                    host, s['curves'], bar_type_link, s['spacing_mm'], s['array_length_mm'],
-                    normal=s['normal'], style=style,
-                    transaction_name=u'NOSA — Create Column Links')
+                rebar = None
+                circle = s.get('circle')
+                if circle:
+                    rebar = wrapper.create_lapped_circle_set(
+                        host, bar_type_link, circle['centre'], circle['radius_mm'],
+                        circle['lap_mm'], s['spacing_mm'], s['array_length_mm'])
+                    if rebar is None:
+                        errors.append(u'Column {}: circular links drawn as a polygon — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+                if rebar is None:
+                    rebar = wrapper.create_rebar_set(
+                        host, s['curves'], bar_type_link, s['spacing_mm'], s['array_length_mm'],
+                        normal=s['normal'], style=style,
+                        transaction_name=u'NOSA — Create Column Links')
                 if rebar is None:
                     errors.append(u'Column {}: links (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))

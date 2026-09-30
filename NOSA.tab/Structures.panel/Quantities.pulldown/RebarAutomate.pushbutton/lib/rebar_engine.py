@@ -998,6 +998,24 @@ def starter_l_curves(line, hook_dir, bar_dia_mm, foundation=None, cover_mm=None)
     return [DB.Line.CreateBound(tip, corner), DB.Line.CreateBound(corner, top)], foot_ft * _MM_PER_FT
 
 
+def find_lapped_circle_shape(doc):
+    """The project's closed lapped circular link RebarShape (BS 8666 / ISO 3766 code 75), or None."""
+    fallback = None
+    for shape in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape):
+        try:
+            definition = shape.GetRebarShapeDefinition()
+            if not isinstance(definition, DBS.RebarShapeDefinitionByArc):
+                continue
+            if definition.Type != DBS.RebarShapeDefinitionByArcType.LappedCircle:
+                continue
+        except Exception:
+            continue
+        if shape.Name == u'75':
+            return shape
+        fallback = fallback or shape
+    return fallback
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and
@@ -1396,6 +1414,51 @@ class RebarWrapper(object):
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
+            return None
+
+    def create_lapped_circle_set(self, host, bar_type, centre, radius_mm, lap_mm,
+                                 spacing_mm, array_length_mm,
+                                 transaction_name=u'NOSA — Create Circular Links'):
+        """
+        A Rebar Set of closed lapped circular links (shape 75): centreline
+        radius radius_mm around `centre`, laps lap_mm, spaced along +Z.
+        Revit rejects a circle built from curves, so the project's own
+        LappedCircle shape is placed, sized (A = outer diameter, B = lap)
+        and moved onto the centre (T2.20, user decision 2026-09-30).
+        Returns the Rebar, or None (see last_error) so the caller can fall
+        back to the polygon link.
+        """
+        from pyrevit import revit
+        self.last_error = None
+        shape = find_lapped_circle_shape(self.doc)
+        if shape is None:
+            self.last_error = u'No lapped circular link RebarShape (75) is loaded in this project.'
+            return None
+        try:
+            with revit.Transaction(transaction_name):
+                rebar = DBS.Rebar.CreateFromRebarShape(
+                    self.doc, shape, bar_type, host, centre, DB.XYZ.BasisX, DB.XYZ.BasisY)
+                if rebar is None:
+                    self.last_error = u'Rebar.CreateFromRebarShape returned None.'
+                    return None
+                bar_dia_ft = bar_type.BarModelDiameter
+                rebar.LookupParameter(u'A').Set(2.0 * radius_mm / _MM_PER_FT + bar_dia_ft)
+                rebar.LookupParameter(u'B').Set(lap_mm / _MM_PER_FT)
+                self.doc.Regenerate()
+                arcs = [crv for crv in rebar.GetTransformedCenterlineCurves(
+                    False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+                    if isinstance(crv, DB.Arc)]
+                if arcs:
+                    DB.ElementTransformUtils.MoveElement(self.doc, rebar.Id, centre - arcs[0].Center)
+                try:
+                    rebar.GetShapeDrivenAccessor().SetLayoutAsMaximumSpacing(
+                        spacing_mm / _MM_PER_FT, array_length_mm / _MM_PER_FT, True, True, True)
+                except Exception as e:
+                    self.last_error = (u'Circular link created as a single bar, but Rebar Set '
+                                       u'propagation failed: {}'.format(e))
+            return rebar
+        except Exception as e:
+            self.last_error = u'Circular link (shape 75) failed: {}'.format(e)
             return None
 
     def create_rebar_set(self, host, curves, bar_type, spacing_mm, array_length_mm,

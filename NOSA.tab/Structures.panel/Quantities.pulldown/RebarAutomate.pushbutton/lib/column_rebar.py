@@ -2311,6 +2311,11 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
             'array_length_mm': zone['end_mm'] - zone['start_mm'],
             'spacing_mm': zone['spacing_mm'],
             'style': 'StirrupTie',
+            # Real lapped circle (shape 75) when the project has it; the
+            # polygon above is the fallback. Tension lap (user, 2026-09-30).
+            'circle': {'centre': base, 'radius_mm': stirrup_radius_mm,
+                       'lap_mm': default_lap_length_mm(stirrup_diameter_mm, std=std,
+                                                       in_compression=False)},
         })
 
     return {'vertical_bars': vertical_bars, 'vertical_bar_sets': [],

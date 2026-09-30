@@ -188,8 +188,19 @@ def classify_and_stamp(doc, rebar_id, standard_code):
         # Analizar curvas
         analysis = _analyze_curves(curves)
         
-        # Clasificar forma
-        shape_code = _classify_shape_code(analysis)
+        # Clasificar forma — a Revit shape that is itself a catalogue code
+        # (e.g. the lapped circle 75) wins over the curve analysis.
+        shape_code = None
+        try:
+            revit_shape = doc.GetElement(rebar.GetShapeId())
+            name = revit_shape.Name if revit_shape is not None else None
+            if name and name not in ('00', '99') and standard_code and \
+                    rebar_catalog.is_valid_shape_code(standard_code, name):
+                shape_code = name
+        except Exception:
+            shape_code = None
+        if shape_code is None:
+            shape_code = _classify_shape_code(analysis)
         
         # Validar contra catálogo (si existe)
         if standard_code and not rebar_catalog.is_valid_shape_code(standard_code, shape_code):
@@ -198,6 +209,13 @@ def classify_and_stamp(doc, rebar_id, standard_code):
 
         # Calcular parámetros
         shape_params = _compute_shape_params(shape_code, analysis)
+        if shape_code == '75':
+            try:
+                dia = rebar.LookupParameter('A').AsDouble() * _FT_TO_MM
+                lap = rebar.LookupParameter('B').AsDouble() * _FT_TO_MM
+                shape_params = u'A={};B={}'.format(int(round(dia)), int(round(lap)))
+            except Exception:
+                pass
 
         # Sellar parámetros compartidos
         # BUG FIX (2026-09-02) — same signature mismatch as
