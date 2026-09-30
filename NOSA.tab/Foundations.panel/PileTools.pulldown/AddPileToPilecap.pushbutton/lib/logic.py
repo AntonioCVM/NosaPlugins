@@ -14,7 +14,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils import geometry, config_manager
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 
 # Configuration
@@ -1137,7 +1137,7 @@ def find_next_core_number(doc):
     pattern = re.compile(r'^Core (\d+)$', re.IGNORECASE)
     max_num = 0
     for g in all_groups:
-        name = getattr(g, 'Name', None) or getattr(g.GroupType, 'Name', None) or u''
+        name = getattr(g, 'Name', None) or element_name(g.GroupType)
         m = pattern.match(name)
         if m:
             num = int(m.group(1))
