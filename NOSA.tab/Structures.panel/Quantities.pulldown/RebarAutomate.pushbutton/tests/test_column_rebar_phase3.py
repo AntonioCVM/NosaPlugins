@@ -247,10 +247,12 @@ zones_on = column_rebar.generate_column_stirrup_zones(
 assert len(zones_on) == 3
 assert zones_on[0]['spacing_mm'] == 100.0 and zones_on[2]['spacing_mm'] == 100.0
 assert zones_on[1]['spacing_mm'] == 200.0
-assert zones_on[0]['end_mm'] == zones_on[1]['start_mm']
-assert zones_on[1]['end_mm'] == zones_on[2]['start_mm']
-print("generate_column_stirrup_zones (densify ON): 3 contiguous zones, dense "
-      "at both joints, normal in the middle: OK")
+# T2.20: the joint zones keep their boundary links; the middle zone starts and
+# ends one normal spacing inside them, so no link is placed twice.
+assert zones_on[1]['start_mm'] == zones_on[0]['end_mm'] + 200.0
+assert zones_on[1]['end_mm'] == zones_on[2]['start_mm'] - 200.0
+print("generate_column_stirrup_zones (densify ON): 3 zones, dense at both joints, "
+      "normal in the middle, no link shared at the boundaries: OK")
 
 # ── Test 4: short column -> joint zones overlap -> falls back to ONE dense zone ──
 zones_short = column_rebar.generate_column_stirrup_zones(

@@ -591,10 +591,12 @@ def generate_stirrup_positions_densified(axis_curve, spacing_mm, dense_spacing_m
                 'positions': _evenly_spaced(lo, start_hi, dense),
             })
         if end_lo > start_hi + spacing_mm * 0.5:
+            # start_hi / end_lo already carry the end zones' last / first
+            # stirrup: the middle run must not repeat them (T2.20).
             groups.append({
                 'zone': u'middle',
                 'spacing_mm': spacing_mm,
-                'positions': _evenly_spaced(start_hi, end_lo, spacing_mm),
+                'positions': _evenly_spaced(start_hi, end_lo, spacing_mm)[1:-1],
             })
         if hi > end_lo:
             groups.append({
@@ -881,8 +883,11 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         if not zone_curves:
             continue
         n = len(zone_curves)
-        spacing = zg['spacing_mm']
-        array_mm = (n - 1) * spacing if n > 1 else 0.0
+        # The Set spans the zone's real positions, at its real (evenly
+        # distributed) step: the nominal spacing overshot into the next zone.
+        positions = zg['positions']
+        array_mm = positions[-1] - positions[0] if n > 1 else 0.0
+        spacing = (array_mm / (n - 1) + 0.01) if n > 1 else zg['spacing_mm']
         stirrup_sets.append({
             'zone': zg['zone'],
             'curves': zone_curves[0],

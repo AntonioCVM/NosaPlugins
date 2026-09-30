@@ -1745,12 +1745,15 @@ def generate_column_stirrup_zones(clear_height_mm, joint_zone_length_mm,
             else normal_spacing_mm
         return [{'start_mm': lo, 'end_mm': hi, 'spacing_mm': spacing}]
 
-    return [
-        {'start_mm': lo, 'end_mm': lo + joint_zone_length_mm, 'spacing_mm': dense_spacing_mm},
-        {'start_mm': lo + joint_zone_length_mm, 'end_mm': hi - joint_zone_length_mm,
-         'spacing_mm': normal_spacing_mm},
-        {'start_mm': hi - joint_zone_length_mm, 'end_mm': hi, 'spacing_mm': dense_spacing_mm},
-    ]
+    # The joint zones keep their boundary links; the middle zone starts and
+    # ends one normal spacing inside them so no link is placed twice (T2.20).
+    zones = [{'start_mm': lo, 'end_mm': lo + joint_zone_length_mm, 'spacing_mm': dense_spacing_mm}]
+    mid_lo = lo + joint_zone_length_mm + normal_spacing_mm
+    mid_hi = hi - joint_zone_length_mm - normal_spacing_mm
+    if mid_hi > mid_lo + 1.0:
+        zones.append({'start_mm': mid_lo, 'end_mm': mid_hi, 'spacing_mm': normal_spacing_mm})
+    zones.append({'start_mm': hi - joint_zone_length_mm, 'end_mm': hi, 'spacing_mm': dense_spacing_mm})
+    return zones
 
 
 def build_stirrup_sets(axis, u_dir, v_dir, half_w_mm, half_d_mm, zones):
