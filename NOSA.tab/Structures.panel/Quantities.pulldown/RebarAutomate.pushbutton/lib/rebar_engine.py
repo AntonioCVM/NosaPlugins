@@ -895,7 +895,10 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm):
             continue
         nearest = min(candidates, key=lambda cand: abs(cand.GetDistanceToTargetHostFace()))
         nearest.SetDistanceToTargetHostFace(-inset_mm / _MM_PER_FT)
-        mgr.SetPreferredConstraint(nearest)
+        if hasattr(mgr, 'SetPreferredConstraint'):
+            mgr.SetPreferredConstraint(nearest)
+        else:
+            mgr.SetPreferredConstraintForHandle(handle, nearest)  # Revit 2024
         pinned += 1
     return pinned
 
