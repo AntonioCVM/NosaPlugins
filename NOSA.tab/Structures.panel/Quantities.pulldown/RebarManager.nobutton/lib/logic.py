@@ -7,7 +7,7 @@ import re
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 
 
@@ -155,7 +155,8 @@ def collect_rebar(doc, view_id=None):
             try:
                 rbs = doc.GetElement(rb.RebarShapeId)
                 if rbs:
-                    shape_code = rbs.Name.split()[0] if rbs.Name else u'00'
+                    rbs_name = element_name(rbs)
+                    shape_code = rbs_name.split()[0] if rbs_name else u'00'
             except Exception:
                 pass
 

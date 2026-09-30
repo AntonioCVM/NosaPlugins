@@ -1111,9 +1111,10 @@ def get_rebar_shape_by_name(doc, name):
     name_lo = (name or u'').strip().lower()
     if not name_lo:
         return None
+    from nosa_utils.revit_helpers import element_name
     for rs in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape).ToElements():
         try:
-            if rs.Name.strip().lower() == name_lo:
+            if element_name(rs).strip().lower() == name_lo:
                 return rs
         except Exception:
             continue

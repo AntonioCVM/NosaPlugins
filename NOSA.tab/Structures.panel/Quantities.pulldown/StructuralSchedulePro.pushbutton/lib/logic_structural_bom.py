@@ -8,7 +8,7 @@ supports per-category density estimation and phase filtering.
 import math, io, csv
 from collections import defaultdict
 from Autodesk.Revit import DB
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 # ── unit conversions ───────────────────────────────────────────────────────────
 FT3_M3  = 0.0283168
@@ -166,10 +166,10 @@ def _family_type_names(el, doc):
         t = doc.GetElement(el.GetTypeId())
         if isinstance(el, DB.FamilyInstance):
             family_name = el.Symbol.FamilyName or u'—'
-            type_name   = t.Name if t else u'—'
+            type_name   = (element_name(t) or u'—') if t else u'—'
         else:
             family_name = el.Category.Name if el.Category else u'—'
-            type_name   = t.Name if t else u'—'
+            type_name   = (element_name(t) or u'—') if t else u'—'
     except Exception:
         pass
     return family_name, type_name
