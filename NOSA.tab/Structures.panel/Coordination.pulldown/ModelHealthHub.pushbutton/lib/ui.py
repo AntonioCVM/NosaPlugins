@@ -5,6 +5,7 @@ import System.Windows.Media as SWM
 import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
 from System.Collections.ObjectModel import ObservableCollection
+from System.Collections.Generic import List
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit

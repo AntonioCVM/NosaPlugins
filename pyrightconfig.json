@@ -1,0 +1,35 @@
+{
+  "include": [
+    "NOSA.tab",
+    "lib",
+    "hooks",
+    "tools"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".claude",
+    "NOSA_Configs"
+  ],
+  "extraPaths": [
+    "lib"
+  ],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "none",
+  "reportMissingModuleSource": "none",
+  "reportAttributeAccessIssue": "none",
+  "reportUndefinedVariable": "warning",
+  "reportPossiblyUnbound": "warning",
+  "reportOptionalMemberAccess": "none",
+  "reportArgumentType": "none",
+  "reportCallIssue": "none",
+  "reportIndexIssue": "none",
+  "reportOperatorIssue": "none",
+  "reportReturnType": "none",
+  "reportRedeclaration": "none",
+  "reportOptionalSubscript": "none",
+  "reportOptionalOperand": "none",
+  "reportOptionalIterable": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportAssignmentType": "none"
+}
