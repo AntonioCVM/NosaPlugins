@@ -65,7 +65,7 @@ def get_shape_def(standard_code, shape_code):
 
 def list_shape_codes(standard_code):
     """
-    Retorna lista de shape codes disponibles en el catálogo (ej: ['00', '11', '51', '99']).
+    Retorna lista de shape codes disponibles en el catálogo (ej: ['00', '11', '21', '51', '99']).
     """
     catalog = load(standard_code)
     if not catalog or 'shapes' not in catalog:

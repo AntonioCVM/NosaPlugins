@@ -1,14 +1,16 @@
 {
   "catalog": "bs_8666_2020",
   "display_name": "BS 8666:2020 Shape Codes",
-  "revision": "2026-08",
-  "_comment": "Minimal shape catalog for F4 — same basic shapes as ISO",
+  "revision": "2026-09",
+  "_comment": "Minimal shape catalog (00 straight, 11 L, 21 U-bar, 51 closed link, 99 custom) — codes as in BS 8666:2020 / ISO 3766",
   "shapes": {
     "00": {
       "name": "Straight bar",
       "segments": 1,
       "bends": 0,
-      "params": ["A"],
+      "params": [
+        "A"
+      ],
       "constraints": {
         "A_min_mm": 100
       }
@@ -17,7 +19,11 @@
       "name": "L-shape (90° bend)",
       "segments": 2,
       "bends": 1,
-      "params": ["A", "B", "R"],
+      "params": [
+        "A",
+        "B",
+        "R"
+      ],
       "constraints": {
         "A_min_mm": 50,
         "B_min_mm": 50,
@@ -25,15 +31,36 @@
         "angle_tolerance_deg": 5
       }
     },
-    "51": {
+    "21": {
       "name": "U-bar (2 bends 90°)",
       "segments": 3,
       "bends": 2,
-      "params": ["A", "B", "C", "R"],
+      "params": [
+        "A",
+        "B",
+        "C",
+        "R"
+      ],
       "constraints": {
         "A_min_mm": 50,
         "B_min_mm": 100,
         "C_min_mm": 50,
+        "angle_deg": 90,
+        "angle_tolerance_deg": 5
+      }
+    },
+    "51": {
+      "name": "Closed link (rectangular, lapped)",
+      "segments": 4,
+      "bends": 3,
+      "params": [
+        "A",
+        "B",
+        "R"
+      ],
+      "constraints": {
+        "A_min_mm": 100,
+        "B_min_mm": 100,
         "angle_deg": 90,
         "angle_tolerance_deg": 5
       }

@@ -48,10 +48,15 @@ def test_get_shape_def():
     assert shape_11['segments'] == 2
     assert shape_11['bends'] == 1
     
+    shape_21 = rebar_catalog.get_shape_def('en_iso_3766', '21')
+    assert shape_21 is not None
+    assert 'U-bar' in shape_21['name']
+    assert shape_21['segments'] == 3
+
     shape_51 = rebar_catalog.get_shape_def('en_iso_3766', '51')
     assert shape_51 is not None
-    assert 'U-bar' in shape_51['name']
-    assert shape_51['segments'] == 3
+    assert 'Closed link' in shape_51['name']
+    assert shape_51['segments'] == 4
     
     print('[PASS] get_shape_def() returns correct definitions')
 
@@ -61,6 +66,7 @@ def test_list_shape_codes():
     codes = rebar_catalog.list_shape_codes('en_iso_3766')
     assert '00' in codes
     assert '11' in codes
+    assert '21' in codes
     assert '51' in codes
     assert '99' in codes
     print('[PASS] list_shape_codes() returns all expected codes')

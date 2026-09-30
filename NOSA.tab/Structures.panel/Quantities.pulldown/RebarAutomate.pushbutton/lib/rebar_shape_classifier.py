@@ -76,14 +76,16 @@ def _analyze_curves(curves):
         'bends': len(angles),
         'total_length_mm': total_length * _FT_TO_MM,
         'angles': angles,
-        'segment_lengths_mm': [s['length_mm'] for s in segments]
+        'segment_lengths_mm': [s['length_mm'] for s in segments],
+        'directions': [s['direction'] for s in segments]
     }
 
 
 def _classify_shape_code(analysis):
     """
     Clasifica el código de forma basándose en el análisis de curvas.
-    Retorna código de forma como string (ej: '00', '11', '51', '99').
+    Retorna código de forma como string (ej: '00', '11', '21', '51', '99').
+    Códigos BS 8666:2020 / ISO 3766: 21 = U, 51 = cerco cerrado (decisión del usuario 2026-09-30).
     """
     segments = analysis['segments']
     bends = analysis['bends']
@@ -98,12 +100,18 @@ def _classify_shape_code(analysis):
         if len(angles) == 1 and 85.0 <= angles[0] <= 95.0:
             return '11'
 
-    # Forma 51: U-bar (3 segmentos, 2 bends ~90°)
+    # Forma 21: U-bar (3 segmentos, 2 bends ~90°)
     if segments == 3 and bends == 2:
         if len(angles) == 2:
             angle1, angle2 = angles
             if (85.0 <= angle1 <= 95.0) and (85.0 <= angle2 <= 95.0):
-                return '51'
+                return '21'
+
+    # Forma 51: cerco cerrado — 4+ tramos con lados opuestos antiparalelos
+    directions = analysis.get('directions', [])
+    if segments >= 4 and len(directions) >= 4:
+        if directions[0].DotProduct(directions[2]) < -0.99 and                 directions[1].DotProduct(directions[3]) < -0.99:
+            return '51'
 
     # Por defecto: forma personalizada
     return '99'
@@ -130,6 +138,11 @@ def _compute_shape_params(shape_code, analysis):
             return u'A={};B={};R={}'.format(int(A), int(B), int(R))
 
     elif shape_code == '51':
+        # Cerco cerrado: A y B (dos lados consecutivos), R (radio)
+        if len(lengths) >= 2:
+            return u'A={};B={};R={}'.format(int(round(lengths[0], 1)), int(round(lengths[1], 1)), 50)
+
+    elif shape_code == '21':
         # U-bar: A (primer segmento), B (segmento central), C (tercer segmento), R (radio)
         if len(lengths) >= 3:
             A = round(lengths[0], 1)
