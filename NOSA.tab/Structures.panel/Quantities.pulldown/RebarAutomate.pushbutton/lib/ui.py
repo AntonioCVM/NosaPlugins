@@ -92,7 +92,6 @@ _PREVIEW_UBAR_WEAVE_STROKE = SolidColorBrush(Color.FromArgb(140, 255, 95, 0))
 # vertical hook plane (up vs down) for that dowel hook; if it comes out
 # upside down, flip this to Right (see rebar_engine.py's API confidence
 # notes — this specific choice is still an unverified guess for dowels).
-_HOOK_ORIENTATION = DBS.RebarHookOrientation.Left
 
 
 class _CategorySelectionFilter(ISelectionFilter):
@@ -1188,7 +1187,7 @@ class RebarAutomateWindow(NOSAWindow):
             rebar = wrapper.create_from_curves(
                 host, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
-                start_hook_orientation=_HOOK_ORIENTATION if hook_type else None,
+                start_hook_orientation=re_engine.hook_orientation_left() if hook_type else None,
                 normal=normal,
                 transaction_name=u'NOSA — Create Footing Dowel')
             if rebar is None:
@@ -1241,7 +1240,7 @@ class RebarAutomateWindow(NOSAWindow):
             rebar = wrapper.create_from_curves(
                 foundation, [line], bar_type,
                 start_hook=hook_type, end_hook=None,
-                start_hook_orientation=_HOOK_ORIENTATION if hook_type else None,
+                start_hook_orientation=re_engine.hook_orientation_left() if hook_type else None,
                 normal=normal,
                 transaction_name=u'NOSA — Create {} Foundation Starter'.format(label))
             if rebar is None:

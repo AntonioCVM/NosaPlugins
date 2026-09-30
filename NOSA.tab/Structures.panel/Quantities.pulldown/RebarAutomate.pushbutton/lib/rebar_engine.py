@@ -903,6 +903,31 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm):
     return pinned
 
 
+def hook_orientation_left():
+    """'Left' hook orientation: RebarHookOrientation up to Revit 2026, RebarTerminationOrientation from 2027."""
+    enum = getattr(DBS, 'RebarHookOrientation', None) or DBS.RebarTerminationOrientation
+    return enum.Left
+
+
+def rebar_from_curves(doc, style, bar_type, start_hook, end_hook, host, normal, curves,
+                      start_orientation, end_orientation, use_existing_shape, create_new_shape):
+    """Rebar.CreateFromCurves across API versions (Revit 2027 takes a BarTerminationsData)."""
+    if getattr(DBS, 'RebarHookOrientation', None) is not None:
+        return DBS.Rebar.CreateFromCurves(
+            doc, style, bar_type, start_hook, end_hook, host, normal, curves,
+            start_orientation, end_orientation, use_existing_shape, create_new_shape)
+    terminations = DBS.BarTerminationsData(doc)
+    if start_hook is not None:
+        terminations.HookTypeIdAtStart = start_hook.Id
+    if end_hook is not None:
+        terminations.HookTypeIdAtEnd = end_hook.Id
+    terminations.TerminationOrientationAtStart = start_orientation or hook_orientation_left()
+    terminations.TerminationOrientationAtEnd = end_orientation or hook_orientation_left()
+    return DBS.Rebar.CreateFromCurves(
+        doc, style, bar_type, host, normal, curves, terminations,
+        use_existing_shape, create_new_shape)
+
+
 class CoverGeometryManager(object):
     """
     Bundles face discovery, best-effort RebarHostData lookup, and
@@ -1233,7 +1258,7 @@ class RebarWrapper(object):
             return None
 
         try:
-            default_orient = DBS.RebarHookOrientation.Left
+            default_orient = hook_orientation_left()
         except Exception:
             default_orient = None
         start_hook_orientation = start_hook_orientation or default_orient
@@ -1276,7 +1301,7 @@ class RebarWrapper(object):
 
         try:
             with revit.Transaction(transaction_name):
-                rebar = DBS.Rebar.CreateFromCurves(
+                rebar = rebar_from_curves(
                     self.doc, style, bar_type, start_hook, end_hook,
                     host, normal, curve_list,
                     start_hook_orientation, end_hook_orientation,
@@ -1423,10 +1448,10 @@ class RebarWrapper(object):
 
         try:
             with revit.Transaction(transaction_name):
-                rebar = DBS.Rebar.CreateFromCurves(
+                rebar = rebar_from_curves(
                     self.doc, style, bar_type, None, None,
                     host, normal, curve_list,
-                    DBS.RebarHookOrientation.Left, DBS.RebarHookOrientation.Left,
+                    hook_orientation_left(), hook_orientation_left(),
                     True, True)
                 if rebar is None:
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
@@ -1509,10 +1534,10 @@ class RebarWrapper(object):
 
         try:
             with revit.Transaction(transaction_name):
-                rebar = DBS.Rebar.CreateFromCurves(
+                rebar = rebar_from_curves(
                     self.doc, style, bar_type, None, None,
                     host, normal, curve_list,
-                    DBS.RebarHookOrientation.Left, DBS.RebarHookOrientation.Left,
+                    hook_orientation_left(), hook_orientation_left(),
                     True, True)
                 if rebar is None:
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
