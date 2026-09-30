@@ -673,55 +673,50 @@ class RebarAutomateWindow(NOSAWindow):
                        title=u'Error', warn_icon=True)
 
     def BtnExportBvbs_Click(self, sender, args):
-        """
-        PHASE F8 — export BVBS (.abs), the interchange format CNC
-        bending machines read directly. See rebar_export_bvbs.py's own
-        module docstring: the byte-level format has NOT been checked
-        against an official BVBS validator or a real machine — the
-        alert below repeats that warning to whoever exports the file, so
-        it never silently reaches a fabricator as if it were verified.
-        """
+        """Export BVBS (.abs) BF2D records for the CNC bending machine (BVBS Guideline 3.1, T4.1)."""
         if not getattr(self, '_is_loaded', False):
             return
         try:
             schedule_data = rebar_schedule.generate_schedule_data(
                 self.doc, batch_id=None, include_finalized=False)
             if not schedule_data:
-                forms.alert(u'No NOSA rebars found in the project.',
-                           title=u'Export BVBS')
+                forms.alert(u'No NOSA rebars found in the project.', title=u'Export BVBS')
                 return
 
-            proceed = forms.alert(
-                u'BVBS (.abs) export format has NOT been validated against an '
-                u'official BVBS validator or a real bending machine (see '
-                u'rebar_export_bvbs.py). Do NOT send this file to a fabricator '
-                u'without confirming the format first.\n\n'
-                u'Continue and export anyway?',
-                title=u'Export BVBS — Unverified Format',
-                yes=True, no=True, warn_icon=True)
-            if not proceed:
+            schedule_no = forms.ask_for_string(
+                default=u'1', prompt=u'Bar bending schedule / drawing number (BVBS field r):',
+                title=u'Export BVBS')
+            if schedule_no is None:
                 return
 
             from System.Windows.Forms import SaveFileDialog, DialogResult
-            doc_name = self.doc.Title or u'RebarExport'
             dlg = SaveFileDialog()
             dlg.Filter = 'BVBS files (*.abs)|*.abs'
-            dlg.FileName = u'{}.abs'.format(doc_name)
+            dlg.FileName = u'{}.abs'.format(self.doc.Title or u'RebarExport')
             if dlg.ShowDialog() != DialogResult.OK:
                 return
             output_path = dlg.FileName
 
-            count = rebar_export_bvbs.export_bvbs_file(schedule_data, output_path)
-            forms.alert(
-                u'{} BVBS record(s) written to:\n{}\n\n'
-                u'Remember: format not yet validated — see the warning above.'.format(
-                    count, output_path),
-                title=u'Export Complete')
+            try:
+                project_no = self.doc.ProjectInformation.Number or u''
+            except Exception:
+                project_no = u''
+            steel_grade = ((self.ra_standard or {}).get('steel') or {}).get('default_grade', u'B500B')
+            written, without_geometry = rebar_export_bvbs.export_bvbs_file(
+                schedule_data, output_path, project_no=project_no, schedule_no=schedule_no,
+                revision=self.ra_project.get('revision', u''), steel_grade=steel_grade)
+            lines = [u'{} BVBS record(s) written ({}) to:'.format(
+                         written, rebar_export_bvbs.BVBS_GUIDELINE), output_path]
+            if without_geometry:
+                lines.append(u'')
+                lines.append(u'{} position(s) exported without bending geometry (circular links '
+                             u'or custom shapes): the fabricator bends these from the schedule.'.format(
+                                 without_geometry))
+            forms.alert(u'\n'.join(lines), title=u'Export Complete')
             import subprocess
             subprocess.Popen(['explorer', '/select,', output_path])
         except Exception as e:
-            forms.alert(u'BVBS export failed:\n{}'.format(e),
-                       title=u'Error', warn_icon=True)
+            forms.alert(u'BVBS export failed:\n{}'.format(e), title=u'Error', warn_icon=True)
 
     # ── section enable/disable ───────────────────────────────────────────
 

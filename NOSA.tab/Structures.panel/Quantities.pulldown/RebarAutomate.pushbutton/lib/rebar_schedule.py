@@ -9,6 +9,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import os
 
+_here = os.path.dirname(os.path.abspath(__file__))
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -75,11 +78,13 @@ class SchedulePosition(object):
         self.total_length_mm = 0.0
         self.layer = u''
         self.host_mark = u''
+        self.legs = None
+        self.mandrel_mm = None
     
-    def add_bar(self, rebar_id):
-        """Añade una barra a esta posición."""
+    def add_bar(self, rebar_id, quantity=1):
+        """Añade un elemento Rebar (un Rebar Set aporta todas sus barras)."""
         self.bars.append(rebar_id)
-        self.count = len(self.bars)
+        self.count += quantity
     
     def compute_totals(self):
         """Calcula longitudes totales (count × unit_length)."""
@@ -127,6 +132,34 @@ def collect_rebars(doc, batch_id=None, include_finalized=False):
     return filtered
 
 
+def _bar_quantity(rebar):
+    """Bars in one Rebar element: a Rebar Set holds Quantity bars (T4.1)."""
+    try:
+        return max(1, int(rebar.Quantity))
+    except Exception:
+        return 1
+
+
+def _unit_length_mm(rebar):
+    """Cut length of ONE bar; Rebar.TotalLength covers the whole set."""
+    try:
+        return round(rebar.TotalLength * _FT_TO_MM / _bar_quantity(rebar), 1)
+    except Exception:
+        return 0.0
+
+
+def _bending_geometry(rebar, bar_dia_mm):
+    """Outer legs / signed bends / mandrel of the first bar, or None (see rebar_bending)."""
+    try:
+        from Autodesk.Revit.DB.Structure import MultiplanarOption
+        import rebar_bending
+        curves = rebar.GetCenterlineCurves(False, False, False,
+                                           MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+        return rebar_bending.bending_from_curves(curves, bar_dia_mm)
+    except Exception:
+        return None
+
+
 def group_by_position(doc, rebar_ids):
     """
     Agrupa barras por NOSA_Rebar_Mark (posición).
@@ -161,7 +194,11 @@ def group_by_position(doc, rebar_ids):
             pos.shape_code = _read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
             pos.shape_params = _read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
             pos.layer = _read(doc, rid, "NOSA_Rebar_Layer") or u""
-            pos.unit_length_mm = _read(doc, rid, "NOSA_Rebar_Total_Length") or 0.0
+            pos.unit_length_mm = _unit_length_mm(rebar)
+            geometry = _bending_geometry(rebar, pos.diameter_mm)
+            if geometry:
+                pos.legs = geometry['legs']
+                pos.mandrel_mm = geometry['mandrel_mm']
             
             # Host mark
             host_id = _read(doc, rid, "NOSA_Rebar_Host_Element_Id")
@@ -177,7 +214,7 @@ def group_by_position(doc, rebar_ids):
                 except:
                     pass
         
-        positions[mark].add_bar(rid)
+        positions[mark].add_bar(rid, _bar_quantity(doc.GetElement(rid)))
     
     # Calcular totales para todas las posiciones
     for pos in positions.values():
@@ -213,7 +250,10 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
             'count': pos.count,
             'unit_length_mm': pos.unit_length_mm,
             'total_length_mm': pos.total_length_mm,
-            'total_weight_kg': weight_kg
+            'total_weight_kg': weight_kg,
+            'unit_weight_kg': (pos.unit_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
+            'legs': pos.legs,
+            'mandrel_mm': pos.mandrel_mm,
         })
 
     return schedule

@@ -1,15 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
-Tests puros para rebar_export_bvbs.py (F8).
-
-IMPORTANTE — ver el docstring de rebar_export_bvbs.py: el formato BVBS
-byte-a-byte NO está verificado contra un validador oficial ni una
-máquina real. Estos tests comprueban invariantes ESTRUCTURALES de las
-que sí tenemos certeza (parseo de shape_params, presencia de los campos,
-checksum determinista, escritura de fichero) — NO afirman conformidad
-con el estándar BVBS real.
-"""
+"""rebar_export_bvbs / rebar_bending against the BVBS Guideline 3.1 worked examples (T4.1)."""
 from __future__ import absolute_import, print_function, unicode_literals
+import io
 import os
 import sys
 import tempfile
@@ -18,117 +10,105 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from rebar_export_bvbs import (
-    BVBS_FORMAT_VERIFIED, parse_shape_params, segments_from_position,
-    bar_to_bvbs_line, export_bvbs_file,
-)
+from rebar_export_bvbs import BVBS_FORMAT_VERIFIED, bvbs_record, checksum, export_bvbs_file  # noqa: E402
+from rebar_bending import arc_segment, bending_legs, line_segment  # noqa: E402
+
+# Header shared by the guideline's BF2D examples (pages 20-21).
+_JOB = dict(project_no=u'TestPDF', schedule_no=u'417', revision=u'a', steel_grade=u'B500A')
 
 
-def test_format_verified_flag_is_explicitly_false():
-    """Guard against silently flipping this to True without ever having
-    checked a real validator/machine — see the module's own docstring."""
-    assert BVBS_FORMAT_VERIFIED is False
+def _position(legs, weight, count=10):
+    return {'mark': u'1', 'diameter_mm': 12, 'count': count, 'legs': legs,
+            'mandrel_mm': 48, 'unit_weight_kg': weight}
 
 
-def test_parse_shape_params_basic():
-    result = parse_shape_params(u'A=2000;B=300;C=150;R=50')
-    assert result == [(u'A', 2000.0), (u'B', 300.0), (u'C', 150.0), (u'R', 50.0)]
+def test_guideline_checksum_example():
+    assert checksum(u'abcde@C') == 78
 
 
-def test_parse_shape_params_empty_or_none():
-    assert parse_shape_params(u'') == []
-    assert parse_shape_params(None) == []
+def test_guideline_example_1_l_bar():
+    rec = bvbs_record(_position([(400, 90), (600, 0)], 0.888), **_JOB)
+    assert rec == (u'BF2D@HjTestPDF@r417@ia@p1@l1000@n10@e0.888@d12@gB500A@s48@v@'
+                   u'Gl400@w90@l600@w0@C72@'), rec
 
 
-def test_parse_shape_params_ignores_malformed_pairs():
-    result = parse_shape_params(u'A=2000;garbage;B=oops;C=150')
-    assert result == [(u'A', 2000.0), (u'C', 150.0)]
+def test_guideline_example_3_signed_angles():
+    legs = [(100, 90), (300, 45), (424, -45), (300, -90), (100, 0)]
+    rec = bvbs_record(_position(legs, 1.087), **_JOB)
+    assert rec == (u'BF2D@HjTestPDF@r417@ia@p1@l1224@n10@e1.087@d12@gB500A@s48@v@'
+                   u'Gl100@w90@l300@w45@l424@w-45@l300@w-90@l100@w0@C82@'), rec
 
 
-def test_segments_from_position_excludes_radius():
-    position = {'shape_params': u'A=2000;B=300;R=50'}
-    segments = segments_from_position(position)
-    assert segments == [(u'A', 2000.0), (u'B', 300.0)]
+def test_guideline_zeicon_decimal_angles():
+    # Page 5, position 3 (the PDF wraps the project name; its checksum is for "ZEICON Bewehrungslis").
+    pos = {'mark': u'3', 'diameter_mm': 16, 'count': 51, 'mandrel_mm': 64, 'unit_weight_kg': 7.268,
+           'legs': [(1135, 79.7), (350, 90), (1630, 90), (350, 79.7), (1135, 0)]}
+    rec = bvbs_record(pos, project_no=u'ZEICON Bewehrungslis', schedule_no=u'ZEICON', revision=u'1',
+                      steel_grade=u'BSt500S')
+    body = rec[:rec.index(u'@C') + 2]
+    assert body == (u'BF2D@HjZEICON Bewehrungslis@rZEICON@i1@p3@l4600@n51@e7.268@d16@gBSt500S@s64@v@'
+                    u'Gl1135@w79.7@l350@w90@l1630@w90@l350@w79.7@l1135@w0@C')
 
 
-def test_bar_to_bvbs_line_starts_with_record_type():
-    position = {
-        'mark': u'V1-01', 'diameter_mm': 16, 'count': 4,
-        'shape_code': u'11', 'shape_params': u'A=2000;B=300',
-        'unit_length_mm': 2300.0,
-    }
-    line = bar_to_bvbs_line(position)
-    assert line.startswith(u'BF2D')
+def test_no_geometry_record_has_header_and_checksum_only():
+    rec = bvbs_record({'mark': u'C7', 'diameter_mm': 10, 'count': 12, 'unit_length_mm': 1540.0}, **_JOB)
+    assert u'@G' not in rec and rec.startswith(u'BF2D@Hj') and rec.endswith(u'@')
+    assert u'@l1540@n12@' in rec and u'@s40@' in rec   # default mandrel 4·ds
+    assert int(rec[rec.index(u'@C') + 2:-1]) == checksum(rec[:rec.index(u'@C') + 2])
 
 
-def test_bar_to_bvbs_line_contains_diameter_and_count():
-    position = {
-        'mark': u'V1-01', 'diameter_mm': 16, 'count': 4,
-        'shape_code': u'11', 'shape_params': u'A=2000;B=300',
-        'unit_length_mm': 2300.0,
-    }
-    line = bar_to_bvbs_line(position)
-    assert u'0016' in line  # diameter field
-    assert u'0004' in line  # count field
+def test_at_sign_removed_from_free_text():
+    rec = bvbs_record(_position([(400, 0)], 0.3), project_no=u'P@1', schedule_no=u'1')
+    assert u'Hjp1' not in rec and u'HjP1@' in rec
 
 
-def test_bar_to_bvbs_line_is_deterministic():
-    position = {
-        'mark': u'V1-01', 'diameter_mm': 16, 'count': 4,
-        'shape_code': u'11', 'shape_params': u'A=2000;B=300',
-        'unit_length_mm': 2300.0,
-    }
-    assert bar_to_bvbs_line(position) == bar_to_bvbs_line(position)
+def test_bending_legs_u_bar_outer_dimensions():
+    # Revit centreline of a H10 U-bar (Rebar test model): 370 / r25 90° / 756 / r25 90° / 370.
+    segs = [line_segment(370, (1, 0, 0)), arc_segment(25, 90), line_segment(756, (0, 0, 1)),
+            arc_segment(25, 90), line_segment(370, (-1, 0, 0))]
+    result = bending_legs(segs, 10.0)
+    assert result['mandrel_mm'] == 40.0
+    lengths = [round(l, 6) for l, _a in result['legs']]
+    assert lengths == [400.0, 816.0, 400.0], lengths
+    angles = [a for _l, a in result['legs']]
+    assert abs(angles[0] - angles[1]) < 1e-9 and abs(abs(angles[0]) - 90) < 1e-9 and angles[2] == 0.0
 
 
-def test_bar_to_bvbs_line_handles_missing_fields_gracefully():
-    line = bar_to_bvbs_line({})
-    assert line.startswith(u'BF2D')
+def test_bending_legs_zigzag_signs_differ():
+    segs = [line_segment(500, (1, 0, 0)), arc_segment(24, 90), line_segment(300, (0, 1, 0)),
+            arc_segment(24, 90), line_segment(500, (1, 0, 0))]
+    angles = [a for _l, a in bending_legs(segs, 12.0)['legs']]
+    assert angles[0] == -angles[1] and angles[2] == 0.0
 
 
-def test_export_bvbs_file_writes_one_line_per_position():
-    schedule_data = [
-        {'mark': u'V1-01', 'diameter_mm': 16, 'count': 4,
-         'shape_code': u'11', 'shape_params': u'A=2000;B=300',
-         'unit_length_mm': 2300.0},
-        {'mark': u'V1-02', 'diameter_mm': 20, 'count': 6,
-         'shape_code': u'00', 'shape_params': u'A=4000',
-         'unit_length_mm': 4000.0},
-    ]
-    tmp_path = os.path.join(tempfile.gettempdir(), u'nosa_test_bvbs.abs')
+def test_bending_legs_straight_and_circle():
+    assert bending_legs([line_segment(1920, (1, 0, 0))], 16.0) == {'legs': [(1920.0, 0.0)],
+                                                                   'mandrel_mm': None}
+    circle = [arc_segment(180, 180), arc_segment(180, 127.3), arc_segment(180, 180)]
+    assert bending_legs(circle, 10.0) is None
+
+
+def test_export_file_crlf_and_count():
+    data = [_position([(400, 90), (600, 0)], 0.888),
+            {'mark': u'C7', 'diameter_mm': 10, 'count': 2, 'unit_length_mm': 1540.0}]
+    fd, path = tempfile.mkstemp(suffix='.abs')
+    os.close(fd)
     try:
-        count = export_bvbs_file(schedule_data, tmp_path)
-        assert count == 2
-        with open(tmp_path, 'rb') as f:
-            content = f.read().decode('ascii')
-        lines = [l for l in content.split(u'\n') if l.strip()]
-        assert len(lines) == 2
-        assert all(l.startswith(u'BF2D') for l in lines)
+        written, without_geometry = export_bvbs_file(data, path, **_JOB)
+        raw = io.open(path, 'rb').read()
     finally:
-        if os.path.isfile(tmp_path):
-            os.remove(tmp_path)
+        os.remove(path)
+    assert (written, without_geometry) == (2, 1)
+    assert raw.count(b'\r\n') == 2 and b'\n\n' not in raw and raw.startswith(b'BF2D@')
 
 
-def test_export_bvbs_file_empty_schedule_writes_zero_records():
-    tmp_path = os.path.join(tempfile.gettempdir(), u'nosa_test_bvbs_empty.abs')
-    try:
-        count = export_bvbs_file([], tmp_path)
-        assert count == 0
-        assert os.path.isfile(tmp_path)
-    finally:
-        if os.path.isfile(tmp_path):
-            os.remove(tmp_path)
+def test_flag_records_guideline_check():
+    assert BVBS_FORMAT_VERIFIED is True
 
 
 if __name__ == '__main__':
     tests = [v for k, v in sorted(globals().items()) if k.startswith('test_')]
-    failures = 0
     for t in tests:
-        try:
-            t()
-            print(u'{}: OK'.format(t.__name__))
-        except Exception as e:
-            failures += 1
-            print(u'{}: FAILED -- {}'.format(t.__name__, e))
-    print(u'\n{}/{} tests passed'.format(len(tests) - failures, len(tests)))
-    sys.exit(1 if failures else 0)
+        t()
+        print(t.__name__, 'OK')
+    print('\nALL BVBS CHECKS PASSED ({})'.format(len(tests)))

@@ -9,6 +9,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import os
 
+_here = os.path.dirname(os.path.abspath(__file__))
+if _here not in sys.path:
+    sys.path.insert(0, _here)
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -117,12 +120,19 @@ def _classify_shape_code(analysis):
     return '99'
 
 
-def _compute_shape_params(shape_code, analysis):
+def _compute_shape_params(shape_code, analysis, bending=None):
     """
     Calcula parámetros de forma (A, B, C, R...) basándose en el código de forma y análisis.
     Retorna string en formato "A=2000;B=300;C=150;R=50" (valores en mm, redondeados).
+    With `bending` (rebar_bending.bending_legs) the legs are BS 8666 outer
+    dimensions and R the real bend radius (T4.1), not centreline tangents / 50.
     """
     lengths = analysis['segment_lengths_mm']
+    radius = 50
+    if bending:
+        lengths = [l for l, _a in bending['legs']]
+        if bending.get('mandrel_mm'):
+            radius = int(round(bending['mandrel_mm'] / 2.0))
 
     if shape_code == '00':
         # Barra recta: solo A (longitud total)
@@ -134,13 +144,13 @@ def _compute_shape_params(shape_code, analysis):
         if len(lengths) >= 2:
             A = round(lengths[0], 1)
             B = round(lengths[1], 1)
-            R = 50  # Radio estimado por defecto (mandrel mínimo)
+            R = radius
             return u'A={};B={};R={}'.format(int(A), int(B), int(R))
 
     elif shape_code == '51':
         # Cerco cerrado: A y B (dos lados consecutivos), R (radio)
         if len(lengths) >= 2:
-            return u'A={};B={};R={}'.format(int(round(lengths[0], 1)), int(round(lengths[1], 1)), 50)
+            return u'A={};B={};R={}'.format(int(round(lengths[0], 1)), int(round(lengths[1], 1)), radius)
 
     elif shape_code == '21':
         # U-bar: A (primer segmento), B (segmento central), C (tercer segmento), R (radio)
@@ -148,12 +158,22 @@ def _compute_shape_params(shape_code, analysis):
             A = round(lengths[0], 1)
             B = round(lengths[1], 1)
             C = round(lengths[2], 1)
-            R = 50
+            R = radius
             return u'A={};B={};C={};R={}'.format(int(A), int(B), int(C), int(R))
 
     # Forma 99 o desconocida: solo longitud total
     total = round(analysis['total_length_mm'], 1)
     return u'A={}'.format(int(total))
+
+
+def _bending(doc, rebar, curves):
+    """Outer legs and mandrel of this bar (rebar_bending), or None."""
+    try:
+        import rebar_bending
+        bar_dia_mm = doc.GetElement(rebar.GetTypeId()).BarModelDiameter * _FT_TO_MM
+        return rebar_bending.bending_from_curves(curves, bar_dia_mm)
+    except Exception:
+        return None
 
 
 def classify_and_stamp(doc, rebar_id, standard_code):
@@ -209,7 +229,7 @@ def classify_and_stamp(doc, rebar_id, standard_code):
             shape_code = '99'
 
         # Calcular parámetros
-        shape_params = _compute_shape_params(shape_code, analysis)
+        shape_params = _compute_shape_params(shape_code, analysis, _bending(doc, rebar, curves))
         if shape_code == '75':
             try:
                 dia = rebar.LookupParameter('A').AsDouble() * _FT_TO_MM
