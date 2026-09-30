@@ -20,7 +20,6 @@ if _lib not in sys.path:
 
 from nosa_utils import compat, shared_params, standards
 from nosa_utils.compat import text_type
-from nosa_utils.revit_helpers import get_id_value
 
 _FT_TO_MM = 304.8
 
@@ -135,9 +134,10 @@ def _host_code(host_elem):
     """One-letter host category code for marks of hosts that have no Mark."""
     try:
         from Autodesk.Revit import DB  # Lazy import
-        cat_id = host_elem.Category.Id
+        from nosa_utils.revit_helpers import get_id_value
+        cat_value = get_id_value(host_elem.Category.Id)
         for bic_name, code in _HOST_CODES:
-            if cat_id == DB.ElementId(getattr(DB.BuiltInCategory, bic_name)):
+            if cat_value == int(getattr(DB.BuiltInCategory, bic_name)):
                 return code
     except Exception:
         pass
@@ -224,6 +224,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
         host_id = _read(doc, first_id, "NOSA_Rebar_Host_Element_Id")
         if not host_id:
             try:
+                from nosa_utils.revit_helpers import get_id_value  # Lazy: imports the Revit API
                 host_id = u'{}'.format(get_id_value(doc.GetElement(first_id).GetHostId()))
             except Exception:
                 host_id = None
