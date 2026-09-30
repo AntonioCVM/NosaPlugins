@@ -4,15 +4,7 @@ Revit API Helper Utilities
 Provides safer wrappers and common Revit API operations.
 """
 
-try:
-    from Autodesk.Revit.DB import (
-        Transaction,
-        FilteredElementCollector,
-        BuiltInParameter,
-        StorageType
-    )
-except ImportError:  # outside Revit (unit tests): only the pure helpers are usable
-    Transaction = FilteredElementCollector = BuiltInParameter = StorageType = None
+# Revit API imports are local to each function so the module imports outside Revit (unit tests).
 
 # =============================================================================
 # ELEMENT ID COMPATIBILITY (Revit 2024–2027)
@@ -117,6 +109,7 @@ def safe_transaction(doc, name, func, *args, **kwargs):
         >>>     return "Success"
         >>> success, result = safe_transaction(doc, "Modify", modify_element, element, 42)
     """
+    from Autodesk.Revit.DB import Transaction
     t = Transaction(doc, name)
     try:
         t.Start()
@@ -150,6 +143,7 @@ def get_parameter_value(element, param_name, default=None):
         >>> if mark:
         >>>     print("Wall mark:", mark)
     """
+    from Autodesk.Revit.DB import StorageType
     try:
         param = element.LookupParameter(param_name)
         if param and param.HasValue:
@@ -184,6 +178,7 @@ def set_parameter_value(element, param_name, value):
         >>> if not success:
         >>>     print("Error:", error)
     """
+    from Autodesk.Revit.DB import StorageType
     try:
         param = element.LookupParameter(param_name)
         if not param:
@@ -222,6 +217,7 @@ def get_builtin_parameter_value(element, builtin_param, default=None):
     Returns:
         Parameter value or default
     """
+    from Autodesk.Revit.DB import StorageType
     try:
         param = element.get_Parameter(builtin_param)
         if param and param.HasValue:
@@ -260,6 +256,7 @@ def collect_by_category(doc, category, view_id=None, is_type=False):
         >>> walls = collect_by_category(doc, BuiltInCategory.OST_Walls)
         >>> print("Found {} walls".format(len(walls)))
     """
+    from Autodesk.Revit.DB import FilteredElementCollector
     if view_id:
         collector = FilteredElementCollector(doc, view_id)
     else:
@@ -291,6 +288,7 @@ def collect_by_class(doc, element_class, view_id=None):
         >>> from Autodesk.Revit.DB import Wall
         >>> walls = collect_by_class(doc, Wall)
     """
+    from Autodesk.Revit.DB import FilteredElementCollector
     if view_id:
         collector = FilteredElementCollector(doc, view_id)
     else:
@@ -313,6 +311,7 @@ def get_element_type_name(element):
     Returns:
         str: Type name or empty string
     """
+    from Autodesk.Revit.DB import BuiltInParameter
     try:
         type_element = element.Document.GetElement(element.GetTypeId())
         if type_element:
@@ -335,6 +334,7 @@ def get_element_family_name(element):
     Returns:
         str: Family name or empty string
     """
+    from Autodesk.Revit.DB import BuiltInParameter
     try:
         type_element = element.Document.GetElement(element.GetTypeId())
         if type_element:
