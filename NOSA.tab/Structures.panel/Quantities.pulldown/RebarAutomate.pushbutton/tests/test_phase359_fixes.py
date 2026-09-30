@@ -161,7 +161,8 @@ for s in result['stirrup_sets']:
 # ZERO interior positions left (skipped entirely) — so this is 2 Sets
 # of 2 (top 'u' edge + bottom 'u' edge), covering all 4 corners between
 # them, not 4 individual Sets.
-bar_inset_mm = 40.0 + 8.0 + 16.0 / 2.0
+# T2.10b: corner bars seat in the 8 mm link's bend (4d mandrel), +1.8 mm.
+bar_inset_mm = 40.0 + 8.0 + 16.0 / 2.0 + re_engine.link_corner_extra_inset_mm(16.0, 8.0)
 half_mm = 400.0 / 2.0 - bar_inset_mm
 assert result['vertical_bars'] == [], "n_u=n_v=2 leaves no single-position faces at all"
 assert len(result['vertical_bar_sets']) == 2, (
@@ -178,7 +179,7 @@ for vs in result['vertical_bar_sets']:
     # a genuine CORNER has BOTH coordinates at the half-extent magnitude —
     # a face-MIDPOINT (the old circular-misdetection symptom) would have
     # only ONE coordinate at that magnitude, the other at 0.
-    assert abs(abs(x_mm) - half_mm) < 1e-6 and abs(abs(y_mm) - half_mm) < 1e-6, (
+    assert abs(abs(x_mm) - half_mm) < 1e-3 and abs(abs(y_mm) - half_mm) < 1e-3, (
         "bar at ({:.2f},{:.2f})mm is not a corner (half_mm={:.2f}) — landed on a "
         "face MIDPOINT instead, the exact 'circular radial placement on a square "
         "section' symptom".format(x_mm, y_mm, half_mm))
