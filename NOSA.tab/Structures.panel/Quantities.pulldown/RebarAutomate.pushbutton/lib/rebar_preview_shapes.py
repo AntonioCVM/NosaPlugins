@@ -92,7 +92,10 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
             for side in (-1.0, 1.0):
                 xb = side * back
                 xl = xb - side * leg
-                shapes.append(_bar([(xl, t1), (xb, t1), (xb, b1), (xl, b1)], ubar_dia, 'ubar'))
+                # legs drawn just inside their mat bar: in reality they lie beside it
+                lap = (dia_x + ubar_dia) / 2.0
+                shapes.append(_bar([(xl, t1 - lap), (xb, t1 - lap), (xb, b1 + lap), (xl, b1 + lap)],
+                                   ubar_dia, 'ubar'))
             labels.append((t / 2.0, u'U-bars H{:g} @ {:g}, leg {:.0f}{}'.format(
                 ubar_dia, spacing_mm, leg, u' (2h)' if is_floor and leg >= 2.0 * t - 1 else u'')))
     if dowels and dowel_dia:
@@ -204,7 +207,7 @@ def column_elevation_shapes(width_mm, height_mm, cover_mm, bar_dia, link_dia, no
             tip = sign * (xs + _foot_mm(sd))
             shapes.append(_bar([(tip, mat_top + sd / 2.0), (x, mat_top + sd / 2.0), (x, lap_top)], sd, 'starter'))
         shapes.append(_text(fw / 2.0 + 60.0, lap_top,
-                            u'Starters H{:g}: foot {:.0f} out, lap {:g} above {:g} kicker'.format(
+                            u'Starters H{:g}, foot {:.0f} out, lap {:g} + kicker {:g}'.format(
                                 sd, _foot_mm(sd), starter_splice_mm, kicker_mm)))
     shapes.append(_text(fw / 2.0 + 60.0, h * 0.6, u'Links H{:g} @ {:g}{}'.format(
         link_dia, normal_spacing, u' ({:g} at ends)'.format(dense_spacing) if dense_spacing else u'')))

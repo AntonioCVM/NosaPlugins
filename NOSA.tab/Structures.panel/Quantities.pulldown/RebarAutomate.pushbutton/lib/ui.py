@@ -903,13 +903,17 @@ class RebarAutomateWindow(NOSAWindow):
         if not xs:
             return
         texts = [sh for sh in shapes if sh['kind'] == 'text']
+        cw, ch, margin, row = canvas.Width, canvas.Height, 12.0, 14.0
         label_px = 6.2 * max([len(t['text']) for t in texts] or [0]) + 10.0
-        cw, ch, margin = canvas.Width, canvas.Height, 12.0
+        below = label_px > 0.4 * cw
+        label_h = row * len(texts) + 4.0 if below else 0.0
+        if below:
+            label_px = 0.0
         x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
         scale = min((cw - 2 * margin - label_px) / max(x1 - x0, 1.0),
-                    (ch - 2 * margin) / max(y1 - y0, 1.0))
+                    (ch - 2 * margin - label_h) / max(y1 - y0, 1.0))
         off_x = margin + (cw - 2 * margin - label_px - (x1 - x0) * scale) / 2.0
-        off_y = margin + (ch - 2 * margin - (y1 - y0) * scale) / 2.0
+        off_y = margin + (ch - 2 * margin - label_h - (y1 - y0) * scale) / 2.0
 
         def sx(x):
             return off_x + (x - x0) * scale
@@ -973,14 +977,24 @@ class RebarAutomateWindow(NOSAWindow):
                 line.Stroke = colours['ghost']
                 line.StrokeDashArray = SWM.DoubleCollection([6.0, 4.0])
                 canvas.Children.Add(line)
-        text_x = sx(x1) + 8.0
-        for t in texts:
+        placed = []
+        if below:
+            top = ch - margin - label_h + 4.0
+            for i, t in enumerate(sorted(texts, key=lambda t: -t['y'])):
+                placed.append((t, margin, top + i * row))
+        else:
+            last = -row
+            for t in sorted(texts, key=lambda t: -t['y']):
+                y = max(sy(t['y']) - 7.0, last + row)
+                last = y
+                placed.append((t, sx(x1) + 8.0 if t['x'] >= x1 else sx(t['x']), min(y, ch - row)))
+        for t, left, y in placed:
             tb = SWC.TextBlock()
             tb.Text = t['text']
             tb.FontSize = 10.5
             tb.SetResourceReference(SWC.TextBlock.ForegroundProperty, 'TextColor')
-            SWC.Canvas.SetLeft(tb, text_x if t['x'] >= x1 else sx(t['x']))
-            SWC.Canvas.SetTop(tb, min(max(0.0, sy(t['y']) - 7.0), ch - 14.0))
+            SWC.Canvas.SetLeft(tb, left)
+            SWC.Canvas.SetTop(tb, y)
             canvas.Children.Add(tb)
 
     def _draw_preview(self, data):
