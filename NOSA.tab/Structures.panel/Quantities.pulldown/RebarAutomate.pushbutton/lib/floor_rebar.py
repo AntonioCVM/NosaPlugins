@@ -1046,7 +1046,17 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                     'is_hole': is_hole,
                 }
 
-            if mat_rows is not None:
+            use_mat_rows = mat_rows is not None
+            if use_mat_rows and is_hole:
+                # A hole edge keeps the user's minimum of _HOLE_MIN_BARS U-bars
+                # (2026-09-02): if too few mat bars end on it, the hole cascade
+                # below places them instead.
+                axis_key = 'x' if is_x_anchor else 'y'
+                hole_slots = _edge_positions_at_mat_rows(
+                    p0, unit_dir, length_mm, mat_rows[axis_key], 1 if is_x_anchor else 0,
+                    (mat_rows[axis_key + '_dia_mm'] + mat_rows[axis_key + '_ubar_dia_mm']) / 2.0)
+                use_mat_rows = len(hole_slots) >= _HOLE_MIN_BARS
+            if use_mat_rows:
                 axis_key = 'x' if is_x_anchor else 'y'
                 contact_mm = (mat_rows[axis_key + '_dia_mm'] + mat_rows[axis_key + '_ubar_dia_mm']) / 2.0
                 # along_x rows are Y values (coord 1); along_y rows are X values (coord 0)

@@ -247,20 +247,21 @@ result_closure = floor_rebar.build_floor_reinforcement(
 closure = result_closure['perimeter_closure_ubars']
 nominal_leg_mm = 40.0 * 8.0  # default_anchorage_length_mm(8mm) = 320mm
 cover_mm = 25.0  # the outer boundary is cover-offset BEFORE the edges are walked
-assert len(closure['x_bars']['sets']) == 2 and closure['x_bars']['bars'] == [], \
-    "the left AND right edges (4000mm each) must each be exactly ONE Set — no fragments, no loose bars"
-assert len(closure['y_bars']['sets']) == 2 and closure['y_bars']['bars'] == [], \
-    "the top AND bottom edges (6000mm each) must each be exactly ONE Set"
-for s in closure['x_bars']['sets']:
-    assert s['style'] is None
-    assert abs(s['array_length_mm'] - ((4000.0 - 2 * cover_mm) - 2 * nominal_leg_mm)) < 1.0, \
-        "the Set must span the edge's own (cover-offset) length minus the corner inset at each end"
-for s in closure['y_bars']['sets']:
-    assert s['style'] is None
-    assert abs(s['array_length_mm'] - ((6000.0 - 2 * cover_mm) - 2 * nominal_leg_mm)) < 1.0
-print("build_floor_reinforcement (closure U-bars, wide floor): each polygon "
-      "edge becomes exactly ONE continuous Rebar Set corner-to-corner, not a "
-      "chain of scanline fragments: OK")
+# T2.17 (2026-09-30): one U-bar beside each mat bar ending on the edge,
+# over the mat's whole zone, in two uniform halves per edge (each half
+# shifted towards the middle so none leaves the zone) -> 2 Sets per edge.
+contact_mm = (10.0 + 8.0) / 2.0
+assert len(closure['x_bars']['sets']) == 4 and closure['x_bars']['bars'] == [],     "the left AND right edges must each be exactly TWO Sets (two halves) — no loose bars"
+assert len(closure['y_bars']['sets']) == 4 and closure['y_bars']['bars'] == [],     "the top AND bottom edges must each be exactly TWO Sets"
+for key, edge_mm in (('x_bars', 4000.0), ('y_bars', 6000.0)):
+    zone_mm = edge_mm - 2 * cover_mm - 10.0  # mat rows run cover + d/2 .. edge - cover - d/2
+    spans = sorted(s['array_length_mm'] for s in closure[key]['sets'])
+    for s in closure[key]['sets']:
+        assert s['style'] is None
+    covered = sum(spans) + 2 * contact_mm
+    assert covered > zone_mm - 2 * 400.0,         "the two halves must cover the mat zone, not stop an anchorage length short of each corner"
+print("build_floor_reinforcement (closure U-bars, wide floor): each edge is two "
+      "uniform Sets over the whole mat zone, one U beside each mat bar: OK")
 
 # ── Test 4b: an L-shaped (non-convex) floor also closes with continuous ──
 # edges, including around its own reflex/notch corner — no fragmentation.
@@ -278,10 +279,19 @@ l_closure = result_l['perimeter_closure_ubars']
 # Y-anchor "horizontal" ones) — every edge long enough for the corner
 # inset (320mm) becomes its own Set or individual bar; NONE should be
 # missing (a fragmented scanline would have silently dropped the notch).
-l_x_total = len(l_closure['x_bars']['sets']) + len(l_closure['x_bars']['bars'])
-l_y_total = len(l_closure['y_bars']['sets']) + len(l_closure['y_bars']['bars'])
-assert l_x_total == 3, "3 vertical edges (left, the step, and the right side of the notch)"
-assert l_y_total == 3, "3 horizontal edges (bottom, the notch shelf, and the top)"
+def _edge_coords(entries, coord):
+    """Distinct plan coordinate (mm) of each U-bar's vertical back, one per edge served."""
+    found = set()
+    for e in entries['sets'] + entries['bars']:
+        for c in e['curves']:
+            p0, p1 = c.GetEndPoint(0), c.GetEndPoint(1)
+            if abs(p0.X - p1.X) < 1e-9 and abs(p0.Y - p1.Y) < 1e-9:
+                found.add(round((p0.X if coord == 'x' else p0.Y) * _MM_PER_FT))
+    return found
+
+
+assert len(_edge_coords(l_closure['x_bars'], 'x')) == 3,     "3 vertical edges (left, the step, and the right side of the notch)"
+assert len(_edge_coords(l_closure['y_bars'], 'y')) == 3,     "3 horizontal edges (bottom, the notch shelf, and the top)"
 print("build_floor_reinforcement (L-shaped floor): every edge around a "
       "non-convex boundary, including the reflex notch corner, gets its own "
       "continuous closure run: OK")
@@ -447,6 +457,20 @@ assert along_x_collapsed['sets'] == [] and along_x_collapsed['bars'] == []
 print("build_floor_reinforcement: an interval collapsed to empty by its own "
       "inset produces ZERO sets/bars, never a ghost Set with an empty shape: OK")
 
+def _ubars_per_hole_edge(entries):
+    """{edge key: U-bar count} for open closure entries; key = the back's fixed plan coordinate."""
+    counts = {}
+    for e in entries:
+        if e.get('style') is not None:
+            continue
+        leg = e['curves'][0]
+        along_x = abs(leg.GetEndPoint(0).X - leg.GetEndPoint(1).X) > abs(leg.GetEndPoint(0).Y - leg.GetEndPoint(1).Y)
+        back = e['curves'][1].GetEndPoint(0)
+        key = ('x', round(back.X * _MM_PER_FT)) if along_x else ('y', round(back.Y * _MM_PER_FT))
+        counts[key] = counts.get(key, 0) + max(1, len(e.get('materialized_bars', [])))
+    return counts
+
+
 # ── Test 13 (Phase 3.5 item 5 / 2026-09-02, round 2 — explicit user
 # request "igual que la distancia entre Ubars del contorno del
 # forjado"): leg length is STILL binary ──
@@ -491,16 +515,9 @@ tiny_hole_entries = (tiny_closure['x_bars']['sets'] + tiny_closure['x_bars']['ba
 hole_area_entries = [e for e in tiny_hole_entries
                       if any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2600.0
                              for c in e['curves'] for i in (0, 1))]
-assert len(hole_area_entries) == 4, \
-    "all 4 edges of this hole should each get one closure entry (a 3-bar Set)"
-assert all(e.get('style') is None for e in hole_area_entries), \
-    "a centred/relaxed-spaced leg fits in material on every edge of this hole " \
-    "— none should fall back to a closed link"
-assert all(e.get('is_hole') is True for e in hole_area_entries), \
-    "every closure entry around this hole must carry is_hole=True, so ui.py " \
-    "routes it to create_from_curves (real Shape code) instead of FreeForm"
-assert all(len(e.get('materialized_bars', [])) == 3 for e in hole_area_entries), \
-    "the relaxed-margin/spacing fix should fit 3 U-bars per edge here, not 1"
+tiny_counts = _ubars_per_hole_edge(hole_area_entries)
+assert len(tiny_counts) == 4 and all(n >= 3 for n in tiny_counts.values()),     "all 4 edges of this 500x500 hole must get at least 3 open U-bars (T2.17 keeps the minimum)"
+assert all(e.get('is_hole') is True for e in hole_area_entries),     "every closure entry around this hole must carry is_hole=True"
 for e in tiny_hole_entries:
     if e.get('style') == 'StirrupTie':
         continue
@@ -545,16 +562,9 @@ bigger_hole_entries = (bigger_closure['x_bars']['sets'] + bigger_closure['x_bars
 bigger_hole_area_entries = [e for e in bigger_hole_entries
                             if any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2750.0
                                    for c in e['curves'] for i in (0, 1))]
-assert len(bigger_hole_area_entries) == 4, \
-    "all 4 edges of this hole should each get one closure entry (a multi-bar Set)"
-assert all(e.get('style') is None for e in bigger_hole_area_entries), \
-    "a relaxed-spaced leg fits in material on every edge of this hole"
-assert all(e.get('is_hole') is True for e in bigger_hole_area_entries), \
-    "every closure entry around this hole must carry is_hole=True"
-assert all(len(e.get('materialized_bars', [])) >= 2 for e in bigger_hole_area_entries), \
-    "an edge that clears the standard corner-inset span but whose usable span " \
-    "is still <= spacing_mm must retry the relaxed margin and get a MULTI-bar " \
-    "Set, not silently settle for the standard path's own single midpoint bar"
+bigger_counts = _ubars_per_hole_edge(bigger_hole_area_entries)
+assert len(bigger_counts) == 4 and all(n >= 3 for n in bigger_counts.values()),     "all 4 edges of this hole must get at least 3 open U-bars"
+assert all(e.get('is_hole') is True for e in bigger_hole_area_entries),     "every closure entry around this hole must carry is_hole=True"
 print("_build_edge_ubars: a hole edge that clears the standard corner-inset "
       "span but whose usable span between insets is still <= spacing_mm now "
       "also retries the relaxed margin (not just the 'too short' branch) — "
@@ -586,17 +596,11 @@ min3_hole_entries = (min3_closure['x_bars']['sets'] + min3_closure['x_bars']['ba
 min3_hole_area_entries = [e for e in min3_hole_entries
                           if any(1900.0 < c.GetEndPoint(i).X * _MM_PER_FT < 2600.0
                                  for c in e['curves'] for i in (0, 1))]
-assert len(min3_hole_area_entries) == 4, \
-    "all 4 edges of this hole should each get one closure entry"
-assert all(e.get('is_hole') is True for e in min3_hole_area_entries), \
-    "every closure entry around this hole must carry is_hole=True"
-assert all(len(e.get('materialized_bars', [])) >= floor_rebar._HOLE_MIN_BARS
-           for e in min3_hole_area_entries), \
-    "a 500x500mm hole must get AT LEAST _HOLE_MIN_BARS (3) U-bars per edge, " \
-    "per explicit user request, even when that needs a tighter-than-perimeter " \
-    "corner margin"
+min3_counts = _ubars_per_hole_edge(min3_hole_area_entries)
+assert len(min3_counts) == 4 and all(n >= floor_rebar._HOLE_MIN_BARS for n in min3_counts.values()),     "a 500x500mm hole must get AT LEAST _HOLE_MIN_BARS (3) U-bars per edge, per explicit user request"
+assert all(e.get('is_hole') is True for e in min3_hole_area_entries),     "every closure entry around this hole must carry is_hole=True"
 for e in min3_hole_area_entries:
-    leg0 = e['materialized_bars'][0]['curves'][0]
+    leg0 = (e['materialized_bars'][0]['curves'] if e.get('materialized_bars') else e['curves'])[0]
     leg_len_mm = leg0.GetEndPoint(0).DistanceTo(leg0.GetEndPoint(1)) * _MM_PER_FT
     assert abs(leg_len_mm - 400.0) < 1e-3, \
         "the tighter hole-only corner margin must never shrink the leg's own " \
