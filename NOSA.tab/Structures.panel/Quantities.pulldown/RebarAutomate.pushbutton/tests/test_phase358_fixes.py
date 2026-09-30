@@ -15,6 +15,10 @@ import importlib.util
 
 _MM_PER_FT = 304.8
 _LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -120,7 +124,9 @@ class FakeColumnHost(object):
     def get_Parameter(self, bip):
         return self._params.get(bip)
 
-DB = types.ModuleType('Autodesk.Revit.DB')
+DB, DBS = revit_stubs.install_revit_stubs(structure_attrs=dict(
+    RebarStyle=revit_stubs.namespace(Standard=1, StirrupTie=2),
+    RebarHookOrientation=revit_stubs.namespace(Left=1, Right=2)))
 DB.XYZ = XYZ
 DB.XYZ.BasisZ = XYZ(0, 0, 1)
 DB.Line = Line
@@ -134,38 +140,13 @@ DB.BuiltInCategory = types.SimpleNamespace(OST_Floors=1, OST_StructuralColumns=2
 
 _ALL_COLUMNS = []
 
-class _FakeCollector(object):
-    def OfCategory(self, cat):
-        return self
-    def WhereElementIsNotElementType(self):
-        return list(_ALL_COLUMNS)
+DB.FilteredElementCollector = revit_stubs.collector_factory(_ALL_COLUMNS)
 
-DB.FilteredElementCollector = lambda doc: _FakeCollector()
+revit_stubs.install_system_stubs()
 
-DBS = types.ModuleType('Autodesk.Revit.DB.Structure')
-DBS.RebarStyle = types.SimpleNamespace(Standard=1, StirrupTie=2)
-DBS.RebarHookOrientation = types.SimpleNamespace(Left=1, Right=2)
-DB.Structure = DBS
+re_engine = revit_stubs.load_module('re_engine_358', _LIB + r'\rebar_engine.py')
 
-autodesk = types.ModuleType('Autodesk')
-revit_mod = types.ModuleType('Autodesk.Revit')
-autodesk.Revit = revit_mod
-revit_mod.DB = DB
-sys.modules['Autodesk'] = autodesk
-sys.modules['Autodesk.Revit'] = revit_mod
-sys.modules['Autodesk.Revit.DB'] = DB
-sys.modules['Autodesk.Revit.DB.Structure'] = DBS
-sys.modules['System.Collections.Generic'] = types.SimpleNamespace(List=lambda t: (lambda items: list(items)))
-
-spec_re = importlib.util.spec_from_file_location('re_engine_358', _LIB + r'\rebar_engine.py')
-re_engine = importlib.util.module_from_spec(spec_re)
-sys.modules['re_engine_358'] = re_engine
-spec_re.loader.exec_module(re_engine)
-
-spec_col = importlib.util.spec_from_file_location('column_rebar_358', _LIB + r'\column_rebar.py')
-column_rebar = importlib.util.module_from_spec(spec_col)
-sys.modules['column_rebar_358'] = column_rebar
-spec_col.loader.exec_module(column_rebar)
+column_rebar = revit_stubs.load_module('column_rebar_358', _LIB + r'\column_rebar.py')
 column_rebar.re_engine = re_engine
 column_rebar._ensure_engine = lambda: re_engine
 

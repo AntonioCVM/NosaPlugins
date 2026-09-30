@@ -15,7 +15,11 @@ from __future__ import absolute_import, print_function, unicode_literals
 import math
 import os
 import sys
-import types
+
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
 
 _MM_PER_FT = 304.8
 
@@ -63,28 +67,11 @@ class Line(object):
 
 
 if 'Autodesk' not in sys.modules:
-    autodesk = types.ModuleType('Autodesk')
-    revit_mod = types.ModuleType('Autodesk.Revit')
-    db_mod = types.ModuleType('Autodesk.Revit.DB')
-    db_mod.XYZ = XYZ
-    db_mod.XYZ.BasisX = XYZ(1.0, 0.0, 0.0)
-    db_mod.XYZ.BasisZ = XYZ(0.0, 0.0, 1.0)
-    db_mod.Line = Line
-    dbs_mod = types.ModuleType('Autodesk.Revit.DB.Structure')
-    db_mod.Structure = dbs_mod
-    sys.modules['Autodesk'] = autodesk
-    sys.modules['Autodesk.Revit'] = revit_mod
-    sys.modules['Autodesk.Revit.DB'] = db_mod
-    sys.modules['Autodesk.Revit.DB.Structure'] = dbs_mod
+    XYZ.BasisX = XYZ(1.0, 0.0, 0.0)
+    XYZ.BasisZ = XYZ(0.0, 0.0, 1.0)
+    revit_stubs.install_revit_stubs(db_attrs=dict(XYZ=XYZ, Line=Line), structure_attrs={})
 
-if 'System' not in sys.modules:
-    system_mod = types.ModuleType('System')
-    system_collections_mod = types.ModuleType('System.Collections')
-    system_generic_mod = types.ModuleType('System.Collections.Generic')
-    system_generic_mod.List = lambda t: (lambda items: list(items))
-    sys.modules['System'] = system_mod
-    sys.modules['System.Collections'] = system_collections_mod
-    sys.modules['System.Collections.Generic'] = system_generic_mod
+revit_stubs.install_system_stubs(full_tree=True, only_if_missing=True)
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:

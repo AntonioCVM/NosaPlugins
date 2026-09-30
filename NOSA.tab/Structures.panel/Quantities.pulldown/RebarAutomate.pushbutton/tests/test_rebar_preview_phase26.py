@@ -8,17 +8,15 @@ module docstring), so this runs under a plain Python interpreter, no
 mocked-API scaffolding needed — same convention as test_phase351_fixes.py."""
 import sys
 import os
-import importlib.util
 
 _LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
+_EXT_LIB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _EXT_LIB not in sys.path:
+    sys.path.insert(0, _EXT_LIB)
+from tests_support import revit_stubs  # noqa: E402
 
 
-def _load(name, path):
-    spec = importlib.util.spec_from_file_location(name, path)
-    mod = importlib.util.module_from_spec(spec)
-    sys.modules[name] = mod
-    spec.loader.exec_module(mod)
-    return mod
+_load = revit_stubs.load_module
 
 
 rebar_preview = _load("rebar_preview_26", os.path.join(_LIB, "rebar_preview.py"))
