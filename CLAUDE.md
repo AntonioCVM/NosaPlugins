@@ -248,6 +248,10 @@ Target: **Revit 2024, 2025, 2026, 2027**.
   Never `DB.ElementId(int(x))`: in Revit 2026 IronPython it is ambiguous
   (`ElementId(BuiltInParameter|BuiltInCategory|Int64)`) and raises TypeError
   (lint rule NOSA010). Read ids back with `get_id_value(eid)`.
+- Names of element types (FamilySymbol, RebarShape, RebarBarType, *Type): use
+  `nosa_utils.revit_helpers.element_name(el)`, never `el.Name` / `getattr(el, 'Name')`
+  — `.Name` raises `AttributeError: Name` on some types in IronPython (Revit 2026)
+  and pythonnet (lint rule NOSA011).
 - `Element.GetTypeId()` → returns ElementId; `doc.GetElement(id)` to resolve.
 - Avoid `FilteredElementCollector(...).ToElementIds()` in tight loops — prefer
   `.ToElements()` to avoid repeated `doc.GetElement()` calls.
