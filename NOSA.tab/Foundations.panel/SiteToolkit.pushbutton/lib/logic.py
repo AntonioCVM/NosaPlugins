@@ -17,7 +17,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 _FT_TO_MM = 304.8
 
@@ -62,10 +62,7 @@ def get_topography(doc):
         legacy = []
     for el in legacy:
         z_min, z_max = _bbox_elevation_range_mm(el)
-        try:
-            name = el.Name
-        except Exception:
-            name = u'—'
+        name = element_name(el) or u'—'
         rows.append({
             'id': get_id_value(el.Id), 'kind': u'TopographySurface',
             'name': name, 'z_min': z_min, 'z_max': z_max,
@@ -83,10 +80,7 @@ def get_topography(doc):
         toposolids = []
     for el in toposolids:
         z_min, z_max = _bbox_elevation_range_mm(el)
-        try:
-            name = el.Name
-        except Exception:
-            name = u'—'
+        name = element_name(el) or u'—'
         rows.append({
             'id': get_id_value(el.Id), 'kind': u'Toposolid',
             'name': name, 'z_min': z_min, 'z_max': z_max,
@@ -121,10 +115,7 @@ def get_property_lines(doc):
                 total_len_mm += c.Length * _FT_TO_MM
             except Exception:
                 pass
-        try:
-            name = el.Name
-        except Exception:
-            name = u'—'
+        name = element_name(el) or u'—'
         rows.append({
             'id': get_id_value(el.Id), 'name': name,
             'segments': len(curves), 'perimeter_mm': total_len_mm,

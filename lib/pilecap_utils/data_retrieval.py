@@ -12,9 +12,12 @@ OST_STRUCTURAL_FOUNDATION = -2001300
 # Helper to import from parent lib if needed (assuming nosa_utils is in path)
 # NOSA utils are expected to be in sys.path
 try:
-    from nosa_utils.revit_helpers import get_id_value
+    from nosa_utils.revit_helpers import get_id_value, element_name
     from nosa_utils.unit_conversion import feet_to_mm
 except ImportError:
+    def element_name(element):
+        return getattr(element, 'Name', None) or u''
+
     def feet_to_mm(val):
         return val * 304.8
 
@@ -100,8 +103,7 @@ def get_foundation_slab_types():
                             if type_name_param and type_name_param.HasValue:
                                 type_name = type_name_param.AsString()
                             else:
-                                if hasattr(floor_type, 'Name'):
-                                    type_name = floor_type.Name
+                                type_name = element_name(floor_type) or type_name
                         except Exception:
                             pass
                         
@@ -138,8 +140,7 @@ def get_foundation_slab_types():
                         if type_name_param and type_name_param.HasValue:
                             type_name = type_name_param.AsString()
                         else:
-                            if hasattr(floor_type, 'Name'):
-                                type_name = floor_type.Name
+                            type_name = element_name(floor_type) or type_name
                     except Exception:
                         pass
                     
@@ -218,8 +219,7 @@ def get_pile_types():
                             if symbol_name_param and symbol_name_param.HasValue:
                                 symbol_name = symbol_name_param.AsString()
                             else:
-                                if hasattr(symbol, 'Name'):
-                                    symbol_name = symbol.Name
+                                symbol_name = element_name(symbol) or symbol_name
                     except Exception:
                         pass
                     

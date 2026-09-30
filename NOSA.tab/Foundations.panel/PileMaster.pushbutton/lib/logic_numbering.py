@@ -11,7 +11,7 @@ from System.Collections.Generic import List as _CsList
 # Group helpers — shared by numbering and coords
 # ---------------------------------------------------------------------------
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 
 def _eid_val(eid):
@@ -144,7 +144,7 @@ class NumberingLogic:
             type_id = element.GetTypeId()
             type_elem = self.doc.GetElement(type_id)
             fam_name = type_elem.FamilyName
-            type_name = type_elem.Name
+            type_name = element_name(type_elem)
             
             if is_pile:
                 # Piles: Group by Family + Type (for Prefixing)
