@@ -71,7 +71,7 @@ _BUILTIN_KNOWN_ERRORS = [
         "severity": "WARNING",
         "cause": "Revit Boolean intersection failed for a pair of elements (invalid geometry, linked model, etc.).",
         "fix": "intersect_volume() already catches this and returns 0.0. Safe to ignore — element pair will be skipped.",
-        "docs": "ClashReport logic.py — intersect_volume"
+        "docs": "StructuralQA logic_clash_report.py — ClashLogic.intersect_volume"
     },
     {
         "id": "ERR006",
@@ -138,12 +138,12 @@ _BUILTIN_KNOWN_ERRORS = [
     },
     {
         "id": "ERR013",
-        "plugin": "ExportSheets",
+        "plugin": "SheetExportHub",
         "match": "ExportManager",
         "severity": "ERROR",
-        "cause": "ExportManager or ExportSheets lib modules not importable — path issue or missing lib folder.",
-        "fix": "Ensure NOSA.extension/NOSA.tab/Documentation.panel/Sheets.pulldown/ExportSheets.pushbutton/lib exists.",
-        "docs": "ExportSheets ui.py — Export_Click"
+        "cause": "ExportManager or SheetExportHub lib modules not importable — path issue or missing lib folder.",
+        "fix": "Ensure NOSA.extension/NOSA.tab/Documentation.panel/Sheets.pulldown/SheetExportHub.pushbutton/lib exists.",
+        "docs": "SheetExportHub ui.py — Export_Click"
     },
     {
         "id": "ERR014",

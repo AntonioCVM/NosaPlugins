@@ -39,7 +39,7 @@ except Exception as e:
 | ERR010 | * | WARNING | `DynamicResource BgColor` key not found | `ApplyTheme` called before `WPFWindow.__init__` | Always call `WPFWindow.__init__` (or `NOSAWindow.__init__`) first |
 | ERR011 | TemplateGuard | WARNING | `GetCategoryOverrides` exception | Internal/empty categories raise on override query | Already in `try/except` — count may be slightly low |
 | ERR012 | QuantificationQA | INFO | `HOST_VOLUME_COMPUTED` = 0 | Parameter not available for some framing types | Element flagged as "Zero volume" in QA tab — expected behaviour |
-| ERR013 | ExportSheets | ERROR | ExportManager import fails | ExportSheets `lib/` not importable — path or folder issue | Ensure `Documentation.panel/Sheets.pulldown/ExportSheets.pushbutton/lib` exists |
+| ERR013 | SheetExportHub | ERROR | ExportManager import fails | SheetExportHub `lib/` not importable — path or folder issue | Ensure `Documentation.panel/Sheets.pulldown/SheetExportHub.pushbutton/lib` exists |
 | ERR014 | * | WARNING | `ShowElements` fails | Elements in different view type / view not open | Already in `try/except` — selection still applied |
 | ERR015 | LevelNavigator | ERROR | Cannot set `ActiveView` | Selected view is not openable / wrong type | LevelNavigator only shows FloorPlan views; check view is not closed |
 
