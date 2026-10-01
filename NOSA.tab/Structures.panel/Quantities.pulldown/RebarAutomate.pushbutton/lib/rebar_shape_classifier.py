@@ -234,7 +234,15 @@ def classify_and_stamp(doc, rebar_id, standard_code):
             revit_shape = doc.GetElement(rebar.GetShapeId())
             from Autodesk.Revit.DB import Element  # Lazy import; .Name fails on RebarShape in IronPython
             name = Element.Name.GetValue(revit_shape) if revit_shape is not None else None
-            if name and name not in ('00', '99') and standard_code and \
+            # A FreeForm group (e.g. U-bars on a skewed edge, kept parallel to the mat:
+            # user decision 2026-10-01) carries whatever shape Revit gave it, 00 included,
+            # so the schedule matches Revit; BVBS still exports its real legs.
+            try:
+                free_form = rebar.IsRebarFreeForm()
+            except Exception:
+                free_form = False
+            accepted = ('99',) if free_form else ('00', '99')
+            if name and name not in accepted and standard_code and \
                     rebar_catalog.is_valid_shape_code(standard_code, name):
                 shape_code = name
         except Exception:
