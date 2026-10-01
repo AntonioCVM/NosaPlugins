@@ -65,12 +65,14 @@ override it (never below max(15φ, 300 mm)).
   sits at cover + bar radius, so all edges get identical legs. Skewed edges are grouped in a
   single element per edge and still schedule as shape 21.
 - **45° diagonal bars** at the corners of openings larger than 200 × 200 mm (slabs only).
-- **Dowels** — one per column vertical under each column on the footing.
+- **Dowels** — one per column vertical under each column on the footing, at the column
+  bar diameter (Columns tab).
 - **Detail sections** — two centred sections per footing.
 
 ### 3.2 Columns
 
-- Links with **densified zones** at the nodes (including intermediate floors).
+- Links with 135° hooks (shape 52) and **densified zones** at the nodes (including
+  intermediate floors).
 - Every floor crossing gets a lap. Bars **≥ H20 crank one diameter at 1:6** (BS 8666
   shape 26), finishing just below the slab top; **≤ H16 lap straight**, side by side. A
   smaller column above always cranks by the reduction. The lap is measured above the kicker.
@@ -80,8 +82,10 @@ override it (never below max(15φ, 300 mm)).
 
 ### 3.3 Beams
 
-Straight rectangular beams: top and bottom bars, stirrups with dense end zones
-(auto length = 2 × beam depth), stock-length splits with laps.
+Straight rectangular beams: top and bottom bars, links with 135° hooks (shape 52) and dense
+end zones (auto length = 2 × beam depth), stock-length splits with laps. Where a beam frames
+into a column, its bars run through the column to the far face and end in a 90° leg back into
+the beam (leg = anchorage not given by the straight length, at least 12φ).
 
 ### 3.4 Walls
 
@@ -97,6 +101,8 @@ Straight rectangular beams: top and bottom bars, stirrups with dense end zones
 
 - **25 mm detailing** — laps and anchorages are rounded **up** to 25 mm; straight bars are
   trimmed equally at both ends to a whole 25 mm, so the BBS shows A = length.
+- **Exact spacing** — mesh bars sit exactly at the spacing typed, centred, the leftover shared
+  by both edges; the label reads the nominal spacing (`-150`).
 - **Shape codes** — bars are matched to the template shapes (00, 11, 21, 26, 51 …).
 - **Bar marks (BS 8666)** — identical bars (diameter, shape, dimensions, length) share one
   mark: 01, 02 … within the partition, continuing from marks already used. A varying set
@@ -164,6 +170,8 @@ geometry and are bent from the schedule.
 | Laps look short / long | Check *Lap rules*, the host material class and *Default fck* |
 | A bar mark repeats for different bars | Run **Renumber Partition** |
 | Shape 00 instead of 21 on old bars | Regenerate them: bars made before the fix keep their old shape |
+| Beam bars and anchorage legs short; warning "floor … cuts this beam" | The slab is cutting the beam, which then keeps only its depth below the slab. Use *Modify → Join → Switch Join Order* (the beam cuts the slab) and regenerate |
+| Partition typed but bars have none | Fixed in 1.0: the typed Partition applies to the next run (no need to save first) |
 
 ---
 
