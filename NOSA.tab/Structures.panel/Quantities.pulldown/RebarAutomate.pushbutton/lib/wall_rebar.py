@@ -522,7 +522,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     end_ubar_sets.append({
                         'curves': chains[0], 'normal': DB.XYZ.BasisZ,
                         'array_length_mm': run[-1] - run[0],
-                        'spacing_mm': (run[1] - run[0]) + 0.5,
+                        'spacing_mm': (run[1] - run[0]) + 0.01,
                         'materialized_bars': [{'curves': c, 'normal': DB.XYZ.BasisZ} for c in chains],
                         'label': u'Wall End U-Bar',
                     })
@@ -580,7 +580,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     'curves': chains[0], 'normal': axis_dir,
                     'array_length_mm': run[-1] - run[0],
                     # a hair over the true step, so Revit never lays out one bar too many
-                    'spacing_mm': (run[1] - run[0]) + 0.5,
+                    'spacing_mm': (run[1] - run[0]) + 0.01,
                     'materialized_bars': [{'curves': c, 'normal': axis_dir} for c in chains],
                     'label': u'Wall Top U-Bar',
                 })
