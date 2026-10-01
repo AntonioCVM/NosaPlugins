@@ -455,66 +455,52 @@ def build_wall_reinforcement(doc, host, cover_mm,
     # StirrupTie is reserved for a CLOSED loop shape (see
     # rebar_engine.RebarWrapper.create_rebar_set's own docstring).
     if include_end_ubars and face_b is not None and len(faces) >= 2:
+        # End U-bars as on slab edges (2026-10-01): one beside each horizontal bar, in
+        # the horizontal bars' own layer, legs a full lap with them, back at cover +
+        # radius from the wall end.
         u_dia = ubar_dia_mm if ubar_dia_mm else vert_dia_mm
-        u_sp = ubar_spacing_mm if ubar_spacing_mm and ubar_spacing_mm > 0 else horiz_spacing_mm
         fa, na, _ = face_depths[id(face_a)]
         fb, nb, _ = face_depths[id(face_b)]
-        # End U-bars anchor the VERTICAL mesh — sit in whichever layer
-        # vert_is_outer assigns to vertical (see vert_inset_mm above).
-        end_u_inset_mm = (cover_mm + u_dia / 2.0) if vert_is_outer \
-            else (cover_mm + horiz_dia_mm + u_dia / 2.0)
-        ca = engine.compute_cover_point(fa, end_u_inset_mm)
-        cb = engine.compute_cover_point(fb, end_u_inset_mm)
-        da = (ca - p0).DotProduct(na)
-        db = (cb - p0).DotProduct(nb)
-        # Leg length along wall from end (~ 15Ø or 300mm min)
-        leg_mm = max(15.0 * u_dia, 300.0)
-        leg_mm = min(leg_mm, length_mm * 0.4)
-        u_heights = _evenly_spaced_mm(height_mm, u_sp, end_clear_mm)
+        da = (engine.compute_cover_point(fa, horiz_inset_mm) - p0).DotProduct(na)
+        db = (engine.compute_cover_point(fb, horiz_inset_mm) - p0).DotProduct(nb)
+        leg_mm = ubar_lap_length_mm if ubar_lap_length_mm else max(40.0 * u_dia, 15.0 * u_dia, 300.0)
+        max_leg_mm = length_mm - 2.0 * cover_mm - u_dia
+        if leg_mm > max_leg_mm:
+            warnings.append(u'End U-bar legs cut to {:.0f} mm by the wall length (lap {:.0f} mm).'.format(
+                max_leg_mm, leg_mm))
+            leg_mm = max_leg_mm
+        back_mm = cover_mm + u_dia / 2.0
+        top_limit_mm = height_mm - max(end_clear_mm, top_clear_mm)
+        u_heights = top_ubar_positions_mm(horiz_positions, top_limit_mm + end_clear_mm,
+                                          horiz_dia_mm, u_dia, end_clear_mm)
         end_ubar_sets, end_ubar_bars = [], []
-        for d_end in (end_clear_mm, length_mm - end_clear_mm):
-            # Direction into the wall from this end: at the start end
-            # (d=end_clear_mm) inward is +axis; at the finish end, -axis.
-            inward = axis_dir if d_end < length_mm * 0.5 else axis_dir.Multiply(-1.0)
+        for d_end, inward in ((back_mm, axis_dir), (length_mm - back_mm, axis_dir.Multiply(-1.0))):
             base = p0 + axis_dir.Multiply(d_end / _MM_PER_FT)
-            per_height_curves = []
-            for h_mm in u_heights:
+
+            def _u_at(h_mm, base=base, inward=inward):
                 z = z0 + h_mm / _MM_PER_FT
                 pa = DB.XYZ((base + na.Multiply(da)).X, (base + na.Multiply(da)).Y, z)
                 pb = DB.XYZ((base + nb.Multiply(db)).X, (base + nb.Multiply(db)).Y, z)
-                # Legs extend inward along each face
-                pa_leg = pa + inward.Multiply(leg_mm / _MM_PER_FT)
-                pb_leg = pb + inward.Multiply(leg_mm / _MM_PER_FT)
                 if pa.DistanceTo(pb) < 1.0 / _MM_PER_FT:
-                    continue
-                per_height_curves.append([
-                    DB.Line.CreateBound(pa_leg, pa),
-                    DB.Line.CreateBound(pa, pb),
-                    DB.Line.CreateBound(pb, pb_leg),
-                ])
-            if not per_height_curves:
-                continue
-            # A Set needs every array position to share the same shape —
-            # only true if NONE of this end's heights degenerated above.
-            if len(per_height_curves) >= 2 and len(per_height_curves) == len(u_heights):
-                array_length_mm = u_heights[-1] - u_heights[0]
-                spacing = array_length_mm / float(len(u_heights) - 1)
-                materialized = [{'curves': c, 'normal': DB.XYZ.BasisZ}
-                                 for c in per_height_curves]
-                end_ubar_sets.append({
-                    'curves': per_height_curves[0],
-                    'normal': DB.XYZ.BasisZ,
-                    'array_length_mm': array_length_mm,
-                    'spacing_mm': spacing,
-                    'materialized_bars': materialized,
-                    'label': u'Wall End U-Bar',
-                })
-            else:
-                for c in per_height_curves:
-                    end_ubar_bars.append({
-                        'curves': c, 'normal': DB.XYZ.BasisZ,
+                    return None
+                return [DB.Line.CreateBound(pa + inward.Multiply(leg_mm / _MM_PER_FT), pa),
+                        DB.Line.CreateBound(pa, pb),
+                        DB.Line.CreateBound(pb, pb + inward.Multiply(leg_mm / _MM_PER_FT))]
+
+            for run in uniform_runs_mm(u_heights):
+                chains = [c for c in (_u_at(h) for h in run) if c is not None]
+                if len(chains) >= 2 and len(chains) == len(run):
+                    end_ubar_sets.append({
+                        'curves': chains[0], 'normal': DB.XYZ.BasisZ,
+                        'array_length_mm': run[-1] - run[0],
+                        'spacing_mm': (run[1] - run[0]) + 0.5,
+                        'materialized_bars': [{'curves': c, 'normal': DB.XYZ.BasisZ} for c in chains],
                         'label': u'Wall End U-Bar',
                     })
+                else:
+                    for c in chains:
+                        end_ubar_bars.append({'curves': c, 'normal': DB.XYZ.BasisZ,
+                                              'label': u'Wall End U-Bar'})
         end_ubars = {'sets': end_ubar_sets, 'bars': end_ubar_bars}
     elif include_end_ubars and face_b is None:
         warnings.append(u'End U-bars require both wall faces — skipped.')

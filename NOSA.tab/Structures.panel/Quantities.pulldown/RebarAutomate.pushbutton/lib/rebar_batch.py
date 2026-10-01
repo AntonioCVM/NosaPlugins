@@ -74,6 +74,19 @@ def stamp_location(elem, layer, code=None):
     return bool(param.Set(code))
 
 
+def default_members(elem):
+    """BBS 'No. of mbrs' (template project parameter): 1 when empty, never over a typed value."""
+    param = elem.LookupParameter(u'Number of Members')
+    if param is None or param.IsReadOnly:
+        return True
+    try:
+        if param.HasValue and param.AsDouble() > 0:
+            return True
+        return bool(param.Set(1.0))
+    except Exception:
+        return False
+
+
 def new_batch_id():
     """
     Format: "RA-{YYYYMMDD}-{HHMMSS}-{6-digit microseconds}-{8 hex chars}"
@@ -193,6 +206,7 @@ class RebarBatch(object):
                                 elem, u'NOSA_Rebar_Layer', layer)
                             results['Comments'] = stamp_location(
                                 elem, layer, self.locations.get(get_id_value(elem.Id)))
+                        results['Number of Members'] = default_members(elem)
                         failed_fields = [name for name, ok in results.items() if not ok]
                         if failed_fields:
                             stamp_errors.append(
