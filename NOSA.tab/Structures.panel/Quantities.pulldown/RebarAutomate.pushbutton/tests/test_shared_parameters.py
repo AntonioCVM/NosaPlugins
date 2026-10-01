@@ -79,6 +79,7 @@ _FIXTURE_GUIDS_BY_NAME = {
     # NOSA_Rebar_Detailing
     u'NOSA_Rebar_Tag_Offset_X': u'1fa47447-1b45-4516-8a07-a6590a69b83b',
     u'NOSA_Rebar_Tag_Offset_Y': u'245b5c8c-1813-4935-8c27-8d89df2d48f3',
+    u'NOSA_Rebar_Label_Multiplier': u'4f08fb5c-06b9-45b1-86b1-4a8dd0fa9d32',
     u'NOSA_Rebar_Detail_Section_Id': u'2abdcbaa-8f6b-48e1-8607-26d6efc679d0',
     u'NOSA_Rebar_Show_In_Schedule': u'ff5b23e1-7668-48ad-b600-71b754a212bb',
 }
@@ -88,9 +89,9 @@ _FIXTURE_GUIDS_BY_NAME = {
 # .txt parser + CI fixture check
 # ══════════════════════════════════════════════════════════════════════════
 
-def test_txt_file_has_exactly_40_params():
+def test_txt_file_has_exactly_41_params():
     parsed = shared_params.parse_shared_parameters_txt()
-    assert len(parsed['params']) == 40, len(parsed['params'])
+    assert len(parsed['params']) == 41, len(parsed['params'])
 
 
 def test_txt_file_guids_are_unique():
