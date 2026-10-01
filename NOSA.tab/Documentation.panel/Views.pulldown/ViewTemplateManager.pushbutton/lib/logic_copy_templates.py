@@ -5,6 +5,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value as _get_id
+from nosa_utils.collectors import apply_view_template, collect_view_templates, collect_views
 
 class CopyTemplateLogic:
     def __init__(self, doc):
@@ -15,49 +16,20 @@ class CopyTemplateLogic:
 
     def get_all_templates(self):
         """Get all view templates in the project."""
-        collector = DB.FilteredElementCollector(self.doc)\
-            .OfClass(DB.View)\
-            .WhereElementIsNotElementType()
-        
-        templates = []
-        for v in collector:
-            if v.IsTemplate:
-                templates.append(v)
-        
+        templates = collect_view_templates(self.doc)
         return sorted(templates, key=lambda x: x.Name if x.Name else "")
 
     def get_all_non_template_views(self):
         """Get all non-template views."""
-        collector = DB.FilteredElementCollector(self.doc)\
-            .OfClass(DB.View)\
-            .WhereElementIsNotElementType()
-        
-        views = []
-        for v in collector:
-            if v.IsTemplate:
-                continue
-            if not v.Name:
-                continue
-            # Filter out system views
-            if v.ViewType in [DB.ViewType.Internal, DB.ViewType.Undefined, DB.ViewType.ProjectBrowser, DB.ViewType.SystemBrowser]:
-                continue
-            views.append(v)
+        system_types = [DB.ViewType.Internal, DB.ViewType.Undefined,
+                        DB.ViewType.ProjectBrowser, DB.ViewType.SystemBrowser]
+        views = [v for v in collect_views(self.doc, exclude_types=system_types) if v.Name]
         
         return sorted(views, key=lambda x: (str(x.ViewType), x.Name))
 
     def get_views_by_type(self, view_type):
         """Get all views of a specific type."""
-        collector = DB.FilteredElementCollector(self.doc)\
-            .OfClass(DB.View)\
-            .WhereElementIsNotElementType()
-        
-        views = []
-        for v in collector:
-            if v.IsTemplate:
-                continue
-            if v.ViewType == view_type:
-                views.append(v)
-        
+        views = collect_views(self.doc, include_types=(view_type,))
         return sorted(views, key=lambda x: x.Name if x.Name else "")
 
     def get_template_info(self, template):
@@ -106,7 +78,7 @@ class CopyTemplateLogic:
     def copy_template_to_view(self, source_template, target_view):
         """Copy template settings to a view by applying the template."""
         try:
-            target_view.ViewTemplateId = source_template.Id
+            apply_view_template(target_view, source_template.Id)
             return True, None
         except Exception as e:
             return False, str(e)

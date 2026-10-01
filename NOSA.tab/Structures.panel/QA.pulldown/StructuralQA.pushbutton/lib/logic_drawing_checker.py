@@ -6,6 +6,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils.collectors import has_view_template, placed_view_ids
+from nosa_utils.revit_helpers import element_id_from_int
 _LOG = u'StructuralQA/drawing_checker'
 
 def _struct_cats():
@@ -184,23 +186,12 @@ def check_views_without_template(doc):
     """Views placed on sheets that have no view template assigned."""
     issues = []
     try:
-        sheet_view_ids = set()
-        for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
-            try:
-                for vp_id in sheet.GetAllViewports():
-                    vp = doc.GetElement(vp_id)
-                    if isinstance(vp, DB.Viewport):
-                        sheet_view_ids.add(vp.ViewId)
-            except Exception:
-                log_swallowed(_LOG, u'check_views_without_template')
-
-        for vid in sheet_view_ids:
-            view = doc.GetElement(vid)
+        for vid in placed_view_ids(doc):
+            view = doc.GetElement(element_id_from_int(vid))
             if view is None:
                 continue
             try:
-                tid = view.ViewTemplateId
-                if tid == DB.ElementId.InvalidElementId:
+                if not has_view_template(view):
                     issues.append(view.Name)
             except Exception:
                 log_swallowed(_LOG, u'check_views_without_template#2')

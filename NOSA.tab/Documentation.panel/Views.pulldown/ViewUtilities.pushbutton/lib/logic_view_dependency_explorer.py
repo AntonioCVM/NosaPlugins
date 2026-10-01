@@ -14,26 +14,25 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils.collectors import collect_views, template_id_of
 
-_SKIP_TYPES = {
-    DB.ViewType.DrawingSheet,
-    DB.ViewType.Schedule,
-    DB.ViewType.Legend,
-    DB.ViewType.Walkthrough,
-    DB.ViewType.Internal,
-    DB.ViewType.Undefined,
-}
+
+def _skip_types():
+    return {
+        DB.ViewType.DrawingSheet,
+        DB.ViewType.Schedule,
+        DB.ViewType.Legend,
+        DB.ViewType.Walkthrough,
+        DB.ViewType.Internal,
+        DB.ViewType.Undefined,
+    }
 
 
 def get_all_views(doc):
     result = []
     try:
-        for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+        for v in collect_views(doc, exclude_types=_skip_types()):
             try:
-                if v.IsTemplate:
-                    continue
-                if v.ViewType in _SKIP_TYPES:
-                    continue
                 result.append({
                     'id':   get_id_value(v.Id),
                     'name': v.Name or u'',
@@ -82,8 +81,8 @@ def analyse_view(doc, view_id_int):
 
     # Template
     try:
-        tid = view.ViewTemplateId
-        if tid and tid != DB.ElementId.InvalidElementId:
+        tid = template_id_of(view)
+        if tid is not None:
             tmpl = doc.GetElement(tid)
             if tmpl:
                 result['template'] = {

@@ -5,16 +5,19 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.collectors import collect_views
 
-_SKIP_VIEW_TYPES = {
-    DB.ViewType.Internal,
-    DB.ViewType.Undefined,
-    DB.ViewType.ProjectBrowser,
-    DB.ViewType.SystemBrowser,
-    DB.ViewType.DrawingSheet,
-    DB.ViewType.Legend,
-    DB.ViewType.Schedule,
-}
+
+def _skip_view_types():
+    return {
+        DB.ViewType.Internal,
+        DB.ViewType.Undefined,
+        DB.ViewType.ProjectBrowser,
+        DB.ViewType.SystemBrowser,
+        DB.ViewType.DrawingSheet,
+        DB.ViewType.Legend,
+        DB.ViewType.Schedule,
+    }
 
 
 def get_all_project_filters(doc):
@@ -47,16 +50,8 @@ def get_applicable_views(doc):
     Returns all non-template views where filters can be applied,
     sorted by (ViewType, Name).
     """
-    col = DB.FilteredElementCollector(doc)\
-          .OfClass(DB.View)\
-          .WhereElementIsNotElementType()\
-          .ToElements()
     views = []
-    for v in col:
-        if v.IsTemplate:
-            continue
-        if v.ViewType in _SKIP_VIEW_TYPES:
-            continue
+    for v in collect_views(doc, exclude_types=_skip_view_types()):
         if not v.Name:
             continue
         views.append(v)

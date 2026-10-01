@@ -8,27 +8,20 @@ from System.Collections.Generic import List
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
 from nosa_utils.revit_helpers import element_name
+from nosa_utils.collectors import (collect_views, collect_view_templates,
+                                   placed_view_ids, used_view_template_ids)
 import math
 
 
 
 def find_orphan_views(doc):
     """Views not placed on any sheet."""
-    placed = set()
-    for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet).ToElements():
-        for vpid in s.GetAllViewports():
-            try:
-                vp = doc.GetElement(vpid)
-                placed.add(get_id_value(vp.ViewId))
-            except Exception:
-                pass
+    placed = placed_view_ids(doc)
     orphans = []
     skip_types = (DB.ViewType.Schedule, DB.ViewType.DrawingSheet, DB.ViewType.Legend,
                   DB.ViewType.ProjectBrowser, DB.ViewType.SystemBrowser, DB.ViewType.Undefined)
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, exclude_types=skip_types):
         try:
-            if v.IsTemplate: continue
-            if v.ViewType in skip_types: continue
             if get_id_value(v.Id) not in placed:
                 try:
                     vname = v.Name or str(v.Id)
@@ -109,18 +102,9 @@ def purge_unused_families(doc, symbol_ids):
 
 def find_unused_view_templates(doc):
     """View templates assigned to no views."""
-    used_tids = set()
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
-        if v.IsTemplate: continue
-        try:
-            tid = v.ViewTemplateId
-            if tid != DB.ElementId.InvalidElementId:
-                used_tids.add(get_id_value(tid))
-        except Exception:
-            pass
+    used_tids = used_view_template_ids(doc)
     unused = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
-        if not v.IsTemplate: continue
+    for v in collect_view_templates(doc):
         if get_id_value(v.Id) not in used_tids:
             unused.append({'id': get_id_value(v.Id), 'name': v.Name})
     return sorted(unused, key=lambda x: x['name'])

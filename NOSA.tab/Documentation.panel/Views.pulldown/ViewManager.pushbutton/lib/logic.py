@@ -8,6 +8,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.collectors import (apply_view_template, collect_view_templates,
+                                   collect_views, placed_view_ids)
 from nosa_utils import unit_conversion as _uc10
 
 
@@ -99,12 +101,10 @@ def create_plan_views(doc, level_ids, vft_id, name_pattern,
                         view.Scale = int(scale)
                     except Exception:
                         pass
-                if template_id is not None and \
-                        template_id != DB.ElementId.InvalidElementId:
-                    try:
-                        view.ViewTemplateId = template_id
-                    except Exception:
-                        pass
+                try:
+                    apply_view_template(view, template_id)
+                except Exception:
+                    pass
                 created += 1
             except Exception as ex:
                 failed += 1
@@ -165,24 +165,12 @@ def duplicate_views(doc, view_ids, mode='duplicate', copies=1, name_pattern=u'{n
 
 # ── Unplaced views (Clean tab) ─────────────────────────────────────────────────
 
-def _placed_view_ids(doc):
-    placed = set()
-    for sheet in (DB.FilteredElementCollector(doc)
-                    .OfClass(DB.ViewSheet).ToElements()):
-        try:
-            for vid in sheet.GetAllPlacedViews():
-                placed.add(get_id_value(vid))
-        except Exception:
-            pass
-    return placed
-
-
 def unplaced_views(doc):
     """
     Views not placed on any sheet (excluding templates, sheets, schedules,
     legends, and system browser views). Returns list of dicts.
     """
-    placed = _placed_view_ids(doc)
+    placed = placed_view_ids(doc, all_placed=True)
     skip_types = set()
     for name in ('Schedule', 'ColumnSchedule', 'PanelSchedule', 'Legend',
                  'DrawingSheet', 'ProjectBrowser', 'SystemBrowser',
@@ -192,11 +180,9 @@ def unplaced_views(doc):
         except AttributeError:
             pass
     result = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, exclude_types=skip_types):
         try:
-            if v.IsTemplate or isinstance(v, DB.ViewSheet):
-                continue
-            if v.ViewType in skip_types:
+            if isinstance(v, DB.ViewSheet):
                 continue
             vid = get_id_value(v.Id)
             if vid in placed:
@@ -297,11 +283,10 @@ def get_all_view_templates(doc):
     [(ElementId, label)] sorted by name.
     """
     result = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_view_templates(doc):
         try:
-            if v.IsTemplate:
-                result.append((v.Id, u'{}  [{}]'.format(
-                    v.Name or u'(unnamed)', str(v.ViewType).split('.')[-1])))
+            result.append((v.Id, u'{}  [{}]'.format(
+                v.Name or u'(unnamed)', str(v.ViewType).split('.')[-1])))
         except Exception:
             pass
     result.sort(key=lambda x: x[1].lower())
