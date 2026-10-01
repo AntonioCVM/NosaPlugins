@@ -136,6 +136,8 @@ class ModelHealthHubWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'model_health_hub')
+        # SelectionChanged wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CV_CboExposure.SelectionChanged += self.CV_Exposure_Changed
         self.doc = doc
 
         cfg = self.LoadConfig()

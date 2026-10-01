@@ -7,6 +7,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
 
 
 def load_csv(path):
@@ -113,7 +115,7 @@ def _build_mark_index(doc):
                         idx[k] = []
                     idx[k].append(el)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_build_mark_index')
     return idx
 
 
@@ -132,7 +134,7 @@ def match_elements(doc, rows, key_col, match_by):
                 if uid:
                     el = doc.GetElement(uid)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'match_elements')
             results.append({'row': row, 'element': el,
                             'matched': el is not None, 'multiple': False, 'key': uid})
     else:

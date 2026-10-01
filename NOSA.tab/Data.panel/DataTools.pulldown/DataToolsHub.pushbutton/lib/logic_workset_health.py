@@ -8,6 +8,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
 
 
 def is_workshared(doc):
@@ -51,7 +53,7 @@ def get_workset_stats(doc):
                 if key in counts:
                     counts[key] += 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_workset_stats')
 
     result = []
     for ws in worksets:
@@ -84,7 +86,7 @@ def get_elements_on_worksets(doc, workset_id_ints):
             if ws_id is not None and get_id_value(ws_id) in wanted:
                 result.append(el)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_elements_on_worksets')
     return result
 
 

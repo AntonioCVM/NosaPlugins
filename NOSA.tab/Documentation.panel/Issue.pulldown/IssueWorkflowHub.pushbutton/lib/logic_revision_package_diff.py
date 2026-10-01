@@ -9,6 +9,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
 
 
 def snapshot_revisions(doc):
@@ -38,9 +40,9 @@ def snapshot_revisions(doc):
                     'rev_desc': _pstr(u'Current Revision Description'),
                 }
             except Exception:
-                pass
+                log_swallowed(_LOG, u'snapshot_revisions')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'snapshot_revisions')
     return result
 
 

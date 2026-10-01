@@ -11,6 +11,8 @@ from nosa_utils.revit_helpers import element_name
 from nosa_utils.collectors import (collect_views, collect_view_templates,
                                    placed_view_ids, used_view_template_ids)
 import math
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
 
 
 
@@ -33,7 +35,7 @@ def find_orphan_views(doc):
                     vtype = 'Unknown'
                 orphans.append({'id': get_id_value(v.Id), 'name': vname, 'type': vtype})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'find_orphan_views')
     return sorted(orphans, key=lambda x: x['type'] + x['name'])
 
 def purge_orphan_views(doc, view_ids):
@@ -61,7 +63,7 @@ def find_unused_families(doc):
             if tid and tid != DB.ElementId.InvalidElementId:
                 placed_type_ids.add(get_id_value(tid))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'find_unused_families')
     unused = []
     for sym in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol).ToElements():
         try:
@@ -81,7 +83,7 @@ def find_unused_families(doc):
                 unused.append({'id': get_id_value(sym.Id), 'family': fam_name,
                                'type': type_name, 'category': cat_name})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'find_unused_families')
     return sorted(unused, key=lambda x: x['category'] + x['family'])
 
 def purge_unused_families(doc, symbol_ids):
@@ -150,7 +152,7 @@ def find_cad_imports(doc):
                 'is_linked': is_linked,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'find_cad_imports')
     return sorted(results, key=lambda x: (x['is_linked'], x['view'], x['name']))
 
 def purge_cad_imports(doc, import_ids):
@@ -200,7 +202,7 @@ def find_unplaced_rooms(doc):
                 results.append({'id': get_id_value(room.Id), 'name': name,
                                 'number': number, 'level': level_name})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'find_unplaced_rooms')
     return sorted(results, key=lambda x: (x['level'], x['number']))
 
 def purge_unplaced_rooms(doc, room_ids):
@@ -231,7 +233,7 @@ def find_trivial_warnings(doc):
                 trivial.append({'description': w.GetDescriptionText()[:160],
                                 'elements': len(list(w.GetFailingElements()))})
     except Exception:
-        pass
+        log_swallowed(_LOG, u'find_trivial_warnings')
     return trivial
 
 # ── Main ──────────────────────────────────────────────────────────────────────

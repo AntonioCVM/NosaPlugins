@@ -21,6 +21,8 @@ from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
 _pc_logic  = load_module('iwh_pc_logic',  os.path.join(_here, 'logic_protocol_checker.py'))
 _ig_logic  = load_module('iwh_ig_logic',  os.path.join(_here, 'logic_issue_gate.py'))
 _rpd_logic = load_module('iwh_rpd_logic', os.path.join(_here, 'logic_revision_package_diff.py'))
@@ -191,6 +193,9 @@ class IssueWorkflowHubWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'issue_workflow_hub')
+        # SelectionChanged wired in code after LoadComponent, never in XAML (NOSA106)
+        self.RT_CboRevision.SelectionChanged += self.RT_CboRevision_Changed
+        self.RT_ListSnapshots.SelectionChanged += self.RT_Snapshot_SelectionChanged
         self.doc = doc
         self.proceed_to_export = False
 
@@ -439,7 +444,7 @@ class IssueWorkflowHubWindow(NOSAWindow):
                     if sheet.SheetNumber in numbers:
                         ids.Add(sheet.Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'IssueWorkflowHubWindow.IG_SelectSheets_Click')
             revit.uidoc.Selection.SetElementIds(ids)
             self.IG_TxtGateStatus.Text = u'Selected {} sheet(s) in the model.'.format(ids.Count)
         except Exception as e:

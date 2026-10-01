@@ -39,6 +39,8 @@ from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
 _es_logic = load_module('dth_es_logic', os.path.join(_here, 'logic_excel_sync.py'))
 _wh_logic = load_module('dth_wh_logic', os.path.join(_here, 'logic_workset_health.py'))
 _mc_logic = load_module('dth_mc_logic', os.path.join(_here, 'logic_model_cleanup.py'))
@@ -146,6 +148,11 @@ class DataToolsHubWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'data_tools_hub')
+        # SelectionChanged wired in code after LoadComponent, never in XAML (NOSA106)
+        self.ES_CboKeyCol.SelectionChanged += self.ES_KeyCol_Changed
+        self.ES_CboTblKeyCol.SelectionChanged += self.ES_TblKeyCol_Changed
+        self.ES_CboTblSheet.SelectionChanged += self.ES_TblSheet_Changed
+        self.TR_CboCategory.SelectionChanged += self.TR_Category_Changed
         self.doc = doc
 
         cfg = self.LoadConfig()
@@ -963,11 +970,11 @@ class DataToolsHubWindow(NOSAWindow):
         try:
             self.LM_TxtSummary.Text = u'{} RVT · {} CAD · {} missing'.format(rvt, cad, missing)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DataToolsHubWindow._lm_load')
         try:
             self.TxtStatus.Text = u'{} links found.'.format(len(self._lm_data))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DataToolsHubWindow._lm_load')
 
     def _lm_apply_search(self):
         try:
@@ -1043,7 +1050,7 @@ class DataToolsHubWindow(NOSAWindow):
                     title=u'Confirm Remove', yes=True, no=True):
                 return
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DataToolsHubWindow.LM_Remove_Click')
         ok = fail = 0
         self.SetLoading(True, u'Removing…')
         try:

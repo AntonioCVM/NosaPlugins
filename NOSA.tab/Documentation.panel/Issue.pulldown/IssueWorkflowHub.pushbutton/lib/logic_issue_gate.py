@@ -7,6 +7,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
 
 _dpc_logic = None
 
@@ -72,9 +74,9 @@ def check_revisions(doc):
                         'severity': u'FAIL',
                     })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_revisions')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_revisions')
     return {'status': ('fail' if items else 'pass'), 'count': len(items), 'items': items}
 
 
@@ -99,9 +101,9 @@ def check_titleblock(doc):
                             'severity': severity,
                         })
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'check_titleblock')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_titleblock')
     affected = len(set(i['number'] for i in items))
     return {'status': ('warn' if items else 'pass'), 'count': affected, 'items': items}
 
@@ -118,7 +120,7 @@ def check_duplicates(doc):
             counts[n] = counts.get(n, 0) + 1
             names.setdefault(n, []).append(sheet.Name or u'')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'check_duplicates')
     items = []
     for n, cnt in counts.items():
         if cnt > 1:

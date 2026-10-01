@@ -8,6 +8,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
 
 _CATEGORIES = [
     (u'Walls',             'OST_Walls'),
@@ -62,7 +64,7 @@ def get_types_for_category(doc, category_name):
                 display = element_name(t)
             result.append({'id': get_id_value(t.Id), 'name': display, 'element': t})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_types_for_category')
     return sorted(result, key=lambda r: r['name'].lower())
 
 
