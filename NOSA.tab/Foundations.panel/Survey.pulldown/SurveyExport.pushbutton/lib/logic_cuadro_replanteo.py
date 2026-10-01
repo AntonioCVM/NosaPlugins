@@ -512,7 +512,8 @@ _COMPARE_KEYS = ['mark', 'status',
 
 def export_compare_csv(results, path):
     """Export survey comparison results to CSV."""
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(_COMPARE_HEADERS)
         for r in results:
@@ -520,7 +521,8 @@ def export_compare_csv(results, path):
 
 
 def export_csv(rows, path):
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(_CSV_HEADERS)
         for r in rows:

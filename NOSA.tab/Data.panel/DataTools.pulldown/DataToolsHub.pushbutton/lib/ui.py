@@ -927,7 +927,8 @@ class DataToolsHubWindow(NOSAWindow):
         path = forms.save_file(file_ext='csv')
         if not path: return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['=== ORPHAN VIEWS ==='])
                 w.writerow(['Type', 'Name', 'ID'])
@@ -1156,7 +1157,8 @@ class DataToolsHubWindow(NOSAWindow):
             path = os.path.join(
                 tempfile.gettempdir(),
                 'nosa_link_changes_{}.txt'.format(_dt.datetime.now().strftime('%H%M%S')))
-            with _io.open(path, 'w', encoding='utf-8-sig') as f:
+            with _io.open(path, 'w', encoding='utf-8') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 f.write(report)
             try:
                 os.startfile(path)

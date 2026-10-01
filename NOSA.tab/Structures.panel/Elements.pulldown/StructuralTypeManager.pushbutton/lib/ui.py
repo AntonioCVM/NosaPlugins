@@ -548,7 +548,8 @@ class StructuralTypeManagerWindow(NOSAWindow):
             pieces.extend([rw.CurrentVal, rw.NewVal])
             body.append(_csv_line(pieces))
         try:
-            with codecs.open(path, 'w', encoding='utf-8-sig') as f:
+            with codecs.open(path, 'w', encoding='utf-8') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 f.write(u'\r\n'.join(body))
         except Exception as ex:
             forms.alert(u'CSV export failed: {}'.format(ex))

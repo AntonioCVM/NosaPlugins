@@ -527,7 +527,8 @@ def export_csv_sheets(sheets, path):
         return
     _FIELDS  = ['number', 'name'] + NOSA_PARAMS
     _HEADERS = {'number': 'Number', 'name': 'Name'}
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow([_HEADERS.get(k, k) for k in _FIELDS])
         for s in sheets:

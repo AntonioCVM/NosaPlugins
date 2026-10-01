@@ -371,7 +371,8 @@ class StructuralQAWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['#', 'Severity', 'Volume (m³)',
                             'Element 1', 'Category 1', 'ID 1',
@@ -430,7 +431,8 @@ class StructuralQAWindow(NOSAWindow):
         ).format(total=len(list(self._cr_results)), summary=summary_rows, rows=rows_html)
 
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 f.write(html)
             import subprocess
             subprocess.Popen(['start', path], shell=True)
@@ -1001,7 +1003,8 @@ class StructuralQAWindow(NOSAWindow):
         path = forms.save_file(file_ext='csv')
         if not path: return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Coverage', '{}%'.format(self._rc_data['coverage_pct'])])
                 w.writerow([])
@@ -1197,7 +1200,8 @@ class StructuralQAWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['=== CONCRETE QUANTITIES ==='])
                 w.writerow(['Category', 'Material', 'Level', 'Volume m3', 'Area m2', 'Count'])

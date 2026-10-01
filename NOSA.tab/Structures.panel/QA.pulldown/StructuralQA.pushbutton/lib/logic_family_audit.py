@@ -162,7 +162,8 @@ def purge_families(doc, family_ids):
 
 def export_to_csv(rows, path):
     """Write audit rows to a CSV file."""
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(['Category', 'Family Name', 'Types', 'Instances',
                     'Size (MB)', 'Param Fill %', 'Editable'])

@@ -130,7 +130,8 @@ def delete_materials(doc, material_ids):
 
 
 def export_csv(rows, path):
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(['Name', 'Class', 'Category', 'Use Count', 'Status'])
         for r in rows:
@@ -538,7 +539,8 @@ def assign_material_to_types(doc, element_ids, material_id, diagnostics=None):
 
 
 def export_element_materials_csv(rows, path):
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(['Element ID', 'Category', 'Level', 'Type', 'Material', 'Missing', 'Proposed'])
         for r in rows:

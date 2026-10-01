@@ -125,7 +125,8 @@ class SharedParamManagerWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Name', 'GUID', 'Group', 'Data Type', 'Bound', 'Status', 'Categories'])
                 for d in self._all_rows:

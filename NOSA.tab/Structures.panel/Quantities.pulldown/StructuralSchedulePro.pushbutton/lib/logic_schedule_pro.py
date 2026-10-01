@@ -278,7 +278,8 @@ def export_csv(rows, path, project_name='', extra_params=None):
     for pname in extra_params:
         cols.append(pname)
         keys.append('ep_' + pname)
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(['NOSA STRUCTURAL SCHEDULE PRO'])
         w.writerow([project_name, '', '', '', '', now])

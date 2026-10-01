@@ -299,7 +299,8 @@ class ParameterHubWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 header = ['Group', 'Parameter', 'Type', 'R/W', 'Consistent?']
                 for i in range(len(self._pi_elements)):
@@ -742,7 +743,8 @@ class ParameterHubWindow(NOSAWindow):
             row_vals.extend([row.CurrentVal, row.NewVal])
             lines.append(_csv_line(row_vals))
         try:
-            with codecs.open(path, 'w', encoding='utf-8-sig') as f:
+            with codecs.open(path, 'w', encoding='utf-8') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 f.write(u'\r\n'.join(lines))
         except Exception as ex:
             import traceback

@@ -249,7 +249,8 @@ def export_to_csv(doc, param_names, match_by, output_path):
                     missing.add(pname)
             rows.append(row)
 
-    with io.open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(output_path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         writer.writerows(rows)

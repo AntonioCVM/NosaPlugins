@@ -740,7 +740,8 @@ class IssueWorkflowHubWindow(NOSAWindow):
             return
         try:
             import io
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow([u'Change', u'Category', u'Name', u'ID', u'Detail'])
                 for r in self._rt_delta_rows:

@@ -103,8 +103,11 @@ def code_info(folder):
 
 
 def root_tests():
+    """(normalised file stems, concatenated source) of the shared tests/ folder."""
     folder = os.path.join(ROOT, 'tests')
-    return [norm(f[5:-3]) for f in os.listdir(folder) if f.startswith('test_') and f.endswith('.py')]
+    files = [f for f in os.listdir(folder) if f.startswith('test_') and f.endswith('.py')]
+    text = u''.join(io.open(os.path.join(folder, f), encoding='utf-8', errors='replace').read() for f in files)
+    return [norm(f[5:-3]) for f in files], text
 
 
 def audit(usage_path):
@@ -120,7 +123,8 @@ def audit(usage_path):
             if f['path'].startswith(rel + '/'):
                 sev[f['severity']] = sev.get(f['severity'], 0) + 1
         loc, has_tests = code_info(folder)
-        has_tests = has_tests or any(t.startswith(norm(name)) for t in shared_tests)
+        stems, test_text = shared_tests
+        has_tests = has_tests or any(t.startswith(norm(name)) for t in stems)             or (u"'{}.pushbutton'".format(name) in test_text)
         size, svg = icon_info(folder)
         x = xaml_info(folder)
         flags = []

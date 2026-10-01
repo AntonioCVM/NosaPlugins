@@ -361,7 +361,8 @@ class ModelHealthHubWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Check', 'Issues', 'Severity', 'Weight', 'Detail'])
                 for r in self._hs_rows:
@@ -581,7 +582,8 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['#', 'Severity', 'Description', 'Elements', 'Count', 'Action'])
                 for r in self._wt_all_rows:
@@ -663,7 +665,8 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Status', 'Mark', 'Calc section', 'Revit section',
                             'Calc L (m)', 'Revit L (m)', 'Calc level', 'Revit level', 'Revit ID'])
@@ -746,7 +749,8 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
             return
         try:
             keys = ['severity', 'etype', 'mark', 'level', 'id', 'issue']
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow([u'Severity', u'Type', u'Mark', u'Level', u'ID', u'Issue'])
                 for r in self._ah_rows:
@@ -886,7 +890,8 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
         path = forms.save_file(file_ext='csv')
         if not path: return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Severity', 'Category', 'Level', 'Name', 'Check'])
                 for r in self._cc_rows:

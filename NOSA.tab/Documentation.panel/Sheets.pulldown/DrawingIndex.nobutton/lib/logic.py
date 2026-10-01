@@ -164,7 +164,8 @@ def export_csv(sheets, path, param_names=None):
     if not sheets:
         return
     names = param_names or _NOSA_PARAM_ORDER
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         header = ['#', 'Sheet Number', 'Sheet Name'] + [n for n in names if n not in ('Sheet Number','Sheet Name')] + ['Views']
         w.writerow(header)
@@ -194,7 +195,8 @@ tr:nth-child(even){{background:#f9f9f9}}</style></head><body>
 <table><tr><th>#</th><th>Number</th><th>Name</th><th>Scale</th>
 <th>Rev</th><th>Rev Description</th><th>Drawn By</th></tr>
 {rows}</table></body></html>""".format(proj=project_name or 'Project', rows=rows)
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         f.write(html)
 
 def get_project_name(doc):
