@@ -2,5 +2,4 @@ layout:
   - DrawingChecker
   - IFCStructuralExportQA
   - FamilyAudit
-  - ClashReport
   - ScheduleImpact

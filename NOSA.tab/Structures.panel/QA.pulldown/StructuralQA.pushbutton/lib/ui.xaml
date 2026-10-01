@@ -404,8 +404,7 @@
 
                                         <TextBlock Text="Category:" FontSize="11"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
-                                        <ComboBox Name="FA_CboCategory" Height="26" FontSize="11"
-                                                  SelectionChanged="FA_Category_Changed" Margin="0,0,0,10"/>
+                                        <ComboBox Name="FA_CboCategory" Height="26" FontSize="11" Margin="0,0,0,10"/>
 
                                         <CheckBox Name="FA_ChkOnlyUnused" Content="Unused only (0 instances)"
                                                   IsChecked="False" Click="FA_Filter_Changed"/>

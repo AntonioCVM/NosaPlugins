@@ -196,6 +196,10 @@ class QQ_QARow(object):
 class StructuralQAWindow(NOSAWindow):
 
     def __init__(self, doc):
+        # Handlers wired in code check this so no early SelectionChanged
+        # reaches them before __init__ has finished (see RebarAutomate).
+        self._is_loaded = False
+
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'structural_qa_hub')
         self.doc = doc
@@ -211,6 +215,8 @@ class StructuralQAWindow(NOSAWindow):
         self._si_init()
         self._rc_init()
         self._qq_init()
+
+        self._is_loaded = True
 
     # ══════════════════════════════════════════════════════════════════
     # TAB 1: CLASH REPORT
@@ -351,7 +357,7 @@ class StructuralQAWindow(NOSAWindow):
         try:
             ids = List[DB.ElementId]([element_id_from_int(item.Id1),
                                       element_id_from_int(item.Id2)])
-            with revit.Transaction("Isolate Clash"):
+            with revit.Transaction(u"NOSA — Isolate Clash"):
                 revit.active_view.IsolateElementsTemporary(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:
@@ -616,6 +622,7 @@ class StructuralQAWindow(NOSAWindow):
         self._fa_search_on = False
         self.FA_CboCategory.ItemsSource   = [_FA_ALL_CATS]
         self.FA_CboCategory.SelectedIndex = 0
+        self.FA_CboCategory.SelectionChanged += self.FA_Category_Changed
 
     def FA_Scan_Click(self, sender, args):
         self.SetLoading(True, "Scanning families...")
@@ -642,6 +649,8 @@ class StructuralQAWindow(NOSAWindow):
         self._fa_apply_filters()
 
     def FA_Category_Changed(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
         self._fa_apply_filters()
 
     def _fa_apply_filters(self):
