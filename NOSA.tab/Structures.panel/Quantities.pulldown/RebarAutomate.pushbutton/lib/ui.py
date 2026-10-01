@@ -3692,7 +3692,9 @@ class RebarAutomateWindow(NOSAWindow):
             stock_length_mm=values.get('stock_length', 12000.0),
             lap_length_mm=lap_mm,
             horiz_lap_length_mm=horiz_lap_mm,
-            vert_is_outer=values.get('vert_is_outer', True))
+            vert_is_outer=values.get('vert_is_outer', True),
+            ubar_lap_length_mm=self._splice_mm(
+                None, values.get('ubar_dia') or values['vert_dia'], host))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))

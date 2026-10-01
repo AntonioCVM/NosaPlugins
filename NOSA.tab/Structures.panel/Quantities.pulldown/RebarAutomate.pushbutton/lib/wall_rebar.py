@@ -7,6 +7,7 @@ Category module for structural walls. Pure geometry — returns curve
 sets for rebar_engine.RebarWrapper. Straight walls only in v1.
 Openings / boundary ties / dowels are deferred.
 """
+import math
 import os
 
 from Autodesk.Revit import DB
@@ -148,17 +149,39 @@ def wall_face_codes(doc, host, faces, axis):
     return dict((id(face), code) for face, code in zip(faces, codes))
 
 
-def _evenly_spaced_mm(length_mm, spacing_mm, end_clear_mm):
-    """Positions from end_clear to length-end_clear at spacing (inclusive ends)."""
-    if length_mm <= 2.0 * end_clear_mm or spacing_mm <= 0:
+def _evenly_spaced_mm(length_mm, spacing_mm, end_clear_mm, far_clear_mm=None):
+    """Positions from end_clear to length - far_clear (default end_clear), never wider than spacing."""
+    far_clear_mm = end_clear_mm if far_clear_mm is None else far_clear_mm
+    if length_mm <= end_clear_mm + far_clear_mm or spacing_mm <= 0:
         return []
-    usable = length_mm - 2.0 * end_clear_mm
+    usable = length_mm - end_clear_mm - far_clear_mm
     if usable < 1.0:
-        return [length_mm / 2.0]
-    n = int(usable / spacing_mm) + 1
+        return [end_clear_mm + usable / 2.0]
+    n = int(math.ceil(usable / spacing_mm - 1e-6)) + 1
     if n < 2:
         return [end_clear_mm + usable / 2.0]
     return [end_clear_mm + i * usable / float(n - 1) for i in range(n)]
+
+
+def top_ubar_positions_mm(vert_positions_mm, length_mm, vert_dia_mm, ubar_dia_mm, end_clear_mm):
+    """One coronation U-bar beside each vertical bar (in contact), turned back at the far end."""
+    contact = (vert_dia_mm + ubar_dia_mm) / 2.0
+    out = []
+    for d in vert_positions_mm:
+        out.append(d + contact if d + contact <= length_mm - end_clear_mm + 1e-6 else d - contact)
+    return out
+
+
+def uniform_runs_mm(positions_mm, tol_mm=0.5):
+    """Split positions into runs of equal step (each run can be one Rebar Set)."""
+    runs = []
+    for d in positions_mm:
+        run = runs[-1] if runs else None
+        if run is None or (len(run) >= 2 and abs((d - run[-1]) - (run[1] - run[0])) > tol_mm):
+            runs.append([d])
+        else:
+            run.append(d)
+    return runs
 
 
 def get_wall_elevation_mm(host):
@@ -213,7 +236,8 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               stock_length_mm=12000.0,
                               lap_length_mm=None,
                               horiz_lap_length_mm=None,
-                              vert_is_outer=True):
+                              vert_is_outer=True,
+                              ubar_lap_length_mm=None):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
 
@@ -297,7 +321,11 @@ def build_wall_reinforcement(doc, host, cover_mm,
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')
 
     vert_positions = _evenly_spaced_mm(length_mm, vert_spacing_mm, end_clear_mm)
-    horiz_positions = _evenly_spaced_mm(height_mm, horiz_spacing_mm, end_clear_mm)
+    top_u_dia = ubar_dia_mm if ubar_dia_mm else vert_dia_mm
+    # With coronation U-bars the top horizontal bar stays under the U-bar back.
+    top_clear_mm = (cover_mm + top_u_dia + horiz_dia_mm / 2.0) if include_top_ubars else end_clear_mm
+    horiz_positions = _evenly_spaced_mm(height_mm, horiz_spacing_mm, end_clear_mm,
+                                        max(end_clear_mm, top_clear_mm))
 
     vertical_sets = []
     horizontal_sets = []
@@ -503,71 +531,47 @@ def build_wall_reinforcement(doc, host, cover_mm,
     # footing_rebar.py's along_x/along_y mat layers, now flippable via
     # vert_is_outer instead of hardcoded to "vertical always outer".
     if include_top_ubars and face_b is not None and len(faces) >= 2:
-        u_dia = ubar_dia_mm if ubar_dia_mm else vert_dia_mm
-        u_sp = ubar_spacing_mm if ubar_spacing_mm and ubar_spacing_mm > 0 else horiz_spacing_mm
-        fa, na, _ = face_depths[id(face_a)]
-        fb, nb, _ = face_depths[id(face_b)]
-        top_u_inset_mm = (cover_mm + vert_dia_mm + u_dia / 2.0) if vert_is_outer \
-            else (cover_mm + u_dia / 2.0)
-        ca = engine.compute_cover_point(fa, top_u_inset_mm)
-        cb = engine.compute_cover_point(fb, top_u_inset_mm)
-        da = (ca - p0).DotProduct(na)
-        db = (cb - p0).DotProduct(nb)
-        leg_mm = max(15.0 * u_dia, 300.0)
-        leg_mm = min(leg_mm, height_mm * 0.4)
-        z_top = vert_top_z
-        u_positions = _evenly_spaced_mm(length_mm, u_sp, end_clear_mm)
-        # BUG FIX (2026-09-01) — same Set-grouping fix as End U-bars
-        # above: every position's shape is identical except for its
-        # translation along axis_dir, so this is grouped into ONE Rebar
-        # Set instead of len(u_positions) individual elements. normal
-        # stays axis_dir per the BUG FIX note kept below (this shape's
-        # own plane/array-propagation direction), and style is left as
-        # the dict default (None), matching floor_rebar's own precedent
-        # for this identical open leg-back-leg U topology.
-        per_pos_curves = []
-        for d_mm in u_positions:
+        # Coronation U-bars as on slab and footing edges (2026-10-01): one beside each
+        # vertical bar, in the vertical bars' own layer, legs a full lap with them,
+        # back at cover + radius under the wall head.
+        u_dia = top_u_dia
+        fa, na, da = face_depths[id(face_a)]
+        fb, nb, db = face_depths[id(face_b)]
+        leg_mm = ubar_lap_length_mm if ubar_lap_length_mm else max(40.0 * u_dia, 15.0 * u_dia, 300.0)
+        max_leg_mm = height_mm - 2.0 * cover_mm - u_dia
+        if leg_mm > max_leg_mm:
+            warnings.append(u'Top U-bar legs cut to {:.0f} mm by the wall height (lap {:.0f} mm).'.format(
+                max_leg_mm, leg_mm))
+            leg_mm = max_leg_mm
+        z_top = z0 + height_ft - (cover_mm + u_dia / 2.0) / _MM_PER_FT
+        u_positions = top_ubar_positions_mm(vert_positions, length_mm, vert_dia_mm, u_dia, end_clear_mm)
+
+        def _u_at(d_mm):
             base = p0 + axis_dir.Multiply(d_mm / _MM_PER_FT)
             pa = DB.XYZ((base + na.Multiply(da)).X, (base + na.Multiply(da)).Y, z_top)
             pb = DB.XYZ((base + nb.Multiply(db)).X, (base + nb.Multiply(db)).Y, z_top)
-            pa_leg = DB.XYZ(pa.X, pa.Y, z_top - leg_mm / _MM_PER_FT)
-            pb_leg = DB.XYZ(pb.X, pb.Y, z_top - leg_mm / _MM_PER_FT)
             if pa.DistanceTo(pb) < 1.0 / _MM_PER_FT:
-                continue
-            per_pos_curves.append([
-                DB.Line.CreateBound(pa_leg, pa),
-                DB.Line.CreateBound(pa, pb),
-                DB.Line.CreateBound(pb, pb_leg),
-            ])
+                return None
+            return [DB.Line.CreateBound(DB.XYZ(pa.X, pa.Y, z_top - leg_mm / _MM_PER_FT), pa),
+                    DB.Line.CreateBound(pa, pb),
+                    DB.Line.CreateBound(pb, DB.XYZ(pb.X, pb.Y, z_top - leg_mm / _MM_PER_FT))]
+
         top_ubar_sets, top_ubar_bars = [], []
-        if per_pos_curves:
-            if len(per_pos_curves) >= 2 and len(per_pos_curves) == len(u_positions):
-                array_length_mm = u_positions[-1] - u_positions[0]
-                spacing = array_length_mm / float(len(u_positions) - 1)
-                materialized = [{'curves': c, 'normal': axis_dir} for c in per_pos_curves]
+        for run in uniform_runs_mm(u_positions):
+            chains = [c for c in (_u_at(d) for d in run) if c is not None]
+            if len(chains) >= 2 and len(chains) == len(run):
+                # The shape lies in the plane {Z, wall thickness}: its normal is the wall axis.
                 top_ubar_sets.append({
-                    'curves': per_pos_curves[0],
-                    # BUG FIX: all three curves vary only in Z (the legs) and
-                    # in the face-normal/thickness direction (the middle
-                    # segment, pa->pb) — X/Y along the wall's length is fixed
-                    # at this loop's own d_mm for every point. The shape's
-                    # plane is therefore {Z, thickness-direction}, whose
-                    # normal is the wall's own axis direction — NOT
-                    # na x axis_dir (that cross product is ~Z, the WRONG
-                    # plane: it told Revit this shape was horizontal when it
-                    # is actually vertical, same mistake this file's End
-                    # U-bars/beam stirrups deliberately avoid elsewhere).
-                    'normal': axis_dir,
-                    'array_length_mm': array_length_mm,
-                    'spacing_mm': spacing,
-                    'materialized_bars': materialized,
+                    'curves': chains[0], 'normal': axis_dir,
+                    'array_length_mm': run[-1] - run[0],
+                    # a hair over the true step, so Revit never lays out one bar too many
+                    'spacing_mm': (run[1] - run[0]) + 0.5,
+                    'materialized_bars': [{'curves': c, 'normal': axis_dir} for c in chains],
                     'label': u'Wall Top U-Bar',
                 })
             else:
-                for c in per_pos_curves:
-                    top_ubar_bars.append({
-                        'curves': c, 'normal': axis_dir, 'label': u'Wall Top U-Bar',
-                    })
+                for c in chains:
+                    top_ubar_bars.append({'curves': c, 'normal': axis_dir, 'label': u'Wall Top U-Bar'})
         top_ubars = {'sets': top_ubar_sets, 'bars': top_ubar_bars}
     elif include_top_ubars and face_b is None:
         warnings.append(u'Top U-bars require both wall faces — skipped.')

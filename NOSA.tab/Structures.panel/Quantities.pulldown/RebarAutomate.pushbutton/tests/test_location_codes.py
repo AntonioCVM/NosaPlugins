@@ -63,3 +63,15 @@ check('mark numbers read back from the mark itself',
       rm.mark_number('05') == 5 and rm.mark_number('05B') == 5 and rm.mark_number('112') == 112
       and rm.mark_number('') == 0 and rm.mark_number(None) == 0)
 print('\nALL MARK NUMBER CHECKS PASSED')
+
+check('wall bars never wider than the spacing asked for',
+      all(b - a <= 200.0 + 1e-6 for a, b in zip(wr._evenly_spaced_mm(5000, 200, 50)[:-1], wr._evenly_spaced_mm(5000, 200, 50)[1:])))
+check('a separate top clearance moves only the last position',
+      wr._evenly_spaced_mm(3000, 200, 50, 70)[-1] == 2930 and wr._evenly_spaced_mm(3000, 200, 50, 70)[0] == 50)
+u = wr.top_ubar_positions_mm([50.0, 250.0, 450.0], 500.0, 12.0, 10.0, 50.0)
+check('one coronation U-bar beside each vertical, the last turned back inside the wall',
+      u == [61.0, 261.0, 439.0])
+check('equal steps make one run, a change of step starts another',
+      wr.uniform_runs_mm([61.0, 261.0, 439.0]) == [[61.0, 261.0], [439.0]]
+      and wr.uniform_runs_mm([0.0, 100.0, 200.0]) == [[0.0, 100.0, 200.0]])
+print('\nALL WALL U-BAR CHECKS PASSED')
