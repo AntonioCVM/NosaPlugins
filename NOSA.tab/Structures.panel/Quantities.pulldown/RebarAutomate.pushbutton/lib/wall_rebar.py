@@ -163,6 +163,22 @@ def _evenly_spaced_mm(length_mm, spacing_mm, end_clear_mm, far_clear_mm=None):
     return [start + k * spacing_mm for k in range(gaps + 1)]
 
 
+SNAP_CLEARANCE_MM = 10.0   # Revit pulls a bar end lying closer than this onto the cover
+
+
+def whole_step_length_mm(length_mm, step_mm=25.0):
+    """
+    Longest whole-step length that fits, leaving the trimmed end at least SNAP_CLEARANCE_MM
+    off the cover so Revit does not stretch it back (BS 8666 A = cut length).
+    """
+    if length_mm < step_mm:
+        return length_mm
+    whole = step_mm * math.floor(length_mm / step_mm + 1e-9)
+    if 1e-6 < length_mm - whole < SNAP_CLEARANCE_MM:
+        whole -= step_mm
+    return whole
+
+
 def _trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
     """Shorten a span equally at both ends to a whole number of step_mm."""
     length = hi_mm - lo_mm
@@ -308,7 +324,8 @@ def build_wall_reinforcement(doc, host, cover_mm,
         pass
 
     starter_mm = 0.0
-    vert_bottom_z = z0 + (cover_mm + vert_dia_mm / 2.0) / _MM_PER_FT
+    # a straight bar's end sits ON the cover (Revit snaps it there anyway, 2026-10-01)
+    vert_bottom_z = z0 + cover_mm / _MM_PER_FT
     if include_starter_bars:
         # Straight extension down to the real bottom of the foundation below
         # (less cover), so it never pokes out of a shallow strip footing
@@ -325,11 +342,9 @@ def build_wall_reinforcement(doc, host, cover_mm,
             vert_bottom_z = z0 - starter_mm / _MM_PER_FT
             warnings.append(u'No foundation detected below the wall — straight starter '
                             u'extension uses the typed length ({:.0f} mm).'.format(starter_mm))
-    vert_top_z = z0 + height_ft - (cover_mm + vert_dia_mm / 2.0) / _MM_PER_FT
-    # whole 25 mm vertical length (BS 8666 A = cut length); only the top end gains cover
-    _vert_len_mm = (vert_top_z - vert_bottom_z) * _MM_PER_FT
-    if _vert_len_mm >= 25.0:
-        vert_top_z = vert_bottom_z + 25.0 * math.floor(_vert_len_mm / 25.0 + 1e-9) / _MM_PER_FT
+    vert_top_z = z0 + height_ft - cover_mm / _MM_PER_FT
+    vert_top_z = vert_bottom_z + whole_step_length_mm(
+        (vert_top_z - vert_bottom_z) * _MM_PER_FT) / _MM_PER_FT
     if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')
 

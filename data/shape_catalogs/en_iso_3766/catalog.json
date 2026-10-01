@@ -83,6 +83,24 @@
         "angle_tolerance_deg": 5
       }
     },
+    "52": {
+      "name": "Closed link with hooks (135 degree hook ends)",
+      "segments": 6,
+      "bends": 5,
+      "params": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "R"
+      ],
+      "constraints": {
+        "A_min_mm": 100,
+        "B_min_mm": 100,
+        "angle_deg": 90,
+        "angle_tolerance_deg": 5
+      }
+    },
     "75": {
       "name": "Closed circular link (lapped)",
       "segments": 0,

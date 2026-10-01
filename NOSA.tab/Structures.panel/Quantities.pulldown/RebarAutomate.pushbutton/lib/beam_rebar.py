@@ -800,6 +800,12 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         bottom_chains = [[l] for l in bottom_lines]
 
     anchor_mm = anchorage_mm if anchorage_mm else 40.0 * bar_diameter_mm
+    if (ext0_mm or ext1_mm) and clear_mm and clear_mm - bar_diameter_mm < 12.0 * bar_diameter_mm:
+        warnings.append(u'Anchorage legs into the columns are only {:.0f} mm (under 12 bar '
+                        u'diameters): the beam section is just {:.0f} mm between its top and '
+                        u'bottom bars. If a floor is cutting the beam, switch the join order '
+                        u'(Modify > Join > Switch Join Order) and regenerate.'.format(
+                            max(clear_mm - bar_diameter_mm, 0.0), clear_mm))
     top_chains = _add_support_legs(top_chains, ext0_mm, ext1_mm, height_dir_legs.Negate(),
                                    anchor_mm, bar_diameter_mm, clear_mm)
     bottom_chains = _add_support_legs(bottom_chains, ext0_mm, ext1_mm, height_dir_legs,

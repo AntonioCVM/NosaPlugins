@@ -95,3 +95,8 @@ check('beam leg: anchorage not given by the straight length, at least 12 phi, wi
       and br.support_leg_mm(800.0, 700.0, 20.0, 500.0) == 240.0
       and br.support_leg_mm(1200.0, 100.0, 20.0, 500.0) == 480.0)
 print('\nALL BEAM ANCHORAGE CHECKS PASSED')
+
+check('wall verticals: whole 25 mm, never ending within the snap distance of the cover',
+      wr.whole_step_length_mm(2620.0) == 2600.0 and wr.whole_step_length_mm(2606.0) == 2575.0
+      and wr.whole_step_length_mm(2600.0) == 2600.0)
+print('\nALL WALL LENGTH CHECKS PASSED')
