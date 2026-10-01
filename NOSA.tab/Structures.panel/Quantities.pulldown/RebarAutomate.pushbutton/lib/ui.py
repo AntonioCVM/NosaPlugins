@@ -3342,6 +3342,19 @@ class RebarAutomateWindow(NOSAWindow):
         self.TxtBeamResult.Text = u'\n'.join(lines)
 
     def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars):
+        # A floor that cuts the beam leaves it only the depth below the slab: the bars,
+        # links and anchorage legs then lose that depth (found in the 2026-10-01 smoke test).
+        try:
+            for joined_id in DB.JoinGeometryUtils.GetJoinedElements(self.doc, host):
+                joined = self.doc.GetElement(joined_id)
+                if isinstance(joined, DB.Floor) and DB.JoinGeometryUtils.IsCuttingElementInJoin(
+                        self.doc, joined, host):
+                    errors.append(u'Beam {}: floor {} cuts this beam, so it is reinforced only '
+                                  u'below the slab. For a full-depth beam use Modify > Join > '
+                                  u'Switch Join Order, then regenerate.'.format(
+                                      get_id_value(host.Id), get_id_value(joined_id)))
+        except Exception:
+            pass
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
         lap_mm = None

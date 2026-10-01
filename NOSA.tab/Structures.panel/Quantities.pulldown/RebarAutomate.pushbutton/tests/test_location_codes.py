@@ -79,8 +79,10 @@ check('equal steps make one run, a change of step starts another',
 print('\nALL WALL U-BAR CHECKS PASSED')
 
 lo, hi = wr._trim_to_step_mm(50.0, 2812.0)
-check('a straight bar is trimmed equally at both ends to a whole 25 mm',
-      abs((hi - lo) - 2750.0) < 1e-6 and abs(lo - 56.0) < 1e-6 and abs(hi - 2806.0) < 1e-6)
+check('a straight bar is trimmed equally at both ends to a whole 25 mm, clear of the snap distance',
+      abs((hi - lo) - 2725.0) < 1e-6 and abs(lo - 68.5) < 1e-6)
+lo, hi = wr._trim_to_step_mm(50.0, 2873.0)
+check('a trim already clear of the snap distance is kept', abs((hi - lo) - 2800.0) < 1e-6)
 check('an exact 25 mm length is left alone', wr._trim_to_step_mm(0.0, 2775.0) == (0.0, 2775.0))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '..', '..', 'lib'))
 from nosa_utils import standards

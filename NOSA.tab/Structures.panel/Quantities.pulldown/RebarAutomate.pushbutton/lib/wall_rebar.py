@@ -185,6 +185,9 @@ def _trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
     if length < step_mm:
         return lo_mm, hi_mm
     trim = (length - math.floor(length / step_mm + 1e-9) * step_mm) / 2.0
+    if 1e-6 < trim < SNAP_CLEARANCE_MM:
+        # Revit pulls an end this close back onto the cover, undoing the trim
+        trim += step_mm / 2.0
     return lo_mm + trim, hi_mm - trim
 
 

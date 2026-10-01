@@ -374,6 +374,7 @@ def _warn_if_outside_bbox(x_mm, y_mm, xmin_mm, xmax_mm, ymin_mm, ymax_mm, label,
 # Main grid
 # ══════════════════════════════════════════════════════════════════════════
 
+SNAP_CLEARANCE_MM = 10.0   # Revit pulls a bar end lying closer than this onto the cover
 STAGGERED_PCT_LAPPED = 50.0
 STAGGER_FACTOR = 1.3   # lap centres 1.3 l0 apart: never "in the same section" (EC2 8.7.2(3))
 
@@ -403,6 +404,9 @@ def trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
     if length < step_mm:
         return lo_mm, hi_mm
     trim = (length - math.floor(length / step_mm + 1e-9) * step_mm) / 2.0
+    if 1e-6 < trim < SNAP_CLEARANCE_MM:
+        # Revit pulls an end this close back onto the cover, undoing the trim
+        trim += step_mm / 2.0
     return lo_mm + trim, hi_mm - trim
 
 
