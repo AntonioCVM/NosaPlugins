@@ -11,7 +11,7 @@ _lib = os.path.abspath(
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.worksharing_quick import element_workset_is_open
 
 try:
@@ -39,7 +39,7 @@ def type_family_type_label(el_type):
                 pass
             tn = u''
             try:
-                tn = unicode(el_type.Name) if getattr(el_type, 'Name', None) else u''
+                tn = unicode(element_name(el_type))
             except Exception:
                 tn = u''
             if fn and tn:
@@ -49,7 +49,7 @@ def type_family_type_label(el_type):
         pass
     try:
         fn = getattr(el_type, 'FamilyName', None)
-        nm = getattr(el_type, 'Name', None)
+        nm = element_name(el_type)
         fu = unicode(fn).strip() if fn else u''
         nu = unicode(nm).strip() if nm else u''
         if fu and nu:
@@ -57,13 +57,13 @@ def type_family_type_label(el_type):
         return nu or fu
     except Exception:
         pass
+    name = element_name(el_type)
+    if name:
+        return unicode(name)
     try:
-        return unicode(el_type.Name)
+        return unicode(get_id_value(el_type.Id))
     except Exception:
-        try:
-            return unicode(get_id_value(el_type.Id))
-        except Exception:
-            return u''
+        return u''
 
 
 def _selected_type_ids(doc, uidoc):

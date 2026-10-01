@@ -8,7 +8,7 @@ computes quantities and weights, and provides Excel/CSV export.
 import math, io, csv
 from collections import defaultdict
 from Autodesk.Revit import DB
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 FT2MM  = _uc10.FT_TO_MM
 FT2M   = _uc10.FT_TO_M
@@ -140,7 +140,7 @@ def _shape_name(rebar, doc):
         shape_id = rebar.GetShapeId()
         shape    = doc.GetElement(shape_id)
         if shape:
-            return shape.Name or u'—'
+            return element_name(shape) or u'—'
     except Exception:
         pass
     return u'—'

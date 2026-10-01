@@ -20,7 +20,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.bootstrap import load_module
 from nosa_utils import shared_params
 from nosa_utils import standards
@@ -4065,12 +4065,10 @@ class RebarAutomateWindow(NOSAWindow):
             self.CmbRebarTagType.Items.Add(item)
         else:
             # IronPython: do NOT use lambda t: t.Name — free-var lookup
-            # raises NameError: Name. Use getattr / explicit helper.
-            def _type_name(el):
-                return getattr(el, 'Name', None) or u''
-            for tt in sorted(tag_types, key=_type_name):
+            # raises NameError: Name.
+            for tt in sorted(tag_types, key=element_name):
                 item = SWC.ComboBoxItem()
-                item.Content = _type_name(tt)
+                item.Content = element_name(tt)
                 item.Tag = tt.Id
                 self.CmbRebarTagType.Items.Add(item)
             self.CmbRebarTagType.SelectedIndex = 0
@@ -4088,11 +4086,9 @@ class RebarAutomateWindow(NOSAWindow):
             item.IsEnabled = False
             self.CmbMraType.Items.Add(item)
         else:
-            def _mra_name(el):
-                return getattr(el, 'Name', None) or u''
-            for mt in sorted(mra_types, key=_mra_name):
+            for mt in sorted(mra_types, key=element_name):
                 item = SWC.ComboBoxItem()
-                item.Content = _mra_name(mt)
+                item.Content = element_name(mt)
                 item.Tag = mt.Id
                 self.CmbMraType.Items.Add(item)
             self.CmbMraType.SelectedIndex = 0

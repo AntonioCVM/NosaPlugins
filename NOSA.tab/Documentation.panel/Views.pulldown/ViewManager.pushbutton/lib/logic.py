@@ -7,7 +7,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 
 
@@ -43,7 +43,7 @@ def get_plan_view_family_types(doc):
             fam = str(vft.ViewFamily).split('.')[-1]
             try:
                 p = vft.get_Parameter(DB.BuiltInParameter.ALL_MODEL_TYPE_NAME)
-                tname = (p.AsString() if p else None) or vft.Name
+                tname = (p.AsString() if p else None) or element_name(vft)
             except Exception:
                 tname = str(get_id_value(vft.Id))
             result.append((vft.Id, u'{} : {}'.format(fam, tname)))

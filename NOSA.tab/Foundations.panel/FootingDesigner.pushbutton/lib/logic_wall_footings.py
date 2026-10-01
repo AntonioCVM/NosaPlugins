@@ -7,7 +7,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 
 _FT_TO_M = _uc10.FT_TO_M
@@ -22,10 +22,7 @@ def _type_name(el_type):
                 return n
     except Exception:
         pass
-    try:
-        return el_type.Name
-    except Exception:
-        return str(get_id_value(el_type.Id))
+    return element_name(el_type) or str(get_id_value(el_type.Id))
 
 
 def _wall_level_name(doc, wall):

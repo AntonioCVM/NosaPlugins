@@ -9,7 +9,7 @@ Detects pile elements and computes their survey attributes:
 """
 import math, io, csv
 from Autodesk.Revit import DB
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 FT2MM = _uc10.FT_TO_MM
 FT_M  = _uc10.FT_TO_M
@@ -71,7 +71,7 @@ def _is_pile(el, doc):
     try:
         t = doc.GetElement(el.GetTypeId())
         if t:
-            tname = (t.Name or '').lower()
+            tname = element_name(t).lower()
             if any(kw in tname for kw in _PILE_KEYWORDS):
                 return True
     except Exception:
@@ -164,8 +164,8 @@ def _family_type_names(el, doc):
     try:
         t = doc.GetElement(el.GetTypeId())
         if isinstance(el, DB.FamilyInstance):
-            return el.Symbol.FamilyName or u'', t.Name if t else u''
-        return u'', t.Name if t else u''
+            return el.Symbol.FamilyName or u'', element_name(t)
+        return u'', element_name(t)
     except Exception:
         return u'', u''
 

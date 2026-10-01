@@ -17,7 +17,7 @@ from collections import defaultdict
 from Autodesk.Revit import DB
 from pyrevit import revit
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 # ---------------------------------------------------------------------------
 # Target categories
@@ -89,10 +89,7 @@ def _read_family_and_type(type_elem):
     except Exception:
         pass
     if not type_name:
-        try:
-            type_name = type_elem.Name or u''
-        except Exception:
-            type_name = u''
+        type_name = element_name(type_elem)
 
     return fam_name, type_name
 

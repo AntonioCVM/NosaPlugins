@@ -7,7 +7,7 @@ load status, and provides Excel/CSV export.
 """
 import math, io, csv
 from Autodesk.Revit import DB
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 FT2MM  = _uc10.FT_TO_MM
 FT2M   = _uc10.FT_TO_M
@@ -47,7 +47,7 @@ def _family_name(el):
 def _type_name(el, doc):
     try:
         t = doc.GetElement(el.GetTypeId())
-        return t.Name if t else u''
+        return element_name(t)
     except Exception:
         return u''
 

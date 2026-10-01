@@ -7,7 +7,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 
 _MM_TO_FT = _uc10.MM_TO_FT
@@ -23,7 +23,7 @@ def _symbol_label(sym):
         p = sym.get_Parameter(DB.BuiltInParameter.ALL_MODEL_TYPE_NAME)
         tname = p.AsString() if p else None
         if not tname:
-            tname = sym.Name
+            tname = element_name(sym) or str(get_id_value(sym.Id))
     except Exception:
         tname = str(get_id_value(sym.Id))
     return u'{} : {}'.format(fam, tname)

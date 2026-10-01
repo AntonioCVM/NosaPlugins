@@ -7,7 +7,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value, element_id_from_int
+from nosa_utils.revit_helpers import get_id_value, element_id_from_int, element_name
 
 
 def _link_status_label(status):
@@ -43,7 +43,7 @@ def collect_rvt_links(doc):
 
         result.append({
             'id':       get_id_value(lt.Id),
-            'name':     lt.Name or os.path.basename(path),
+            'name':     element_name(lt) or os.path.basename(path),
             'path':     path,
             'status':   status,
             'kind':     u'RVT Link',
