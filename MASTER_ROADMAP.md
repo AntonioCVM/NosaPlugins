@@ -139,10 +139,10 @@ Sin esto, cualquier sesión nueva en worktree parte de `main`, que no tiene los 
 
 | | ID | Tarea | ∥ | R | U | Rama / commit |
 |---|---|---|---|---|---|---|
-| [ ] | T6.1 | Auditoría de 3 ejes (código · apariencia XAML · utilidad) con ficha por plugin; convertirla en `/audit-nosa-full` | – | – | – | |
-| [ ] | T6.2 | Aplicar D5 a los hubs grandes poco usados | ✔ | – | ✔ | |
-| [ ] | T6.3 | Tests sin Revit para los plugins más usados: SheetExportHub, PileMaster, QRCode, MaterialManager, AddPileToPilecap, CreatePilecapType | ✔ | – | – | |
-| [ ] | T6.4 | Rediseñar en vectorial (`icon.svg` maestro + `icon.png` 96×96 + `icon.dark.png`) los 51 iconos sin fuente, con la identidad NOSA (#FF5F00). Enseñar propuestas al usuario antes de sustituir | ✔ | – | ✔ | |
+| [x] | T6.1 | Auditoría de 3 ejes (código · apariencia XAML · utilidad) con ficha por plugin; convertirla en `/audit-nosa-full` | – | – | – | 2026-10-01: `tools/audit_3axes.py` → `docs/AUDIT_3AXES.md` (37 plugins activos: usos, LOC, tests, lint C/H/M/L, colores NOSA, fuente, modo oscuro, panel de carga, icono 96+svg; tabla de hallazgos por regla) y comando `/audit-nosa-full`. Resultado: 37/37 con estilo NOSA; lint grave solo SheetExportHub (6, ya conocidos); 30 iconos fuera del estándar (T6.4); hallazgos medios dominantes: NOSA006 `except: pass` (560) y NOSA106 (44) |
+| [x] | T6.2 | Aplicar D5 a los hubs grandes poco usados | ✔ | – | ✔ | 2026-10-01 (D5 = mantener y pulir): DataToolsHub 14 + IssueWorkflowHub 18 `except: pass` → `telemetry.log_swallowed`; 7 `SelectionChanged` pasados del XAML al código tras LoadComponent (MHH 1, DTH 4, IWH 2). Los 4 hubs quedan sin hallazgos salvo el icono (T6.4). **Pendiente**: abrir las 3 ventanas en Revit (bloqueado por un diálogo de guardado en la sesión) |
+| [x] | T6.3 | Tests sin Revit para los plugins más usados: SheetExportHub, PileMaster, QRCode, MaterialManager, AddPileToPilecap, CreatePilecapType | ✔ | – | – | 2026-10-01: `tests/test_most_used_plugins.py` (16 tests: nombres de SheetExportHub, coordenadas PileMaster, render QR, MaterialManager, geometría de encepados); AddPileToPilecap ya cubierto por `test_pilecap_utils`. Hallado y corregido: los CSV con `utf-8-sig` repetían el BOM en cada escritura en IronPython → 43 exportadores corregidos |
+| [ ] | T6.4 | Rediseñar en vectorial (`icon.svg` maestro + `icon.png` 96×96 + `icon.dark.png`) los 51 iconos sin fuente, con la identidad NOSA (#FF5F00). Enseñar propuestas al usuario antes de sustituir | ✔ | – | ✔ | 2026-10-01: quedan 30 (el resto ya se hizo). **29 propuestas enseñadas al usuario, pendiente de aprobación**; NOSA Dashboard requiere el logo oficial (perdido, ver memoria) |
 
 ---
 
