@@ -94,6 +94,14 @@ def _tag_point(rebar, view, offset_mm):
     return center + offset
 
 
+def _bar_reference(rebar):
+    """Reference to the middle bar of a Rebar Set (its subelement), for tagging."""
+    subelements = list(rebar.GetSubelements())
+    if not subelements:
+        return DB.Reference(rebar)
+    return subelements[len(subelements) // 2].GetReference()
+
+
 def create_rebar_tag(doc, view, rebar, offset_mm=(0.0, 0.0, 0.0),
                       orientation=None, tag_type_id=None, add_leader=False):
     """
@@ -125,11 +133,16 @@ def create_rebar_tag(doc, view, rebar, offset_mm=(0.0, 0.0, 0.0),
     if orientation is None:
         orientation = DB.TagOrientation.Horizontal
     point = _tag_point(rebar, view, offset_mm)
-    reference = DB.Reference(rebar)
-
-    tag = DB.IndependentTag.Create(
-        doc, view.Id, reference, add_leader, DB.TagMode.TM_ADDBY_CATEGORY,
-        orientation, point)
+    try:
+        tag = DB.IndependentTag.Create(
+            doc, view.Id, DB.Reference(rebar), add_leader, DB.TagMode.TM_ADDBY_CATEGORY,
+            orientation, point)
+    except Exception:
+        # Revit 2024 rejects a whole Rebar Set ("The reference can not be tagged"):
+        # tag one of its bars instead (verified live 2026-10-01).
+        tag = DB.IndependentTag.Create(
+            doc, view.Id, _bar_reference(rebar), add_leader, DB.TagMode.TM_ADDBY_CATEGORY,
+            orientation, point)
     if tag is None:
         raise ValueError(u'IndependentTag.Create returned None for rebar {}.'.format(rebar.Id))
 
