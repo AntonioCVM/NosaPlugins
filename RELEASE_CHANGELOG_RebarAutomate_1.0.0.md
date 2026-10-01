@@ -1,7 +1,7 @@
-# RebarAutomate 1.0.0 — Release Notes (DRAFT)
+# RebarAutomate 1.0.0 — Release Notes
 
-Status: **draft** — the version is set and tagged after the full smoke test on a real
-project (MASTER_ROADMAP T4.5). Until then `RA_VERSION = "1.0.0-dev"`.
+Released 2026-10-01 after the smoke test of MASTER_ROADMAP T4.5 (Revit 2026, NOSA template v30:
+footings, columns, beam, slab with an opening, wall — 74 rebar elements, no Revit warnings).
 Standard: BS 8666:2020 / BS EN 1992-1-1 (UK NA). Revit 2024–2027. User guide: `docs/USER_GUIDE.md`.
 
 ## Highlights
@@ -16,18 +16,24 @@ Standard: BS 8666:2020 / BS EN 1992-1-1 (UK NA). Revit 2024–2027. User guide: 
 - **BVBS export** (Guideline 3.1) for bending machines.
 - **EC2 laps and anchorages** (or BS 8110 legacy), fck from the host material, α6 from the
   share of bars lapped; minimum max(15φ, 300 mm); all rounded up to 25 mm.
-- **25 mm detailing** — straight bars trimmed to whole 25 mm (A = cut length in the BBS).
+- **25 mm detailing** — straight bars trimmed to whole 25 mm (A = cut length in the BBS),
+  clear of Revit's end snap to the cover.
+- **Exact spacing** — mesh bars at the nominal spacing, centred; labels read `-150`.
 
 ## Elements
 
 - **Footings & slabs** — B1/B2/T1/T2 mats; stock-length splits with **staggered laps**
   (α6 1.4); closure U-bars beside every mat bar on every edge, equal legs on skewed edges
   (shape 21); 45° bars at opening corners; dowels; detail sections.
-- **Columns** — node densification at every floor; ≥ H20 cranked at 1:6 (shape 26) below the
-  slab top, ≤ H16 straight; L feet at the top inside the slab, turned in at edges/corners.
-- **Beams** — straight rectangular beams with dense end zones and lapped stock splits.
-- **Walls** — NF/FF meshes; coronation and end U-bars beside every mesh bar with lap legs;
-  ties; starters into the foundation.
+- **Columns** — 135° hooked links (shape 52) densified at every floor; ≥ H20 cranked at 1:6
+  (shape 26) below the slab top, ≤ H16 straight; L feet at the top inside the slab, turned in at
+  edges/corners; dowels in the footing at the column bar diameter.
+- **Beams** — straight rectangular beams; bars run through the supporting columns and end in a
+  90° leg (anchorage); 135° hooked links (shape 52) with dense end zones; lapped stock splits;
+  warning when a floor cuts the beam.
+- **Walls** — NF/FF meshes; end U-bars beside every horizontal with lap legs; coronation
+  U-bars at a free head, or verticals running into a slab cast on the head with L feet under
+  its top mat; ties; starters into the foundation.
 
 ## Fixes since the previous internal builds
 
@@ -37,7 +43,9 @@ Standard: BS 8666:2020 / BS EN 1992-1-1 (UK NA). Revit 2024–2027. User guide: 
 - Revit 2024 rejected tags on a whole Rebar Set (now tagged through one of its bars).
 - Wall mesh spacing could exceed the spacing asked for.
 - Documents without settings defaulted to EHE-08 instead of BS 8666.
-- BBS CSV export failed on the extra schedule fields.
+- BBS CSV export failed on the extra schedule fields; CSV/BVBS mixed partitions sharing a mark.
+- The Partition typed in the window was ignored until the settings were saved.
+- Beam debug messages were shown to the user.
 
 ## Template (00000-NOSA … Revit template v30)
 
