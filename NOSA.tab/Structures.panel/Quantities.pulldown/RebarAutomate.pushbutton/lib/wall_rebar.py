@@ -326,6 +326,10 @@ def build_wall_reinforcement(doc, host, cover_mm,
             warnings.append(u'No foundation detected below the wall — straight starter '
                             u'extension uses the typed length ({:.0f} mm).'.format(starter_mm))
     vert_top_z = z0 + height_ft - (cover_mm + vert_dia_mm / 2.0) / _MM_PER_FT
+    # whole 25 mm vertical length (BS 8666 A = cut length); only the top end gains cover
+    _vert_len_mm = (vert_top_z - vert_bottom_z) * _MM_PER_FT
+    if _vert_len_mm >= 25.0:
+        vert_top_z = vert_bottom_z + 25.0 * math.floor(_vert_len_mm / 25.0 + 1e-9) / _MM_PER_FT
     if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')
 
