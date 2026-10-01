@@ -188,7 +188,7 @@ def _revit_shape_params(doc, rebar):
             param = rebar.LookupParameter(name)
             if param is not None and param.HasValue:
                 pairs.append((name, int(round(param.AsDouble() * _FT_TO_MM))))
-        pairs = [(n, v) for n, v in sorted(pairs) if v != 0 or n in ('A', 'B', 'C')]
+        pairs = [(n, v) for n, v in sorted(pairs) if v != 0]
         return u';'.join(u'{}={}'.format(n, v) for n, v in pairs)
     except Exception:
         return None
