@@ -432,6 +432,71 @@ def split_long_bars(bar_lines, stock_length_mm, lap_length_mm, lap_offset_mm=25.
     return chains
 
 
+def _as_curves(segment):
+    """A bar segment is one Line, or a list of curves once it carries an anchorage leg."""
+    return list(segment) if isinstance(segment, (list, tuple)) else [segment]
+
+
+def support_extensions_mm(doc, axis, end_inset_mm):
+    """
+    (start, end) mm a beam bar runs on past each end of `axis` to reach the far face of the
+    structural column it frames into, less end_inset_mm; 0 where no column is found.
+    """
+    exts = []
+    direction = axis.Direction
+    for point, outward in ((axis.GetEndPoint(0), direction.Negate()), (axis.GetEndPoint(1), direction)):
+        probe = point + outward.Multiply(20.0 / _MM_PER_FT)
+        reach = DB.XYZ(30.0 / _MM_PER_FT, 30.0 / _MM_PER_FT, 300.0 / _MM_PER_FT)
+        ext = 0.0
+        try:
+            columns = DB.FilteredElementCollector(doc).OfCategory(
+                DB.BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType().WherePasses(
+                DB.BoundingBoxIntersectsFilter(DB.Outline(probe - reach, probe + reach)))
+            for column in columns:
+                bbox = column.get_BoundingBox(None)
+                corners = [DB.XYZ(x, y, z) for x in (bbox.Min.X, bbox.Max.X)
+                           for y in (bbox.Min.Y, bbox.Max.Y) for z in (bbox.Min.Z, bbox.Max.Z)]
+                far_mm = max((c - point).DotProduct(outward) for c in corners) * _MM_PER_FT
+                ext = max(ext, far_mm - end_inset_mm)
+        except Exception:
+            ext = 0.0
+        exts.append(ext if ext > 1.0 else 0.0)
+    return exts[0], exts[1]
+
+
+def _extend_line(line, ext0_mm, ext1_mm):
+    d = line.Direction
+    return DB.Line.CreateBound(line.GetEndPoint(0) - d.Multiply(ext0_mm / _MM_PER_FT),
+                               line.GetEndPoint(1) + d.Multiply(ext1_mm / _MM_PER_FT))
+
+
+def support_leg_mm(anchorage_mm, straight_in_support_mm, bar_diameter_mm, clear_mm):
+    """90 degree leg: the anchorage the straight length in the column does not give, >= 12 phi."""
+    leg = max(anchorage_mm - straight_in_support_mm, 12.0 * bar_diameter_mm)
+    if clear_mm > 0:
+        leg = min(leg, clear_mm - bar_diameter_mm)
+    return 5.0 * math.ceil(leg / 5.0 - 1e-9) if leg > 0 else 0.0
+
+
+def _add_support_legs(chains, ext0_mm, ext1_mm, leg_dir, anchorage_mm, bar_diameter_mm, clear_mm):
+    """Leg on the first segment's start / last segment's end where the bar runs into a column."""
+    out = []
+    for chain in chains:
+        chain = list(chain)
+        if ext0_mm:
+            first = chain[0]
+            leg = support_leg_mm(anchorage_mm, ext0_mm, bar_diameter_mm, clear_mm) / _MM_PER_FT
+            p = first.GetEndPoint(0)
+            chain[0] = [DB.Line.CreateBound(p + leg_dir.Multiply(leg), p)] + _as_curves(first)
+        if ext1_mm:
+            last = _as_curves(chain[-1])
+            leg = support_leg_mm(anchorage_mm, ext1_mm, bar_diameter_mm, clear_mm) / _MM_PER_FT
+            p = last[-1].GetEndPoint(1)
+            chain[-1] = last + [DB.Line.CreateBound(p, p + leg_dir.Multiply(leg))]
+        out.append(chain)
+    return out
+
+
 def group_parallel_bar_chains_into_sets(chains, spacing_mm, normal, label):
     """
     Group N parallel, IDENTICALLY-SHAPED longitudinal bar chains (one
@@ -487,7 +552,7 @@ def group_parallel_bar_chains_into_sets(chains, spacing_mm, normal, label):
         for chain in chains:
             for seg in chain:
                 groups.append({
-                    'curves': [seg], 'all_curves': [[seg]], 'count': 1,
+                    'curves': _as_curves(seg), 'all_curves': [_as_curves(seg)], 'count': 1,
                     'spacing_mm': 0.0, 'array_length_mm': 0.0,
                     'normal': normal, 'label': label,
                 })
@@ -499,8 +564,8 @@ def group_parallel_bar_chains_into_sets(chains, spacing_mm, normal, label):
         seg_label = (u'{} (segment {})'.format(label, seg_idx + 1)
                      if n_segments > 1 else label)
         groups.append({
-            'curves': [chains[0][seg_idx]],
-            'all_curves': [[chain[seg_idx]] for chain in chains],
+            'curves': _as_curves(chains[0][seg_idx]),
+            'all_curves': [_as_curves(chain[seg_idx]) for chain in chains],
             'count': n_bars,
             'spacing_mm': spacing_mm,
             'array_length_mm': array_length_mm,
@@ -650,7 +715,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              stock_length_mm=12000.0, lap_length_mm=None,
                              lap_offset_mm=25.0,
                              densify_ends=False, dense_spacing_mm=None,
-                             confine_length_mm=None):
+                             confine_length_mm=None, anchorage_mm=None):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -705,6 +770,20 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         stirrup_diameter_mm=stirrup_bar_diameter_mm,
         seed_side_normal=long_bar_normal_vec)
 
+    # Anchorage into the supporting columns (user decision 2026-10-01): through the
+    # column to its far face, then a 90 degree leg back into the beam.
+    end_inset_mm = cover_mm + stirrup_bar_diameter_mm
+    ext0_mm, ext1_mm = support_extensions_mm(doc, axis, end_inset_mm)
+    if ext0_mm or ext1_mm:
+        top_lines = [_extend_line(l, ext0_mm, ext1_mm) for l in top_lines]
+        bottom_lines = [_extend_line(l, ext0_mm, ext1_mm) for l in bottom_lines]
+    height_dir_legs = top.normal.Normalize()
+    if top_lines and bottom_lines:
+        clear_mm = abs((top_lines[0].GetEndPoint(0) - bottom_lines[0].GetEndPoint(0))
+                       .DotProduct(height_dir_legs)) * _MM_PER_FT
+    else:
+        clear_mm = 0.0
+
     needs_split = any(l.Length * _MM_PER_FT > stock_length_mm
                        for l in (top_lines + bottom_lines))
     if needs_split and lap_length_mm is None:
@@ -719,6 +798,12 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     else:
         top_chains = [[l] for l in top_lines]
         bottom_chains = [[l] for l in bottom_lines]
+
+    anchor_mm = anchorage_mm if anchorage_mm else 40.0 * bar_diameter_mm
+    top_chains = _add_support_legs(top_chains, ext0_mm, ext1_mm, height_dir_legs.Negate(),
+                                   anchor_mm, bar_diameter_mm, clear_mm)
+    bottom_chains = _add_support_legs(bottom_chains, ext0_mm, ext1_mm, height_dir_legs,
+                                      anchor_mm, bar_diameter_mm, clear_mm)
 
     # Optimisation: n parallel, identically-shaped longitudinal bars
     # (top_lines/bottom_lines are plain parallel translates of each

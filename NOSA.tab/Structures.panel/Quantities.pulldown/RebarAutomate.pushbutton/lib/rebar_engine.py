@@ -1274,6 +1274,22 @@ def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
     return best if (best is not None and best_diff <= tol_rad) else None
 
 
+def get_link_hook_type(doc, angle_deg=135.0):
+    """The Stirrup/Tie RebarHookType of angle_deg (a link's anchorage), else any of that angle."""
+    target = math.radians(angle_deg)
+    fallback = None
+    for ht in DB.FilteredElementCollector(doc).OfClass(DBS.RebarHookType).ToElements():
+        try:
+            if abs(ht.HookAngle - target) > math.radians(1.0):
+                continue
+            if ht.Style == DBS.RebarStyle.StirrupTie:
+                return ht
+            fallback = fallback or ht
+        except Exception:
+            continue
+    return fallback
+
+
 def compute_vertical_hook_plane_normal(bar_direction, propagation_reference=None):
     """
     The correct `normal` argument for Rebar.CreateFromCurves when a
@@ -1580,7 +1596,7 @@ class RebarWrapper(object):
     def create_rebar_set(self, host, curves, bar_type, spacing_mm, array_length_mm,
                           normal=None, style=None,
                           bars_on_normal_side=True, include_first_bar=True, include_last_bar=True,
-                          transaction_name=u'NOSA — Create Rebar Set'):
+                          transaction_name=u'NOSA — Create Rebar Set', link_hook=None):
         """
         Create ONE Rebar from `curves` (a single shape) and immediately
         propagate it into a Rebar SET via its ShapeDrivenAccessor — ONE
@@ -1700,11 +1716,24 @@ class RebarWrapper(object):
 
         try:
             with revit.Transaction(transaction_name):
-                rebar = rebar_from_curves(
-                    self.doc, style, bar_type, None, None,
-                    host, normal, curve_list,
-                    hook_orientation_left(), hook_orientation_left(),
-                    True, True)
+                rebar = None
+                if link_hook is not None:
+                    # Links anchored with both hooks at one corner, turned inwards
+                    # (Left/Left, verified live 2026-10-01: BS 8666 shape 52, C = D = hook).
+                    try:
+                        rebar = rebar_from_curves(
+                            self.doc, style, bar_type, link_hook, link_hook,
+                            host, normal, curve_list,
+                            hook_orientation_left(), hook_orientation_left(),
+                            True, True)
+                    except Exception as e:
+                        self.last_error = u'links created without hooks: {}'.format(e)
+                if rebar is None:
+                    rebar = rebar_from_curves(
+                        self.doc, style, bar_type, None, None,
+                        host, normal, curve_list,
+                        hook_orientation_left(), hook_orientation_left(),
+                        True, True)
                 if rebar is None:
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
                     return None

@@ -378,6 +378,21 @@ STAGGERED_PCT_LAPPED = 50.0
 STAGGER_FACTOR = 1.3   # lap centres 1.3 l0 apart: never "in the same section" (EC2 8.7.2(3))
 
 
+def exact_spaced_mm(lo, hi, spacing):
+    """
+    Mat rows exactly `spacing` apart, centred between lo and hi (the leftover shared by both
+    edges), so the label reads the nominal spacing (user decision 2026-10-01).
+    """
+    span = hi - lo
+    if span <= 0 or spacing <= 0:
+        return []
+    gaps = int(math.floor(span / spacing + 1e-9))
+    if gaps == 0:
+        return [(lo + hi) / 2.0]
+    start = lo + (span - gaps * spacing) / 2.0
+    return [start + k * spacing for k in range(gaps + 1)]
+
+
 def trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
     """
     Shorten a bar span equally at both ends to a whole number of step_mm, so the scheduled
@@ -462,7 +477,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
         row_lo, row_hi = xmin_mm + perp_inset_mm, xmax_mm - perp_inset_mm
         bar_direction = DB.XYZ(0.0, 1.0, 0.0)
         propagation_reference = DB.XYZ(1.0, 0.0, 0.0)
-    rows_mm = footing_mod._evenly_spaced(row_lo, row_hi, row_spacing_mm)
+    rows_mm = exact_spaced_mm(row_lo, row_hi, row_spacing_mm)
     # PHASE F2.5 — main-mat bar lap/anchorage for stock-length splicing;
     # std=None reproduces exactly the pre-F2.5 default multiplier.
     # Stock-length splices are a lap, not an anchorage; every row is cut at the
@@ -575,7 +590,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
                     materialized = [{'curves': per_row_chains[r][k], 'normal': normal} for r in group]
                     sets.append({'curves': per_row_chains[group[0]][k], 'normal': normal,
                                  'array_length_mm': abs(rows[-1] - rows[0]),
-                                 'spacing_mm': abs(rows[1] - rows[0]),
+                                 'spacing_mm': abs(rows[1] - rows[0]) + 0.01,  # no extra bar from rounding
                                  'materialized_bars': materialized})
     return {'sets': sets, 'bars': bars}
 
@@ -719,8 +734,8 @@ def mat_rows_mm(xmin_mm, xmax_mm, ymin_mm, ymax_mm, dia_x_mm, dia_y_mm, spacing_
     Row coordinates of a main mat, exactly as _build_direction_bars lays them:
     along_x rows are Y values, along_y rows are X values.
     """
-    return {'x': footing_mod._evenly_spaced(ymin_mm + dia_y_mm / 2.0, ymax_mm - dia_y_mm / 2.0, spacing_mm),
-            'y': footing_mod._evenly_spaced(xmin_mm + dia_x_mm / 2.0, xmax_mm - dia_x_mm / 2.0, spacing_mm)}
+    return {'x': exact_spaced_mm(ymin_mm + dia_y_mm / 2.0, ymax_mm - dia_y_mm / 2.0, spacing_mm),
+            'y': exact_spaced_mm(xmin_mm + dia_x_mm / 2.0, xmax_mm - dia_x_mm / 2.0, spacing_mm)}
 
 
 def _leg_in_material(topo, pos, inward_normal, leg_mm, outer, large_holes):

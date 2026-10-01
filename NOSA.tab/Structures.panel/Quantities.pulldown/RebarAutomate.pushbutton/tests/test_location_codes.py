@@ -64,10 +64,12 @@ check('mark numbers read back from the mark itself',
       and rm.mark_number('') == 0 and rm.mark_number(None) == 0)
 print('\nALL MARK NUMBER CHECKS PASSED')
 
-check('wall bars never wider than the spacing asked for',
-      all(b - a <= 200.0 + 1e-6 for a, b in zip(wr._evenly_spaced_mm(5000, 200, 50)[:-1], wr._evenly_spaced_mm(5000, 200, 50)[1:])))
-check('a separate top clearance moves only the last position',
-      wr._evenly_spaced_mm(3000, 200, 50, 70)[-1] == 2930 and wr._evenly_spaced_mm(3000, 200, 50, 70)[0] == 50)
+pos = wr._evenly_spaced_mm(5000, 200, 50)
+check('wall bars exactly at the spacing asked for, centred',
+      all(abs((b - a) - 200.0) < 1e-6 for a, b in zip(pos[:-1], pos[1:]))
+      and abs((pos[0] - 50) - (4950 - pos[-1])) < 1e-6)
+check('a separate top clearance keeps the bars inside it',
+      wr._evenly_spaced_mm(3000, 200, 50, 70)[-1] <= 2930 and wr._evenly_spaced_mm(3000, 200, 50, 70)[0] >= 50)
 u = wr.top_ubar_positions_mm([50.0, 250.0, 450.0], 500.0, 12.0, 10.0, 50.0)
 check('one coronation U-bar beside each vertical, the last turned back inside the wall',
       u == [61.0, 261.0, 439.0])
@@ -86,3 +88,10 @@ check('laps and anchorages round up to 25 mm',
       standards.round_up_mm(733.6) == 750.0 and standards.round_up_mm(750.0) == 750.0
       and standards.round_down_mm(2762.0) == 2750.0)
 print('\nALL 25 MM DETAILING CHECKS PASSED')
+
+import beam_rebar as br
+check('beam leg: anchorage not given by the straight length, at least 12 phi, within the beam',
+      br.support_leg_mm(800.0, 405.0, 20.0, 500.0) == 395.0
+      and br.support_leg_mm(800.0, 700.0, 20.0, 500.0) == 240.0
+      and br.support_leg_mm(1200.0, 100.0, 20.0, 500.0) == 480.0)
+print('\nALL BEAM ANCHORAGE CHECKS PASSED')

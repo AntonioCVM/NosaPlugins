@@ -150,17 +150,17 @@ def wall_face_codes(doc, host, faces, axis):
 
 
 def _evenly_spaced_mm(length_mm, spacing_mm, end_clear_mm, far_clear_mm=None):
-    """Positions from end_clear to length - far_clear (default end_clear), never wider than spacing."""
+    """Positions exactly spacing_mm apart, centred between end_clear and length - far_clear."""
     far_clear_mm = end_clear_mm if far_clear_mm is None else far_clear_mm
-    if length_mm <= end_clear_mm + far_clear_mm or spacing_mm <= 0:
+    lo, hi = end_clear_mm, length_mm - far_clear_mm
+    span = hi - lo
+    if span <= 0 or spacing_mm <= 0:
         return []
-    usable = length_mm - end_clear_mm - far_clear_mm
-    if usable < 1.0:
-        return [end_clear_mm + usable / 2.0]
-    n = int(math.ceil(usable / spacing_mm - 1e-6)) + 1
-    if n < 2:
-        return [end_clear_mm + usable / 2.0]
-    return [end_clear_mm + i * usable / float(n - 1) for i in range(n)]
+    gaps = int(math.floor(span / spacing_mm + 1e-9))
+    if gaps == 0:
+        return [lo + span / 2.0]
+    start = lo + (span - gaps * spacing_mm) / 2.0
+    return [start + k * spacing_mm for k in range(gaps + 1)]
 
 
 def _trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):

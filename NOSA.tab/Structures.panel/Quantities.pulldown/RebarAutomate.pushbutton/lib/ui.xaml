@@ -313,7 +313,7 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Dowel Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBlock Grid.Column="0" Text="Dowel Diameter (mm) — used only if the Columns tab values are invalid" Style="{StaticResource RA_FieldLabel}"/>
                                 <TextBox Grid.Column="1" Name="TxtDowelDiameter" Text="16" Style="{StaticResource RA_NumField}"/>
                             </Grid>
 

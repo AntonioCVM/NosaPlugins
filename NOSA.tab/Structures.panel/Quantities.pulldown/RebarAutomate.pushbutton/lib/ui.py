@@ -1359,6 +1359,8 @@ class RebarAutomateWindow(NOSAWindow):
                 values['dowel_col_bar_count'] = int(float(self.TxtColBarCount.Text))
                 values['dowel_col_bar_dia'] = float(self.TxtColBarDia.Text)
                 values['dowel_col_link_dia'] = float(self.TxtColLinkDia.Text)
+                # A dowel laps with a column vertical: same diameter (user decision 2026-10-01).
+                values['dowel_diameter'] = values['dowel_col_bar_dia']
             except (TypeError, ValueError):
                 values['dowel_col_bar_count'] = None
 
@@ -2690,7 +2692,8 @@ class RebarAutomateWindow(NOSAWindow):
                     rebar = wrapper.create_rebar_set(
                         host, s['curves'], bar_type_link, s['spacing_mm'], s['array_length_mm'],
                         normal=s['normal'], style=style,
-                        transaction_name=u'NOSA — Create Column Links')
+                        transaction_name=u'NOSA — Create Column Links',
+                        link_hook=re_engine.get_link_hook_type(self.doc))
                 if rebar is None:
                     errors.append(u'Column {}: links (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
@@ -2709,7 +2712,8 @@ class RebarAutomateWindow(NOSAWindow):
                 rebar = wrapper.create_rebar_set(
                     host, iss['curves'], bar_type_link, iss['spacing_mm'], iss['array_length_mm'],
                     normal=iss['normal'], style=style,
-                    transaction_name=u'NOSA — Create Column Interior Stirrup')
+                    transaction_name=u'NOSA — Create Column Interior Stirrup',
+                    link_hook=re_engine.get_link_hook_type(self.doc))
                 if rebar is None:
                     errors.append(u'Column {}: interior stirrup (set) — {}'.format(
                         get_id_value(host.Id), wrapper.last_error))
@@ -3350,6 +3354,12 @@ class RebarAutomateWindow(NOSAWindow):
                 self._host_std(host), values['bar_dia'], False, 100.0, depth_mm <= 250.0)
         except Exception:
             lap_mm = max(40.0 * values['bar_dia'], 15.0 * values['bar_dia'], 300.0)
+        try:
+            # anchorage into the columns, measured for the (poorer-bond) top bars
+            anchorage_mm = standards.anchorage_length_mm(
+                self._host_std(host), values['bar_dia'], depth_mm <= 250.0)
+        except Exception:
+            anchorage_mm = None
 
         curves = beam_rebar.build_beam_rebar_curves(
             self.doc, host,
@@ -3365,7 +3375,8 @@ class RebarAutomateWindow(NOSAWindow):
             lap_length_mm=lap_mm,
             densify_ends=values.get('densify_ends', False),
             dense_spacing_mm=values.get('dense_spacing'),
-            confine_length_mm=values.get('confine_length'))
+            confine_length_mm=values.get('confine_length'),
+            anchorage_mm=anchorage_mm)
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -3474,7 +3485,8 @@ class RebarAutomateWindow(NOSAWindow):
                         sset['array_length_mm'], normal=sset['normal'],
                         style=DBS.RebarStyle.StirrupTie,
                         transaction_name=u'NOSA — Create Beam Stirrups ({})'.format(
-                            sset.get('zone', u'')))
+                            sset.get('zone', u'')),
+                        link_hook=re_engine.get_link_hook_type(self.doc))
                     if rebar is None:
                         for st_curves in sset.get('all_curves', [sset['curves']]):
                             rb = wrapper.create_from_curves(
