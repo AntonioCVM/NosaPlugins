@@ -471,7 +471,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     # at most half the bars are lapped at any section -> alpha6 for 50 % (1.4, not 1.5).
     lap_length_mm = footing_mod.default_lap_mm(own_dia_mm, std=std, good_bond=good_bond,
                                                pct_lapped=STAGGERED_PCT_LAPPED)
-    stagger_first_mm = max_stock_length_mm - STAGGER_FACTOR * lap_length_mm
+    stagger_first_mm = 25.0 * math.floor((max_stock_length_mm - STAGGER_FACTOR * lap_length_mm) / 25.0)
     # PHASE 2.6 FIX ("flying bars") — bar_direction x global-Z has a
     # FIXED rotational handedness (see
     # rebar_engine.compute_vertical_hook_plane_normal's own Phase 5.6
