@@ -37,9 +37,10 @@ _revit.DB = types.ModuleType('Autodesk.Revit.DB'); _autodesk.Revit = _revit
 sys.modules.setdefault('Autodesk', _autodesk); sys.modules.setdefault('Autodesk.Revit', _revit)
 sys.modules.setdefault('Autodesk.Revit.DB', _revit.DB)
 import rebar_detailing as rd
-check('sections, elevations and details get Mark only',
-      all(rd.label_kind_for_view_type(v) == 'Mark only' for v in ('Section', 'Elevation', 'Detail')))
-check('plans get the full label', rd.label_kind_for_view_type('FloorPlan') == 'Full label')
+check('sections and details get Mark only',
+      all(rd.label_kind_for_view_type(v) == 'Mark only' for v in ('Section', 'Detail')))
+check('plans and elevations get the full label',
+      all(rd.label_kind_for_view_type(v) == 'Full label' for v in ('FloorPlan', 'Elevation', 'CeilingPlan')))
 check('swapping keeps the leader end', rd.swap_label_kind('Full label - Arrow', 'Mark only') == 'Mark only - Arrow'
       and rd.swap_label_kind('Mark only - Dot', 'Full label') == 'Full label - Dot')
 check('a non-NOSA tag type is left alone', rd.swap_label_kind('Rebar Tag 1', 'Mark only') is None)

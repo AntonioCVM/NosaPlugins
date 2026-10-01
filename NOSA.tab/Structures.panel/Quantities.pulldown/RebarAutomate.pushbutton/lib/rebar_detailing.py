@@ -433,11 +433,11 @@ def list_rebar_tag_types(doc):
 
 FULL_LABEL = u'Full label'
 MARK_ONLY = u'Mark only'
-_CUT_VIEW_TYPES = (u'Section', u'Elevation', u'Detail')
+_CUT_VIEW_TYPES = (u'Section', u'Detail')
 
 
 def label_kind_for_view_type(view_type_name):
-    """'Mark only' where bars are cut (sections, elevations, details), else 'Full label'."""
+    """'Mark only' in sections and details, else 'Full label' (plans and elevations: user rule)."""
     return MARK_ONLY if view_type_name in _CUT_VIEW_TYPES else FULL_LABEL
 
 
