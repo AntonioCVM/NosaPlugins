@@ -49,6 +49,30 @@ _OST_REBAR_LIKE_CATEGORY_NAMES = (
 )
 
 
+# IStructE / BS 8666 bar location shown on the bar label (read from Comments).
+LOCATION_CODES = {u'bottom_x': u'B1', u'bottom_y': u'B2', u'top_x': u'T1', u'top_y': u'T2'}
+
+
+def location_code(layer):
+    """Label location code (B1, B2, T1, T2) for a NOSA_Rebar_Layer, or '' when it has none."""
+    return LOCATION_CODES.get(layer or u'', u'')
+
+
+def stamp_location(elem, layer):
+    """Write the location code to Comments, never over text a user typed."""
+    from Autodesk.Revit import DB
+    code = location_code(layer)
+    if not code:
+        return True
+    param = elem.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+    if param is None or param.IsReadOnly:
+        return False
+    current = param.AsString() or u''
+    if current and current not in LOCATION_CODES.values():
+        return True
+    return bool(param.Set(code))
+
+
 def new_batch_id():
     """
     Format: "RA-{YYYYMMDD}-{HHMMSS}-{6-digit microseconds}-{8 hex chars}"
@@ -165,6 +189,7 @@ class RebarBatch(object):
                         if layer:
                             results['NOSA_Rebar_Layer'] = shared_params.write(
                                 elem, u'NOSA_Rebar_Layer', layer)
+                            results['Comments'] = stamp_location(elem, layer)
                         failed_fields = [name for name, ok in results.items() if not ok]
                         if failed_fields:
                             stamp_errors.append(
