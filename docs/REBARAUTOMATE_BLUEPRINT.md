@@ -112,8 +112,8 @@ pruebas de humo por versión (Parte 15).
 - Cálculo estructural / dimensionado de armadura (el usuario introduce diámetros y separaciones).
 - Mallazo electrosoldado (`FabricArea`/`FabricSheet`) — fase futura.
 - Postesado / tendones.
-- Localización de la UI a idiomas distintos de ES/EN en esta iteración (infraestructura
-  `nosa_utils.i18n` queda preparada).
+- Localización de la UI: la interfaz es solo en inglés británico (decisión T5.7, 2026-10-01;
+  `nosa_utils.i18n` retirado).
 
 ---
 

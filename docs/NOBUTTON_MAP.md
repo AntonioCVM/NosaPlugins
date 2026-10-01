@@ -27,7 +27,7 @@ dentro de un hub activo (`logic_*.py`), así que borrarlas no quita funcionalida
 | `Documentation.panel/Annotations.pulldown/GAAutoDimension.nobutton` | 1061 | sin referencias; absorbida en `AnnotationHub/lib/logic_ga_auto_dim.py` | muerta |
 | `Documentation.panel/Annotations.pulldown/GridBubbleBatch.nobutton` | 195 | AnnotationSuite.pushbutton/lib/ui.py:33 (`_load_sibling_logic`) | **usada** |
 | `Documentation.panel/Issue.pulldown/DrawingProtocolChecker.nobutton` | 236 | IssueWorkflowHub.pushbutton/lib/logic_issue_gate.py:20 (sufijo dinámico) | **usada** |
-| `Documentation.panel/Issue.pulldown/ExportSheets.nobutton` | 2992 | ~~IssueWorkflowHub.pushbutton/script.py:32~~ — desde T3.4 el encadenado Issue Gate → Export abre `SheetExportHub`; sin referencias de carga | muerta (pendiente de borrar) |
+| `Documentation.panel/Issue.pulldown/ExportSheets.nobutton` | 2992 | ~~IssueWorkflowHub.pushbutton/script.py:32~~ — desde T3.4 el encadenado Issue Gate → Export abre `SheetExportHub`; sin referencias de carga | **borrada** (T5.7, 2026-10-01, junto con `nosa_utils.i18n`, su único usuario) |
 | `Documentation.panel/Issue.pulldown/IssueGate.nobutton` | 402 | sin referencias; absorbida en `IssueWorkflowHub/lib/logic_issue_gate.py` | muerta |
 | `Documentation.panel/Issue.pulldown/RevisionPackageDiff.nobutton` | 278 | sin referencias; absorbida en `IssueWorkflowHub/lib/logic_revision_package_diff.py` | muerta |
 | `Documentation.panel/Issue.pulldown/RevisionTracker.nobutton` | 929 | sin referencias; absorbida en `IssueWorkflowHub/lib/logic_revision_tracker.py` | muerta |

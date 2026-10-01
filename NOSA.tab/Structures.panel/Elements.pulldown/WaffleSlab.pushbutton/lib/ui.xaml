@@ -115,16 +115,16 @@
                     <Border Style="{StaticResource Card}">
                         <StackPanel>
                             <TextBlock Text="Rib spacing (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtIntereje" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
+                            <TextBox Name="TxtGridSpacing" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Rib width (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtAncho" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
+                            <TextBox Name="TxtRibWidth" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Total depth (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtCanto" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
+                            <TextBox Name="TxtTotalDepth" Style="{StaticResource FieldBox}" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Compression slab (mm):" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                            <TextBox Name="TxtLosa" Style="{StaticResource FieldBox}"/>
+                            <TextBox Name="TxtToppingThickness" Style="{StaticResource FieldBox}"/>
                         </StackPanel>
                     </Border>
 
