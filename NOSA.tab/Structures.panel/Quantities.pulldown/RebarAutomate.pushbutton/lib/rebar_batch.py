@@ -51,6 +51,7 @@ _OST_REBAR_LIKE_CATEGORY_NAMES = (
 
 # IStructE / BS 8666 bar location shown on the bar label (read from Comments).
 LOCATION_CODES = {u'bottom_x': u'B1', u'bottom_y': u'B2', u'top_x': u'T1', u'top_y': u'T2'}
+WALL_FACE_CODES = (u'NF', u'FF')   # near face = towards the slab, far face = outside the building
 
 
 def location_code(layer):
@@ -58,17 +59,17 @@ def location_code(layer):
     return LOCATION_CODES.get(layer or u'', u'')
 
 
-def stamp_location(elem, layer):
-    """Write the location code to Comments, never over text a user typed."""
+def stamp_location(elem, layer, code=None):
+    """Write the location code (given, or from the layer) to Comments, never over a user's text."""
     from Autodesk.Revit import DB
-    code = location_code(layer)
+    code = code or location_code(layer)
     if not code:
         return True
     param = elem.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
     if param is None or param.IsReadOnly:
         return False
     current = param.AsString() or u''
-    if current and current not in LOCATION_CODES.values():
+    if current and current not in LOCATION_CODES.values() and current not in WALL_FACE_CODES:
         return True
     return bool(param.Set(code))
 
@@ -136,7 +137,7 @@ class BatchResult(object):
 class RebarBatch(object):
     """One user-triggered generation run. See module docstring."""
 
-    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08', layers=None,
+    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08', layers=None, locations=None,
                  mark_prefix=u''):
         self.ctx = make_ctx(doc, standard, generator_version, standard_code)
         self.ctx['mark_prefix'] = mark_prefix or u''
@@ -146,6 +147,7 @@ class RebarBatch(object):
         # Keep the caller's dict itself (even while still empty): the
         # generators fill it during run(), after this batch is built.
         self.layers = layers if layers is not None else {}
+        self.locations = locations if locations is not None else {}
 
     def run(self, generate_fn):
         """
@@ -189,7 +191,8 @@ class RebarBatch(object):
                         if layer:
                             results['NOSA_Rebar_Layer'] = shared_params.write(
                                 elem, u'NOSA_Rebar_Layer', layer)
-                            results['Comments'] = stamp_location(elem, layer)
+                            results['Comments'] = stamp_location(
+                                elem, layer, self.locations.get(get_id_value(elem.Id)))
                         failed_fields = [name for name, ok in results.items() if not ok]
                         if failed_fields:
                             stamp_errors.append(

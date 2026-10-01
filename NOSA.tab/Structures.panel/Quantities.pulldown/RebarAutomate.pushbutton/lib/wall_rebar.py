@@ -83,6 +83,71 @@ def _wall_faces(cover_mgr, axis_dir):
     return face_a, face_b, top, bottom
 
 
+NEAR_FACE = u'NF'   # the face towards the slab (inside the building)
+FAR_FACE = u'FF'    # the face away from it (outside the building)
+_SLAB_PROBE_MM = 300.0
+
+
+def face_codes(slab_beside, exterior):
+    """
+    NF/FF per wall face: a face with a slab beside it is NF, the other FF.
+    When the slabs do not tell the faces apart, Revit's exterior side is FF.
+    """
+    if len(slab_beside) == 1 and slab_beside[0]:
+        return [NEAR_FACE]
+    if any(slab_beside) and not all(slab_beside):
+        return [NEAR_FACE if beside else FAR_FACE for beside in slab_beside]
+    return [FAR_FACE if out else NEAR_FACE for out in exterior]
+
+
+def _floor_solids(doc, near_bbox):
+    """Solids of the floors whose bounding box reaches near_bbox (an Outline)."""
+    solids = []
+    floors = DB.FilteredElementCollector(doc).OfClass(DB.Floor).WherePasses(
+        DB.BoundingBoxIntersectsFilter(near_bbox))
+    options = DB.Options()
+    for floor in floors:
+        for geom in floor.get_Geometry(options):
+            if isinstance(geom, DB.Solid) and geom.Volume > 0:
+                solids.append(geom)
+    return solids
+
+
+def _slab_at(solids, x, y, z_lo, z_hi):
+    line = DB.Line.CreateBound(DB.XYZ(x, y, z_lo), DB.XYZ(x, y, z_hi))
+    options = DB.SolidCurveIntersectionOptions()
+    for solid in solids:
+        try:
+            if solid.IntersectWithCurve(line, options).SegmentCount > 0:
+                return True
+        except Exception:
+            continue
+    return False
+
+
+def wall_face_codes(doc, host, faces, axis):
+    """{id(face): 'NF' | 'FF'} — NF towards the slab, FF towards the outside (user rule 2026-10-01)."""
+    try:
+        bbox = host.get_BoundingBox(None)
+        half_ft = (host.Width / 2.0) + _SLAB_PROBE_MM / _MM_PER_FT
+        reach = DB.XYZ(half_ft, half_ft, 1.0)
+        solids = _floor_solids(doc, DB.Outline(bbox.Min - reach, bbox.Max + reach))
+        z_lo, z_hi = bbox.Min.Z - 1.0, bbox.Max.Z + 1.0
+        slab_beside = []
+        for face in faces:
+            n = face.normal.Normalize()
+            hits = False
+            for t in (0.25, 0.5, 0.75):
+                p = axis.Evaluate(t, True) + n.Multiply(half_ft)
+                hits = hits or _slab_at(solids, p.X, p.Y, z_lo, z_hi)
+            slab_beside.append(hits)
+        exterior = [face.normal.DotProduct(host.Orientation) > 0 for face in faces]
+        codes = face_codes(slab_beside, exterior)
+    except Exception:
+        return {}
+    return dict((id(face), code) for face, code in zip(faces, codes))
+
+
 def _evenly_spaced_mm(length_mm, spacing_mm, end_clear_mm):
     """Positions from end_clear to length-end_clear at spacing (inclusive ends)."""
     if length_mm <= 2.0 * end_clear_mm or spacing_mm <= 0:
@@ -259,6 +324,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         vert_inset_mm = cover_mm + horiz_dia_mm + vert_dia_mm / 2.0
 
     face_depths = {}
+    locations = wall_face_codes(doc, host, faces, axis)
     for face in faces:
         face_normal = face.normal.Normalize()
         cover_pt = engine.compute_cover_point(face, vert_inset_mm)
@@ -284,6 +350,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                 'normal': axis_dir,
                 'count': len(vert_positions),
                 'label': u'Wall Vertical Mesh',
+                'location': locations.get(id(face)),
             })
 
         if horiz_positions:
@@ -307,6 +374,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     'normal': DB.XYZ.BasisZ,
                     'count': len(horiz_positions),
                     'label': u'Wall Horizontal Mesh',
+                    'location': locations.get(id(face)),
                 })
 
     # Ties — through-wall at intervals
@@ -561,6 +629,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                         'normal': ms['normal'],
                         'count': ms['count'],
                         'label': u'{} (segment {})'.format(ms.get('label', axis_label), i + 1),
+                        'location': ms.get('location'),
                     })
             return out
 

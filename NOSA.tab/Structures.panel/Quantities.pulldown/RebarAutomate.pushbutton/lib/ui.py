@@ -191,7 +191,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers,
+                        layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_column_reinforcement(elements, values))
@@ -214,7 +214,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers,
+                        layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_beam_reinforcement(elements, values))
@@ -237,7 +237,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers,
+                        layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
@@ -272,7 +272,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', u'EHE-08'),
-                        layers=window._pending_layers,
+                        layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
@@ -361,6 +361,7 @@ class RebarAutomateWindow(NOSAWindow):
         self.ra_generator_version = _version_mod.RA_VERSION
         self._shared_params_report = None
         self._pending_layers = {}
+        self._pending_locations = {}
 
         # PHASE F2 — normativa (rebar standard) profile, resolved once at
         # launch and re-resolved whenever the user changes the "Standard:"
@@ -1609,6 +1610,11 @@ class RebarAutomateWindow(NOSAWindow):
         if rebar is None or not layer:
             return
         self._pending_layers[get_id_value(rebar.Id)] = layer
+
+    def _stamp_location(self, rebar, location):
+        """Record a label location code (NF/FF) that the layer alone cannot tell."""
+        if rebar is not None and location:
+            self._pending_locations[get_id_value(rebar.Id)] = location
 
     def _create_grouped_bars(self, wrapper, host, grouped, bar_type, errors, created_rebars, label,
                               layer=None):
@@ -3691,7 +3697,8 @@ class RebarAutomateWindow(NOSAWindow):
         for w in reinforcement.get('warnings', []):
             errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))
 
-        def _create_curves(curves, bar_type, normal, label, style=None, layer=None):
+        def _create_curves(curves, bar_type, normal, label, style=None, layer=None,
+                           location=None):
             if bar_type is None or not curves:
                 return
             rebar = wrapper.create_from_curves(
@@ -3702,6 +3709,7 @@ class RebarAutomateWindow(NOSAWindow):
                     get_id_value(host.Id), label, wrapper.last_error))
             else:
                 self._stamp_layer(rebar, layer)
+                self._stamp_location(rebar, location)
                 created_rebars.append(rebar)
 
         bar_type_v = bar_types.get(values['vert_dia'])
@@ -3718,10 +3726,12 @@ class RebarAutomateWindow(NOSAWindow):
                             get_id_value(host.Id), wrapper.last_error))
                     else:
                         self._stamp_layer(rebar, u'vertical')
+                        self._stamp_location(rebar, vs.get('location'))
                         created_rebars.append(rebar)
                 else:
                     _create_curves(vs['curves'], bar_type_v, vs.get('normal'),
-                                   vs.get('label', u'Wall Vertical'), layer=u'vertical')
+                                   vs.get('label', u'Wall Vertical'), layer=u'vertical',
+                                   location=vs.get('location'))
 
         vertical_rebars = created_rebars[first_vertical:]
 
@@ -3738,10 +3748,12 @@ class RebarAutomateWindow(NOSAWindow):
                             get_id_value(host.Id), wrapper.last_error))
                     else:
                         self._stamp_layer(rebar, u'horizontal')
+                        self._stamp_location(rebar, hs.get('location'))
                         created_rebars.append(rebar)
                 else:
                     _create_curves(hs['curves'], bar_type_h, hs.get('normal'),
-                                   hs.get('label', u'Wall Horizontal'), layer=u'horizontal')
+                                   hs.get('label', u'Wall Horizontal'), layer=u'horizontal',
+                                   location=hs.get('location'))
 
         tie_dia = values.get('tie_dia') or values['horiz_dia']
         bar_type_t = bar_types.get(tie_dia)

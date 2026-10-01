@@ -45,3 +45,15 @@ check('swapping keeps the leader end', rd.swap_label_kind('Full label - Arrow', 
       and rd.swap_label_kind('Mark only - Dot', 'Full label') == 'Full label - Dot')
 check('a non-NOSA tag type is left alone', rd.swap_label_kind('Rebar Tag 1', 'Mark only') is None)
 print('\nALL TAG TYPE CHECKS PASSED')
+
+import wall_rebar as wr
+check('the face with the slab beside it is NF, the other FF',
+      wr.face_codes([True, False], [False, True]) == ['NF', 'FF']
+      and wr.face_codes([False, True], [False, True]) == ['FF', 'NF'])
+check('no slab on either side: Revit exterior side is FF',
+      wr.face_codes([False, False], [True, False]) == ['FF', 'NF'])
+check('slab on both sides: Revit exterior side is FF',
+      wr.face_codes([True, True], [False, True]) == ['NF', 'FF'])
+check('a single face beside a slab is NF, a lone outer face FF',
+      wr.face_codes([True], [True]) == ['NF'] and wr.face_codes([False], [True]) == ['FF'])
+print('\nALL WALL FACE CHECKS PASSED')
