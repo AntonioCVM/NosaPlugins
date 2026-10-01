@@ -78,6 +78,7 @@ class SchedulePosition(object):
         self.total_length_mm = 0.0
         self.layer = u''
         self.host_mark = u''
+        self.member = u''
         self.legs = None
         self.mandrel_mm = None
         self.variants = {}
@@ -198,6 +199,12 @@ def group_by_position(doc, rebar_ids):
             pos.shape_code = _read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
             pos.shape_params = _read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
             pos.layer = _read(doc, rid, "NOSA_Rebar_Layer") or u""
+            try:
+                from Autodesk.Revit.DB import BuiltInParameter
+                pos.member = rebar.get_Parameter(
+                    BuiltInParameter.NUMBER_PARTITION_PARAM).AsString() or u''
+            except Exception:
+                pos.member = u''
             pos.unit_length_mm = _unit_length_mm(rebar)
             
             # Host mark
@@ -241,6 +248,7 @@ def _variant_rows(pos):
             'mark': pos.mark + rebar_marking.variant_suffix(k),
             'group': pos.mark,
             'host_mark': pos.host_mark,
+            'member': pos.member,
             'layer': pos.layer,
             'diameter_mm': pos.diameter_mm,
             'shape_code': pos.shape_code,
@@ -279,6 +287,7 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
         schedule.append({
             'mark': pos.mark,
             'host_mark': pos.host_mark,
+            'member': pos.member,
             'layer': pos.layer,
             'diameter_mm': pos.diameter_mm,
             'shape_code': pos.shape_code,
@@ -295,60 +304,55 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
     return schedule
 
 
+BBS_COLUMNS = (u'Member', u'Bar mark', u'Type and size', u'No. of mbrs', u'No. of bars in each',
+               u'Total no.', u'Length of each bar (mm)', u'Shape code', u'A', u'B', u'C', u'D',
+               u'E', u'r', u'Weight (kg)')
+
+
+def _shape_dims(shape_params):
+    """'A=605;B=210;C=605;R=24' -> {'A': '605', ...} (R reported as BS 8666 r)."""
+    dims = {}
+    for part in (shape_params or u'').split(u';'):
+        if u'=' in part:
+            key, value = part.split(u'=', 1)
+            dims[key.strip().upper()] = value.strip()
+    return dims
+
+
+def bbs_rows(schedule_data):
+    """Schedule rows in BS 8666:2020 column order (strings), one per bar mark."""
+    rows = []
+    for row in schedule_data:
+        dims = _shape_dims(row.get('shape_params'))
+        count = int(row.get('count') or 0)
+        rows.append([
+            row.get('member') or u'',
+            row.get('mark') or u'',
+            u'H{}'.format(int(row.get('diameter_mm') or 0)),
+            u'1', text_type(count), text_type(count),
+            text_type(int(round(row.get('unit_length_mm') or 0))),
+            row.get('shape_code') or u'',
+            dims.get(u'A', u''), dims.get(u'B', u''), dims.get(u'C', u''),
+            dims.get(u'D', u''), dims.get(u'E', u''), dims.get(u'R', u''),
+            u'{:.1f}'.format(row.get('total_weight_kg') or 0.0),
+        ])
+    return rows
+
+
+def _csv_cell(value):
+    value = text_type(value)
+    if any(ch in value for ch in (u',', u'"', u'\n')):
+        value = u'"' + value.replace(u'"', u'""') + u'"'
+    return value
+
+
 def export_csv(schedule_data, output_path):
-    """
-    Exporta schedule_data a CSV.
-    
-    Args:
-        schedule_data: list[dict] de generate_schedule_data()
-        output_path: path completo del archivo CSV a crear
-    
-    Returns:
-        True si éxito, False si error
-    """
+    """Write the bar bending schedule as CSV in BS 8666:2020 columns; True on success."""
+    import io
     try:
-        # Python 3: modo texto con encoding UTF-8
-        # Python 2 (IronPython): modo binario
-        try:
-            # Python 3
-            import io
-            f = io.open(output_path, 'w', encoding='utf-8', newline='')
-            py3_mode = True
-        except (AttributeError, TypeError):
-            # Python 2 / IronPython
-            f = open(output_path, 'wb')
-            py3_mode = False
-        
-        try:
-            # Cabeceras
-            fieldnames = [
-                'mark', 'host_mark', 'layer', 'diameter_mm', 'shape_code',
-                'shape_params', 'count', 'unit_length_mm', 'total_length_mm',
-                'total_weight_kg'
-            ]
-            
-            writer = csv.DictWriter(f, fieldnames=fieldnames, lineterminator='\n')
-            
-            # Escribir cabecera
-            writer.writerow({fn: fn for fn in fieldnames})
-            
-            # Escribir datos
-            for row in schedule_data:
-                if py3_mode:
-                    # Python 3: strings directamente
-                    writer.writerow(row)
-                else:
-                    # Python 2: convertir unicode a UTF-8 bytes
-                    encoded_row = {}
-                    for key, val in row.items():
-                        if isinstance(val, text_type):
-                            encoded_row[key] = val.encode('utf-8')
-                        else:
-                            encoded_row[key] = str(val).encode('utf-8') if val else b''
-                    writer.writerow(encoded_row)
-        finally:
-            f.close()
-        
+        with io.open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+            for cells in [list(BBS_COLUMNS)] + bbs_rows(schedule_data):
+                f.write(u','.join(_csv_cell(c) for c in cells) + u'\r\n')
         return True
     except Exception as e:
         print(u'[rebar_schedule] CSV export failed: {}'.format(e))

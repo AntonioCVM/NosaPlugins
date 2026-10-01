@@ -868,7 +868,7 @@
         <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,20,16,20">
 
-                    <TextBlock Text="Select one or more Walls in the model, set the mesh parameters below, then run. Straight walls only in v1 (opening U-bars come later)."
+                    <TextBlock Text="Select one or more Walls in the model, set the mesh parameters below, then run. Straight walls only in v1."
                                FontSize="11" TextWrapping="Wrap"
                                Foreground="{DynamicResource TextColor}" Opacity="0.65"
                                Margin="0,0,0,16"/>
@@ -995,7 +995,7 @@
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="110"/>
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="U-bar vertical spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                    <TextBlock Grid.Column="0" Text="U-bar spacing (mm) — not used: one U-bar beside each mesh bar" Style="{StaticResource RA_FieldLabel}"/>
                                     <TextBox Grid.Column="1" Name="TxtWallUBarSpacing" Text="200" Style="{StaticResource RA_NumField}"
                                              TextChanged="WallPreview_Changed"/>
                                 </Grid>
@@ -1244,12 +1244,12 @@
                         <StackPanel>
                             <TextBlock Text="Modification Tools" Style="{StaticResource RA_SectionTitle}"/>
                             <UniformGrid Columns="2" Margin="0,0,0,8">
-                                <Button Name="BtnLap" Content="Lap (Join Collinear Bars)" Click="Lap_Click" Margin="0,0,4,8"/>
-                                <Button Name="BtnSplit" Content="Split (To Commercial Length)" Click="Split_Click" Margin="4,0,0,8"/>
-                                <Button Name="BtnExtend" Content="Extend (Hooks/Legs)" Click="Extend_Click" Margin="0,4,4,0"/>
-                                <Button Name="BtnCopyToSimilar" Content="Copy to Similar Hosts" Click="CopyToSimilar_Click" Margin="4,4,0,0"/>
+                                <Button Name="BtnLap" Visibility="Collapsed" Content="Lap (Join Collinear Bars)" Click="Lap_Click" Margin="0,0,4,8"/>
+                                <Button Name="BtnSplit" Visibility="Collapsed" Content="Split (To Commercial Length)" Click="Split_Click" Margin="4,0,0,8"/>
+                                <Button Name="BtnExtend" Visibility="Collapsed" Content="Extend (Hooks/Legs)" Click="Extend_Click" Margin="0,4,4,0"/>
+                                <Button Name="BtnCopyToSimilar" Visibility="Collapsed" Content="Copy to Similar Hosts" Click="CopyToSimilar_Click" Margin="4,4,0,0"/>
                             </UniformGrid>
-                            <Button Name="BtnDeleteHostRebars" Content="Delete Host Rebars"
+                            <Button Name="BtnDeleteHostRebars" Visibility="Collapsed" Content="Delete Host Rebars"
                                     Click="DeleteHostRebars_Click" HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Border>
@@ -1257,7 +1257,7 @@
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Visibility" Style="{StaticResource RA_SectionTitle}"/>
-                            <Button Name="BtnToggleSolids" Content="Show/Hide Rebar as Solids"
+                            <Button Name="BtnToggleSolids" Visibility="Collapsed" Content="Show/Hide Rebar as Solids"
                                     Click="ToggleSolids_Click" HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Border>

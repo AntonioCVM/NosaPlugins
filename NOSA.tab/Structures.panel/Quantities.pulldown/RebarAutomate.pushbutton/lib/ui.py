@@ -646,7 +646,7 @@ class RebarAutomateWindow(NOSAWindow):
             summary_msg += u'By diameter:\n'
             for dia in sorted(stats['by_diameter'].keys()):
                 dia_stats = stats['by_diameter'][dia]
-                summary_msg += u'  Ø{} mm: {} bars, {:.2f} m, {:.1f} kg\n'.format(
+                summary_msg += u'  H{}: {} bars, {:.2f} m, {:.1f} kg\n'.format(
                     dia, dia_stats['count'], dia_stats['length_m'],
                     dia_stats.get('weight_kg', 0.0)
                 )
@@ -659,7 +659,8 @@ class RebarAutomateWindow(NOSAWindow):
             
             # Preguntar formato de export
             result = forms.CommandSwitchWindow.show(
-                [u'Export to CSV', u'Export to Excel (XLSX)', u'Cancel'],
+                # CSV opens in Excel; openpyxl is not available in pyRevit's IronPython.
+                [u'Export to CSV', u'Cancel'],
                 message=summary_msg,
                 title=u'Bar Bending Schedule'
             )
