@@ -89,7 +89,9 @@ def export_bvbs_file(schedule_data, output_path, project_no=u'', schedule_no=u''
     for pos in schedule_data:
         if not pos.get('legs'):
             without_geometry += 1
-        lines.append(bvbs_record(pos, project_no, schedule_no, revision, steel_grade))
+        # marks restart in every partition, so each partition is its own drawing (field r)
+        drawing = u'{}-{}'.format(schedule_no, pos['member']) if pos.get('member') else schedule_no
+        lines.append(bvbs_record(pos, project_no, drawing, revision, steel_grade))
     with io.open(output_path, 'w', encoding='ascii', errors='replace', newline='') as f:
         for line in lines:
             f.write(line + u'\r\n')

@@ -164,23 +164,34 @@ def _unit_length_mm(rebar):
     return rebar_bending.unit_cut_length_mm(rebar)
 
 
+def _partition_of(rebar):
+    """The bar's native Partition (the BBS Member), '' when unset."""
+    try:
+        from Autodesk.Revit.DB import BuiltInParameter
+        return rebar.get_Parameter(BuiltInParameter.NUMBER_PARTITION_PARAM).AsString() or u''
+    except Exception:
+        return u''
+
+
 def group_by_position(doc, rebar_ids):
     """
-    Agrupa barras por NOSA_Rebar_Mark (posición).
-    
+    Group bars by (partition, NOSA_Rebar_Mark): marks restart at 01 in every partition.
+
     Returns:
-        dict[mark_str, SchedulePosition]
+        dict[(member, mark), SchedulePosition]
     """
     positions = {}
-    
+
     for rid in rebar_ids:
         mark = _read(doc, rid, "NOSA_Rebar_Mark")
         if not mark:
             mark = u"?"
-        
-        if mark not in positions:
+        key = (_partition_of(doc.GetElement(rid)), mark)
+
+        if key not in positions:
             pos = SchedulePosition(mark)
-            positions[mark] = pos
+            pos.member = key[0]
+            positions[key] = pos
             
             # Leer datos comunes de la primera barra de esta posición
             rebar = doc.GetElement(rid)
@@ -199,12 +210,6 @@ def group_by_position(doc, rebar_ids):
             pos.shape_code = _read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
             pos.shape_params = _read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
             pos.layer = _read(doc, rid, "NOSA_Rebar_Layer") or u""
-            try:
-                from Autodesk.Revit.DB import BuiltInParameter
-                pos.member = rebar.get_Parameter(
-                    BuiltInParameter.NUMBER_PARTITION_PARAM).AsString() or u''
-            except Exception:
-                pos.member = u''
             pos.unit_length_mm = _unit_length_mm(rebar)
             
             # Host mark
@@ -222,13 +227,13 @@ def group_by_position(doc, rebar_ids):
                     pass
         
         rebar = doc.GetElement(rid)
-        positions[mark].add_bar(rid, _bar_quantity(rebar))
+        positions[key].add_bar(rid, _bar_quantity(rebar))
         import rebar_bending
         try:
-            bars = rebar_bending.bar_variants(rebar, positions[mark].diameter_mm)
+            bars = rebar_bending.bar_variants(rebar, positions[key].diameter_mm)
         except Exception:
             bars = []
-        positions[mark].add_variants(bars)
+        positions[key].add_variants(bars)
     
     # Calcular totales para todas las posiciones
     for pos in positions.values():
@@ -278,8 +283,8 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
 
     # Convertir a lista de dicts, ordenada por mark
     schedule = []
-    for mark in sorted(positions.keys()):
-        pos = positions[mark]
+    for key in sorted(positions.keys()):
+        pos = positions[key]
         weight_kg = (pos.total_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm)
         if len(pos.variants) > 1:
             schedule.extend(_variant_rows(pos))
@@ -350,7 +355,8 @@ def export_csv(schedule_data, output_path):
     """Write the bar bending schedule as CSV in BS 8666:2020 columns; True on success."""
     import io
     try:
-        with io.open(output_path, 'w', encoding='utf-8-sig', newline='') as f:
+        with io.open(output_path, 'w', encoding='utf-8', newline='') as f:
+            f.write(u'\ufeff')   # one BOM so Excel reads UTF-8 (utf-8-sig repeats it per write in IronPython)
             for cells in [list(BBS_COLUMNS)] + bbs_rows(schedule_data):
                 f.write(u','.join(_csv_cell(c) for c in cells) + u'\r\n')
         return True
