@@ -190,7 +190,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
@@ -213,7 +213,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
@@ -236,7 +236,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
@@ -271,7 +271,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch = rebar_batch.RebarBatch(
                         window.doc, standard=window.ra_standard,
                         generator_version=window.ra_generator_version,
-                        standard_code=window.ra_project.get('standard_code', u'EHE-08'),
+                        standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
                         mark_prefix=window.ra_project.get('mark_prefix', u''))
                     batch_result = batch.run(
@@ -368,7 +368,7 @@ class RebarAutomateWindow(NOSAWindow):
         # dropdown. self.ra_standard is the full profile dict consumed by
         # standards.cover_for/lap_length_mm/etc; self.ra_project holds the
         # persisted code string (rebar_project.json's 'standard_code').
-        self.ra_standard = self._load_standard(self.ra_project.get('standard_code', u'EHE-08'))
+        self.ra_standard = self._load_standard(self.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE))
         self._populate_standard_dropdown()
         self._populate_project_header()
         self._populate_detailing_combos()
@@ -483,7 +483,7 @@ class RebarAutomateWindow(NOSAWindow):
 
     def _load_standard(self, code):
         """Resolve a rebar-standard profile dict for `code`, falling back
-        to EHE-08 and finally to None (never raises) so a missing/corrupt
+        to the NOSA default (BS 8666) and finally to None (never raises) so a missing/corrupt
         user-override file under NOSA_Configs/rebar_standards/ can never
         crash the window. Every call site that consumes the result treats
         None the same as "no standard resolved" — the pre-F2 hardcoded
@@ -492,9 +492,9 @@ class RebarAutomateWindow(NOSAWindow):
         try:
             return standards.load(code)
         except Exception:
-            if code != u'EHE-08':
+            if code != rebar_project.DEFAULT_STANDARD_CODE:
                 try:
-                    return standards.load(u'EHE-08')
+                    return standards.load(rebar_project.DEFAULT_STANDARD_CODE)
                 except Exception:
                     pass
             return None
@@ -526,11 +526,11 @@ class RebarAutomateWindow(NOSAWindow):
         so setting SelectedItem here does not fire the handler."""
         codes = standards.list_available()
         if not codes:
-            codes = [u'EHE-08']
+            codes = [rebar_project.DEFAULT_STANDARD_CODE]
         self.CmbStandard.Items.Clear()
         for code in codes:
             self.CmbStandard.Items.Add(code)
-        current_code = self.ra_project.get('standard_code', u'EHE-08')
+        current_code = self.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE)
         if current_code not in codes:
             current_code = codes[0]
         self.CmbStandard.SelectedItem = current_code

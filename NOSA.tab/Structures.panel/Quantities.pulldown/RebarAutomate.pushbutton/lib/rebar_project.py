@@ -12,7 +12,7 @@ git, same convention as the rest of this extension.
 
 Schema (blueprint Part 12):
     {
-      "standard_code": "EHE-08",
+      "standard_code": "BS-8666-2020",
       "project_number": "",
       "sheet_series": "",
       "revision": "",
@@ -29,8 +29,11 @@ import hashlib
 import json
 import os
 
+# NOSA works to BS 8666:2020 / EC2 (UK NA): the default for any document without settings.
+DEFAULT_STANDARD_CODE = u'BS-8666-2020'
+
 _DEFAULT_SCHEMA = {
-    'standard_code': u'EHE-08',
+    'standard_code': DEFAULT_STANDARD_CODE,
     'project_number': u'',
     'sheet_series': u'',
     'revision': u'',

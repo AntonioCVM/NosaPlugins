@@ -103,7 +103,7 @@ def new_batch_id():
         now.strftime('%Y%m%d-%H%M%S'), now.microsecond, suffix)
 
 
-def make_ctx(doc, standard, generator_version, standard_code=u'EHE-08'):
+def make_ctx(doc, standard, generator_version, standard_code=u'BS-8666-2020'):
     """
     Builds the execution context every generation run carries — see
     blueprint Part 03's own `ctx` contract.
@@ -118,7 +118,7 @@ def make_ctx(doc, standard, generator_version, standard_code=u'EHE-08'):
         standard_code     (str): plain string, independent of whether
                           ctx['standard'] is resolved — this is what
                           NOSA_Rebar_Standard_Code actually stores.
-                          Defaults to "EHE-08" per the F1 approval
+                          Defaults to "BS-8666-2020" (NOSA, 2026-10-01; was EHE-08)
                           (rebar_project.json's own default once F1's
                           UI reads/writes it).
 
@@ -150,7 +150,7 @@ class BatchResult(object):
 class RebarBatch(object):
     """One user-triggered generation run. See module docstring."""
 
-    def __init__(self, doc, standard, generator_version, standard_code=u'EHE-08', layers=None, locations=None,
+    def __init__(self, doc, standard, generator_version, standard_code=u'BS-8666-2020', layers=None, locations=None,
                  mark_prefix=u''):
         self.ctx = make_ctx(doc, standard, generator_version, standard_code)
         self.ctx['mark_prefix'] = mark_prefix or u''

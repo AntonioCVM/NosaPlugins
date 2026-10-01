@@ -258,9 +258,9 @@ def test_new_batch_id_is_unique_across_many_calls():
     assert len(ids) == len(set(ids)), 'collision found in 200 generated batch ids'
 
 
-def test_make_ctx_default_standard_code_is_ehe08():
+def test_make_ctx_default_standard_code_is_bs8666():
     ctx = rebar_batch.make_ctx(doc=None, standard=None, generator_version=u'1.0.0-dev')
-    assert ctx['standard_code'] == u'EHE-08'
+    assert ctx['standard_code'] == u'BS-8666-2020'
     assert ctx['standard'] is None  # F1 does not depend on F2
     assert ctx['generator_version'] == u'1.0.0-dev'
     assert _BATCH_ID_PATTERN.match(ctx['batch_id'])
@@ -294,7 +294,7 @@ class _FakeDoc(object):
 def test_rebar_project_load_returns_defaults_when_nothing_saved():
     doc = _FakeDoc(path_name=u'C:\\nonexistent\\test_project_{}.rvt'.format(os.getpid()))
     data = rebar_project.load(doc)
-    assert data['standard_code'] == u'EHE-08'
+    assert data['standard_code'] == u'BS-8666-2020'  # NOSA default (2026-10-01)
     assert data['insert_shared_params_into_user_file'] is False
 
 
@@ -312,7 +312,7 @@ def test_rebar_project_save_then_load_roundtrips():
         reloaded = rebar_project.load(doc)
         assert reloaded['project_number'] == u'1234'
         assert reloaded['insert_shared_params_into_user_file'] is True
-        assert reloaded['standard_code'] == u'EHE-08'  # untouched default survives a partial save
+        assert reloaded['standard_code'] == rebar_project.DEFAULT_STANDARD_CODE  # untouched default survives a partial save
     finally:
         try:
             os.remove(rebar_project.config_path(doc))
