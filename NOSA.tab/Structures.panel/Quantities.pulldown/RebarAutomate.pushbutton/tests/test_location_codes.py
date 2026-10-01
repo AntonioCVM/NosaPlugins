@@ -30,3 +30,17 @@ check('Down and nearest rounding',
 check('no rounding step leaves the length alone',
       rebar_bending.round_length_mm(2288.5, 0, 'Up') == 2288.5)
 print('\nALL LOCATION / LENGTH ROUNDING CHECKS PASSED')
+
+import types
+_autodesk = types.ModuleType('Autodesk'); _revit = types.ModuleType('Autodesk.Revit')
+_revit.DB = types.ModuleType('Autodesk.Revit.DB'); _autodesk.Revit = _revit
+sys.modules.setdefault('Autodesk', _autodesk); sys.modules.setdefault('Autodesk.Revit', _revit)
+sys.modules.setdefault('Autodesk.Revit.DB', _revit.DB)
+import rebar_detailing as rd
+check('sections, elevations and details get Mark only',
+      all(rd.label_kind_for_view_type(v) == 'Mark only' for v in ('Section', 'Elevation', 'Detail')))
+check('plans get the full label', rd.label_kind_for_view_type('FloorPlan') == 'Full label')
+check('swapping keeps the leader end', rd.swap_label_kind('Full label - Arrow', 'Mark only') == 'Mark only - Arrow'
+      and rd.swap_label_kind('Mark only - Dot', 'Full label') == 'Full label - Dot')
+check('a non-NOSA tag type is left alone', rd.swap_label_kind('Rebar Tag 1', 'Mark only') is None)
+print('\nALL TAG TYPE CHECKS PASSED')

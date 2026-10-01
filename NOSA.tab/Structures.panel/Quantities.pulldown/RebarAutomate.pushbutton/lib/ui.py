@@ -2076,7 +2076,8 @@ class RebarAutomateWindow(NOSAWindow):
                 try:
                     with revit.Transaction(u'NOSA — Tag Rebar'):
                         tags, tag_errors = rebar_detailing.create_rebar_tags(
-                            self.doc, view, created_rebars)
+                            self.doc, view, created_rebars,
+                            tag_type_id=rebar_detailing.tag_type_for_view(self.doc, view))
                     tags_created = len(tags)
                     errors.extend(tag_errors)
                 except Exception as e:
@@ -4128,7 +4129,8 @@ class RebarAutomateWindow(NOSAWindow):
                         title=u'NOSA — Auto Tag')
             return
 
-        tag_type_id = self._combo_selected_element_id(self.CmbRebarTagType)
+        tag_type_id = rebar_detailing.tag_type_for_view(
+            self.doc, view, self._combo_selected_element_id(self.CmbRebarTagType))
         try:
             with revit.Transaction(u'NOSA — Auto Tag Rebar'):
                 tags, errors = rebar_detailing.create_rebar_tags_smart(

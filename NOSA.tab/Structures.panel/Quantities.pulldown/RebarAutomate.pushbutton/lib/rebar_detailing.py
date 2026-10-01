@@ -431,6 +431,41 @@ def list_rebar_tag_types(doc):
                 .ToElements())
 
 
+FULL_LABEL = u'Full label'
+MARK_ONLY = u'Mark only'
+_CUT_VIEW_TYPES = (u'Section', u'Elevation', u'Detail')
+
+
+def label_kind_for_view_type(view_type_name):
+    """'Mark only' where bars are cut (sections, elevations, details), else 'Full label'."""
+    return MARK_ONLY if view_type_name in _CUT_VIEW_TYPES else FULL_LABEL
+
+
+def swap_label_kind(type_name, kind):
+    """'Full label - Arrow' -> 'Mark only - Arrow' (keeps the leader end); None if not a NOSA name."""
+    for prefix in (FULL_LABEL, MARK_ONLY):
+        if type_name.startswith(prefix + u' - '):
+            return kind + type_name[len(prefix):]
+    return None
+
+
+def tag_type_for_view(doc, view, chosen_type_id=None):
+    """
+    NOSA Rebar Tag type for this view: the chosen leader end (Dot by default) with
+    Mark only in sections and Full label elsewhere. Falls back to the chosen type.
+    """
+    types = dict((DB.Element.Name.GetValue(t), t.Id) for t in list_rebar_tag_types(doc))
+    kind = label_kind_for_view_type(str(view.ViewType))
+    base = FULL_LABEL + u' - Dot'
+    if chosen_type_id is not None:
+        chosen = doc.GetElement(chosen_type_id)
+        base = DB.Element.Name.GetValue(chosen) if chosen is not None else base
+    wanted = swap_label_kind(base, kind)
+    if wanted and wanted in types:
+        return types[wanted]
+    return chosen_type_id
+
+
 def create_multi_rebar_annotation(doc, view, rebars, mra_type=None,
                                    dim_offset_mm=300.0, tag_has_leader=False):
     """
