@@ -155,6 +155,29 @@ def test_lap_length_must_be_smaller_than_stock_length():
         pass
 
 
+
+def test_staggered_first_piece_moves_every_lap_along():
+    """T4.8: a shorter first piece shifts the laps; later pieces stay full stock, laps exact."""
+    bar = _make_bar(30000.0)
+    plain = rebar_engine.split_rebar_by_stock_length(bar, 12000.0, 750.0)
+    staggered = rebar_engine.split_rebar_by_stock_length(bar, 12000.0, 750.0, first_length_mm=11025.0)
+    assert abs(staggered[0].length_mm - 11025.0) < 0.5
+    for s in staggered[1:-1]:
+        assert abs(s.length_mm - 12000.0) < 0.5
+    for a, b in zip(staggered, staggered[1:]):
+        overlap_mm = (a.curve.GetEndPoint(1).Z - b.curve.GetEndPoint(0).Z) * _MM_PER_FT
+        assert abs(overlap_mm - 750.0) < 1.0
+    assert abs(staggered[-1].curve.GetEndPoint(1).Z - 30000.0 / _MM_PER_FT) < 1e-6
+    shift_mm = (plain[0].curve.GetEndPoint(1).Z - staggered[0].curve.GetEndPoint(1).Z) * _MM_PER_FT
+    assert abs(shift_mm - 975.0) < 1.0
+
+
+def test_staggered_first_piece_ignored_when_the_bar_fits_in_it():
+    bar = _make_bar(9000.0)
+    segs = rebar_engine.split_rebar_by_stock_length(bar, 12000.0, 750.0, first_length_mm=11025.0)
+    assert len(segs) == 1
+
+
 if __name__ == '__main__':
     tests = [v for k, v in sorted(globals().items()) if k.startswith('test_')]
     failures = 0

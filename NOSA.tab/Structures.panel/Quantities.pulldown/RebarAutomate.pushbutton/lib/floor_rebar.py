@@ -374,6 +374,10 @@ def _warn_if_outside_bbox(x_mm, y_mm, xmin_mm, xmax_mm, ymin_mm, ymax_mm, label,
 # Main grid
 # ══════════════════════════════════════════════════════════════════════════
 
+STAGGERED_PCT_LAPPED = 50.0
+STAGGER_FACTOR = 1.3   # lap centres 1.3 l0 apart: never "in the same section" (EC2 8.7.2(3))
+
+
 def trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
     """
     Shorten a bar span equally at both ends to a whole number of step_mm, so the scheduled
@@ -388,7 +392,7 @@ def trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
 
 
 def _finalize_bar_pieces(engine, footing_mod, line, max_stock_length_mm, lap_length_mm,
-                          use_legs, leg_length_mm, leg_direction):
+                          use_legs, leg_length_mm, leg_direction, first_length_mm=None):
     """
     One clipped, straight bar segment -> a list of curve chains: split
     into stock-length pieces (with normative lap splices) if needed,
@@ -396,7 +400,8 @@ def _finalize_bar_pieces(engine, footing_mod, line, max_stock_length_mm, lap_len
     lap-splice cut — a full-depth U-bar leg via footing_rebar.add_end_hooks,
     if use_legs.
     """
-    segments = engine.split_rebar_by_stock_length(line, max_stock_length_mm, lap_length_mm)
+    segments = engine.split_rebar_by_stock_length(line, max_stock_length_mm, lap_length_mm,
+                                                  first_length_mm=first_length_mm)
     chains = []
     for seg in segments:
         at_start = use_legs and not seg.has_start_lap
@@ -462,7 +467,11 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     # std=None reproduces exactly the pre-F2.5 default multiplier.
     # Stock-length splices are a lap, not an anchorage; every row is cut at the
     # same section, so 100 % lapped until splices are staggered.
-    lap_length_mm = footing_mod.default_lap_mm(own_dia_mm, std=std, good_bond=good_bond)
+    # Staggered laps (T4.8, EC2 8.7.2(3)): every other row moves its laps 1.3 l0 along, so
+    # at most half the bars are lapped at any section -> alpha6 for 50 % (1.4, not 1.5).
+    lap_length_mm = footing_mod.default_lap_mm(own_dia_mm, std=std, good_bond=good_bond,
+                                               pct_lapped=STAGGERED_PCT_LAPPED)
+    stagger_first_mm = max_stock_length_mm - STAGGER_FACTOR * lap_length_mm
     # PHASE 2.6 FIX ("flying bars") — bar_direction x global-Z has a
     # FIXED rotational handedness (see
     # rebar_engine.compute_vertical_hook_plane_normal's own Phase 5.6
@@ -513,6 +522,11 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
         p1 = DB.XYZ(x1_mm / _MM_PER_FT, y1_mm / _MM_PER_FT, own_z_ft)
         return DB.Line.CreateBound(p0, p1)
 
+    row_index = dict((row, k) for k, (row, _) in enumerate(rows_with_ivs))
+
+    def _first_mm(row):
+        return stagger_first_mm if row_index[row] % 2 else None
+
     sets, bars = [], []
     for run in _group_uniform_runs(rows_with_ivs, _intervals_equal):
         first_row, ivs = run[0]
@@ -520,11 +534,10 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
             for (lo_mm, hi_mm) in ivs:
                 line = _make_line(first_row, lo_mm, hi_mm)
                 for chain in _finalize_bar_pieces(engine, footing_mod, line, max_stock_length_mm,
-                                                   lap_length_mm, use_legs, leg_length_mm, leg_direction):
+                                                   lap_length_mm, use_legs, leg_length_mm, leg_direction,
+                                                   _first_mm(first_row)):
                     bars.append({'curves': chain, 'normal': normal})
             continue
-        last_row = run[-1][0]
-        array_length_mm = abs(last_row - first_row)
         for (lo_mm, hi_mm) in ivs:
             # Materialize EVERY row's own chain for this interval slot
             # (Phase 2.5 item 2) — a Rebar Set's own
@@ -541,16 +554,29 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
             per_row_chains = [
                 _finalize_bar_pieces(engine, footing_mod, _make_line(row, lo_mm, hi_mm),
                                      max_stock_length_mm, lap_length_mm,
-                                     use_legs, leg_length_mm, leg_direction)
+                                     use_legs, leg_length_mm, leg_direction, _first_mm(row))
                 for row, _ in run
             ]
-            n_pieces = len(per_row_chains[0])
-            for k in range(n_pieces):
-                materialized = [{'curves': per_row_chains[r][k], 'normal': normal}
-                                 for r in range(len(run))]
-                sets.append({'curves': per_row_chains[0][k], 'normal': normal,
-                             'array_length_mm': array_length_mm, 'spacing_mm': row_spacing_mm,
-                             'materialized_bars': materialized})
+            if all(len(chains) == 1 for chains in per_row_chains):
+                groups = [list(range(len(run)))]
+            else:
+                # staggered rows differ from their neighbours: one Set per row parity
+                groups = [[r for r in range(len(run)) if row_index[run[r][0]] % 2 == parity]
+                          for parity in (0, 1)]
+            for group in groups:
+                if not group:
+                    continue
+                if len(group) == 1:
+                    for chain in per_row_chains[group[0]]:
+                        bars.append({'curves': chain, 'normal': normal})
+                    continue
+                rows = [run[r][0] for r in group]
+                for k in range(len(per_row_chains[group[0]])):
+                    materialized = [{'curves': per_row_chains[r][k], 'normal': normal} for r in group]
+                    sets.append({'curves': per_row_chains[group[0]][k], 'normal': normal,
+                                 'array_length_mm': abs(rows[-1] - rows[0]),
+                                 'spacing_mm': abs(rows[1] - rows[0]),
+                                 'materialized_bars': materialized})
     return {'sets': sets, 'bars': bars}
 
 

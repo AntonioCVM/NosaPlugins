@@ -2026,7 +2026,7 @@ def _stable_perpendicular(direction):
 
 
 def split_rebar_by_stock_length(curve, stock_length_mm, lap_length_mm,
-                                 lap_offset_mm=25.0):
+                                 lap_offset_mm=25.0, first_length_mm=None):
     """
     Split an idealised, over-length rebar curve into commercial-length
     segments with normative lap splices, transversely offsetting
@@ -2138,7 +2138,13 @@ def split_rebar_by_stock_length(curve, stock_length_mm, lap_length_mm,
         return [RebarSegment(0, curve, total_length_ft * _MM_PER_FT, False, False)]
 
     advance = stock_ft - lap_ft
-    n_segments = int(math.ceil((total_length_ft - stock_ft) / advance)) + 1
+    # Staggered laps (T4.8): a shorter first piece moves every lap of this bar along.
+    first_ft = stock_ft
+    if first_length_mm is not None and lap_ft < first_length_mm / _MM_PER_FT < stock_ft:
+        first_ft = first_length_mm / _MM_PER_FT
+    if total_length_ft <= first_ft + 1e-6:
+        first_ft = stock_ft
+    n_segments = int(math.ceil(max(0.0, total_length_ft - first_ft) / advance - 1e-9)) + 1
     # GREEDY FIX (2026-09-01, per explicit user preference over the
     # previous equal-length distribution) — every segment except the
     # last is exactly stock_ft long (the maximum); the last absorbs the
@@ -2177,8 +2183,8 @@ def split_rebar_by_stock_length(curve, stock_length_mm, lap_length_mm,
 
     segments = []
     for i in range(n_segments):
-        start_ft = i * advance
-        end_ft = total_length_ft if i == n_segments - 1 else start_ft + stock_ft
+        start_ft = 0.0 if i == 0 else (first_ft - lap_ft) + (i - 1) * advance
+        end_ft = total_length_ft if i == n_segments - 1 else start_ft + (first_ft if i == 0 else stock_ft)
         p0 = _point_at(start_ft)
         p1 = _point_at(end_ft)
 
