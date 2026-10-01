@@ -223,7 +223,30 @@ def concrete_fck_mpa(std):
     return float(concrete.get('fck_mpa') or concrete.get('default_fck_mpa') or 32.0)
 
 
+DETAILING_STEP_MM = 25.0   # laps, anchorages and straight bars are detailed in 25 mm steps
+
+
+def round_up_mm(length_mm, step_mm=DETAILING_STEP_MM):
+    """Round a length up to the detailing step (never shorter than required)."""
+    import math
+    return math.ceil(length_mm / step_mm - 1e-9) * step_mm
+
+
+def round_down_mm(length_mm, step_mm=DETAILING_STEP_MM):
+    """Round a length down to the detailing step (stays inside the cover)."""
+    import math
+    return math.floor(length_mm / step_mm + 1e-9) * step_mm
+
+
 def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True):
+    return round_up_mm(_lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond))
+
+
+def anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False):
+    return round_up_mm(_anchorage_length_mm(std, bar_diameter_mm, good_bond, in_compression))
+
+
+def _lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True):
     """
     Lap length, mm. lap.mode "ec2" / "bs8110" use nosa_utils.laps (EC2 8.7 with alpha6
     from pct_lapped; BS 8110 Table 3.27); "factor" keeps the profile's diameter multiples.
@@ -241,7 +264,7 @@ def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, 
                laps.ABS_MIN_LAP_FACTOR * bar_diameter_mm, laps.ABS_MIN_LAP_MM)
 
 
-def anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False):
+def _anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False):
     """
     Anchorage length, mm. anchorage.mode "ec2" / "bs8110" use nosa_utils.laps; "factor"
     uses basic_length_factor (x compression_factor), clamped to min_mm / min_factor.

@@ -163,6 +163,15 @@ def _evenly_spaced_mm(length_mm, spacing_mm, end_clear_mm, far_clear_mm=None):
     return [end_clear_mm + i * usable / float(n - 1) for i in range(n)]
 
 
+def _trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
+    """Shorten a span equally at both ends to a whole number of step_mm."""
+    length = hi_mm - lo_mm
+    if length < step_mm:
+        return lo_mm, hi_mm
+    trim = (length - math.floor(length / step_mm + 1e-9) * step_mm) / 2.0
+    return lo_mm + trim, hi_mm - trim
+
+
 def top_ubar_positions_mm(vert_positions_mm, length_mm, vert_dia_mm, ubar_dia_mm, end_clear_mm):
     """One coronation U-bar beside each vertical bar (in contact), turned back at the far end."""
     contact = (vert_dia_mm + ubar_dia_mm) / 2.0
@@ -383,9 +392,10 @@ def build_wall_reinforcement(doc, host, cover_mm,
 
         if horiz_positions:
             h0_mm = horiz_positions[0]
-            clear_ft = end_clear_mm / _MM_PER_FT
-            start = p0 + axis_dir.Multiply(clear_ft) + face_normal.Multiply(horiz_depth)
-            end = p0 + axis_dir.Multiply(axis.Length - clear_ft) + face_normal.Multiply(horiz_depth)
+            # whole 25 mm length, so the scheduled A and cut length agree (BS 8666)
+            lo_mm, hi_mm = _trim_to_step_mm(end_clear_mm, length_mm - end_clear_mm)
+            start = p0 + axis_dir.Multiply(lo_mm / _MM_PER_FT) + face_normal.Multiply(horiz_depth)
+            end = p0 + axis_dir.Multiply(hi_mm / _MM_PER_FT) + face_normal.Multiply(horiz_depth)
             z = z0 + h0_mm / _MM_PER_FT
             start = DB.XYZ(start.X, start.Y, z)
             end = DB.XYZ(end.X, end.Y, z)

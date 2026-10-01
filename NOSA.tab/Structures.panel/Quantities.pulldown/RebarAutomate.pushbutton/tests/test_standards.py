@@ -139,16 +139,16 @@ def test_mandrel_diameter_mm_falls_back_to_largest_bracket_beyond_catalogue():
 
 
 def test_lap_length_mm_tension_bands():
-    assert standards.lap_length_mm(_std, 16.0, pct_lapped=25.0) == 16.0 * 40
-    assert standards.lap_length_mm(_std, 16.0, pct_lapped=10.0) == 16.0 * 40
-    assert standards.lap_length_mm(_std, 16.0, pct_lapped=60.0) == 16.0 * 57
+    assert standards.lap_length_mm(_std, 16.0, pct_lapped=25.0) == standards.round_up_mm(16.0 * 40)
+    assert standards.lap_length_mm(_std, 16.0, pct_lapped=10.0) == standards.round_up_mm(16.0 * 40)
+    assert standards.lap_length_mm(_std, 16.0, pct_lapped=60.0) == standards.round_up_mm(16.0 * 57)
     # Interpolated band (25% < pct_lapped <= 50%) — 37.5% is the midpoint.
     mid = standards.lap_length_mm(_std, 16.0, pct_lapped=37.5)
-    assert abs(mid - 16.0 * ((40 + 57) / 2.0)) < 1e-9
+    assert mid == standards.round_up_mm(16.0 * ((40 + 57) / 2.0))  # laps detailed in 25 mm steps
 
 
 def test_lap_length_mm_compression_uses_its_own_factor():
-    assert standards.lap_length_mm(_std, 16.0, in_compression=True) == 16.0 * 40
+    assert standards.lap_length_mm(_std, 16.0, in_compression=True) == standards.round_up_mm(16.0 * 40)
 
 
 def test_lap_length_mm_clamps_to_min_mm():
@@ -158,12 +158,12 @@ def test_lap_length_mm_clamps_to_min_mm():
 
 
 def test_anchorage_length_mm_good_vs_poor_bond():
-    assert standards.anchorage_length_mm(_std, 16.0, good_bond=True) == 16.0 * 40
-    assert standards.anchorage_length_mm(_std, 16.0, good_bond=False) == 16.0 * 57
+    assert standards.anchorage_length_mm(_std, 16.0, good_bond=True) == standards.round_up_mm(16.0 * 40)
+    assert standards.anchorage_length_mm(_std, 16.0, good_bond=False) == standards.round_up_mm(16.0 * 57)
 
 
 def test_anchorage_length_mm_compression_applies_the_reduction_factor():
-    expected = 16.0 * 40 * 0.7
+    expected = standards.round_up_mm(16.0 * 40 * 0.7)
     assert abs(standards.anchorage_length_mm(
         _std, 16.0, good_bond=True, in_compression=True) - expected) < 1e-9
 

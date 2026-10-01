@@ -75,3 +75,14 @@ check('equal steps make one run, a change of step starts another',
       wr.uniform_runs_mm([61.0, 261.0, 439.0]) == [[61.0, 261.0], [439.0]]
       and wr.uniform_runs_mm([0.0, 100.0, 200.0]) == [[0.0, 100.0, 200.0]])
 print('\nALL WALL U-BAR CHECKS PASSED')
+
+lo, hi = wr._trim_to_step_mm(50.0, 2812.0)
+check('a straight bar is trimmed equally at both ends to a whole 25 mm',
+      abs((hi - lo) - 2750.0) < 1e-6 and abs(lo - 56.0) < 1e-6 and abs(hi - 2806.0) < 1e-6)
+check('an exact 25 mm length is left alone', wr._trim_to_step_mm(0.0, 2775.0) == (0.0, 2775.0))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', '..', '..', '..', 'lib'))
+from nosa_utils import standards
+check('laps and anchorages round up to 25 mm',
+      standards.round_up_mm(733.6) == 750.0 and standards.round_up_mm(750.0) == 750.0
+      and standards.round_down_mm(2762.0) == 2750.0)
+print('\nALL 25 MM DETAILING CHECKS PASSED')

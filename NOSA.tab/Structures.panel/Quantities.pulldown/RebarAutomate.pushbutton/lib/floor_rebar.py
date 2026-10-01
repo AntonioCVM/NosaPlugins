@@ -374,6 +374,19 @@ def _warn_if_outside_bbox(x_mm, y_mm, xmin_mm, xmax_mm, ymin_mm, ymax_mm, label,
 # Main grid
 # ══════════════════════════════════════════════════════════════════════════
 
+def trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
+    """
+    Shorten a bar span equally at both ends to a whole number of step_mm, so the scheduled
+    A and the cut length agree (BS 8666 lengths in 25 mm steps; the ends only gain cover).
+    """
+    import math
+    length = hi_mm - lo_mm
+    if length < step_mm:
+        return lo_mm, hi_mm
+    trim = (length - math.floor(length / step_mm + 1e-9) * step_mm) / 2.0
+    return lo_mm + trim, hi_mm - trim
+
+
 def _finalize_bar_pieces(engine, footing_mod, line, max_stock_length_mm, lap_length_mm,
                           use_legs, leg_length_mm, leg_direction):
     """
@@ -484,6 +497,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
         rows_with_ivs.append((row, ivs))
 
     def _make_line(row, lo_mm, hi_mm):
+        lo_mm, hi_mm = trim_to_step_mm(lo_mm, hi_mm)
         row = _round_mm(row)
         lo_mm = _round_mm(lo_mm)
         hi_mm = _round_mm(hi_mm)
