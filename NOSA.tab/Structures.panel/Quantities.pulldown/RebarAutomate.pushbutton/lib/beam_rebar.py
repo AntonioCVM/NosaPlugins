@@ -678,77 +678,15 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     """
     engine = _ensure_engine()
     axis = get_beam_axis(host)
-    _raw_axis_len_mm = axis.Length * _MM_PER_FT
     # BUG FIX (2026-09-01) — see _clamp_axis_to_bbox's own docstring:
     # the raw LocationCurve can run past the beam's actual (mitred)
     # solid at each end; every downstream use of `axis` (longitudinal
     # bars AND stirrup zones) needs the clamped version, so this
     # happens once, immediately, before anything else derives from it.
     axis = _clamp_axis_to_bbox(axis, host)
-    # DIAGNOSTIC (2026-09-02) — two different clamp strategies
-    # (get_BoundingBox, then get_isolated_solid_bbox) both reportedly
-    # produced NO visible change live. Rather than guess a third one
-    # blindly, this makes the clamp's own before/after effect visible
-    # in ui.py's (now unlimited) result log — settles definitively
-    # whether this code path is even running (pyRevit module caching —
-    # a Reload is required after every lib/*.py edit — is the leading
-    # suspect given two different fixes produced byte-identical
-    # "unchanged" results) and, if it IS running, exactly what it
-    # computed.
-    _clamped_axis_len_mm = axis.Length * _MM_PER_FT
-    warnings = [u'DIAGNOSTIC: beam axis length before clamp = {:.1f}mm, '
-                u'after _clamp_axis_to_bbox = {:.1f}mm ({})'.format(
-                    _raw_axis_len_mm, _clamped_axis_len_mm,
-                    u'unchanged — LocationCurve already fits the solid, or no '
-                    u'bbox was available' if abs(_raw_axis_len_mm - _clamped_axis_len_mm) < 0.5
-                    else u'shortened by {:.1f}mm total'.format(
-                        _raw_axis_len_mm - _clamped_axis_len_mm))]
+    warnings = []
     cover_mgr = engine.CoverGeometryManager(doc, host)
     top, bottom, side_a, side_b = _beam_faces(cover_mgr, axis.Direction)
-
-    # DIAGNOSTIC (2026-09-02, round 3) — reported live: the LENGTH
-    # diagnostic above confirmed the bar's own axial length is exact
-    # (matches the clamped axis), yet the CREATED rebar still visibly
-    # sits outside the beam. Live bounding-box comparison (beam
-    # 1318407: X=[19165,19465], 300mm wide vs its own bar rows:
-    # X=[19391,19589]) showed the bars are NOT extending past the beam's
-    # ENDS — they are offset ~175mm sideways, off the beam's own
-    # centreline, on a 300mm-wide section — pushing most/all of the row
-    # outside the WIDTH of the beam instead. This surfaces exactly where
-    # `side_a`/`side_b` (this beam's own detected long-side faces) and
-    # their cover-offset points land relative to the axis, in the
-    # WIDTH direction only — isolating whether _beam_faces picked the
-    # wrong faces (e.g. this beam's Family is a custom "RC Beam" with
-    # Revit's own Section Shape reported as "Not Defined" — its
-    # geometry may not expose 2 simple rectangular side faces the way
-    # a standard parametric framing type would) or whether
-    # engine.compute_cover_point's own offset is the culprit.
-    try:
-        _height_dir_dbg = top.normal.Normalize()
-        _width_dir_dbg = axis.Direction.CrossProduct(_height_dir_dbg).Normalize()
-        _p0_dbg = axis.GetEndPoint(0)
-        _side_inset_dbg = cover_mm + stirrup_bar_diameter_mm + bar_diameter_mm / 2.0
-        _edge_a_dbg = engine.compute_cover_point(side_a, _side_inset_dbg)
-        _edge_b_dbg = engine.compute_cover_point(side_b, _side_inset_dbg)
-        _w_a_mm = (_edge_a_dbg - _p0_dbg).DotProduct(_width_dir_dbg) * _MM_PER_FT
-        _w_b_mm = (_edge_b_dbg - _p0_dbg).DotProduct(_width_dir_dbg) * _MM_PER_FT
-        _n_a_dbg = side_a.normal
-        _n_b_dbg = side_b.normal
-        warnings.append(
-            u'DIAGNOSTIC: side_a/side_b width offsets from axis (mm) = '
-            u'{:.1f} / {:.1f} (span {:.1f}mm; should straddle 0 — i.e. '
-            u'opposite signs — and span roughly the beam\'s own width '
-            u'minus 2x cover+stirrup+half-bar-dia); side_a.normal=({:.2f},'
-            u'{:.2f},{:.2f}), side_b.normal=({:.2f},{:.2f},{:.2f}) '
-            u'(should be near-opposite unit vectors, each roughly '
-            u'perpendicular to the axis).'.format(
-                _w_a_mm, _w_b_mm, abs(_w_b_mm - _w_a_mm),
-                _n_a_dbg.X, _n_a_dbg.Y, _n_a_dbg.Z,
-                _n_b_dbg.X, _n_b_dbg.Y, _n_b_dbg.Z))
-    except Exception as _dbg_exc:
-        warnings.append(u'DIAGNOSTIC: side_a/side_b width-offset check itself '
-                         u'failed ({}) — see console for the original '
-                         u'traceback.'.format(_dbg_exc))
 
     # Computed here (not after, as before the round-4 fix) so BOTH the
     # top and the bottom compute_longitudinal_bar_lines calls below can
@@ -766,25 +704,6 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         axis, bottom, side_a, side_b, cover_mm, n_bottom_bars, bar_diameter_mm,
         stirrup_diameter_mm=stirrup_bar_diameter_mm,
         seed_side_normal=long_bar_normal_vec)
-
-    # DIAGNOSTIC (2026-09-02, round 2) — the axis-clamp diagnostic above
-    # proved the clamp is a no-op for this beam (axis already fits the
-    # solid), yet the CREATED rebar still overshoots the solid by 20mm at
-    # EACH end. This checks the bar line's own length immediately after
-    # compute_longitudinal_bar_lines returns, BEFORE split_long_bars runs —
-    # isolating whether the 40mm (20mm/end) extension is introduced by bar
-    # construction itself or by the stock-length split/lap-offset transform.
-    if top_lines:
-        _first_top_len_mm = top_lines[0].Length * _MM_PER_FT
-        warnings.append(
-            u'DIAGNOSTIC: clamped axis = {:.1f}mm, first TOP bar line '
-            u'(pre-split, from compute_longitudinal_bar_lines) = {:.1f}mm '
-            u'({})'.format(
-                _clamped_axis_len_mm, _first_top_len_mm,
-                u'matches axis' if abs(_first_top_len_mm - _clamped_axis_len_mm) < 0.5
-                else u'DIFFERS by {:.1f}mm — extension introduced in '
-                     u'compute_longitudinal_bar_lines'.format(
-                         _first_top_len_mm - _clamped_axis_len_mm)))
 
     needs_split = any(l.Length * _MM_PER_FT > stock_length_mm
                        for l in (top_lines + bottom_lines))

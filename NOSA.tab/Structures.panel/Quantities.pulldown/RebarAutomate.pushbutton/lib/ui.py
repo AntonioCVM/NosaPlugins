@@ -192,7 +192,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
-                        mark_prefix=window.ra_project.get('mark_prefix', u''))
+                        mark_prefix=window._partition())
                     batch_result = batch.run(
                         lambda: window._run_column_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -215,7 +215,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
-                        mark_prefix=window.ra_project.get('mark_prefix', u''))
+                        mark_prefix=window._partition())
                     batch_result = batch.run(
                         lambda: window._run_beam_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -238,7 +238,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
-                        mark_prefix=window.ra_project.get('mark_prefix', u''))
+                        mark_prefix=window._partition())
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
@@ -273,7 +273,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                         generator_version=window.ra_generator_version,
                         standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
                         layers=window._pending_layers, locations=window._pending_locations,
-                        mark_prefix=window.ra_project.get('mark_prefix', u''))
+                        mark_prefix=window._partition())
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
                     summary = dict(batch_result.summary)
@@ -589,6 +589,12 @@ class RebarAutomateWindow(NOSAWindow):
             return max(0.0, float(self.ra_project.get('kicker_mm', 75.0)))
         except (TypeError, ValueError):
             return 75.0
+
+    def _partition(self):
+        """The Partition as typed now (it used to take effect only after Save Project Settings)."""
+        partition = (self.TxtMarkPrefix.Text or u'').strip()
+        self.ra_project['mark_prefix'] = partition
+        return partition
 
     def BtnSaveProjectHeader_Click(self, sender, args):
         """Guarda prefijo de marca, revisión y estado en rebar_project.json."""
@@ -3897,7 +3903,7 @@ class RebarAutomateWindow(NOSAWindow):
         self._in_revit(self._renumber_partition)
 
     def _renumber_partition(self):
-        partition = self.ra_project.get('mark_prefix', u'') or u''
+        partition = self._partition()
         confirmed = forms.alert(
             u'Renumber every non-finalized NOSA bar of partition "{}" with BS 8666 marks '
             u'(01, 02 ...)? Bar tags and schedules will show the new marks.'.format(
