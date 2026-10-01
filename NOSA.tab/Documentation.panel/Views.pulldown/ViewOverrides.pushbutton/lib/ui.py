@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 import System.Windows
 import System.Windows.Media
 from System.Collections.ObjectModel import ObservableCollection
@@ -15,8 +15,9 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 
 _here      = os.path.dirname(os.path.abspath(__file__))
-_vf_logic  = imp.load_source('vo_vf_logic', os.path.join(_here, 'logic_view_filter_batch.py'))
-_cbp_logic = imp.load_source('vo_cbp_logic', os.path.join(_here, 'logic_colour_by_param.py'))
+from nosa_utils.bootstrap import load_module
+_vf_logic  = load_module('vo_vf_logic', os.path.join(_here, 'logic_view_filter_batch.py'))
+_cbp_logic = load_module('vo_cbp_logic', os.path.join(_here, 'logic_colour_by_param.py'))
 
 _ALL_TYPES  = u'All Types'
 _SEARCH_VP  = u'Search views...'

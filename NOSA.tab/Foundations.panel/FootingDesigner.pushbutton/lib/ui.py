@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 import System.Windows
@@ -11,8 +10,9 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_pad_logic  = imp.load_source('fd_pad_logic',  os.path.join(_here, 'logic_pad_footings.py'))
-_wall_logic = imp.load_source('fd_wall_logic', os.path.join(_here, 'logic_wall_footings.py'))
+from nosa_utils.bootstrap import load_module
+_pad_logic  = load_module('fd_pad_logic',  os.path.join(_here, 'logic_pad_footings.py'))
+_wall_logic = load_module('fd_wall_logic', os.path.join(_here, 'logic_wall_footings.py'))
 
 _ALL_LEVELS = u'(all levels)'
 

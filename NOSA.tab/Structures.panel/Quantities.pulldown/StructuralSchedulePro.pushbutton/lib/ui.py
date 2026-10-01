@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 from Autodesk.Revit import DB
 import os, sys
 import System.Windows
@@ -16,8 +15,9 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_sp_logic  = imp.load_source('ssp_schedpro_logic', os.path.join(_here, 'logic_schedule_pro.py'))
-_bom_logic = imp.load_source('ssp_bom_logic',       os.path.join(_here, 'logic_structural_bom.py'))
+from nosa_utils.bootstrap import load_module
+_sp_logic  = load_module('ssp_schedpro_logic', os.path.join(_here, 'logic_schedule_pro.py'))
+_bom_logic = load_module('ssp_bom_logic',       os.path.join(_here, 'logic_structural_bom.py'))
 
 _ALL_LEVELS = u'— All levels —'
 _NO_EXCLUDE = u'— None (include all) —'

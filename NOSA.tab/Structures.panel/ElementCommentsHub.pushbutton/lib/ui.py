@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import imp
 
 import System
 from Autodesk.Revit import DB
@@ -16,8 +15,9 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_logic = imp.load_source('elc_logic', os.path.join(_here, 'logic.py'))
-_dmu = imp.load_source('elc_logic_dmu', os.path.join(_here, 'logic_dmu.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('elc_logic', os.path.join(_here, 'logic.py'))
+_dmu = load_module('elc_logic_dmu', os.path.join(_here, 'logic_dmu.py'))
 
 
 class GroupRow(object):

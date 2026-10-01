@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import imp
 import System.Windows
 
 from Autodesk.Revit import DB
@@ -16,8 +15,9 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.collectors import collect_views
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_dw_logic = imp.load_source('annhub_dw_logic',  os.path.join(_here, 'logic_dim_walls.py'))
-_ga_logic = imp.load_source('annhub_ga_logic',  os.path.join(_here, 'logic_ga_auto_dim.py'))
+from nosa_utils.bootstrap import load_module
+_dw_logic = load_module('annhub_dw_logic',  os.path.join(_here, 'logic_dim_walls.py'))
+_ga_logic = load_module('annhub_ga_logic',  os.path.join(_here, 'logic_ga_auto_dim.py'))
 
 DimensionLogic = _dw_logic.DimensionLogic
 

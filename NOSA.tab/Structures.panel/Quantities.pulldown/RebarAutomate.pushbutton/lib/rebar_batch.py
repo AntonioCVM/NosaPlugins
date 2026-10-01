@@ -216,8 +216,8 @@ class RebarBatch(object):
                 # F4: Clasificación de formas
                 with revit.Transaction(u'NOSA RebarAutomate — Shape Classification'):
                     try:
-                        import imp
-                        rebar_shape_classifier = imp.load_source('rebar_shape_classifier',
+                        from nosa_utils.bootstrap import load_module
+                        rebar_shape_classifier = load_module('rebar_shape_classifier',
                             os.path.join(os.path.dirname(__file__), 'rebar_shape_classifier.py'))
                         all_created_ids = [e.Id for e in created_rebars]
                         # The shape catalogue is named by the standard profile ("EHE-08" ->
@@ -238,8 +238,7 @@ class RebarBatch(object):
                 # F3: Numeración y marcado
                 with revit.Transaction(u'NOSA RebarAutomate — Marking {}'.format(self.ctx['batch_id'])):
                     try:
-                        import imp
-                        rebar_marking = imp.load_source('rebar_marking',
+                        rebar_marking = load_module('rebar_marking',
                             os.path.join(os.path.dirname(__file__), 'rebar_marking.py'))
                         all_created_ids = [e.Id for e in created_rebars]
                         mark_summary = rebar_marking.deduplicate_and_mark(doc, all_created_ids, self.ctx)

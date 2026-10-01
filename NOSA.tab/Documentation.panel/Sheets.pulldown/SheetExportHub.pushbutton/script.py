@@ -25,7 +25,8 @@ def _lm(n, p):
         s = _iu.spec_from_file_location(n, p); m = _iu.module_from_spec(s)
         sys.modules[n] = m; s.loader.exec_module(m); return m
     except (ImportError, AttributeError):
-        import imp; m = imp.load_source(n, p); sys.modules[n] = m; return m
+        from nosa_utils.bootstrap import load_module
+        import imp; m = load_module(n, p); sys.modules[n] = m; return m
 
 from pyrevit import revit
 from nosa_utils.logging import Logger

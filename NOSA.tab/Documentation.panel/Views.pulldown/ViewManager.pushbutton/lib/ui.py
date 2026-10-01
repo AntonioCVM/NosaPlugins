@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -13,7 +12,8 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
 
-_logic = imp.load_source('viewmanager_logic',
+from nosa_utils.bootstrap import load_module
+_logic = load_module('viewmanager_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -22,7 +22,7 @@ def _load_sibling_logic(name, module_name):
     for suffix in ('pushbutton', 'nobutton'):
         path = os.path.join(base, '{}.{}'.format(name, suffix), 'lib', 'logic.py')
         if os.path.exists(path):
-            return imp.load_source(module_name, path)
+            return load_module(module_name, path)
     raise ImportError('Cannot find logic for: ' + name)
 
 

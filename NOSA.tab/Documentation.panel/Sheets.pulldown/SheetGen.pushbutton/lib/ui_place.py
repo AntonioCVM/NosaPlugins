@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -9,9 +8,10 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_place = imp.load_source('sheetgen_place_logic',
+from nosa_utils.bootstrap import load_module
+_place = load_module('sheetgen_place_logic',
                          os.path.join(os.path.dirname(__file__), 'logic_place.py'))
-_sglogic = imp.load_source('sheetgen_place_sglogic',
+_sglogic = load_module('sheetgen_place_sglogic',
                            os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 

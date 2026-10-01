@@ -12,7 +12,7 @@ def load_local_module(name, path):
         spec.loader.exec_module(mod)
         return mod
     except (ImportError, AttributeError):
-        import imp
-        mod = imp.load_source(name, path)
+        from nosa_utils.bootstrap import load_module
+        mod = load_module(name, path)
         sys.modules[name] = mod
         return mod

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from Autodesk.Revit import DB
-import os, sys, imp, json
+import os, sys, json
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from System.Windows.Controls import CheckBox as _WPFCheckBox
@@ -9,7 +9,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils import sheet_protocol as _sp
-_logic = imp.load_source('drawingidx_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('drawingidx_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 from nosa_utils.base_window import NOSAWindow
 

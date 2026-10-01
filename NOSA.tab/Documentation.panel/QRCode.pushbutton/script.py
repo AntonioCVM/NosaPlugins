@@ -13,7 +13,6 @@ __author__  = "A. Viñas"
 
 import os
 import sys
-import imp
 
 from pyrevit import revit
 
@@ -26,7 +25,8 @@ from nosa_utils.base_window import launch_nosa_window
 if _ext_lib not in sys.path:
     sys.path.insert(0, _ext_lib)
 
-_ui = imp.load_source('qrcode_ui', os.path.join(_lib, 'ui.py'))
+from nosa_utils.bootstrap import load_module
+_ui = load_module('qrcode_ui', os.path.join(_lib, 'ui.py'))
 
 _doc   = getattr(revit, 'doc',   None)
 _uidoc = getattr(revit, 'uidoc', None)

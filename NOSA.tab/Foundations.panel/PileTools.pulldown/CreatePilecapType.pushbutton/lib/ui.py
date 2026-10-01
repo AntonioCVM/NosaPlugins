@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 import System.Windows
 from System.Windows.Controls import Canvas as WPFCanvas
 from System.Windows.Media import SolidColorBrush, Color
@@ -14,7 +14,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-_logic = imp.load_source('createpilecap_logic',
+from nosa_utils.bootstrap import load_module
+_logic = load_module('createpilecap_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 _CAP_FILL   = Color.FromRgb(220, 220, 220)

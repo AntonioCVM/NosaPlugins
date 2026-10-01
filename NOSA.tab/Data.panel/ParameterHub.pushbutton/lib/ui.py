@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import imp, io, os, sys, csv, codecs
+import io, os, sys, csv, codecs
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 
@@ -25,8 +25,9 @@ except ImportError:
             pass
 
 _here      = os.path.dirname(os.path.abspath(__file__))
-_pi_logic  = imp.load_source('ph_pi_logic',  os.path.join(_here, 'logic_param_inspector.py'))
-_be_logic  = imp.load_source('ph_be_logic',  os.path.join(_here, 'logic_bulk_param_editor.py'))
+from nosa_utils.bootstrap import load_module
+_pi_logic  = load_module('ph_pi_logic',  os.path.join(_here, 'logic_param_inspector.py'))
+_be_logic  = load_module('ph_be_logic',  os.path.join(_here, 'logic_bulk_param_editor.py'))
 
 _PI_SEARCH_PH = u'Search parameters...'
 

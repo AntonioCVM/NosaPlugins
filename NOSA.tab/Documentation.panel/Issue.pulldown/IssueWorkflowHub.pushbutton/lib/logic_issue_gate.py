@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -19,7 +18,8 @@ def _load_dpc_logic():
         for suffix in ('pushbutton', 'nobutton'):
             path = os.path.join(base, 'DrawingProtocolChecker.{}'.format(suffix), 'lib', 'logic.py')
             if os.path.exists(path):
-                _dpc_logic = imp.load_source('dpc_logic_gate', path)
+                from nosa_utils.bootstrap import load_module
+                _dpc_logic = load_module('dpc_logic_gate', path)
                 break
     return _dpc_logic
 

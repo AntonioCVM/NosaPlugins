@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import math
 import os
 import sys
@@ -26,7 +25,8 @@ from nosa_utils.logging import Logger
 
 _logger = Logger(level='DEBUG')
 
-_logic = imp.load_source('addpiletopilecap_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('addpiletopilecap_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 _PATTERNS = [
     ('rectangular', u'Rectangular — standard N×M grid'),

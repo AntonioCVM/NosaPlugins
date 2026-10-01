@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import io
 import os
 import sys
@@ -17,7 +16,8 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
-_logic = imp.load_source('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 # ── Data rows ────────────────────────────────────────────────────────────────

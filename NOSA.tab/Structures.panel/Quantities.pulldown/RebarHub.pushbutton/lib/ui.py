@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp, io, csv
+import os, sys, io, csv
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -20,11 +20,12 @@ from nosa_utils.base_window import NOSAWindow
 _HERE    = os.path.dirname(__file__)
 _QTY_DIR = os.path.abspath(os.path.join(_HERE, '..', '..'))   # Quantities.pulldown
 
-_bs_logic    = imp.load_source('rebarhub_bslogic',
+from nosa_utils.bootstrap import load_module
+_bs_logic    = load_module('rebarhub_bslogic',
     os.path.join(_QTY_DIR, 'RebarManager.nobutton',  'lib', 'logic.py'))
-_sched_logic = imp.load_source('rebarhub_schedlogic',
+_sched_logic = load_module('rebarhub_schedlogic',
     os.path.join(_QTY_DIR, 'RebarSchedule.nobutton', 'lib', 'logic.py'))
-_aud_logic   = imp.load_source('rebarhub_audlogic',
+_aud_logic   = load_module('rebarhub_audlogic',
     os.path.join(_QTY_DIR, 'RebarAuditor.nobutton',  'lib', 'logic.py'))
 
 EXPOSURE_CLASSES = ['X0', 'XC1', 'XC2', 'XC3', 'XC4',

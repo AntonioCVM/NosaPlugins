@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
@@ -7,7 +7,8 @@ from pyrevit import forms, revit
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path: sys.path.insert(0, _lib)
 
-_logic = imp.load_source('annobatch_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('annobatch_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 get_structural_views     = _logic.get_structural_views
 batch_tag_elements       = _logic.batch_tag_elements
 batch_grid_bubbles       = _logic.batch_grid_bubbles

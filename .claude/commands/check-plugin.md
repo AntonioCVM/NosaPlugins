@@ -30,7 +30,7 @@ Report PASS ✓ or FAIL ✗ for each, with the exact file and line number for fa
 ### B. script.py
 - [ ] Has `__title__`, `__version__`, `__doc__`, `__author__` metadata
 - [ ] `__author__` is `"NOSA Engineering"`
-- [ ] Uses `imp.load_source(...)` to load ui.py (not `nosa_utils.loader`)
+- [ ] Uses `nosa_utils.bootstrap.load_module(...)` to load ui.py (not `imp.load_source` nor `nosa_utils.loader`)
 - [ ] sys.path depth is correct:
   - pushbutton (no pulldown): 3 `..` levels to reach lib/
   - pulldown/pushbutton: 4 `..` levels to reach lib/

@@ -36,9 +36,9 @@ try:
         s = _iu.spec_from_file_location(n, p); m = _iu.module_from_spec(s)
         sys.modules[n] = m; s.loader.exec_module(m); return m
 except (ImportError, AttributeError):
-    import imp
     def _lm(n, p):
-        m = imp.load_source(n, p); sys.modules[n] = m; return m
+        from nosa_utils.bootstrap import load_module
+        m = load_module(n, p); sys.modules[n] = m; return m
 
 ui_module = _lm('projsetup_ui', os.path.join(lib_path, 'ui.py'))
 

@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 import csv
@@ -21,11 +20,12 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_pc_logic  = imp.load_source('iwh_pc_logic',  os.path.join(_here, 'logic_protocol_checker.py'))
-_ig_logic  = imp.load_source('iwh_ig_logic',  os.path.join(_here, 'logic_issue_gate.py'))
-_rpd_logic = imp.load_source('iwh_rpd_logic', os.path.join(_here, 'logic_revision_package_diff.py'))
-_rt_logic  = imp.load_source('iwh_rt_logic',  os.path.join(_here, 'logic_revision_tracker.py'))
-_sim_logic = imp.load_source('iwh_sim_logic', os.path.join(_here, 'logic_sheet_issue_manager.py'))
+from nosa_utils.bootstrap import load_module
+_pc_logic  = load_module('iwh_pc_logic',  os.path.join(_here, 'logic_protocol_checker.py'))
+_ig_logic  = load_module('iwh_ig_logic',  os.path.join(_here, 'logic_issue_gate.py'))
+_rpd_logic = load_module('iwh_rpd_logic', os.path.join(_here, 'logic_revision_package_diff.py'))
+_rt_logic  = load_module('iwh_rt_logic',  os.path.join(_here, 'logic_revision_tracker.py'))
+_sim_logic = load_module('iwh_sim_logic', os.path.join(_here, 'logic_sheet_issue_manager.py'))
 
 _SEARCH_PLACEHOLDER = u'Search issues…'
 

@@ -156,8 +156,8 @@ def load_module(name, path):
     try:
         import importlib.util
     except ImportError:
-        import imp
-        return imp.load_source(name, path)
+        from nosa_utils.bootstrap import load_module
+        return load_module(name, path)
     spec = importlib.util.spec_from_file_location(name, path)
     mod = importlib.util.module_from_spec(spec)
     sys.modules[name] = mod

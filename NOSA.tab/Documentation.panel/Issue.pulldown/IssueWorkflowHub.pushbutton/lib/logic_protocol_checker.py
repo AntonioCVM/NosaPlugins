@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import imp
 
 from Autodesk.Revit import DB
 
@@ -25,7 +24,8 @@ def _sheet_namer():
             for suffix in ('nobutton', 'pushbutton'):
                 path = os.path.join(base, 'SheetNamer.{}'.format(suffix), 'lib', 'logic.py')
                 if os.path.isfile(path):
-                    _sn = imp.load_source('sheet_namer_logic', path)
+                    from nosa_utils.bootstrap import load_module
+                    _sn = load_module('sheet_namer_logic', path)
                     break
             if _sn is not None:
                 break

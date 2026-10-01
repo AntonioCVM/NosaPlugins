@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os, sys
 import System.Windows
 from System import Int64
@@ -16,8 +15,9 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_sv_logic = imp.load_source('se_survey_logic', os.path.join(_here, 'logic_cuadro_replanteo.py'))
-_ps_logic = imp.load_source('se_pile_logic',   os.path.join(_here, 'logic_pile_survey_export.py'))
+from nosa_utils.bootstrap import load_module
+_sv_logic = load_module('se_survey_logic', os.path.join(_here, 'logic_cuadro_replanteo.py'))
+_ps_logic = load_module('se_pile_logic',   os.path.join(_here, 'logic_pile_survey_export.py'))
 
 _ALL        = u'— All —'
 _ALL_LEVELS = u'— All levels —'

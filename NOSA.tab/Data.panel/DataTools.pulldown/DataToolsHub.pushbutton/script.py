@@ -13,7 +13,7 @@ Single sidebar-navigation hub consolidating:
 """
 __author__  = "A. Viñas"
 
-import os, sys, imp
+import os, sys
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -22,7 +22,8 @@ if _lib not in sys.path:
 from nosa_utils.base_window import launch_nosa_window
 from pyrevit import revit
 
-_ui = imp.load_source('datatoolshub_ui',
+from nosa_utils.bootstrap import load_module
+_ui = load_module('datatoolshub_ui',
                       os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 
 launch_nosa_window(_ui.DataToolsHubWindow, revit.doc)

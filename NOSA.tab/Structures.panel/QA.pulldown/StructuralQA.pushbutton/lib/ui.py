@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp
+import io, csv, os, sys
 import System.Windows
 import System.Windows.Media
 from System.Collections.ObjectModel import ObservableCollection
@@ -19,13 +19,14 @@ from nosa_utils.revit_helpers import get_id_value, element_id_from_int
 _LOG = u'StructuralQA/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_cr_logic = imp.load_source('sqa_cr_logic', os.path.join(_here, 'logic_clash_report.py'))
-_dc_logic = imp.load_source('sqa_dc_logic', os.path.join(_here, 'logic_drawing_checker.py'))
-_fa_logic = imp.load_source('sqa_fa_logic', os.path.join(_here, 'logic_family_audit.py'))
-_iq_logic = imp.load_source('sqa_iq_logic', os.path.join(_here, 'logic_ifc_export_qa.py'))
-_si_logic = imp.load_source('sqa_si_logic', os.path.join(_here, 'logic_schedule_impact.py'))
-_rc_logic = imp.load_source('sqa_rc_logic', os.path.join(_here, 'logic_rebar_coverage.py'))
-_qq_logic = imp.load_source('sqa_qq_logic', os.path.join(_here, 'logic_quantification_qa.py'))
+from nosa_utils.bootstrap import load_module
+_cr_logic = load_module('sqa_cr_logic', os.path.join(_here, 'logic_clash_report.py'))
+_dc_logic = load_module('sqa_dc_logic', os.path.join(_here, 'logic_drawing_checker.py'))
+_fa_logic = load_module('sqa_fa_logic', os.path.join(_here, 'logic_family_audit.py'))
+_iq_logic = load_module('sqa_iq_logic', os.path.join(_here, 'logic_ifc_export_qa.py'))
+_si_logic = load_module('sqa_si_logic', os.path.join(_here, 'logic_schedule_impact.py'))
+_rc_logic = load_module('sqa_rc_logic', os.path.join(_here, 'logic_rebar_coverage.py'))
+_qq_logic = load_module('sqa_qq_logic', os.path.join(_here, 'logic_quantification_qa.py'))
 
 CR_ClashLogic = _cr_logic.ClashLogic
 

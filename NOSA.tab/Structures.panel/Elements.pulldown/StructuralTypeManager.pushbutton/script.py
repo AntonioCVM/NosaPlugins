@@ -28,8 +28,8 @@ def _lm(n, p):
         s.loader.exec_module(m)
         return m
     except (ImportError, AttributeError):
-        import imp
-        m = imp.load_source(n, p)
+        from nosa_utils.bootstrap import load_module
+        m = load_module(n, p)
         sys.modules[n] = m
         return m
 

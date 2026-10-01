@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp
+import io, csv, os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 
@@ -16,8 +16,9 @@ from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_tg_logic = imp.load_source('vtm_tg_logic', os.path.join(_here, 'logic_template_guard.py'))
-_ct_logic_mod = imp.load_source('vtm_ct_logic', os.path.join(_here, 'logic_copy_templates.py'))
+from nosa_utils.bootstrap import load_module
+_tg_logic = load_module('vtm_tg_logic', os.path.join(_here, 'logic_template_guard.py'))
+_ct_logic_mod = load_module('vtm_ct_logic', os.path.join(_here, 'logic_copy_templates.py'))
 
 run_all_checks    = _tg_logic.run_all_checks
 CopyTemplateLogic = _ct_logic_mod.CopyTemplateLogic

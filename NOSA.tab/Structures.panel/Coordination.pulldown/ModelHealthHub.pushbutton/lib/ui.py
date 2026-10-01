@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp, datetime
+import io, csv, os, sys, datetime
 import System.Windows
 import System.Windows.Media as SWM
 import System.Windows.Shapes as SWS
@@ -22,15 +22,16 @@ from nosa_utils.revit_helpers import element_id_from_int
 _LOG = u'ModelHealthHub/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_hs_logic  = imp.load_source('mhh_hs_logic',  os.path.join(_here, 'logic_health_score.py'))
-_wt_logic  = imp.load_source('mhh_wt_logic',  os.path.join(_here, 'logic_warnings_triage.py'))
-_sc_logic  = imp.load_source('mhh_sc_logic',  os.path.join(_here, 'logic_model_sync.py'))
-_ah_logic  = imp.load_source('mhh_ah_logic',  os.path.join(_here, 'logic_analytical_health.py'))
-_cc_logic  = imp.load_source('mhh_cc_logic',  os.path.join(_here, 'logic_connection_checker.py'))
-_cv_logic  = imp.load_source('mhh_cv_logic',  os.path.join(_here, 'logic_cover_compliance.py'))
-_fl_logic  = imp.load_source('mhh_fl_logic',  os.path.join(_here, 'logic_foundation_loads.py'))
-_lgs_logic = imp.load_source('mhh_lgs_logic', os.path.join(_here, 'logic_level_grid_sync.py'))
-_pd_logic  = imp.load_source('mhh_pd_logic',  os.path.join(_here, 'logic_parameter_drift.py'))
+from nosa_utils.bootstrap import load_module
+_hs_logic  = load_module('mhh_hs_logic',  os.path.join(_here, 'logic_health_score.py'))
+_wt_logic  = load_module('mhh_wt_logic',  os.path.join(_here, 'logic_warnings_triage.py'))
+_sc_logic  = load_module('mhh_sc_logic',  os.path.join(_here, 'logic_model_sync.py'))
+_ah_logic  = load_module('mhh_ah_logic',  os.path.join(_here, 'logic_analytical_health.py'))
+_cc_logic  = load_module('mhh_cc_logic',  os.path.join(_here, 'logic_connection_checker.py'))
+_cv_logic  = load_module('mhh_cv_logic',  os.path.join(_here, 'logic_cover_compliance.py'))
+_fl_logic  = load_module('mhh_fl_logic',  os.path.join(_here, 'logic_foundation_loads.py'))
+_lgs_logic = load_module('mhh_lgs_logic', os.path.join(_here, 'logic_level_grid_sync.py'))
+_pd_logic  = load_module('mhh_pd_logic',  os.path.join(_here, 'logic_parameter_drift.py'))
 
 logger = Logger()
 

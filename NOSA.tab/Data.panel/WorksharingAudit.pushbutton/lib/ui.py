@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp
+import io, csv, os, sys
 
 from pyrevit import forms
 from System.Collections.ObjectModel import ObservableCollection
@@ -11,7 +11,8 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_wa_logic = imp.load_source('wa_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_wa_logic = load_module('wa_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 class WA_Row(object):

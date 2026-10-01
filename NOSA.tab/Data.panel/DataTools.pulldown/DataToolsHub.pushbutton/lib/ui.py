@@ -20,7 +20,6 @@ writes to the ONE shared hub footer / overlay instead of a per-tool one,
 which is exactly the "shared footer written by whichever tab is active"
 pattern used by the FootingDesigner pilot merge.
 """
-import imp
 import io
 import os
 import sys
@@ -39,11 +38,12 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_es_logic = imp.load_source('dth_es_logic', os.path.join(_here, 'logic_excel_sync.py'))
-_wh_logic = imp.load_source('dth_wh_logic', os.path.join(_here, 'logic_workset_health.py'))
-_mc_logic = imp.load_source('dth_mc_logic', os.path.join(_here, 'logic_model_cleanup.py'))
-_lm_logic = imp.load_source('dth_lm_logic', os.path.join(_here, 'logic_link_manager.py'))
-_tr_logic = imp.load_source('dth_tr_logic', os.path.join(_here, 'logic_type_renamer.py'))
+from nosa_utils.bootstrap import load_module
+_es_logic = load_module('dth_es_logic', os.path.join(_here, 'logic_excel_sync.py'))
+_wh_logic = load_module('dth_wh_logic', os.path.join(_here, 'logic_workset_health.py'))
+_mc_logic = load_module('dth_mc_logic', os.path.join(_here, 'logic_model_cleanup.py'))
+_lm_logic = load_module('dth_lm_logic', os.path.join(_here, 'logic_link_manager.py'))
+_tr_logic = load_module('dth_tr_logic', os.path.join(_here, 'logic_type_renamer.py'))
 
 _MATCH_BY_UID  = 'UniqueId'
 _MATCH_BY_MARK = 'Mark'
@@ -65,7 +65,7 @@ def _lm_lcm_logic():
                                 'LinkChangeMonitor.{}'.format(suffix),
                                 'lib', 'logic.py')
             if os.path.isfile(path):
-                _lm_lcm = imp.load_source('dth_lm_lcm_logic', path)
+                _lm_lcm = load_module('dth_lm_lcm_logic', path)
                 break
         if _lm_lcm is None:
             raise ImportError(u'LinkChangeMonitor logic not found.')

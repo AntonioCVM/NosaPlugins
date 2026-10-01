@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -16,7 +15,8 @@ _logic = None
 def _get_logic():
     global _logic
     if _logic is None:
-        _logic = imp.load_source(
+        from nosa_utils.bootstrap import load_module
+        _logic = load_module(
             'linkchangemonitor_logic',
             os.path.join(os.path.dirname(__file__), 'logic.py'))
     return _logic

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp, json
+import os, sys, json
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -37,11 +37,12 @@ def _resolve_hub_logic(plugin_base):
 def _hub_logics():
     global _di_logic, _sn_logic, _sc_logic
     if _di_logic is None:
-        _di_logic = imp.load_source('sheethub_di_logic',
+        from nosa_utils.bootstrap import load_module
+        _di_logic = load_module('sheethub_di_logic',
             _resolve_hub_logic('DrawingIndex'))
-        _sn_logic = imp.load_source('sheethub_sn_logic',
+        _sn_logic = load_module('sheethub_sn_logic',
             _resolve_hub_logic('SheetNamer'))
-        _sc_logic = imp.load_source('sheethub_sc_logic',
+        _sc_logic = load_module('sheethub_sc_logic',
             _resolve_hub_logic('SheetGen'))
     return _di_logic, _sn_logic, _sc_logic
 

@@ -4,7 +4,7 @@ __version__ = "4.2"
 __doc__     = "Export project sheets to PDF, DWG, or DXF with NOSA naming and batch options."
 __author__  = "A. Viñas"
 
-import os, sys, imp
+import os, sys
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -26,7 +26,8 @@ from nosa_utils.base_window import launch_nosa_window
 # this naming scheme; the module names themselves are unique extension-wide.
 
 try:
-    _ui = imp.load_source('exportsheets_ui', os.path.join(_local_lib, 'ui.py'))
+    from nosa_utils.bootstrap import load_module
+    _ui = load_module('exportsheets_ui', os.path.join(_local_lib, 'ui.py'))
 except Exception as _load_err:
     import traceback
     from pyrevit import forms

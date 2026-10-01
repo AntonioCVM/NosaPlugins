@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import io
-import os, sys, csv, imp
+import os, sys, csv
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
@@ -9,7 +9,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path: sys.path.insert(0, _lib)
 
-_logic = imp.load_source('tguard_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('tguard_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 run_all_checks = _logic.run_all_checks
 
 from nosa_utils.base_window import NOSAWindow

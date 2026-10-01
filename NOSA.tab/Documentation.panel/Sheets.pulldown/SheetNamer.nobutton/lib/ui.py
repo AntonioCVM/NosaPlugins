@@ -7,8 +7,8 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-import imp
-_logic = imp.load_source('sheetnamer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('sheetnamer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 from nosa_utils.base_window import NOSAWindow
 from Autodesk.Revit import DB

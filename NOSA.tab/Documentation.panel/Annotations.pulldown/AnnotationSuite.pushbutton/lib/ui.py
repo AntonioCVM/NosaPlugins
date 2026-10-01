@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -25,7 +24,8 @@ def _load_sibling_logic(name, module_name):
     for suffix in ('pushbutton', 'nobutton'):
         path = os.path.join(base, '{}.{}'.format(name, suffix), 'lib', 'logic.py')
         if os.path.exists(path):
-            return imp.load_source(module_name, path)
+            from nosa_utils.bootstrap import load_module
+            return load_module(module_name, path)
     raise ImportError('Cannot find logic for: ' + name)
 
 

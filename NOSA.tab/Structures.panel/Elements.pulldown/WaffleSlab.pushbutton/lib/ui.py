@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -16,8 +15,9 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_logic = imp.load_source('waffleslab_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
-_preview = imp.load_source('waffleslab_ui_preview', os.path.join(os.path.dirname(__file__), 'ui_preview.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('waffleslab_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+_preview = load_module('waffleslab_ui_preview', os.path.join(os.path.dirname(__file__), 'ui_preview.py'))
 
 
 class WaffleSlabWindow(NOSAWindow):

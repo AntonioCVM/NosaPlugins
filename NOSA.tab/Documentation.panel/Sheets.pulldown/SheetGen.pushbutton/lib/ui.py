@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os, sys, re
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
@@ -17,8 +16,9 @@ try:
     unicode
 except NameError:
     unicode = str
-_logic    = imp.load_source('sheetcomposer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
-_di_logic = imp.load_source('drawingindex_logic',
+from nosa_utils.bootstrap import load_module
+_logic    = load_module('sheetcomposer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+_di_logic = load_module('drawingindex_logic',
                  os.path.abspath(os.path.join(os.path.dirname(__file__),
                                               '..', '..', 'DrawingIndex.nobutton', 'lib', 'logic.py')))
 
@@ -613,7 +613,7 @@ class SheetComposerWindow(NOSAWindow):
 
     def OpenPlaceViews_Click(self, sender, args):
         try:
-            _pv = imp.load_source('sheetgen_place_ui',
+            _pv = load_module('sheetgen_place_ui',
                                   os.path.join(os.path.dirname(__file__), 'ui_place.py'))
             win = _pv.PlaceViewsWindow(self.doc)
             win.ShowDialog()

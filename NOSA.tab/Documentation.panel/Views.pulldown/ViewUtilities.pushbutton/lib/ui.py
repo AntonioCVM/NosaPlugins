@@ -19,7 +19,6 @@ Follows the FootingDesigner / PileMaster pattern:
 """
 import os
 import sys
-import imp
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 
@@ -36,12 +35,13 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils import unit_conversion as _uc10
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_align_logic    = imp.load_source('vu_align_logic',    os.path.join(_here, 'logic_align_view_titles.py'))
-_bay_logic      = imp.load_source('vu_bay_logic',       os.path.join(_here, 'logic_bay_sections.py'))
-_level_logic    = imp.load_source('vu_level_logic',     os.path.join(_here, 'logic_level_navigator.py'))
-_viewdep_logic  = imp.load_source('vu_viewdep_logic',   os.path.join(_here, 'logic_view_dependency_explorer.py'))
-_halftone_logic = imp.load_source('vu_halftone_logic',  os.path.join(_here, 'logic_halftone_selection.py'))
-_secbox_logic   = imp.load_source('vu_secbox_logic',    os.path.join(_here, 'logic_section_boxer.py'))
+from nosa_utils.bootstrap import load_module
+_align_logic    = load_module('vu_align_logic',    os.path.join(_here, 'logic_align_view_titles.py'))
+_bay_logic      = load_module('vu_bay_logic',       os.path.join(_here, 'logic_bay_sections.py'))
+_level_logic    = load_module('vu_level_logic',     os.path.join(_here, 'logic_level_navigator.py'))
+_viewdep_logic  = load_module('vu_viewdep_logic',   os.path.join(_here, 'logic_view_dependency_explorer.py'))
+_halftone_logic = load_module('vu_halftone_logic',  os.path.join(_here, 'logic_halftone_selection.py'))
+_secbox_logic   = load_module('vu_secbox_logic',    os.path.join(_here, 'logic_section_boxer.py'))
 
 
 # ══════════════════════════════════════════════════════════════════════════
