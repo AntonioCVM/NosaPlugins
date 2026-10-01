@@ -176,10 +176,25 @@ def _bending(doc, rebar, curves):
         return None
 
 
+def _revit_shape(doc, rebar):
+    """The bar's Revit shape; a bent FreeForm bar matched to one shape reports it via GetAllRebarShapeIds."""
+    try:
+        return doc.GetElement(rebar.GetShapeId())
+    except Exception:
+        pass
+    try:
+        from Autodesk.Revit.DB import Element
+        shapes = [doc.GetElement(i) for i in rebar.GetAllRebarShapeIds()]
+        names = set(Element.Name.GetValue(s) for s in shapes if s is not None)
+        return shapes[0] if len(names) == 1 else None
+    except Exception:
+        return None
+
+
 def _revit_shape_params(doc, rebar):
     """A=..;B=.. read from the bar's own Revit shape family (e.g. 26, 75), in mm."""
     try:
-        shape = doc.GetElement(rebar.GetShapeId())
+        shape = _revit_shape(doc, rebar)
         pairs = []
         for param_id in shape.GetRebarShapeDefinition().GetParameters():
             name = doc.GetElement(param_id).Name
@@ -231,7 +246,7 @@ def classify_and_stamp(doc, rebar_id, standard_code):
         shape_code = None
         name = None
         try:
-            revit_shape = doc.GetElement(rebar.GetShapeId())
+            revit_shape = _revit_shape(doc, rebar)
             from Autodesk.Revit.DB import Element  # Lazy import; .Name fails on RebarShape in IronPython
             name = Element.Name.GetValue(revit_shape) if revit_shape is not None else None
             # A FreeForm group (e.g. U-bars on a skewed edge, kept parallel to the mat:

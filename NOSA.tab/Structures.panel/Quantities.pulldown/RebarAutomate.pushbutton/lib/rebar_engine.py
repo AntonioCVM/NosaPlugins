@@ -1049,6 +1049,24 @@ def starter_l_curves(line, hook_dir, bar_dia_mm, foundation=None, cover_mm=None)
     return [DB.Line.CreateBound(tip, corner), DB.Line.CreateBound(corner, top)], foot_ft * _MM_PER_FT
 
 
+def set_workshop_bent(rebar):
+    """
+    Workshop Instructions = Bend on a FreeForm bar: with the default "Keep Straight"
+    Revit matches every FreeForm bar to shape 00; with Bend it matches the real bent
+    shape (U-bars on a skewed edge -> 21). Measured 2026-10-01 in Revit 2026.
+    """
+    try:
+        rebar.GetFreeFormAccessor().WorkshopInstructions = DBS.RebarWorkInstructions.Bent
+        return True
+    except Exception:
+        pass
+    try:
+        param = rebar.get_Parameter(DB.BuiltInParameter.REBAR_WORKSHOP_INSTRUCTIONS)
+        return bool(param is not None and not param.IsReadOnly and param.Set(0))
+    except Exception:
+        return False
+
+
 def find_rebar_shape(doc, name):
     """The project's RebarShape called `name` (e.g. u'26'), or None."""
     for shape in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape):
@@ -1894,10 +1912,12 @@ class RebarWrapper(object):
         try:
             with revit.Transaction(transaction_name):
                 result = DBS.Rebar.CreateFreeForm(self.doc, bar_type, host, loop_list)
-            if isinstance(result, tuple):
-                rebar, validation = result[0], result[1]
-            else:
-                rebar, validation = result, None
+                if isinstance(result, tuple):
+                    rebar, validation = result[0], result[1]
+                else:
+                    rebar, validation = result, None
+                if rebar is not None and all(len(chain) > 1 for chain in curve_groups):
+                    set_workshop_bent(rebar)
             if rebar is None:
                 self.last_error = u'Rebar.CreateFreeForm returned None (validation: {}).'.format(validation)
                 return None
