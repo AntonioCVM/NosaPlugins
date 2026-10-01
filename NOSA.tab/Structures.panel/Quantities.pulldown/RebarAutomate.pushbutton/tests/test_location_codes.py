@@ -57,3 +57,9 @@ check('slab on both sides: Revit exterior side is FF',
 check('a single face beside a slab is NF, a lone outer face FF',
       wr.face_codes([True], [True]) == ['NF'] and wr.face_codes([False], [True]) == ['FF'])
 print('\nALL WALL FACE CHECKS PASSED')
+
+import rebar_marking as rm
+check('mark numbers read back from the mark itself',
+      rm.mark_number('05') == 5 and rm.mark_number('05B') == 5 and rm.mark_number('112') == 112
+      and rm.mark_number('') == 0 and rm.mark_number(None) == 0)
+print('\nALL MARK NUMBER CHECKS PASSED')

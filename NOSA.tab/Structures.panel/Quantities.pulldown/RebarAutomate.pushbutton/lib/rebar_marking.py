@@ -95,6 +95,16 @@ def variant_suffix(index):
     return out
 
 
+def mark_number(mark):
+    """Sequential number of a bar mark ('05', '05B' -> 5); 0 when there is none."""
+    digits = u''
+    for ch in (mark or u''):
+        if not ch.isdigit():
+            break
+        digits += ch
+    return int(digits) if digits else 0
+
+
 def format_mark(number):
     """BS 8666 bar mark: a plain sequential number, 01, 02 ... 100."""
     return u'{:02d}'.format(int(number))
@@ -158,10 +168,7 @@ def _existing_marks(doc, exclude_ids, partition, tolerance_mm):
             continue
         if not _read(doc, rebar.Id, "NOSA_Rebar_Batch_Id"):
             continue
-        try:
-            number = int(_read(doc, rebar.Id, "NOSA_Rebar_Number") or 0)
-        except (TypeError, ValueError):
-            continue
+        number = mark_number(_read(doc, rebar.Id, "NOSA_Rebar_Mark"))
         if number <= 0:
             continue
         highest = max(highest, number)
