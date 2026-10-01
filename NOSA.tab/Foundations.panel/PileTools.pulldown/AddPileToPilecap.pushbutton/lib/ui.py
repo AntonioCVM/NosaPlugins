@@ -112,12 +112,12 @@ class AddPileToPilecapWindow(NOSAWindow):
             self.CboPattern.Items.Add(label)
         self.CboPattern.SelectedIndex = 0
 
-        last = _logic.load_last_config()
+        cfg = self.LoadConfig()
+        last = _logic.load_last_config(cfg)
         self.TxtSpacing.Text    = str(last['spacing_mm'])
         self.TxtEmbedment.Text  = str(last['embedment_mm'])
         self.TxtClearance.Text  = str(last['clearance_mm'])
 
-        cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
         self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
 
@@ -137,6 +137,11 @@ class AddPileToPilecapWindow(NOSAWindow):
         if last_name and last_name in names:
             idx = names.index(last_name)
         self.CboPileType.SelectedIndex = idx
+
+    def _save_last_config(self, spacing_mm, pile_name, embedment_mm, clearance_mm):
+        cfg = self.LoadConfig()
+        _logic.save_last_config(cfg, spacing_mm, pile_name, embedment_mm, clearance_mm)
+        self.SaveConfig(cfg)
 
     def _current_pattern(self):
         idx = self.CboPattern.SelectedIndex
@@ -513,7 +518,7 @@ class AddPileToPilecapWindow(NOSAWindow):
         self._refresh_preview()
 
         clearance_mm = self._try_read_clearance()
-        _logic.save_last_config(
+        self._save_last_config(
             spacing_mm,
             str(self.CboPileType.SelectedItem),
             embedment_mm,
@@ -627,7 +632,7 @@ class AddPileToPilecapWindow(NOSAWindow):
         creation_error = None
         try:
             _logger.debug(u'_do_create_piles_and_group: opening "Create Piles" transaction')
-            with revit.Transaction(u'Create Piles', doc=self.doc):
+            with revit.Transaction(u'NOSA — Create Piles', doc=self.doc):
                 if not pile_symbol.IsActive:
                     pile_symbol.Activate()
                 with nosa_progress(len(grid_points), u'Creating piles',
@@ -663,21 +668,21 @@ class AddPileToPilecapWindow(NOSAWindow):
         self.LogLine(u'{} piles created.'.format(len(pile_ids)))
 
         _logger.debug(u'_do_create_piles_and_group: opening "Unjoin Piles from Slab" transaction')
-        with revit.Transaction(u'Unjoin Piles from Slab', doc=self.doc):
+        with revit.Transaction(u'NOSA — Unjoin Piles from Slab', doc=self.doc):
             n_unjoin = _logic.unjoin_piles_from_slab(self.doc, pile_ids, slab)
         self.LogLine(u'{} piles unjoined from slab.'.format(n_unjoin))
 
         next_num = _logic.find_next_core_number(self.doc)
         group_name = u'Core {}'.format(next_num)
         _logger.debug(u'_do_create_piles_and_group: opening "Create Group" transaction')
-        with revit.Transaction(u"Create Group '{}'".format(group_name), doc=self.doc):
+        with revit.Transaction(u"NOSA — Create Group '{}'".format(group_name), doc=self.doc):
             try:
                 _logic.create_core_group(self.doc, slab.Id, pile_ids, group_name)
                 self.LogLine(u'Created group: {}'.format(group_name))
             except Exception as ex:
                 self.LogLine(u'Warning: could not create group: {}'.format(ex))
 
-        _logic.save_last_config(spacing_mm, pile_name, embedment_mm, self._try_read_clearance())
+        self._save_last_config(spacing_mm, pile_name, embedment_mm, self._try_read_clearance())
         forms.alert(
             u'{} piles created and grouped as "{}".'.format(len(pile_ids), group_name),
             title=u'Success',
