@@ -1657,8 +1657,12 @@ def build_perimeter_closure_ubars_topology(doc, host,
                                      sys.modules[__name__])
         rows.update({'x_dia_mm': bottom_dia_x_mm, 'y_dia_mm': bottom_dia_y_mm,
                      'x_ubar_dia_mm': x_anchor_dia_mm, 'y_ubar_dia_mm': y_anchor_dia_mm})
+    # U-bar back centreline at cover + radius (see floor_rebar's closure call).
+    ubar_inset_mm = bottom_cover_mm + max(x_anchor_dia_mm, y_anchor_dia_mm) / 2.0
+    ubar_outer = topo.offset_polygon_mm(raw_outer, ubar_inset_mm)
+    ubar_holes = [topo.offset_polygon_mm(h, -ubar_inset_mm) for h in raw_holes]
     return floor_mod._build_edge_ubars(
-        topo, sys.modules[__name__], DB, bottom_outer, bottom_holes,
+        topo, sys.modules[__name__], DB, ubar_outer, ubar_holes,
         x_leg_mm, x_anchor_spacing_mm, b1_z_ft, t1_z_ft,
         y_leg_mm, y_anchor_spacing_mm, b2_z_ft, t2_z_ft, mat_rows=rows)
 
