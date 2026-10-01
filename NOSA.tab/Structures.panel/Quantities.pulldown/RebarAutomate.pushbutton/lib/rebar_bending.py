@@ -67,6 +67,40 @@ def bar_variants(rebar, bar_dia_mm):
     return bars
 
 
+def round_length_mm(length_mm, step_mm, method):
+    """Round a cut length to step_mm, 'Up' / 'Down' / nearest, as Revit's bar rounding does."""
+    if not step_mm or step_mm <= 0:
+        return length_mm
+    units = length_mm / step_mm
+    if method == 'Up':
+        units = math.ceil(units - 1e-6)
+    elif method == 'Down':
+        units = math.floor(units + 1e-6)
+    else:
+        units = round(units)
+    return units * step_mm
+
+
+def unit_cut_length_mm(rebar):
+    """Cut length of one bar; FreeForm bars get the total-length rounding Revit applies only to Sets."""
+    try:
+        length_mm = rebar.TotalLength * _FT_TO_MM / max(1, int(rebar.Quantity))
+    except Exception:
+        return 0.0
+    try:
+        if not rebar.IsRebarFreeForm():
+            return round(length_mm, 1)
+        manager = rebar.GetReinforcementRoundingManager()
+        # Revit 2026 returns this value in mm already (25.0 for a 25 mm rounding).
+        step_mm = manager.ApplicableTotalLengthRounding
+        if 0 < step_mm < 1:
+            step_mm *= _FT_TO_MM   # a value in feet
+        method = str(manager.ApplicableTotalLengthRoundingMethod)
+        return round(round_length_mm(length_mm, step_mm, method), 1)
+    except Exception:
+        return round(length_mm, 1)
+
+
 def variant_key(geometry, length_mm):
     """Bars with the same key are the same bar for the schedule (legs to 1 mm, else length)."""
     if geometry:

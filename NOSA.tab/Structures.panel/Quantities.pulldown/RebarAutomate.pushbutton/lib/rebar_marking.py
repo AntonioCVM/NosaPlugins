@@ -135,10 +135,8 @@ def _dedup_key(doc, rebar, tolerance_mm, is_varying):
     if is_varying:
         from nosa_utils.revit_helpers import get_id_value
         return ('varying', get_id_value(rid))
-    try:
-        unit_length_mm = rebar.TotalLength * _FT_TO_MM / max(1, int(rebar.Quantity))
-    except Exception:
-        unit_length_mm = 0.0
+    import rebar_bending
+    unit_length_mm = rebar_bending.unit_cut_length_mm(rebar)
     return (int(round(_bar_diameter_mm(doc, rebar))),
             _read(doc, rid, "NOSA_Rebar_Shape_Code") or "99",
             _parse_shape_params(_read(doc, rid, "NOSA_Rebar_Shape_Params") or "", tolerance_mm),

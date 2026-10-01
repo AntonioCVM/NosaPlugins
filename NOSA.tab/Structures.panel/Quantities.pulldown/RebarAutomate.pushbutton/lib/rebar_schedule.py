@@ -159,10 +159,8 @@ def _bar_quantity(rebar):
 
 def _unit_length_mm(rebar):
     """Cut length of ONE bar; Rebar.TotalLength covers the whole set."""
-    try:
-        return round(rebar.TotalLength * _FT_TO_MM / _bar_quantity(rebar), 1)
-    except Exception:
-        return 0.0
+    import rebar_bending
+    return rebar_bending.unit_cut_length_mm(rebar)
 
 
 def group_by_position(doc, rebar_ids):
