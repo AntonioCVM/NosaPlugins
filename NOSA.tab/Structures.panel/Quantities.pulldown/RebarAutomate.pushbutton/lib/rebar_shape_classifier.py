@@ -176,9 +176,6 @@ def _bending(doc, rebar, curves):
         return None
 
 
-_COMPUTED_CODES = ('00', '11', '21', '51', '99')
-
-
 def _revit_shape_params(doc, rebar):
     """A=..;B=.. read from the bar's own Revit shape family (e.g. 26, 75), in mm."""
     try:
@@ -232,6 +229,7 @@ def classify_and_stamp(doc, rebar_id, standard_code):
         # Clasificar forma — a Revit shape that is itself a catalogue code
         # (e.g. the lapped circle 75) wins over the curve analysis.
         shape_code = None
+        name = None
         try:
             revit_shape = doc.GetElement(rebar.GetShapeId())
             from Autodesk.Revit.DB import Element  # Lazy import; .Name fails on RebarShape in IronPython
@@ -251,7 +249,9 @@ def classify_and_stamp(doc, rebar_id, standard_code):
 
         # Calcular parámetros
         shape_params = _compute_shape_params(shape_code, analysis, _bending(doc, rebar, curves))
-        if shape_code not in _COMPUTED_CODES:
+        # The project's own family for this code is the reference (user decision
+        # 2026-10-01): its A, B, C ... are what Revit and the schedules read.
+        if shape_code != '99' and name == shape_code:
             family_params = _revit_shape_params(doc, rebar)
             if family_params:
                 shape_params = family_params
