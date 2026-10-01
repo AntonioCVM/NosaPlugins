@@ -1628,8 +1628,14 @@ def build_floor_reinforcement(doc, host,
                            bottom_dia_x_mm, bottom_dia_y_mm, bottom_spacing_mm, footing_mod)
         rows.update({'x_dia_mm': bottom_dia_x_mm, 'y_dia_mm': bottom_dia_y_mm,
                      'x_ubar_dia_mm': x_anchor_ubar_dia_mm, 'y_ubar_dia_mm': y_anchor_ubar_dia_mm})
+        # The U-bar back's centreline sits at cover + radius: placed at the cover
+        # line, Revit pushed Set bars in by d/2 (shortening their legs) but not
+        # FreeForm bars, so skewed edges got longer legs and less cover.
+        ubar_inset_mm = side_cover_mm + max(x_anchor_ubar_dia_mm, y_anchor_ubar_dia_mm) / 2.0
+        ubar_outer = topo.offset_polygon_mm(raw_outer, ubar_inset_mm)
+        ubar_holes = [topo.offset_polygon_mm(h, -ubar_inset_mm) for h in raw_holes]
         result['perimeter_closure_ubars'] = _build_edge_ubars(
-            topo, footing_mod, DB, bottom_outer, bottom_holes,
+            topo, footing_mod, DB, ubar_outer, ubar_holes,
             x_leg_mm, x_anchor_ubar_spacing_mm, b1_z_ft, t1_z_ft,
             y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
             raw_holes=raw_holes, mat_rows=rows)
