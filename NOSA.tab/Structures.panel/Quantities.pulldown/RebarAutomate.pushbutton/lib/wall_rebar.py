@@ -179,6 +179,74 @@ def whole_step_length_mm(length_mm, step_mm=25.0):
     return whole
 
 
+def find_slab_on_wall(doc, host, axis, wall_top_z, tol_mm=50.0):
+    """(floor, slab top z) for a slab cast on the wall head (its underside at the wall top), else None."""
+    tol = tol_mm / _MM_PER_FT
+    best = None
+    try:
+        for floor in DB.FilteredElementCollector(doc).OfClass(DB.Floor):
+            bbox = floor.get_BoundingBox(None)
+            if bbox is None or abs(bbox.Min.Z - wall_top_z) > tol + 1.0:
+                continue
+            solids = _floor_solids(doc, DB.Outline(bbox.Min, bbox.Max))
+            hits = 0
+            for t in (0.25, 0.5, 0.75):
+                p = axis.Evaluate(t, True)
+                if _slab_at(solids, p.X, p.Y, wall_top_z + tol, wall_top_z + 3 * tol):
+                    hits += 1
+            if hits >= 2 and (best is None or bbox.Max.Z < best[1]):
+                best = (floor, bbox.Max.Z)
+    except Exception:
+        return None
+    return best
+
+
+def slab_top_mat_mm(doc, floor, fallback_mm=24.0):
+    """Depth of the slab's top mat (T1 + T2 NOSA bar diameters), else fallback_mm."""
+    layers = {}
+    try:
+        for rebar in DB.FilteredElementCollector(doc).OfCategory(
+                DB.BuiltInCategory.OST_Rebar).WhereElementIsNotElementType():
+            if rebar.GetHostId() != floor.Id:
+                continue
+            param = rebar.LookupParameter(u'NOSA_Rebar_Layer')
+            layer = param.AsString() if param is not None else None
+            if layer in (u'top_x', u'top_y'):
+                dia = doc.GetElement(rebar.GetTypeId()).BarNominalDiameter * _MM_PER_FT
+                layers[layer] = max(layers.get(layer, 0.0), dia)
+    except Exception:
+        layers = {}
+    return sum(layers.values()) if layers else fallback_mm
+
+
+def slab_foot_directions(doc, host, faces, axis, slab_top_z):
+    """
+    {id(face): direction} of the L feet into the slab: towards the slab where it only lies on
+    one side of the wall (an edge wall), else each face turned outwards (slab on both sides).
+    """
+    half_ft = (host.Width / 2.0) + _SLAB_PROBE_MM / _MM_PER_FT
+    bbox = host.get_BoundingBox(None)
+    reach = DB.XYZ(half_ft, half_ft, 1.0)
+    solids = _floor_solids(doc, DB.Outline(bbox.Min - reach, bbox.Max + reach))
+    z = slab_top_z - 50.0 / _MM_PER_FT
+    beside = []
+    for face in faces:
+        n = face.normal.Normalize()
+        p = axis.Evaluate(0.5, True) + n.Multiply(half_ft)
+        beside.append(_slab_at(solids, p.X, p.Y, z - 1.0 / _MM_PER_FT, z))
+    dirs = {}
+    if sum(1 for b in beside if b) == 1:
+        towards = [f for f, b in zip(faces, beside) if b][0].normal.Normalize()
+        towards = DB.XYZ(towards.X, towards.Y, 0.0).Normalize()
+        for face in faces:
+            dirs[id(face)] = towards
+    else:
+        for face in faces:
+            n = face.normal.Normalize()
+            dirs[id(face)] = DB.XYZ(n.X, n.Y, 0.0).Normalize()
+    return dirs
+
+
 def _trim_to_step_mm(lo_mm, hi_mm, step_mm=25.0):
     """Shorten a span equally at both ends to a whole number of step_mm."""
     length = hi_mm - lo_mm
@@ -265,7 +333,8 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               lap_length_mm=None,
                               horiz_lap_length_mm=None,
                               vert_is_outer=True,
-                              ubar_lap_length_mm=None):
+                              ubar_lap_length_mm=None,
+                              anchorage_mm=None):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
 
@@ -348,6 +417,22 @@ def build_wall_reinforcement(doc, host, cover_mm,
     vert_top_z = z0 + height_ft - cover_mm / _MM_PER_FT
     vert_top_z = vert_bottom_z + whole_step_length_mm(
         (vert_top_z - vert_bottom_z) * _MM_PER_FT) / _MM_PER_FT
+
+    # A slab cast on the wall head (user decision 2026-10-01): the verticals run on into it
+    # and end in an L foot under its top mat, turned into the slab; no coronation U-bars.
+    slab_top = find_slab_on_wall(doc, host, axis, z0 + height_ft)
+    if slab_top is not None:
+        slab, slab_top_z = slab_top
+        vert_top_z = slab_top_z - (cover_mm + slab_top_mat_mm(doc, slab) + vert_dia_mm / 2.0) / _MM_PER_FT
+        if include_top_ubars:
+            include_top_ubars = False
+        try:
+            if not DB.JoinGeometryUtils.AreElementsJoined(doc, host, slab):
+                warnings.append(u'The wall and the slab on it ({}) are not joined in the model: '
+                                u'join them (Modify > Join) so the section reads as one '
+                                u'monolithic element.'.format(slab.Id))
+        except Exception:
+            pass
     if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')
 
@@ -384,6 +469,12 @@ def build_wall_reinforcement(doc, host, cover_mm,
 
     face_depths = {}
     locations = wall_face_codes(doc, host, faces, axis)
+    foot_dirs, foot_mm = {}, 0.0
+    if slab_top is not None:
+        foot_dirs = slab_foot_directions(doc, host, faces, axis, slab_top[1])
+        anchor = anchorage_mm if anchorage_mm else 40.0 * vert_dia_mm
+        embed_mm = (vert_top_z - (z0 + height_ft)) * _MM_PER_FT
+        foot_mm = 25.0 * math.ceil(max(anchor - embed_mm, 12.0 * vert_dia_mm) / 25.0 - 1e-9)
     for face in faces:
         face_normal = face.normal.Normalize()
         cover_pt = engine.compute_cover_point(face, vert_inset_mm)
@@ -396,8 +487,15 @@ def build_wall_reinforcement(doc, host, cover_mm,
             d0_mm = vert_positions[0]
             start = p0 + axis_dir.Multiply(d0_mm / _MM_PER_FT) + face_normal.Multiply(depth)
             start = DB.XYZ(start.X, start.Y, vert_bottom_z)
-            end = DB.XYZ(start.X, start.Y, vert_top_z)
+            top_z = vert_top_z
+            if foot_mm and id(face) in foot_dirs and foot_dirs[id(face)].DotProduct(face_normal) < 0:
+                # this face's feet cross over the other face's bars: one diameter lower
+                top_z -= vert_dia_mm / _MM_PER_FT
+            end = DB.XYZ(start.X, start.Y, top_z)
             curves = [DB.Line.CreateBound(start, end)]
+            if foot_mm and id(face) in foot_dirs:
+                curves.append(DB.Line.CreateBound(
+                    end, end + foot_dirs[id(face)].Multiply(foot_mm / _MM_PER_FT)))
             array_mm = (vert_positions[-1] - vert_positions[0]) if len(vert_positions) > 1 else 0.0
             spacing = vert_spacing_mm
             if len(vert_positions) > 1:
@@ -644,8 +742,9 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     out.append(ms)
                     continue
                 for i, seg in enumerate(seg_list):
+                    tail = ms['curves'][1:] if i == len(seg_list) - 1 else []
                     out.append({
-                        'curves': [seg.curve],
+                        'curves': [seg.curve] + tail,
                         'spacing_mm': ms['spacing_mm'],
                         'array_length_mm': ms['array_length_mm'],
                         'normal': ms['normal'],

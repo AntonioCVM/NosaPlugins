@@ -590,6 +590,13 @@ class RebarAutomateWindow(NOSAWindow):
         except (TypeError, ValueError):
             return 75.0
 
+    def _anchorage_mm(self, host, bar_dia_mm, good_bond=True):
+        """Tension anchorage for this host (lap rules, host concrete), else 40 phi."""
+        try:
+            return standards.anchorage_length_mm(self._host_std(host), bar_dia_mm, good_bond)
+        except Exception:
+            return 40.0 * bar_dia_mm
+
     def _partition(self):
         """The Partition as typed now (it used to take effect only after Save Project Settings)."""
         partition = (self.TxtMarkPrefix.Text or u'').strip()
@@ -3726,7 +3733,8 @@ class RebarAutomateWindow(NOSAWindow):
             horiz_lap_length_mm=horiz_lap_mm,
             vert_is_outer=values.get('vert_is_outer', True),
             ubar_lap_length_mm=self._splice_mm(
-                None, values.get('ubar_dia') or values['vert_dia'], host))
+                None, values.get('ubar_dia') or values['vert_dia'], host),
+            anchorage_mm=self._anchorage_mm(host, values['vert_dia']))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))
