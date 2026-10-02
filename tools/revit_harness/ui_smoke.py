@@ -78,6 +78,39 @@ _window('DataToolsHub', ('Data.panel', 'DataTools.pulldown', 'DataToolsHub.pushb
 _window('IssueWorkflowHub', ('Documentation.panel', 'Issue.pulldown', 'IssueWorkflowHub.pushbutton'),
         'IssueWorkflowHubWindow', doc)
 
+# Windows whose SelectionChanged/SelectedIndex moved from XAML to code (NOSA106, 2026-10-02)
+import inspect
+from pyrevit import forms as _forms
+_forms.alert = lambda msg, *a, **k: _out.append(u'     alert: ' + unicode(msg)[:120]) or True
+_uidoc = _uiapp.ActiveUIDocument
+for parts, cls_name in (
+        (('Data.panel', 'ParameterHub.pushbutton'), 'ParameterHubWindow'),
+        (('Documentation.panel', 'Sheets.pulldown', 'SheetExportHub.pushbutton'), 'SheetExportHubWindow'),
+        (('Documentation.panel', 'Sheets.pulldown', 'SheetHub.pushbutton'), 'SheetHubWindow'),
+        (('Documentation.panel', 'Views.pulldown', 'ViewManager.pushbutton'), 'ViewManagerWindow'),
+        (('Documentation.panel', 'Views.pulldown', 'ViewOverrides.pushbutton'), 'ViewOverridesWindow'),
+        (('Documentation.panel', 'Views.pulldown', 'ViewUtilities.pushbutton'), 'ViewUtilitiesWindow'),
+        (('Foundations.panel', 'FootingDesigner.pushbutton'), 'FootingDesignerWindow'),
+        (('Foundations.panel', 'PileMaster.pushbutton'), 'PileMasterWindow'),
+        (('Foundations.panel', 'PileTools.pulldown', 'AddPileToPilecap.pushbutton'), 'AddPileToPilecapWindow'),
+        (('Foundations.panel', 'PileTools.pulldown', 'CreatePilecapType.pushbutton'), 'CreatePilecapWindow'),
+        (('Structures.panel', 'Elements.pulldown', 'StructuralTypeManager.pushbutton'), 'StructuralTypeManagerWindow'),
+        (('Structures.panel', 'Quantities.pulldown', 'MaterialManager.pushbutton'), 'MaterialManagerWindow')):
+    key = parts[-1].replace('.pushbutton', '')
+    try:
+        lib = _lib(*parts)
+        mod = load_module('smoke106_' + key, os.path.join(lib, 'ui.py'))
+        cls = getattr(mod, cls_name)
+        names = inspect.getargspec(cls.__init__)[0][1:]
+        pool = {'doc': doc, 'uidoc': _uidoc, 'output': _Output()}
+        win = cls(*[pool.get(n) for n in names])
+        combos = [n for n in dir(win) if n[:3] in ('Cbo', 'Cmb', 'cmb') or n.startswith('Combo') or '_Cbo' in n
+                  or '_Cmb' in n or '_Combo' in n]
+        win.Close()
+        _out.append(u'OK   {} built ({} combos)'.format(key, len(combos)))
+    except Exception:
+        _out.append(u'FAIL {}:\n{}'.format(key, traceback.format_exc()[-600:]))
+
 # SheetExportHub dialogs (NOSAWindow since 2026-10-02)
 try:
     sx = _lib('Documentation.panel', 'Sheets.pulldown', 'SheetExportHub.pushbutton')
