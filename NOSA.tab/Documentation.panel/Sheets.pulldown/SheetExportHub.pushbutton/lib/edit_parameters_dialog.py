@@ -8,7 +8,7 @@ shared with the inline cell-edit flow.
 """
 import os
 from System.Collections.ObjectModel import ObservableCollection
-from pyrevit.forms import WPFWindow
+from nosa_utils.base_window import NOSAWindow
 
 
 class FieldInputItem(object):
@@ -17,10 +17,10 @@ class FieldInputItem(object):
         self.Value = ""
 
 
-class EditParametersDialog(WPFWindow):
+class EditParametersDialog(NOSAWindow):
     def __init__(self, editable_fields, selected_count):
         xaml_file = os.path.join(os.path.dirname(__file__), 'edit_parameters_dialog.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'sheetexporthub_edit_parameters')
 
         self.result_values = None
 

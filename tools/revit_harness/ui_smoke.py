@@ -78,6 +78,23 @@ _window('DataToolsHub', ('Data.panel', 'DataTools.pulldown', 'DataToolsHub.pushb
 _window('IssueWorkflowHub', ('Documentation.panel', 'Issue.pulldown', 'IssueWorkflowHub.pushbutton'),
         'IssueWorkflowHubWindow', doc)
 
+# SheetExportHub dialogs (NOSAWindow since 2026-10-02)
+try:
+    sx = _lib('Documentation.panel', 'Sheets.pulldown', 'SheetExportHub.pushbutton')
+    naming = load_module('smoke_sx_naming', os.path.join(sx, 'naming.py'))
+    for key, cls, args in (
+            ('column_chooser_dialog', 'ColumnChooserDialog', (None, [u'Sheet Number', u'Sheet Name'])),
+            ('edit_parameters_dialog', 'EditParametersDialog', ([u'Revision', u'Drawn By'], 3)),
+            ('confirm_export_dialog', 'ConfirmExportDialog',
+             ([], naming.NamingBuilder(), {'pdf': True}, os.environ.get('TEMP', u'C:\\Temp'), {}, False))):
+        mod = load_module('smoke_sx_' + key, os.path.join(sx, key + '.py'))
+        dlg = getattr(mod, cls)(*args)
+        bg = dlg.Resources['BgColor'].Color
+        dlg.Close()
+        _out.append(u'OK   SheetExportHub {} built (NOSAWindow, BgColor {})'.format(cls, bg))
+except Exception:
+    _out.append(u'FAIL SheetExportHub dialogs:\n' + traceback.format_exc())
+
 # WaffleSlab (T5.7): window, inline preview, preview window, generator (rolled back)
 waffle_parts = ('Structures.panel', 'Elements.pulldown', 'WaffleSlab.pushbutton')
 try:

@@ -2,22 +2,24 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Confirm Export" Height="640" Width="660"
         WindowStartupLocation="CenterOwner"
-        Background="#FAFAFA" FontFamily="Century Gothic" ResizeMode="NoResize">
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic" ResizeMode="NoResize">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Accent" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BgColor" Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor" Color="#1F1F1F"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E3E3E3"/>
         <SolidColorBrush x:Key="AccentHover" Color="#E65500"/>
         <SolidColorBrush x:Key="AccentPressed" Color="#CC4C00"/>
         <SolidColorBrush x:Key="AccentSoft" Color="#17FF5F00"/>
-        <SolidColorBrush x:Key="Border" Color="#E3E3E3"/>
-        <SolidColorBrush x:Key="Text" Color="#1F1F1F"/>
 
         <Style TargetType="Button">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="18,9"/>
-            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -31,7 +33,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
@@ -43,7 +45,7 @@
         </Style>
 
         <Style TargetType="Button" x:Key="PrimaryButton">
-            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Background" Value="{DynamicResource AccentColor}"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="FontSize" Value="13"/>
@@ -71,7 +73,7 @@
 
         <Style TargetType="DataGridCell">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
             <Setter Property="FontSize" Value="11.5"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="10,0"/>
@@ -105,11 +107,11 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Name="TxtTitle" Text="N items ready to export" FontSize="19" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,4"/>
+        <TextBlock Grid.Row="0" Name="TxtTitle" Text="N items ready to export" FontSize="19" FontWeight="SemiBold" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
         <TextBlock Grid.Row="1" Name="TxtSubtitle" Text="" FontSize="11" Opacity="0.65" Margin="0,0,0,16"/>
 
         <Border Grid.Row="2" Name="WarningsBox" Padding="14,12" CornerRadius="8" Margin="0,0,0,16"
-                Background="#12FF5F00" BorderBrush="{StaticResource Accent}" BorderThickness="1" Visibility="Collapsed">
+                Background="#12FF5F00" BorderBrush="{DynamicResource AccentColor}" BorderThickness="1" Visibility="Collapsed">
             <StackPanel>
                 <TextBlock Text="Before you export" FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6"/>
                 <ItemsControl Name="ListWarnings">
@@ -122,10 +124,10 @@
             </StackPanel>
         </Border>
 
-        <Border Grid.Row="3" Background="White" CornerRadius="8" BorderBrush="{StaticResource Border}" BorderThickness="1" ClipToBounds="True">
+        <Border Grid.Row="3" Background="{DynamicResource PanelColor}" CornerRadius="8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1" ClipToBounds="True">
             <DataGrid Name="GridFiles" AutoGenerateColumns="False" IsReadOnly="True" BorderThickness="0" Background="Transparent"
                       RowBackground="Transparent" CanUserAddRows="False" HeadersVisibility="Column" RowHeaderWidth="0"
-                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{StaticResource Border}">
+                      GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource BorderColor}">
                 <DataGrid.Columns>
                     <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="70"/>
                     <DataGridTextColumn Header="Item" Binding="{Binding Item}" Width="*"/>

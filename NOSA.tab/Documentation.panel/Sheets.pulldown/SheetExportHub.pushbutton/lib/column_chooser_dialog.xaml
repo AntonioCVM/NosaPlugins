@@ -2,23 +2,25 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Manage Columns" Height="580" Width="440"
         WindowStartupLocation="CenterOwner"
-        Background="#FAFAFA" FontFamily="Century Gothic" ResizeMode="NoResize">
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic" ResizeMode="NoResize">
 
     <Window.Resources>
-        <SolidColorBrush x:Key="Accent" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BgColor" Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor" Color="#1F1F1F"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E3E3E3"/>
         <SolidColorBrush x:Key="AccentHover" Color="#E65500"/>
         <SolidColorBrush x:Key="AccentPressed" Color="#CC4C00"/>
         <SolidColorBrush x:Key="AccentSoft" Color="#17FF5F00"/>
-        <SolidColorBrush x:Key="Border" Color="#E3E3E3"/>
-        <SolidColorBrush x:Key="Text" Color="#1F1F1F"/>
         <DropShadowEffect x:Key="CardShadow" Color="#000000" Direction="270" ShadowDepth="2" BlurRadius="14" Opacity="0.10"/>
 
         <Style TargetType="Button">
-            <Setter Property="Background" Value="White"/>
-            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="Background" Value="{DynamicResource PanelColor}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextColor}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -32,7 +34,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoft}"/>
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter Property="Opacity" Value="0.5"/>
@@ -46,19 +48,19 @@
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="9,6"/>
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderColor}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="TextBox">
-                        <Border x:Name="Bd" Background="White" CornerRadius="5"
+                        <Border x:Name="Bd" Background="{DynamicResource PanelColor}" CornerRadius="5"
                                 BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
                             <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -80,7 +82,7 @@
                     <ControlTemplate TargetType="CheckBox">
                         <StackPanel Orientation="Horizontal">
                             <Border x:Name="Box" Width="15" Height="15" CornerRadius="4"
-                                    Background="White" BorderBrush="{StaticResource Border}" BorderThickness="1.3" VerticalAlignment="Center">
+                                    Background="{DynamicResource PanelColor}" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1.3" VerticalAlignment="Center">
                                 <Path x:Name="Check" Data="M2,6 L5.2,9.4 L11.5,2" Stroke="White" StrokeThickness="1.7"
                                       StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"/>
                             </Border>
@@ -88,8 +90,8 @@
                         </StackPanel>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Box" Property="Background" Value="{StaticResource Accent}"/>
-                                <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Accent}"/>
+                                <Setter TargetName="Box" Property="Background" Value="{DynamicResource AccentColor}"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource AccentColor}"/>
                                 <Setter TargetName="Check" Property="Visibility" Value="Visible"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -109,7 +111,7 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" Text="Column Presets" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource Accent}" Margin="0,0,0,14"/>
+        <TextBlock Grid.Row="0" Text="Column Presets" FontSize="17" FontWeight="SemiBold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,14"/>
 
         <Grid Grid.Row="1" Margin="0,0,0,8">
             <Grid.ColumnDefinitions>
@@ -122,7 +124,7 @@
 
         <TextBlock Grid.Row="2" Name="TxtHint" FontSize="11" Opacity="0.65" Margin="0,0,0,12" TextWrapping="Wrap"/>
 
-        <Border Grid.Row="3" Background="White" CornerRadius="8" BorderBrush="{StaticResource Border}" BorderThickness="1">
+        <Border Grid.Row="3" Background="{DynamicResource PanelColor}" CornerRadius="8" BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <ItemsControl Name="ListColumns" Margin="12">
                     <ItemsControl.ItemTemplate>

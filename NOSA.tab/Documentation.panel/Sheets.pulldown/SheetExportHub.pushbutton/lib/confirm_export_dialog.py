@@ -13,7 +13,7 @@ will genuinely collide. The warning banner above the table says so.
 import os
 import System
 from System.Collections.ObjectModel import ObservableCollection
-from pyrevit.forms import WPFWindow
+from nosa_utils.base_window import NOSAWindow
 
 from validation import ExportValidator
 
@@ -25,11 +25,11 @@ class FileRow(object):
         self.OutputFile = output_file
 
 
-class ConfirmExportDialog(WPFWindow):
+class ConfirmExportDialog(NOSAWindow):
     def __init__(self, elements, naming_builder, export_formats, output_folder,
                  project_params, is_views):
         xaml_file = os.path.join(os.path.dirname(__file__), 'confirm_export_dialog.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'sheetexporthub_confirm_export')
 
         rows = self._build_file_rows(elements, naming_builder, export_formats, is_views, project_params)
         collection = ObservableCollection[FileRow]()

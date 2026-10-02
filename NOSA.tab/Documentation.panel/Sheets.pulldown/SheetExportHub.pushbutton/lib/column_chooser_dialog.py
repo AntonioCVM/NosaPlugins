@@ -9,7 +9,7 @@ import os
 import System
 from System.Windows import MessageBox
 from System.Collections.ObjectModel import ObservableCollection
-from pyrevit.forms import WPFWindow
+from nosa_utils.base_window import NOSAWindow
 
 import column_presets
 
@@ -20,10 +20,10 @@ class ColumnCheckItem(object):
         self.IsChecked = checked
 
 
-class ColumnChooserDialog(WPFWindow):
+class ColumnChooserDialog(NOSAWindow):
     def __init__(self, active_preset_name, available_columns):
         xaml_file = os.path.join(os.path.dirname(__file__), 'column_chooser_dialog.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'sheetexporthub_column_chooser')
         self.available_columns = list(available_columns)
         self.result_preset_name = None
         self._items = None
