@@ -123,7 +123,8 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
 
 
 def column_section_shapes(width_mm, depth_mm, cover_mm, bar_dia, positions, link_dia,
-                          shape='rect', starters=False, starter_dia=None, link_spacing=None):
+                          shape='rect', starters=False, starter_dia=None, link_spacing=None,
+                          crossties=None):
     """Plan section of a column: verticals (positions from the generator's layout), link, starters lapped inside."""
     c = float(cover_mm)
     shapes = []
@@ -140,6 +141,8 @@ def column_section_shapes(width_mm, depth_mm, cover_mm, bar_dia, positions, link
         shapes.append({'kind': 'concrete', 'x0': -hw, 'y0': -hd, 'x1': hw, 'y1': hd})
         lw, ld = hw - c - link_dia / 2.0, hd - c - link_dia / 2.0
         shapes.append(_bar([(-lw, -ld), (lw, -ld), (lw, ld), (-lw, ld), (-lw, -ld)], link_dia, 'link'))
+    for x1, y1, x2, y2 in crossties or []:
+        shapes.append(_bar([(x1, y1), (x2, y2)], link_dia, 'link'))
     max_x = max(abs(x) for x, _ in positions) if positions else 0.0
     max_y = max(abs(y) for _, y in positions) if positions else 0.0
     for x, y in positions:
@@ -159,7 +162,8 @@ def column_section_shapes(width_mm, depth_mm, cover_mm, bar_dia, positions, link
     label = u'{} H{:g}   links H{:g}{}'.format(len(positions), bar_dia, link_dia,
                                               u' @ {:g}'.format(link_spacing) if link_spacing else u'')
     shapes.append(_text(right, depth_mm / 2.0 - 20.0, label))
-    shapes.append(_text(right, depth_mm / 2.0 - 90.0, u'cover {:g}'.format(c)))
+    shapes.append(_text(right, depth_mm / 2.0 - 90.0, u'cover {:g}{}'.format(
+        c, u'   + crossties' if crossties else u'')))
     if starters and starter_dia:
         shapes.append(_text(right, depth_mm / 2.0 - 160.0,
                             u'o  starters/dowels H{:g}, lapped inside'.format(starter_dia)))

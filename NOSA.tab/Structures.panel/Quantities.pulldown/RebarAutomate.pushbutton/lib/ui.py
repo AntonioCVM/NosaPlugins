@@ -2198,7 +2198,8 @@ class RebarAutomateWindow(NOSAWindow):
             diameter_mm if shape == 'circle' else width_mm,
             diameter_mm if shape == 'circle' else depth_mm,
             cover, bar_dia, positions, link_dia, shape=shape, starters=starters,
-            starter_dia=bar_dia, link_spacing=self._preview_number(self.TxtColLinkSpacing, None)))
+            starter_dia=bar_dia, link_spacing=self._preview_number(self.TxtColLinkSpacing, None),
+            crossties=[(t['x1_mm'], t['y1_mm'], t['x2_mm'], t['y2_mm']) for t in data['crossties']]))
         self._update_column_adopted_solution_label(cover, bar_dia, int(bar_count), link_dia)
         self._update_column_elevation_preview()
 

@@ -388,6 +388,13 @@ def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all'):
     us_interior = us[1:-1] if n_u > 2 else []
     vs_interior = vs[1:-1] if n_v > 2 else []
 
+    # one interior bar per side at most: the backend builds one closed diamond loop
+    if len(us_interior) <= 1 and len(vs_interior) <= 1 and (us_interior or vs_interior):
+        u = us_interior[0] if us_interior else 0.0
+        v = vs_interior[0] if vs_interior else 0.0
+        top, right, bottom, left = (u, half_d_mm), (half_w_mm, v), (u, -half_d_mm), (-half_w_mm, v)
+        return [a + b for a, b in ((top, right), (right, bottom), (bottom, left), (left, top))]
+
     if layout == 'alternate':
         us_interior = us_interior[0::2]
         vs_interior = vs_interior[0::2]
