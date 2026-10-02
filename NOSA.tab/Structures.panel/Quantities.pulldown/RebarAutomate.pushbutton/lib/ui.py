@@ -2757,6 +2757,16 @@ class RebarAutomateWindow(NOSAWindow):
                     if wrapper.last_error:
                         errors.append(u'Column {}: {} (set) — {}'.format(
                             get_id_value(host.Id), label, wrapper.last_error))
+                    if layer == u'crosstie':
+                        # BS 8666 has no standard crosstie shape: code 99 (Revit had named it "Rebar Shape N")
+                        try:
+                            with DB.Transaction(self.doc, u'NOSA — Name Crosstie Shape') as t:
+                                t.Start()
+                                re_engine.name_auto_shape(self.doc, rebar, u'99')
+                                t.Commit()
+                        except Exception as e:
+                            errors.append(u'Column {}: crosstie shape left unnamed ({}).'.format(
+                                get_id_value(host.Id), e))
 
         if values.get('foundation_starters') and bar_type_vert is not None and \
                 re_engine.nosa_bars_in_footprint(self.doc, host, (u'dowel', u'foundation_starter')):

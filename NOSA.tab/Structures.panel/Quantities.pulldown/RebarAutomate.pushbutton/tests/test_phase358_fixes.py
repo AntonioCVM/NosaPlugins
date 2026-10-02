@@ -206,26 +206,17 @@ zones = [
     {'start_mm': 3000.0, 'end_mm': 6000.0, 'spacing_mm': 200.0},
 ]
 
-# n_u = n_v = 3 -> exactly ONE interior position per axis (the "8 bars
-# total, one extra per long edge" example the user gave) -> must
-# collapse into one closed interior stirrup loop PER ZONE, not
-# individual crossing crossties.
+# n_u = n_v = 3 -> ONE interior bar per side (8 bars): two crossed crossties per zone, one per
+# axis (2026-10-02: a diamond cannot wrap the mid-side bars inside Revit's cover line, so Revit
+# squeezed and shifted it into the bars).
 result = column_rebar.build_crosstie_sets(axis, u_dir, v_dir, 150.0, 100.0, 3, 3, zones, layout='all')
-assert result['crosstie_bars'] == [], "the diamond (1 interior per axis) case must not emit individual crossties"
-assert len(result['interior_stirrup_sets']) == len(zones), (
-    "expected one interior stirrup Set per zone ({}), got {}".format(
-        len(zones), len(result['interior_stirrup_sets'])))
-for iss in result['interior_stirrup_sets']:
-    assert len(iss['curves']) == 4, "interior loop must be a closed 4-segment shape"
-    assert iss['style'] == 'StirrupTie'
-    # closed: each curve's end must meet the next curve's start
-    for i in range(4):
-        c0, c1 = iss['curves'][i], iss['curves'][(i + 1) % 4]
-        p_end, p_next_start = c0.GetEndPoint(1), c1.GetEndPoint(0)
-        assert p_end.DistanceTo(p_next_start) < 1e-9, "interior loop is not actually closed"
-print("build_crosstie_sets: the 'diamond' case (1 interior bar per axis) collapses "
-      "into ONE closed 4-segment interior stirrup loop per zone (StirrupTie, "
-      "Set-propagated) instead of individual crossing crossties: OK")
+assert result['crosstie_bars'] == []
+sets = result['interior_stirrup_sets']
+assert len(sets) == 2 * len(zones), len(sets)
+for iss in sets:
+    assert iss['layer'] == 'crosstie' and iss['style'] == 'StirrupTie' and len(iss['curves']) == 1
+print("build_crosstie_sets: one interior bar per side -> two crossed 135/135 crossties per zone "
+      "(StirrupTie Sets), no diamond: OK")
 
 # n_u = 5 (2 interior positions on u), n_v = 2 (0 on v) -> must NOT
 # collapse (an axis has more than 1 interior position) -- unchanged
@@ -238,9 +229,11 @@ assert sorted(s['layer'] for s in result2['interior_stirrup_sets']) == [
 print("build_crosstie_sets: 3 interior bars on one axis -> one interior link (outer pair) "
       "+ one crosstie (middle bar) per zone: OK")
 
-# Every tie passes OUTSIDE the bars it restrains: tangent to the bar, (bar + link) / 2 from
-# its centre (user review 2026-10-02: ties were drawn through / inside the bars).
+# Every tie passes OUTSIDE the bars it restrains, seated like a corner bar in a main link
+# (user review 2026-10-02: ties were drawn through / inside the bars, then 3-5 mm into them).
 import math as _m
+
+SEATED = 15.0 + (20.0 - (20.0 - 10.0) / _m.sqrt(2.0) - 10.0)
 
 
 def _seg_dist(p, a, b):
@@ -264,18 +257,17 @@ for n_u, n_v in ((5, 2), (5, 3), (5, 5), (4, 6), (3, 3)):
             for i in range(segs):
                 d = _seg_dist(bar, pts[i], pts[(i + 1) % len(pts)])
                 best[sh['kind']] = min(best.get(sh['kind'], 1e9), d)
-        on_link = min(best.get('link', 1e9), best.get('diamond', 1e9))
-        # links/diamond tangent to the bar at (20 + 10) / 2; a crosstie runs at its hook's
-        # centreline bend radius (40 + 10) / 2 so the bend centre sits on the bar axis
-        assert abs(on_link - 15.0) < 0.5 or abs(best.get('crosstie', 1e9) - 25.0) < 0.5, (n_u, n_v, bar, best)
-print("interior_tie_layout: every interior bar is wrapped from outside — links 15 mm, crossties "
-      "25 mm (hook bend centre on the bar) from the tie centreline, for 5x2, 5x3, 5x5, 4x6 and 3x3: OK")
+        # every tie leg is (20 + 10) / 2 + the bend-seat extra (2.93 mm: H20 in an H10 link on a
+        # 40 mm mandrel, rebar_engine.link_corner_extra_inset_mm) from the bar it holds
+        assert abs(min(best.values()) - SEATED) < 0.05, (n_u, n_v, bar, best)
+print("interior_tie_layout: every interior bar is held from outside, seated like a main-link corner "
+      "bar ({:.2f} mm to the tie centreline), for 5x2, 5x3, 5x5, 4x6 and 3x3: OK".format(SEATED))
 
-# A crosstie runs D/2 + d past each bar so its hook's bend centre lands on the bar axis.
+# A crosstie runs D/2 past each bar so its 135 deg hooks wrap the bars it ties.
 ct = [s for s in column_rebar.interior_tie_layout(250.0, 250.0, 3, 4, 'all', 20.0, 10.0, 40.0)
       if s['kind'] == 'crosstie'][0]
 (u0, v0), (u1, v1) = ct['points']
-assert abs(u0 - (0.0 - 25.0)) < 1e-6 and abs(v0 - (250.0 + 30.0)) < 1e-6 and abs(v1 + 280.0) < 1e-6, ct
-print("interior_tie_layout: crosstie offset by the bend radius and run past the bars: OK")
+assert abs(u0 + SEATED) < 1e-6 and abs(v0 - 270.0) < 1e-6 and abs(v1 + 270.0) < 1e-6, ct
+print("interior_tie_layout: crosstie seated beside the bar and run D/2 past it: OK")
 
 print("\nALL PHASE 3.5.8 TARGETED CHECKS PASSED")

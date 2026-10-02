@@ -906,6 +906,27 @@ def starter_foot_z(doc, foundation, own_bbox, cover_mm, bar_dia_mm, mat_dias_mm=
     return own_bbox.Min.Z + (cover_mm + 2.0 * bar_dia_mm) / _MM_PER_FT, 'assumed'
 
 
+def name_auto_shape(doc, rebar, code=u'99'):
+    """
+    Give the RebarShape Revit auto-created for this bar (named "Rebar Shape N")
+    the BS 8666 code `code`, so labels and schedules read the code. Template
+    shapes (numeric names) are never renamed, nor is anything when a shape
+    called `code` already exists. Call inside a transaction; returns the name
+    the bar's shape ends up with.
+    """
+    shape = doc.GetElement(rebar.GetShapeId())
+    if shape is None:
+        return None
+    name = DB.Element.Name.GetValue(shape)
+    if not name or name.strip().isdigit():
+        return name
+    for other in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape):
+        if DB.Element.Name.GetValue(other) == code:
+            return name
+    DB.Element.Name.SetValue(shape, code)
+    return code
+
+
 def link_corner_extra_inset_mm(bar_dia_mm, link_dia_mm, link_bend_dia_mm=None):
     """
     Extra inset (mm) of a corner bar nested in its link's bend, beyond

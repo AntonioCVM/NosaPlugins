@@ -53,19 +53,20 @@ for dot, (x, y) in zip(hollow, positions):
     assert abs(dot['x']) < abs(x) and abs(dot['y']) < abs(y), 'starter lapped on the inner side'
 print('column_section_shapes: starters lapped on the inner side of each vertical: OK')
 
-# Column section: crossties from the preview data are drawn as links (12 bars: straight ties;
-# 8 bars on a square column: one interior diamond loop, as column_rebar.build_crosstie_sets builds it).
+# Column section: interior links and crossties from the preview data are drawn as links
+# (12 bars: a link + crossties; 8 bars on a square column: two crossed crossties).
 import rebar_preview  # noqa: E402
-for depth, count, loop_segments in ((600, 12, None), (400, 8, 4)):
+for depth, count, crossed in ((600, 12, False), (400, 8, True)):
     data = rebar_preview.compute_column_section_preview(400, depth, 40, 20, count, 10,
                                                         include_crossties=True)
     ties = [(t['x1_mm'], t['y1_mm'], t['x2_mm'], t['y2_mm']) for t in data['crossties']]
-    assert ties, 'expected crossties for {} bars'.format(count)
-    if loop_segments:
-        assert len(ties) == loop_segments, 'single interior bar per side -> closed diamond loop'
-        assert all(abs(t[0] - t[2]) > 1 and abs(t[1] - t[3]) > 1 for t in ties), 'diamond sides are diagonal'
+    assert ties, 'expected interior ties for {} bars'.format(count)
+    if crossed:
+        assert len(ties) == 2, 'one interior bar per side -> two crossed crossties'
+        assert sorted((abs(t[0] - t[2]) < 1e-6, abs(t[1] - t[3]) < 1e-6) for t in ties) == \
+            [(False, True), (True, False)], 'one crosstie per axis'
     plan = shapes.column_section_shapes(400, depth, 40, 20, [(b['x_mm'], b['y_mm']) for b in data['bars']],
                                         10, crossties=ties)
-    assert len(_bars(plan, 'link')) == 1 + len(ties), 'crossties must reach the drawing'
-print('column_section_shapes: crossties drawn (straight ties and 8-bar diamond loop): OK')
+    assert len(_bars(plan, 'link')) == 1 + len(ties), 'interior ties must reach the drawing'
+print('column_section_shapes: interior links / crossties drawn (12 bars; 8 bars: two crossed crossties): OK')
 print('\nALL PREVIEW SHAPES CHECKS PASSED')

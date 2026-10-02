@@ -2024,21 +2024,21 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
     restrain the intermediate (non-corner) vertical bars — 2026-10-02 redesign
     after the user's review: every tie wraps the bars from OUTSIDE.
 
-    - One interior bar per side on both axes: one closed diamond through the
-      four mid-side bars, its corners pushed out so each leg is tangent to the
-      bar; the polyline starts at the bottom vertex so the 135 deg closing
-      hooks turn into the core (verified live).
-    - Otherwise, per axis, interior bars are paired outermost-inwards
-      (1st with last, 2nd with last-but-one...) by closed rectangular links
-      whose legs pass outside each bar; an odd middle bar gets a straight
-      crosstie beside it whose 135 deg hooks wrap both opposite bars.
+    Per axis, interior bars are paired outermost-inwards (1st with last, 2nd
+    with last-but-one...) by closed rectangular links whose legs pass outside
+    each bar; an odd middle bar gets a straight crosstie beside it whose
+    135 deg hooks wrap both opposite bars (one interior bar per side: two
+    crossed crossties). No diamond: to wrap a mid-side bar from outside its
+    corner must cross the main link's band, beyond the cover line, and Revit
+    squeezes and shifts any Stirrup/Tie that does (measured live 2026-10-02).
 
-    The crosstie is offset from the bar by its hook's centreline bend radius
-    (D + d) / 2 and runs D/2 + d past the bar centre, which puts each
-    hook's bend centre on the bar axis: Revit snaps a single vertical bar to
-    the bend centre of a hook around it, so a crosstie drawn tangent to the
-    bar dragged the bar 10 mm sideways and 20 mm inwards (verified live,
-    Revit 2024, 2026-10-02).
+    Every leg is (bar + link) / 2 + the bend-seat extra from the bar it holds,
+    where Revit seats a bar in a link's bend; the crosstie also runs D/2 past
+    the bars so its hooks wrap them. Revit re-seats a single vertical bar in
+    the hook of a crosstie around it: with this offset the bar stays at its
+    design position touching the tie (searched live over offset x run,
+    Revit 2024, 2026-10-02); a tangent crosstie dragged it 10 mm sideways and
+    20 mm inwards.
 
     half_w_mm / half_d_mm are the vertical bar centre half-extents.
     layout='alternate' restrains every other interior bar.
@@ -2046,25 +2046,21 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
     (Revit RebarBarType.StirrupTieBendDiameter); 4 d when unknown.
 
     Returns:
-        list of {'points': [(u, v), ...], 'closed': bool,
-                 'kind': 'diamond' | 'link' | 'crosstie'}
+        list of {'points': [(u, v), ...], 'closed': bool, 'kind': 'link' | 'crosstie'}
     """
     us = _edge_positions(-half_w_mm, half_w_mm, n_u)
     vs = _edge_positions(-half_d_mm, half_d_mm, n_v)
     us_interior = us[1:-1] if n_u > 2 else []
     vs_interior = vs[1:-1] if n_v > 2 else []
-    r = (bar_diameter_mm + link_diameter_mm) / 2.0
-    bend = link_bend_diameter_mm or 4.0 * link_diameter_mm
-    hook_r = (bend + link_diameter_mm) / 2.0        # crosstie line to bar axis
-    hook_run = bend / 2.0 + link_diameter_mm        # line end past the bar axis
-
-    if len(us_interior) <= 1 and len(vs_interior) <= 1 and (us_interior or vs_interior):
-        u0 = us_interior[0] if us_interior else 0.0
-        v0 = vs_interior[0] if vs_interior else 0.0
-        k = r * math.sqrt(2.0)
-        return [{'points': [(u0, -half_d_mm - k), (-half_w_mm - k, v0),
-                            (u0, half_d_mm + k), (half_w_mm + k, v0)],
-                 'closed': True, 'kind': 'diamond'}]
+    # Every leg sits where Revit seats a bar in a link's bend: touching the leg ((bar + link) / 2)
+    # plus the bend-seat extra of rebar_engine.link_corner_extra_inset_mm (2.9 mm for H20 in an
+    # H10 link on a 40 mm mandrel) — the main links already use it. Tangent legs (no extra) made
+    # Revit's 25 mm bend radius bite 3-5 mm into the bars (measured live, Revit 2024, 2026-10-02).
+    bend_r = (link_bend_diameter_mm or 4.0 * link_diameter_mm) / 2.0
+    bar_r = bar_diameter_mm / 2.0
+    extra = bend_r - (bend_r - bar_r) / math.sqrt(2.0) - bar_r if bend_r > bar_r else 0.0
+    r = (bar_diameter_mm + link_diameter_mm) / 2.0 + extra
+    hook_run = bend_r        # crosstie end past the bar axis, so its hook wraps the bar
 
     if layout == 'alternate':
         us_interior = us_interior[0::2]
@@ -2077,7 +2073,7 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
                                   (b, -half_d_mm - r), (a, -half_d_mm - r)],
                        'closed': True, 'kind': 'link'})
     if len(us_interior) % 2:
-        m = us_interior[len(us_interior) // 2] - hook_r
+        m = us_interior[len(us_interior) // 2] - r
         shapes.append({'points': [(m, half_d_mm + hook_run), (m, -half_d_mm - hook_run)],
                        'closed': False, 'kind': 'crosstie'})
     for i in range(len(vs_interior) // 2):
@@ -2086,7 +2082,7 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
                                   (half_w_mm + r, b), (-half_w_mm - r, b)],
                        'closed': True, 'kind': 'link'})
     if len(vs_interior) % 2:
-        m = vs_interior[len(vs_interior) // 2] - hook_r
+        m = vs_interior[len(vs_interior) // 2] - r
         shapes.append({'points': [(-half_w_mm - hook_run, m), (half_w_mm + hook_run, m)],
                        'closed': False, 'kind': 'crosstie'})
     return shapes

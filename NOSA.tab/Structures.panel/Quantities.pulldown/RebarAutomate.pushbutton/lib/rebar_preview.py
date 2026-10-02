@@ -369,9 +369,9 @@ def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all',
                             bar_diameter_mm=20.0, link_diameter_mm=10.0):
     """
     Plan segments of the interior links and crossties — pure-Python mirror of
-    column_rebar.interior_tie_layout (diamond for one interior bar per side,
-    otherwise links pairing interior bars outermost-inwards plus a crosstie for
-    an odd middle bar), every tie passing OUTSIDE the bars it restrains.
+    column_rebar.interior_tie_layout (per axis, links pairing interior bars
+    outermost-inwards plus a crosstie for an odd middle bar), every tie seated
+    OUTSIDE the bars it restrains.
 
     Returns:
         list[(x1_mm, y1_mm, x2_mm, y2_mm)]
@@ -386,18 +386,13 @@ def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all',
     vs = _edge(-half_d_mm, half_d_mm, n_v)
     us_interior = us[1:-1] if n_u > 2 else []
     vs_interior = vs[1:-1] if n_v > 2 else []
-    r = (bar_diameter_mm + link_diameter_mm) / 2.0
-    hook_r = (4.0 * link_diameter_mm + link_diameter_mm) / 2.0   # bend centre on the bar axis
-    hook_run = 2.0 * link_diameter_mm + link_diameter_mm
+    bend_r, bar_r = 2.0 * link_diameter_mm, bar_diameter_mm / 2.0   # 4d mandrel
+    extra = bend_r - (bend_r - bar_r) / math.sqrt(2.0) - bar_r if bend_r > bar_r else 0.0
+    r = (bar_diameter_mm + link_diameter_mm) / 2.0 + extra          # bar seated in the bend
+    hook_run = bend_r
 
     def _ring(points):
         return [points[i] + points[(i + 1) % len(points)] for i in range(len(points))]
-
-    if len(us_interior) <= 1 and len(vs_interior) <= 1 and (us_interior or vs_interior):
-        u0 = us_interior[0] if us_interior else 0.0
-        v0 = vs_interior[0] if vs_interior else 0.0
-        k = r * math.sqrt(2.0)
-        return _ring([(u0, -half_d_mm - k), (-half_w_mm - k, v0), (u0, half_d_mm + k), (half_w_mm + k, v0)])
 
     if layout == 'alternate':
         us_interior = us_interior[0::2]
@@ -408,13 +403,13 @@ def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all',
         a, b = us_interior[i] - r, us_interior[-1 - i] + r
         lines += _ring([(a, half_d_mm + r), (b, half_d_mm + r), (b, -half_d_mm - r), (a, -half_d_mm - r)])
     if len(us_interior) % 2:
-        m = us_interior[len(us_interior) // 2] - hook_r
+        m = us_interior[len(us_interior) // 2] - r
         lines.append((m, half_d_mm + hook_run, m, -half_d_mm - hook_run))
     for i in range(len(vs_interior) // 2):
         a, b = vs_interior[i] - r, vs_interior[-1 - i] + r
         lines += _ring([(-half_w_mm - r, a), (half_w_mm + r, a), (half_w_mm + r, b), (-half_w_mm - r, b)])
     if len(vs_interior) % 2:
-        m = vs_interior[len(vs_interior) // 2] - hook_r
+        m = vs_interior[len(vs_interior) // 2] - r
         lines.append((-half_w_mm - hook_run, m, half_w_mm + hook_run, m))
     return lines
 
