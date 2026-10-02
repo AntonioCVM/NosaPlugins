@@ -9,6 +9,9 @@ import math, io, csv
 from collections import defaultdict
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.rebar_read import read_rebar
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarhub.schedule'
 from nosa_utils import unit_conversion as _uc10
 FT2MM  = _uc10.FT_TO_MM
 FT2M   = _uc10.FT_TO_M
@@ -305,14 +308,9 @@ def collect_schedule(doc, options):
     filter_ph_id   = options.get('filter_phase_id', None)
     show_subtotals = options.get('show_subtotals', True)
 
-    # Locate Rebar class
-    try:
-        _RebarClass = DB.Structure.Rebar
-    except AttributeError:
-        try:
-            _RebarClass = DB.Rebar
-        except AttributeError:
-            return [], None
+    # DB.Structure is not an attribute until its namespace is imported (IronPython): it
+    # returned no rows at all
+    from Autodesk.Revit.DB.Structure import Rebar as _RebarClass
 
     rows_by_key = {}
 
@@ -375,17 +373,20 @@ def collect_schedule(doc, options):
                 if not lv_match:
                     continue
 
+            info   = read_rebar(doc, rebar)
             h_cat  = _host_cat_label(host_el)
             h_mark = _host_mark(host_el)
             h_lv   = _host_level(host_el, doc)
-            b_mark = _bar_mark(rebar)
-            shape  = _shape_name(rebar, doc)
-            dia_mm = _bar_diameter_mm(rebar, doc)
-            n      = _n_bars(rebar)
-            cut_mm = _cut_length_mm(rebar)
+            b_mark = info['mark'] or u'—'
+            if info['partition']:
+                b_mark = u'{} / {}'.format(info['partition'], b_mark)
+            shape  = info['shape'] or u'—'
+            dia_mm = float(info['diameter']) or None
+            n      = info['quantity'] * info['members']
+            cut_mm = float(info['bar_length_mm']) or None
             wpm    = _weight_per_m(dia_mm)
-            total_m  = (cut_mm / 1000.0 * n) if cut_mm else 0.0
-            total_kg = total_m * wpm
+            total_m  = info['total_length_mm'] * info['members'] / 1000.0
+            total_kg = info['mass_kg']
 
             k = _key(None, h_cat, h_mark, h_lv, b_mark, shape, dia_mm, cut_mm)
             if k not in rows_by_key:
@@ -408,7 +409,7 @@ def collect_schedule(doc, options):
             rows_by_key[k].add(n, cut_mm, total_m, total_kg, get_id_value(rebar.Id))
 
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_schedule.rebar')
 
     # Sort
     all_rows = sorted(rows_by_key.values(),

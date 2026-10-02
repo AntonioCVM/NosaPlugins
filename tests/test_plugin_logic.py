@@ -696,6 +696,24 @@ class RebarHubTests(unittest.TestCase):
         for name in ('_bs_logic', '_sched_logic', '_aud_logic'):
             self.assertTrue(os.path.isfile(getattr(ui, name).__file__), name)
 
+    def test_bs8666_groups_by_partition_and_mark(self):
+        ui = _plugin('Structures.panel', 'Quantities.pulldown', 'RebarHub.pushbutton', 'lib', 'ui.py')
+        bar = dict(diameter=16, diameter_label=u'H16', shape=u'00', shape_desc=u'Straight',
+                   length_mm=3000.0, total_len_m=6.0, mass_kg=9.47, level=u'L1', host=u'Floor')
+        bars = [dict(bar, mark=u'01', partition=u'F1', quantity=2),
+                dict(bar, mark=u'01', partition=u'F1', quantity=3),
+                dict(bar, mark=u'01', partition=u'F2', quantity=1, diameter=12)]
+        groups = ui._bs_logic.group_by_mark(bars)
+        self.assertEqual(sorted(g['mark'] for g in groups.values()), [u'F1 / 01', u'F2 / 01'])
+        self.assertEqual(groups[(u'F1', u'01')]['quantity'], 5)
+        self.assertEqual(ui._bs_logic.detect_duplicate_marks(bars), {})   # same mark, other partition
+        self.assertEqual(ui.BsSchedRow(groups[(u'F2', u'01')]).MassKg, u'9.47')
+
+    def test_bar_mass_per_metre(self):
+        from nosa_utils.rebar_read import mass_per_m
+        self.assertEqual(mass_per_m(16), 1.579)
+        self.assertAlmostEqual(mass_per_m(14), 7850 * math.pi * 0.007 ** 2, places=6)
+
 
 class NOSADashboardTests(unittest.TestCase):
     """'NOSA.Panel/NOSA.pushbutton'"""

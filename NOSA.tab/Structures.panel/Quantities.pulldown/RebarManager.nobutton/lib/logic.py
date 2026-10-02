@@ -7,8 +7,11 @@ import re
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
-from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.revit_helpers import get_id_value, element_name, element_id_from_int
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.rebar_read import read_rebar
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarhub'
 
 
 _FT_TO_MM = _uc10.FT_TO_MM
@@ -97,125 +100,79 @@ def _get_rebar_class():
 
 
 def collect_rebar(doc, view_id=None):
-    """Collect all rebar in model (or view). Returns list of dicts."""
+    """Every rebar in the model (or view) as plain dicts — nosa_utils.rebar_read.read_rebar."""
     RebarClass = _get_rebar_class()
     if RebarClass is None:
         return []
     try:
-        if view_id:
-            col = DB.FilteredElementCollector(doc, view_id) \
-                    .OfClass(RebarClass).ToElements()
-        else:
-            col = DB.FilteredElementCollector(doc) \
-                    .OfClass(RebarClass).ToElements()
+        col = (DB.FilteredElementCollector(doc, view_id) if view_id else DB.FilteredElementCollector(doc)) \
+            .OfClass(RebarClass).ToElements()
     except Exception:
+        log_swallowed(_LOG, u'collect_rebar.collector')
         return []
 
     results = []
     for rb in col:
         try:
-            bar_type = doc.GetElement(rb.GetTypeId())
-            diam_mm  = 0.0
-            try:
-                p = bar_type.get_Parameter(DB.BuiltInParameter.REBAR_BAR_DIAMETER)
-                diam_mm = _mm(_safe_double(p))
-            except Exception:
-                pass
-
-            mark  = _safe_str(rb.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK))
-            qty   = 1
-            try:
-                qty = _safe_int(rb.get_Parameter(DB.BuiltInParameter.REBAR_QUANTITY))
-                if qty < 1:
-                    qty = 1
-            except Exception:
-                pass
-
-            length_mm = 0.0
-            try:
-                p_len = rb.get_Parameter(DB.BuiltInParameter.REBAR_TOTAL_LENGTH)
-                if p_len and p_len.HasValue:
-                    length_mm = _mm(_safe_double(p_len))
-            except Exception:
-                pass
-
-            host = doc.GetElement(rb.Host.Id) if rb.Host else None
-            host_name = u''
-            level_name = u''
-            if host is not None:
-                host_name = host.Name or u''
-                try:
-                    lvl = doc.GetElement(host.LevelId)
-                    if lvl:
-                        level_name = lvl.Name
-                except Exception:
-                    pass
-
-            shape_code = u'00'
-            try:
-                rbs = doc.GetElement(rb.RebarShapeId)
-                if rbs:
-                    rbs_name = element_name(rbs)
-                    shape_code = rbs_name.split()[0] if rbs_name else u'00'
-            except Exception:
-                pass
-
-            # Nearest standard diameter
-            diam_int = int(round(diam_mm))
-            nearest_diam = min(BAR_MASS_PER_M.keys(), key=lambda x: abs(x - diam_int))
-            mass_per_m   = BAR_MASS_PER_M.get(nearest_diam, 0.0)
-            total_len_m  = (length_mm / 1000.0) * qty
-            mass_kg      = total_len_m * mass_per_m
-
-            results.append({
-                'id':         get_id_value(rb.Id),
-                'mark':       mark or u'—',
-                'diameter':   int(round(diam_mm)),
-                'diameter_label': u'T{}'.format(int(round(diam_mm))),
-                'quantity':   qty,
-                'length_mm':  round(length_mm, 0),
-                'shape':      shape_code,
-                'shape_desc': BS8666_SHAPES.get(shape_code, (u'Custom', []))[0],
-                'host':       host_name,
-                'level':      level_name,
-                'total_len_m': round(total_len_m, 3),
-                'mass_kg':    round(mass_kg, 2),
-            })
+            r = read_rebar(doc, rb)
         except Exception:
-            pass
-
+            log_swallowed(_LOG, u'collect_rebar.read_rebar')
+            continue
+        shape = (r['shape'] or u'99').split()[0]
+        results.append({
+            'id':          r['id'],
+            'mark':        r['mark'] or u'—',
+            'partition':   r['partition'],
+            'diameter':    r['diameter'],
+            'diameter_label': u'H{}'.format(r['diameter']),
+            'quantity':    r['quantity'] * r['members'],
+            'length_mm':   r['bar_length_mm'],
+            'shape':       shape,
+            'shape_desc':  BS8666_SHAPES.get(shape, (u'Custom', []))[0],
+            'host':        u' '.join(x for x in (r['host_category'], r['host_mark']) if x),
+            'level':       r['level'],
+            'total_len_m': round(r['total_length_mm'] * r['members'] / 1000.0, 3),
+            'mass_kg':     round(r['mass_kg'], 2),
+        })
     return results
 
 
+def _group_key(bar):
+    """Marks are per partition (BS 8666): the same 01 in two partitions are different bars."""
+    return (bar.get('partition') or u'', bar['mark'])
+
+
 def group_by_mark(bars):
-    """Group bars by mark. Returns dict: mark -> aggregated dict."""
+    """Group bars by (partition, mark). Returns dict: key -> aggregated dict."""
     groups = {}
     for b in bars:
-        m = b['mark']
-        if m not in groups:
-            groups[m] = {
-                'mark':       m,
+        key = _group_key(b)
+        if key not in groups:
+            groups[key] = {
+                'mark':       u'{} / {}'.format(key[0], key[1]) if key[0] else key[1],
                 'diameter':   b['diameter'],
                 'diameter_label': b['diameter_label'],
                 'shape':      b['shape'],
                 'shape_desc': b['shape_desc'],
+                'length_mm':  b['length_mm'],
                 'quantity':   0,
                 'total_len_m': 0.0,
                 'mass_kg':    0.0,
                 'levels':     set(),
                 'hosts':      set(),
             }
-        groups[m]['quantity']    += b['quantity']
-        groups[m]['total_len_m'] += b['total_len_m']
-        groups[m]['mass_kg']     += b['mass_kg']
-        groups[m]['levels'].add(b['level'])
-        groups[m]['hosts'].add(b['host'])
+        g = groups[key]
+        g['quantity']    += b['quantity']
+        g['total_len_m'] += b['total_len_m']
+        g['mass_kg']     += b['mass_kg']
+        g['levels'].add(b['level'])
+        g['hosts'].add(b['host'])
 
     for g in groups.values():
-        g['levels'] = u', '.join(sorted(g['levels']))
-        g['hosts']  = u', '.join(sorted(g['hosts']))
-        g['total_len_m'] = round(g['total_len_m'], 2)
-        g['mass_kg']     = round(g['mass_kg'], 2)
+        g['levels'] = u', '.join(sorted(x for x in g['levels'] if x))
+        g['hosts']  = u', '.join(sorted(x for x in g['hosts'] if x))
+        g['total_len_m'] = round(float(g['total_len_m']), 2)
+        g['mass_kg']     = round(float(g['mass_kg']), 2)
 
     return groups
 
@@ -224,10 +181,9 @@ def detect_duplicate_marks(bars):
     """Return list of marks where multiple distinct diameters exist — likely errors."""
     mark_diams = {}
     for b in bars:
-        m = b['mark']
-        if m not in mark_diams:
-            mark_diams[m] = set()
-        mark_diams[m].add(b['diameter'])
+        key = _group_key(b)
+        m = u'{} / {}'.format(key[0], key[1]) if key[0] else key[1]
+        mark_diams.setdefault(m, set()).add(b['diameter'])
     return {m: diams for m, diams in mark_diams.items() if len(diams) > 1}
 
 
@@ -241,16 +197,20 @@ def renumber_marks(doc, bars, prefix, start_num):
 
     changed = 0
     for b in bars:
-        el = doc.GetElement(DB.ElementId(b['id']))
+        el = doc.GetElement(element_id_from_int(b['id']))
         if el is None:
             continue
         new_mark = mapping.get(b['mark'])
         if new_mark is None:
             continue
-        p = el.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
-        if p and not p.IsReadOnly:
-            p.Set(new_mark)
-            changed += 1
+        # the BS mark lives in Schedule Mark (RebarAutomate) and NOSA_Rebar_Mark
+        wrote = False
+        for p in (el.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK),
+                  el.LookupParameter('NOSA_Rebar_Mark')):
+            if p is not None and not p.IsReadOnly:
+                p.Set(new_mark)
+                wrote = True
+        changed += 1 if wrote else 0
 
     return changed, mapping
 

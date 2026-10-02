@@ -50,8 +50,8 @@ class BsSchedRow(object):
         self.Quantity  = str(g['quantity'])
         self.Shape     = g['shape']
         self.ShapeDesc = g['shape_desc']
-        self.TotalLenM = u'{:.2f}'.format(g['total_len_m'])
-        self.MassKg    = u'{:.2f}'.format(g['mass_kg'])
+        self.TotalLenM = u'{:.2f}'.format(float(g['total_len_m']))
+        self.MassKg    = u'{:.2f}'.format(float(g['mass_kg']))
         self.Levels    = g['levels']
         self.Hosts     = g['hosts']
 
@@ -185,7 +185,7 @@ class RebarHubWindow(NOSAWindow):
         self._bs_sched_rows.Clear()
         for g in sorted(self._bs_groups.values(), key=lambda x: x['mark']):
             self._bs_sched_rows.Add(BsSchedRow(g))
-        total_mass = sum(g['mass_kg'] for g in self._bs_groups.values())
+        total_mass = float(sum(g['mass_kg'] for g in self._bs_groups.values()))  # IronPython: no .2f on int 0
         self.TxtBsSchedStatus.Text = u'{} bar marks  ·  {} bars total  ·  {:.2f} kg total steel'.format(
             len(self._bs_groups),
             sum(g['quantity'] for g in self._bs_groups.values()),
@@ -333,7 +333,7 @@ class RebarHubWindow(NOSAWindow):
 
         if totals:
             self.TxtRsTotalBars.Text   = str(totals.n_bars or 0)
-            self.TxtRsTotalLength.Text = u'{:.2f} m'.format(totals.total_length_m or 0)
+            self.TxtRsTotalLength.Text = u'{:.2f} m'.format(float(totals.total_length_m or 0))
             self.TxtRsTotalWeight.Text = totals.total_wt_str
 
         self.ProgRs.Visibility      = Vis.Collapsed
