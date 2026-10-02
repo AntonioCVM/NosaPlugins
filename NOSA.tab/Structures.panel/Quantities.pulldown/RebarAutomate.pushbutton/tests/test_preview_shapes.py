@@ -83,4 +83,11 @@ for depth, count, crossed in ((600, 12, False), (400, 8, True)):
                                         10, crossties=ties)
     assert len(_bars(plan, 'link')) == 1 + len(ties), 'interior ties must reach the drawing'
 print('column_section_shapes: interior links / crossties drawn (12 bars; 8 bars: two crossed crossties): OK')
+# Beam interior ties: column rule across the row with more bars (5 bars: a link + a crosstie).
+ties5 = shapes.beam_interior_ties(400, 700, 40, 20, 5, 3, 10)
+assert len(ties5) == 5, ties5                          # 4 link sides + 1 crosstie
+assert shapes.beam_interior_ties(400, 700, 40, 20, 2, 2, 10) == []
+beam = shapes.beam_section_shapes(400, 700, 40, 20, 5, 3, 10, ties=ties5)
+assert len(_bars(beam, 'link')) == 1 + len(ties5)
+print('beam_section_shapes: interior links / crossties drawn for a 5-bar row: OK')
 print('\nALL PREVIEW SHAPES CHECKS PASSED')

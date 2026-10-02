@@ -773,6 +773,12 @@
                                            FontSize="10" TextWrapping="Wrap"
                                            Foreground="{DynamicResource TextColor}" Opacity="0.55" Margin="0,0,0,4"/>
                             </StackPanel>
+
+                            <CheckBox Name="ChkBeamInteriorTies" Content="Include interior links / crossties"
+                                      Margin="0,8,0,4" Foreground="{DynamicResource TextColor}"/>
+                            <TextBlock Text="Same rule as columns: interior bars paired outermost-inwards by closed interior links, an odd middle bar held by a 135°/135° crosstie; every tie wraps the bars from outside and follows the stirrup zones."
+                                       FontSize="10" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource TextColor}" Opacity="0.55" Margin="0,0,0,4"/>
                         </StackPanel>
                     </Border>
 

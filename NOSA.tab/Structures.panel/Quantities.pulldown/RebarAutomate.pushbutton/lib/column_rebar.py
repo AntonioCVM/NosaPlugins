@@ -2046,7 +2046,8 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
     (Revit RebarBarType.StirrupTieBendDiameter); 4 d when unknown.
 
     Returns:
-        list of {'points': [(u, v), ...], 'closed': bool, 'kind': 'link' | 'crosstie'}
+        list of {'points': [(u, v), ...], 'closed': bool, 'kind': 'link' | 'crosstie',
+                 'toward': (du, dv) — crossties only: from the tie to the bars it wraps}
     """
     us = _edge_positions(-half_w_mm, half_w_mm, n_u)
     vs = _edge_positions(-half_d_mm, half_d_mm, n_v)
@@ -2075,7 +2076,7 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
     if len(us_interior) % 2:
         m = us_interior[len(us_interior) // 2] - r
         shapes.append({'points': [(m, half_d_mm + hook_run), (m, -half_d_mm - hook_run)],
-                       'closed': False, 'kind': 'crosstie'})
+                       'closed': False, 'kind': 'crosstie', 'toward': (1.0, 0.0)})
     for i in range(len(vs_interior) // 2):
         a, b = vs_interior[i] - r, vs_interior[-1 - i] + r
         shapes.append({'points': [(-half_w_mm - r, a), (half_w_mm + r, a),
@@ -2084,8 +2085,22 @@ def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
     if len(vs_interior) % 2:
         m = vs_interior[len(vs_interior) // 2] - r
         shapes.append({'points': [(-half_w_mm - hook_run, m), (half_w_mm + hook_run, m)],
-                       'closed': False, 'kind': 'crosstie'})
+                       'closed': False, 'kind': 'crosstie', 'toward': (0.0, 1.0)})
     return shapes
+
+
+def hook_side_points(pts, shape, u_dir, v_dir, normal):
+    """
+    A crosstie's two points ordered so its hooks bend towards the bars it wraps: Revit bends a
+    "Left" hook to normal x direction, so a line drawn the other way hooked the next bar
+    instead (beam, measured live 2026-10-02). Links are returned unchanged.
+    """
+    toward = shape.get('toward')
+    if shape.get('closed') or not toward or len(pts) != 2:
+        return pts
+    side = u_dir.Multiply(toward[0]) + v_dir.Multiply(toward[1])
+    left = normal.CrossProduct((pts[1] - pts[0]).Normalize())
+    return pts if left.DotProduct(side) > 0 else [pts[1], pts[0]]
 
 
 def build_crosstie_sets(axis, u_dir, v_dir, half_w_mm, half_d_mm, n_u, n_v, zones,
@@ -2114,8 +2129,9 @@ def build_crosstie_sets(axis, u_dir, v_dir, half_w_mm, half_d_mm, n_u, n_v, zone
             continue
         base = p_start + axis_dir.Multiply((zone['start_mm'] + link_diameter_mm) / _MM_PER_FT)
         for shape in shapes:
-            pts = [base + u_dir.Multiply(u / _MM_PER_FT) + v_dir.Multiply(v / _MM_PER_FT)
-                   for u, v in shape['points']]
+            pts = hook_side_points(
+                [base + u_dir.Multiply(u / _MM_PER_FT) + v_dir.Multiply(v / _MM_PER_FT)
+                 for u, v in shape['points']], shape, u_dir, v_dir, axis_dir)
             count = len(pts) if shape['closed'] else len(pts) - 1
             curves = [DB.Line.CreateBound(pts[i], pts[(i + 1) % len(pts)]) for i in range(count)]
             sets.append({'curves': curves, 'normal': axis_dir, 'array_length_mm': length,

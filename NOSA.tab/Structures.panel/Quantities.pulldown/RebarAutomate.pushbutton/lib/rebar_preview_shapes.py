@@ -238,15 +238,30 @@ def column_elevation_shapes(width_mm, height_mm, cover_mm, bar_dia, link_dia, no
     return shapes
 
 
+def beam_interior_ties(width_mm, height_mm, cover_mm, bar_dia, n_top, n_bottom, link_dia):
+    """Interior links / crossties of a beam section, relative to its centre (column rule)."""
+    from rebar_preview import _crosstie_lines_preview
+    n_u = max(int(n_top or 0), int(n_bottom or 0))
+    if n_u <= 2:
+        return []
+    bend_r = 2.0 * link_dia
+    extra = 0.0 if bend_r <= bar_dia / 2.0 else bend_r - (bend_r - bar_dia / 2.0) / math.sqrt(2.0) - bar_dia / 2.0
+    inset = cover_mm + link_dia + bar_dia / 2.0 + extra
+    return _crosstie_lines_preview(width_mm / 2.0 - inset, height_mm / 2.0 - inset, n_u, 2, 'all',
+                                   bar_dia, link_dia)
+
+
 def beam_section_shapes(width_mm, height_mm, cover_mm, bar_dia, n_top, n_bottom, link_dia,
-                        link_spacing=None):
-    """Cross-section of a beam: link, top and bottom rows seated in its corners."""
+                        link_spacing=None, ties=None):
+    """Cross-section of a beam: link, top and bottom rows seated in its corners (+ interior ties)."""
     w, h, c = float(width_mm), float(height_mm), float(cover_mm)
     hw = w / 2.0
     shapes = [{'kind': 'concrete', 'x0': -hw, 'y0': 0.0, 'x1': hw, 'y1': h}]
     lw = hw - c - link_dia / 2.0
     shapes.append(_bar([(-lw, c + link_dia / 2.0), (lw, c + link_dia / 2.0), (lw, h - c - link_dia / 2.0),
                         (-lw, h - c - link_dia / 2.0), (-lw, c + link_dia / 2.0)], link_dia, 'link'))
+    for x1, y1, x2, y2 in ties or []:
+        shapes.append(_bar([(x1, y1 + h / 2.0), (x2, y2 + h / 2.0)], link_dia, 'link'))
     bend_r = 2.0 * link_dia
     extra = 0.0 if bend_r <= bar_dia / 2.0 else bend_r - (bend_r - bar_dia / 2.0) / math.sqrt(2.0) - bar_dia / 2.0
     inset = c + link_dia + bar_dia / 2.0 + extra

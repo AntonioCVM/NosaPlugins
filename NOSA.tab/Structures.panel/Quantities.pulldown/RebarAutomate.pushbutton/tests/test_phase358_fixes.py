@@ -65,6 +65,8 @@ class XYZ(object):
         return XYZ(self.X * s, self.Y * s, self.Z * s)
     def DotProduct(self, o):
         return self.X * o.X + self.Y * o.Y + self.Z * o.Z
+    def CrossProduct(self, o):
+        return XYZ(self.Y * o.Z - self.Z * o.Y, self.Z * o.X - self.X * o.Z, self.X * o.Y - self.Y * o.X)
     def GetLength(self):
         return math.sqrt(self.X**2 + self.Y**2 + self.Z**2)
     def Normalize(self):
@@ -270,4 +272,14 @@ ct = [s for s in column_rebar.interior_tie_layout(250.0, 250.0, 3, 4, 'all', 20.
 assert abs(u0 + SEATED) < 1e-6 and abs(v0 - 270.0) < 1e-6 and abs(v1 + 270.0) < 1e-6, ct
 print("interior_tie_layout: crosstie seated beside the bar and run D/2 past it: OK")
 
+# A crosstie's Left hooks bend to normal x direction: its points are ordered so they bend towards
+# the bars it wraps, whatever the frame (a beam's width x height x axis frame flipped them).
+for u_dir, v_dir in ((XYZ(1, 0, 0), XYZ(0, 1, 0)), (XYZ(-1, 0, 0), XYZ(0, 1, 0))):
+    normal = XYZ(0, 0, 1)
+    for shape in column_rebar.interior_tie_layout(250.0, 250.0, 3, 3, 'all', 20.0, 10.0):
+        pts = [u_dir.Multiply(u) + v_dir.Multiply(v) for u, v in shape['points']]
+        pts = column_rebar.hook_side_points(pts, shape, u_dir, v_dir, normal)
+        side = u_dir.Multiply(shape['toward'][0]) + v_dir.Multiply(shape['toward'][1])
+        assert normal.CrossProduct((pts[1] - pts[0]).Normalize()).DotProduct(side) > 0, shape
+print("hook_side_points: crosstie hooks bend towards their bars in either frame: OK")
 print("\nALL PHASE 3.5.8 TARGETED CHECKS PASSED")

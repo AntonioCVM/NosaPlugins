@@ -2744,34 +2744,9 @@ class RebarAutomateWindow(NOSAWindow):
         # the main links, created AFTER the verticals are pinned: pinning re-targets the handles
         # Revit snapped to other bars, so ties present by then dragged verticals to a wrong face.
         if bar_type_link is not None:
-            for iss in reinforcement.get('interior_stirrup_sets', []):
-                style = DBS.RebarStyle.StirrupTie if iss.get('style') == 'StirrupTie' else None
-                rebar = wrapper.create_rebar_set(
-                    host, iss['curves'], bar_type_link, iss['spacing_mm'], iss['array_length_mm'],
-                    normal=iss['normal'], style=style,
-                    transaction_name=u'NOSA — Create Column Interior Links',
-                    link_hook=re_engine.get_link_hook_type(self.doc))
-                layer = iss.get('layer', u'interior_stirrup')
-                label = u'crosstie' if layer == u'crosstie' else u'interior link'
-                if rebar is None:
-                    errors.append(u'Column {}: {} (set) — {}'.format(
-                        get_id_value(host.Id), label, wrapper.last_error))
-                else:
-                    self._stamp_layer(rebar, layer)
-                    created_rebars.append(rebar)
-                    if wrapper.last_error:
-                        errors.append(u'Column {}: {} (set) — {}'.format(
-                            get_id_value(host.Id), label, wrapper.last_error))
-                    if layer == u'crosstie':
-                        # BS 8666 has no standard crosstie shape: code 99 (Revit had named it "Rebar Shape N")
-                        try:
-                            with DB.Transaction(self.doc, u'NOSA — Name Crosstie Shape') as t:
-                                t.Start()
-                                re_engine.name_auto_shape(self.doc, rebar, u'99')
-                                t.Commit()
-                        except Exception as e:
-                            errors.append(u'Column {}: crosstie shape left unnamed ({}).'.format(
-                                get_id_value(host.Id), e))
+            self._create_interior_tie_sets(
+                host, reinforcement.get('interior_stirrup_sets', []), bar_type_link, wrapper, errors,
+                created_rebars, u'Column')
 
         if values.get('foundation_starters') and bar_type_vert is not None and \
                 re_engine.nosa_bars_in_footprint(self.doc, host, (u'dowel', u'foundation_starter')):
@@ -2874,6 +2849,7 @@ class RebarAutomateWindow(NOSAWindow):
             self.TxtBeamStockLength.Text, u'Max stock length', errors)
         if values.get('stock_length') is not None and values['stock_length'] < 1000.0:
             errors.append(u'"Max stock length" must be at least 1000 mm.')
+        values['interior_ties'] = self.ChkBeamInteriorTies.IsChecked == True
         values['densify_ends'] = self.ChkBeamDensify.IsChecked == True
         if values['densify_ends']:
             values['dense_spacing'] = self._read_number(
@@ -2934,9 +2910,13 @@ class RebarAutomateWindow(NOSAWindow):
                 width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
         except Exception:
             return
+        ties = []
+        if self.ChkBeamInteriorTies.IsChecked == True:
+            ties = preview_shapes.beam_interior_ties(
+                width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
         self._draw_shapes(canvas, preview_shapes.beam_section_shapes(
             width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia,
-            link_spacing=self._preview_number(self.TxtBeamStirrupSpacing, None)))
+            link_spacing=self._preview_number(self.TxtBeamStirrupSpacing, None), ties=ties))
         self._update_beam_elevation_preview()
 
     def _update_beam_elevation_preview(self):
@@ -3390,7 +3370,9 @@ class RebarAutomateWindow(NOSAWindow):
             densify_ends=values.get('densify_ends', False),
             dense_spacing_mm=values.get('dense_spacing'),
             confine_length_mm=values.get('confine_length'),
-            anchorage_mm=anchorage_mm)
+            anchorage_mm=anchorage_mm,
+            include_interior_ties=values.get('interior_ties', False),
+            link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])))
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -3559,6 +3541,51 @@ class RebarAutomateWindow(NOSAWindow):
             except Exception as e:
                 errors.append(u'Beam {}: longitudinal bars left where Revit snapped them '
                               u'(could not pin to the faces: {}).'.format(get_id_value(host.Id), e))
+
+        # Interior links / crossties after the bars are pinned (see _process_column)
+        if bar_type_st is not None:
+            self._create_interior_tie_sets(
+                host, curves.get('interior_tie_sets') or [], bar_type_st, wrapper, errors,
+                created_rebars, u'Beam')
+
+    @staticmethod
+    def _bend_diameter_mm(bar_type):
+        """Stirrup/Tie bend diameter (mm) of a bar type, or None."""
+        try:
+            return bar_type.StirrupTieBendDiameter * 304.8
+        except Exception:
+            return None
+
+    def _create_interior_tie_sets(self, host, tie_sets, bar_type, wrapper, errors, created_rebars, kind):
+        """Interior links and crossties as Sets with 135° Stirrup/Tie hooks; crossties take shape 99."""
+        for iss in tie_sets:
+            style = DBS.RebarStyle.StirrupTie if iss.get('style') == 'StirrupTie' else None
+            rebar = wrapper.create_rebar_set(
+                host, iss['curves'], bar_type, iss['spacing_mm'], iss['array_length_mm'],
+                normal=iss['normal'], style=style,
+                transaction_name=u'NOSA — Create {} Interior Links'.format(kind),
+                link_hook=re_engine.get_link_hook_type(self.doc))
+            layer = iss.get('layer', u'interior_stirrup')
+            label = u'crosstie' if layer == u'crosstie' else u'interior link'
+            if rebar is None:
+                errors.append(u'{} {}: {} (set) — {}'.format(
+                    kind, get_id_value(host.Id), label, wrapper.last_error))
+                continue
+            self._stamp_layer(rebar, layer)
+            created_rebars.append(rebar)
+            if wrapper.last_error:
+                errors.append(u'{} {}: {} (set) — {}'.format(
+                    kind, get_id_value(host.Id), label, wrapper.last_error))
+            if layer == u'crosstie':
+                # BS 8666 has no standard crosstie shape: code 99 (Revit had named it "Rebar Shape N")
+                try:
+                    with DB.Transaction(self.doc, u'NOSA — Name Crosstie Shape') as t:
+                        t.Start()
+                        re_engine.name_auto_shape(self.doc, rebar, u'99')
+                        t.Commit()
+                except Exception as e:
+                    errors.append(u'{} {}: crosstie shape left unnamed ({}).'.format(
+                        kind, get_id_value(host.Id), e))
 
     def _run_beam_reinforcement(self, beams, values):
         errors = []
