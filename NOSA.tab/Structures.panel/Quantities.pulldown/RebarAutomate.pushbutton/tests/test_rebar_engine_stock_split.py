@@ -58,6 +58,8 @@ class Line(object):
         return Line(p0, p1)
     def GetEndPoint(self, i):
         return self._p0 if i == 0 else self._p1
+    def Evaluate(self, t, normalized=True):
+        return self._p0 + (self._p1 - self._p0).Multiply(t)
     @property
     def Direction(self):
         return (self._p1 - self._p0).Normalize()

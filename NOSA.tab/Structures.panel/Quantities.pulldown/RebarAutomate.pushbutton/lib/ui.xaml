@@ -1205,7 +1205,7 @@
                                        FontSize="11" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
                             <ListBox Name="LstBatches" Height="120" Margin="0,0,0,8"/>
-                            <UniformGrid Columns="4">
+                            <UniformGrid Columns="5">
                                 <Button Name="BtnRefreshBatches" Content="Refresh"
                                         Click="RefreshBatches_Click" Margin="0,0,4,0"/>
                                 <Button Name="BtnSelectBatch" Content="Select in Model"
@@ -1215,6 +1215,9 @@
                                 <Button Name="BtnRenumberPartition" Content="Renumber Partition"
                                         Click="RenumberPartition_Click" Margin="4,0,0,0"
                                         ToolTip="Give every non-finalized bar of this partition a BS 8666 mark (01, 02 ...). Finalized bars keep theirs."/>
+                                <Button Name="BtnPartitions" Content="Partitions..."
+                                        Click="Partitions_Click" Margin="4,0,0,0"
+                                        ToolTip="Name the BBS member of every reinforced host and schedule identical hosts once, with No. of mbrs = N."/>
                             </UniformGrid>
                         </StackPanel>
                     </Border>

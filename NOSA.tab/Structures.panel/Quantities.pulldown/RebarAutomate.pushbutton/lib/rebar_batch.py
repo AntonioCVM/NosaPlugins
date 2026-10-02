@@ -76,6 +76,17 @@ def stamp_location(elem, layer, code=None):
     return bool(param.Set(code))
 
 
+def default_schedule_flag(elem):
+    """NOSA_Rebar_Show_In_Schedule = Yes when never written: the BBS filter is 'equals Yes'."""
+    param = elem.LookupParameter(u'NOSA_Rebar_Show_In_Schedule')
+    if param is None or param.IsReadOnly:
+        return True
+    try:
+        return True if param.HasValue else bool(param.Set(1))
+    except Exception:
+        return False
+
+
 def default_members(elem):
     """BBS 'No. of mbrs' (template project parameter): 1 when empty, never over a typed value."""
     param = elem.LookupParameter(u'Number of Members')
@@ -209,6 +220,7 @@ class RebarBatch(object):
                             results['Comments'] = stamp_location(
                                 elem, layer, self.locations.get(get_id_value(elem.Id)))
                         results['Number of Members'] = default_members(elem)
+                        results['NOSA_Rebar_Show_In_Schedule'] = default_schedule_flag(elem)
                         failed_fields = [name for name, ok in results.items() if not ok]
                         if failed_fields:
                             stamp_errors.append(

@@ -81,6 +81,7 @@ class SchedulePosition(object):
         self.layer = u''
         self.host_mark = u''
         self.member = u''
+        self.members = 1
         self.legs = None
         self.mandrel_mm = None
         self.variants = {}
@@ -146,10 +147,36 @@ def collect_rebars(doc, batch_id=None, include_finalized=False):
             finalized = _read(doc, rid, "NOSA_Rebar_Finalized")
             if finalized == 1 or finalized == "1":
                 continue
-        
+
+        # Partitions tool: a copy of an identical member is counted through the
+        # representative's 'No. of mbrs' — only an explicit No leaves the schedule
+        if not shows_in_schedule(doc.GetElement(rid)):
+            continue
+
         filtered.append(rid)
     
     return filtered
+
+
+def shows_in_schedule(rebar):
+    """False only when NOSA_Rebar_Show_In_Schedule is explicitly No (never written = shown)."""
+    try:
+        param = rebar.LookupParameter("NOSA_Rebar_Show_In_Schedule")
+        return not (param is not None and param.HasValue and param.AsInteger() == 0)
+    except Exception:
+        return True
+
+
+def members_of(rebar):
+    """BBS 'No. of mbrs': the template's Number of Members (1 when absent or empty)."""
+    try:
+        param = rebar.LookupParameter("Number of Members")
+        if param is not None and param.HasValue:
+            value = param.AsDouble() if param.StorageType.ToString() == 'Double' else param.AsInteger()
+            return max(1, int(round(value)))
+    except Exception:
+        log_swallowed(_LOG, u'members_of')
+    return 1
 
 
 def _bar_quantity(rebar):
@@ -230,6 +257,7 @@ def group_by_position(doc, rebar_ids):
         
         rebar = doc.GetElement(rid)
         positions[key].add_bar(rid, _bar_quantity(rebar))
+        positions[key].members = max(getattr(positions[key], 'members', 1), members_of(rebar))
         import rebar_bending
         try:
             bars = rebar_bending.bar_variants(rebar, positions[key].diameter_mm)
@@ -250,7 +278,7 @@ def _variant_rows(pos):
     rows = []
     variants = sorted(pos.variants.values(), key=lambda v: v['unit_length_mm'])
     for k, var in enumerate(variants):
-        total_mm = var['count'] * var['unit_length_mm']
+        total_mm = var['count'] * var['unit_length_mm'] * pos.members
         rows.append({
             'mark': pos.mark + rebar_marking.variant_suffix(k),
             'group': pos.mark,
@@ -261,6 +289,7 @@ def _variant_rows(pos):
             'shape_code': pos.shape_code,
             'shape_params': pos.shape_params,
             'count': var['count'],
+            'members': pos.members,
             'unit_length_mm': var['unit_length_mm'],
             'total_length_mm': total_mm,
             'total_weight_kg': (total_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
@@ -287,7 +316,8 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
     schedule = []
     for key in sorted(positions.keys()):
         pos = positions[key]
-        weight_kg = (pos.total_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm)
+        total_mm = pos.total_length_mm * pos.members
+        weight_kg = (total_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm)
         if len(pos.variants) > 1:
             schedule.extend(_variant_rows(pos))
             continue
@@ -300,8 +330,9 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
             'shape_code': pos.shape_code,
             'shape_params': pos.shape_params,
             'count': pos.count,
+            'members': pos.members,
             'unit_length_mm': pos.unit_length_mm,
-            'total_length_mm': pos.total_length_mm,
+            'total_length_mm': total_mm,
             'total_weight_kg': weight_kg,
             'unit_weight_kg': (pos.unit_length_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
             'legs': pos.legs,
@@ -332,11 +363,12 @@ def bbs_rows(schedule_data):
     for row in schedule_data:
         dims = _shape_dims(row.get('shape_params'))
         count = int(row.get('count') or 0)
+        members = max(1, int(row.get('members') or 1))
         rows.append([
             row.get('member') or u'',
             row.get('mark') or u'',
             u'H{}'.format(int(row.get('diameter_mm') or 0)),
-            u'1', text_type(count), text_type(count),
+            text_type(members), text_type(count), text_type(members * count),
             text_type(int(round(row.get('unit_length_mm') or 0))),
             row.get('shape_code') or u'',
             dims.get(u'A', u''), dims.get(u'B', u''), dims.get(u'C', u''),

@@ -74,7 +74,8 @@ def bvbs_record(position, project_no=u'', schedule_no=u'', revision=u'', steel_g
 
     header = (u'Hj{}@r{}@i{}@p{}@l{}@n{}@e{}@d{}@g{}@s{}@v@{}'.format(
         _text(project_no), _text(schedule_no), _text(revision), _text(position.get('mark', u'?')),
-        _number(length_mm), int(position.get('count') or 0), _number(weight, 3),
+        _number(length_mm), int(position.get('count') or 0) * max(1, int(position.get('members') or 1)),
+        _number(weight, 3),
         _number(dia), _text(steel_grade), _number(mandrel),
         u'c{}@'.format(_text(position['group'])) if position.get('group') else u''))
     body = u'BF2D@' + header + (geometry_block(legs) if legs else u'') + u'C'

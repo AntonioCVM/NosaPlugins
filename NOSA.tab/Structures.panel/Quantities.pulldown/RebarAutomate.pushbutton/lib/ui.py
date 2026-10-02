@@ -3973,6 +3973,30 @@ class RebarAutomateWindow(NOSAWindow):
             summary.get('total_positions', 0), summary.get('total_bars', 0),
             summary.get('varying_sets', 0)), title=u'RebarAutomate — Renumber Partition')
 
+    def Partitions_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._open_partitions)
+
+    def _open_partitions(self):
+        partitions_window = load_module('partitions_window', os.path.join(_HERE, 'partitions_window.py'))
+        dialog = partitions_window.PartitionsWindow(self.doc, {'standard': self.ra_standard})
+        if not dialog.rows:
+            forms.alert(u'No host carries RebarAutomate bars yet.', title=u'RebarAutomate — Partitions')
+            return
+        dialog.ShowDialog()
+        summary = dialog.summary
+        if not summary:
+            return
+        message = (u'{} partition(s) written; {} bar mark(s) given. {} Rebar element(s) of identical '
+                   u'hosts set to Show In Schedule = No.'.format(
+                       summary['partitions'], summary['positions'], summary['hidden']))
+        if summary['finalized_skipped']:
+            message += u'\n{} finalized Rebar element(s) left unchanged.'.format(summary['finalized_skipped'])
+        message += (u'\n\nThe template BBS schedule needs the filter '
+                    u'"NOSA_Rebar_Show_In_Schedule equals Yes" to leave the copies out.')
+        forms.alert(message, title=u'RebarAutomate — Partitions')
+
     def RefreshBatches_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
