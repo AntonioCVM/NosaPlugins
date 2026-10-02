@@ -41,6 +41,8 @@ stamp_provenance(elem, ctx)
 import csv
 import datetime
 import os
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.shared_params'
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _EXTENSION_ROOT = os.path.abspath(os.path.join(_HERE, '..', '..'))
@@ -261,7 +263,7 @@ def ensure_bound(doc, categories=None):
                                 if category is not None:
                                     this_category_set.Insert(category)
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'ensure_bound')
 
                     try:
                         if name in _TYPE_PARAM_NAMES:
@@ -302,7 +304,7 @@ def _find_parameter(elem, guid_or_name):
         if param is not None:
             return param
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_find_parameter')
     try:
         return elem.LookupParameter(guid_or_name)
     except Exception:
@@ -357,7 +359,7 @@ def read(elem, guid_or_name, default=None):
         if storage_type == StorageType.ElementId:
             return param.AsElementId()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'read')
     return default
 
 

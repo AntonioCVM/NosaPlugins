@@ -53,6 +53,8 @@ wrong" more often than "throws", so it warrants the defensive,
 None-returning style instead.
 """
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _MM_PER_FT = 304.8
 
@@ -417,6 +419,86 @@ def create_rebar_tags_smart(doc, view, rebars, use_param_offsets=True,
     return tags, errors
 
 
+def _view_rect(element, view, right, up):
+    """(xmin, ymin, xmax, ymax) of an element's bounding box in the view plane, feet."""
+    bbox = element.get_BoundingBox(view)
+    if bbox is None:
+        return None
+    xs, ys = [], []
+    for x in (bbox.Min.X, bbox.Max.X):
+        for y in (bbox.Min.Y, bbox.Max.Y):
+            for z in (bbox.Min.Z, bbox.Max.Z):
+                p = DB.XYZ(x, y, z)
+                xs.append(p.DotProduct(right))
+                ys.append(p.DotProduct(up))
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _text_rect(tag, rect, char_width_ratio=0.75):
+    """
+    Widen a tag's view rectangle to its text: Revit returns the label box of the family, and
+    a longer text overflows it (a 43 mm box for an 85 mm '5H20-01-' measured live 2026-10-02).
+    Width ~ characters x 0.75 x box height, centred on the box.
+    """
+    if rect is None:
+        return None
+    try:
+        text = tag.TagText or u''
+    except Exception:
+        text = u''
+    height = rect[3] - rect[1]
+    width = max(rect[2] - rect[0], len(text) * char_width_ratio * height)
+    cx = (rect[0] + rect[2]) / 2.0
+    return (cx - width / 2.0, rect[1], cx + width / 2.0, rect[3])
+
+
+def resolve_tag_overlaps(doc, view, tags, gap_paper_mm=1.0, leader_after_steps=1.5):
+    """
+    Move the heads of `tags` so none overlaps another tag in `view` (new or already there):
+    each one goes to the nearest free spot (nosa_utils.label_layout.deoverlap: up/down a tag
+    height, then sideways). A tag moved further than leader_after_steps tag heights gets a
+    leader so it still points at its bar. Call inside a transaction. Returns tags moved.
+    """
+    from nosa_utils.label_layout import deoverlap
+    from nosa_utils.revit_helpers import get_id_value
+    if not tags:
+        return 0
+    doc.Regenerate()
+    right, up = view.RightDirection, view.UpDirection
+    try:
+        scale = max(1, int(view.Scale))
+    except Exception:
+        scale = 50
+    gap = gap_paper_mm * scale / _MM_PER_FT
+    new_ids = set(get_id_value(t.Id) for t in tags)
+    obstacles = []
+    for other in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag).ToElements():
+        if get_id_value(other.Id) in new_ids:
+            continue
+        rect = _text_rect(other, _view_rect(other, view, right, up))
+        if rect is not None:
+            obstacles.append(rect)
+    order, rects = [], []
+    for tag in tags:
+        rect = _text_rect(tag, _view_rect(tag, view, right, up))
+        if rect is not None:
+            order.append(tag)
+            rects.append(rect)
+    moved = 0
+    for tag, rect, (dx, dy) in zip(order, rects, deoverlap(rects, obstacles, gap)):
+        if dx == 0.0 and dy == 0.0:
+            continue
+        tag.TagHeadPosition = tag.TagHeadPosition + right.Multiply(dx) + up.Multiply(dy)
+        height = max(rect[3] - rect[1], 1e-6)
+        if (abs(dx) + abs(dy)) > leader_after_steps * height:
+            try:
+                tag.HasLeader = True
+            except Exception:
+                log_swallowed(_LOG, u'resolve_tag_overlaps.leader')
+        moved += 1
+    return moved
+
+
 def list_mra_types(doc):
     """
     All MultiReferenceAnnotationType elements in the document
@@ -552,7 +634,7 @@ def create_multi_rebar_annotation(doc, view, rebars, mra_type=None,
         try:
             options.TagHasLeader = bool(tag_has_leader)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_multi_rebar_annotation')
 
         ids = NetList[DB.ElementId]()
         for rebar in rebars:
@@ -628,7 +710,7 @@ def create_stirrup_dimension_smart(doc, view, stirrup_rebars, host=None,
                 if hasattr(loc, 'Curve') and loc.Curve is not None:
                     axis_line = loc.Curve
             except Exception:
-                pass
+                log_swallowed(_LOG, u'create_stirrup_dimension_smart')
         
         # Fallback: compute axis from first and last stirrup
         if axis_line is None:
@@ -703,7 +785,7 @@ def tag_rebar_set_along_run(doc, view, rebar_set, tag_type_id=None,
                                   orientation=DB.TagOrientation.Horizontal,
                                   tag_type_id=tag_type_id, add_leader=False)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'tag_rebar_set_along_run')
         
         # For dimension, we need to extract individual bar positions
         # For a ShapeDrivenAccessor rebar, we can't easily get individual
@@ -716,6 +798,6 @@ def tag_rebar_set_along_run(doc, view, rebar_set, tag_type_id=None,
         # version-dependent. For now, return tag only.
         
     except Exception:
-        pass
+        log_swallowed(_LOG, u'tag_rebar_set_along_run')
     
     return tag, dim

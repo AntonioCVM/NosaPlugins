@@ -15,6 +15,9 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+_ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
+if _ext_lib not in sys.path:
+    sys.path.insert(0, _ext_lib)
 
 from nosa_utils.base_window import launch_nosa_window
 
@@ -28,8 +31,8 @@ def _lm(n, p):
         s.loader.exec_module(m)
         return m
     except (ImportError, AttributeError):
-        import imp
-        m = imp.load_source(n, p)
+        from nosa_utils.bootstrap import load_module
+        m = load_module(n, p)
         sys.modules[n] = m
         return m
 

@@ -1,5 +1,5 @@
 ﻿# -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
@@ -7,7 +7,8 @@ from pyrevit import forms, revit
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path: sys.path.insert(0, _lib)
 
-_logic = imp.load_source('annobatch_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('annobatch_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 get_structural_views     = _logic.get_structural_views
 batch_tag_elements       = _logic.batch_tag_elements
 batch_grid_bubbles       = _logic.batch_grid_bubbles
@@ -17,7 +18,7 @@ get_spot_elevation_types = _logic.get_spot_elevation_types
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.logging import Logger
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from Autodesk.Revit import DB
 logger = Logger()
 
@@ -70,7 +71,7 @@ class AnnotationBatchWindow(NOSAWindow):
             self.CboSpotType.Items.Clear()
             self.CboSpotType.Items.Add(u'(default style)')
             for st in self._spot_types:
-                self.CboSpotType.Items.Add(st.Name or str(st.Id))
+                self.CboSpotType.Items.Add(element_name(st) or str(st.Id))
             self.CboSpotType.SelectedIndex = 0
         except Exception:
             self._spot_types = []

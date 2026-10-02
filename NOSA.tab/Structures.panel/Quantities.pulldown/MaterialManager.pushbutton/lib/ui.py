@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
-import imp
 import os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'materialmanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-_logic = imp.load_source('materialmanager_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('materialmanager_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 _SEARCH_PH   = "Search materials..."
 _ALL_CLASSES = "All Classes"
@@ -60,6 +62,10 @@ class MaterialManagerWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'material_manager')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CboClass.SelectionChanged += self.Class_Changed
+        self.CboElCategory.SelectionChanged += self.ElementFilter_Changed
+        self.CboElLevel.SelectionChanged += self.ElementFilter_Changed
         self.doc = doc
 
         # ── Materials tab state ───────────────────────────────────────────────
@@ -104,7 +110,7 @@ class MaterialManagerWindow(NOSAWindow):
                 self.SidebarMaterials.Visibility = v.Collapsed
                 self.SidebarElements.Visibility  = v.Visible
         except Exception:
-            pass
+            log_swallowed(_LOG, u'MaterialManagerWindow.Tab_Changed')
 
     # ── materials scan ────────────────────────────────────────────────────────
 

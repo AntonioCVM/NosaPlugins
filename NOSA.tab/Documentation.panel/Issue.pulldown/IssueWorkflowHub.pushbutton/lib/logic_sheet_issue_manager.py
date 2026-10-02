@@ -8,6 +8,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
 
 _LOG_KEY = u'sheet_issues'
 _CONFIGS = os.path.join(
@@ -25,7 +27,7 @@ def load_log():
             with open(path, 'r') as f:
                 return json.load(f)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'load_log')
     return []
 
 
@@ -36,7 +38,7 @@ def save_log(records):
         with open(_log_path(), 'w') as f:
             json.dump(records, f, indent=2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'save_log')
 
 
 def collect_sheets(doc):
@@ -57,7 +59,7 @@ def sheet_revision(sheet):
                 seq = rev.get_Parameter(DB.BuiltInParameter.PROJECT_REVISION_SEQUENCE_NUM)
                 return seq.AsString() if seq else str(get_id_value(rev_ids[-1]))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'sheet_revision')
     return u''
 
 
@@ -82,14 +84,7 @@ def delete_records(records, indices):
 
 
 def export_csv(records, path):
-    import csv as _csv
-    headers = ['Date', 'Sheet', 'Revision', 'Recipient', 'Package', 'Notes', 'Issued By']
-    with open(path, 'wb') as f:
-        w = _csv.writer(f)
-        w.writerow(headers)
-        for r in records:
-            w.writerow([
-                r.get('date', ''), r.get('sheet', ''), r.get('revision', ''),
-                r.get('recipient', ''), r.get('package', ''),
-                r.get('notes', ''), r.get('issued_by', ''),
-            ])
+    from nosa_utils.export_io import write_csv
+    keys = ('date', 'sheet', 'revision', 'recipient', 'package', 'notes', 'issued_by')
+    write_csv(path, ['Date', 'Sheet', 'Revision', 'Recipient', 'Package', 'Notes', 'Issued By'],
+              [[r.get(k, '') for k in keys] for r in records])

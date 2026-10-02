@@ -21,6 +21,8 @@ import csv
 import json
 import os
 import datetime
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.export_io'
 
 _CFG = os.path.join(
     os.getenv('APPDATA', ''),
@@ -34,7 +36,7 @@ def _load_last_folder():
         if folder and os.path.isdir(folder):
             return folder
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_load_last_folder')
     return os.path.join(os.path.expanduser('~'), 'Documents')
 
 
@@ -46,7 +48,7 @@ def _save_last_folder(folder):
         with open(_CFG, 'w') as f:
             json.dump({'last_folder': folder}, f)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_save_last_folder')
 
 
 def ask_save_path(default_name, extension='csv'):
@@ -81,7 +83,8 @@ def save_text(text, default_name=u'nosa_note', extension='txt'):
     path = ask_save_path(default_name, extension)
     if not path:
         return None
-    with io.open(path, 'w', encoding='utf-8-sig') as f:
+    with io.open(path, 'w', encoding='utf-8') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         f.write(text)
     return path
 
@@ -105,7 +108,8 @@ def write_csv(path, headers, rows):
     headers : list[str]   — column names (first row)
     rows    : list[list]  — data rows; each inner list maps to a header column
     """
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(headers)
         for row in rows:
@@ -122,7 +126,8 @@ def write_csv_dicts(path, headers, rows):
     headers : list[str]   — ordered column names
     rows    : list[dict]  — each dict maps header names to values
     """
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.DictWriter(f, fieldnames=headers, extrasaction='ignore')
         w.writeheader()
         for row in rows:

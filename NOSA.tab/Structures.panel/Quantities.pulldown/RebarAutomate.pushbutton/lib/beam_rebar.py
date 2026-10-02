@@ -51,6 +51,53 @@ def _ensure_engine():
 _MM_PER_FT = 304.8
 
 
+def _column_rebar():
+    """column_rebar (interior_tie_layout), the copy ui.py loaded if any."""
+    import sys
+    mod = sys.modules.get('column_rebar')
+    if mod is None:
+        from nosa_utils.bootstrap import load_module
+        mod = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
+    return mod
+
+
+def build_interior_tie_sets(stirrup_sets, section_origin, axis_dir, width_dir, height_dir,
+                            bar_half_width_mm, bar_half_height_mm, n_top, n_bottom,
+                            bar_diameter_mm, link_diameter_mm, link_bend_diameter_mm=None,
+                            layout='all'):
+    """
+    Interior links and 135/135 crossties for a beam, laid out like its stirrups (one Set per
+    stirrup zone, lifted one link diameter along the axis): the column rule of
+    column_rebar.interior_tie_layout across the row with more bars (top and bottom faces).
+    Returns [{'curves', 'normal', 'array_length_mm', 'spacing_mm', 'style', 'layer'}, ...].
+    """
+    n_u = max(n_top or 0, n_bottom or 0)
+    if n_u <= 2:
+        return []
+    shapes = _column_rebar().interior_tie_layout(
+        bar_half_width_mm, bar_half_height_mm, n_u, 2, layout,
+        bar_diameter_mm, link_diameter_mm, link_bend_diameter_mm)
+    sets = []
+    for sset in stirrup_sets:
+        positions = sset.get('positions') or []
+        if not positions:
+            continue
+        start = positions[0] + link_diameter_mm
+        length = max(0.0, positions[-1] - positions[0] - link_diameter_mm)
+        base = section_origin + axis_dir.Multiply(start / _MM_PER_FT)
+        for shape in shapes:
+            pts = _column_rebar().hook_side_points(
+                [base + width_dir.Multiply(u / _MM_PER_FT) + height_dir.Multiply(v / _MM_PER_FT)
+                 for u, v in shape['points']], shape, width_dir, height_dir, axis_dir)
+            count = len(pts) if shape['closed'] else len(pts) - 1
+            sets.append({
+                'curves': [DB.Line.CreateBound(pts[i], pts[(i + 1) % len(pts)]) for i in range(count)],
+                'normal': axis_dir, 'array_length_mm': length,
+                'spacing_mm': sset['spacing_mm'], 'style': 'StirrupTie',
+                'layer': 'crosstie' if shape['kind'] == 'crosstie' else 'interior_stirrup'})
+    return sets
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Location curve & face classification
 # ══════════════════════════════════════════════════════════════════════════
@@ -715,7 +762,9 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              stock_length_mm=12000.0, lap_length_mm=None,
                              lap_offset_mm=25.0,
                              densify_ends=False, dense_spacing_mm=None,
-                             confine_length_mm=None, anchorage_mm=None):
+                             confine_length_mm=None, anchorage_mm=None,
+                             include_interior_ties=False, tie_layout='all',
+                             link_bend_diameter_mm=None):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -906,7 +955,21 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
             'array_length_mm': array_mm,
             'count': n,
             'normal': axis.Direction.Normalize(),
+            'positions': positions,
         })
+
+    bar_inset = longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
+    interior_tie_sets = []
+    if include_interior_ties:
+        interior_tie_sets = build_interior_tie_sets(
+            stirrup_sets, section_origin, axis.Direction.Normalize(), width_dir, height_dir,
+            half_width_mm + inset_mm - bar_inset, half_height_mm + inset_mm - bar_inset,
+            n_top_bars, n_bottom_bars, bar_diameter_mm, stirrup_bar_diameter_mm,
+            link_bend_diameter_mm, tie_layout)
+        if n_top_bars and n_bottom_bars and n_top_bars != n_bottom_bars and interior_tie_sets:
+            warnings.append(u'interior links/crossties follow the row with more bars ({} vs {}); '
+                            u'the other row is not held at every leg.'.format(
+                                max(n_top_bars, n_bottom_bars), min(n_top_bars, n_bottom_bars)))
 
     return {
         'top_bars': top_chains,
@@ -919,6 +982,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'beam_width_mm': half_width_mm * 2.0 + 2.0 * inset_mm,
         'confine_length_mm': confine_length_mm if densify_ends else 0.0,
         'long_bar_normal': width_dir,
-        'bar_inset_mm': longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm),
+        'bar_inset_mm': bar_inset,
+        'interior_tie_sets': interior_tie_sets,
         'warnings': warnings,
     }

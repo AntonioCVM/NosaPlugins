@@ -158,30 +158,19 @@ zones = [
     {'start_mm': 5000.0, 'end_mm': 6000.0, 'spacing_mm': 100.0},
 ]
 crossties = column_rebar.build_crosstie_sets(axis, u_dir, v_dir, 150.0, 100.0, 5, 2, zones, layout='all')
-bars = crossties['crosstie_bars']
-# n_u=5 -> 3 interior U positions (>1, so no collapse-to-loop; stays as
-# individual crossties). Rather than hand-derive an exact expected
-# count (fragile against the Phase 3.5.6 item 4 Z-epsilon inset
-# changing exactly which boundary positions survive dedup), verify the
-# count is internally consistent: every bar's own Z must appear in
-# EXACTLY ONE zone's own (now epsilon-inset) position list, and the
-# total must be a whole multiple of n_pairs (3).
-n_pairs = 3
-assert len(bars) % n_pairs == 0, len(bars)
-assert len(bars) > 0
-assert crossties['interior_stirrup_sets'] == []
-
-# Directly verify no two bars share the exact same curve endpoints
-# (the literal "Identical rebar" signature).
+# 2026-10-02: Sets, not single bars. n_u=5 -> 3 interior bars: one link (1st+3rd) + one
+# crosstie (2nd) per zone -> 6 Sets; no two share a shape at the same Z ("Identical rebar").
+assert crossties['crosstie_bars'] == []
+sets = crossties['interior_stirrup_sets']
+assert len(sets) == 2 * len(zones), len(sets)
 seen = set()
-for b in bars:
-    c = b['curve']
-    key = (round(c.GetEndPoint(0).X, 6), round(c.GetEndPoint(0).Y, 6), round(c.GetEndPoint(0).Z, 6),
-           round(c.GetEndPoint(1).X, 6), round(c.GetEndPoint(1).Y, 6), round(c.GetEndPoint(1).Z, 6))
-    assert key not in seen, "duplicate crosstie geometry found at {}".format(key)
+for s in sets:
+    key = tuple((round(c.GetEndPoint(0).X, 6), round(c.GetEndPoint(0).Y, 6), round(c.GetEndPoint(0).Z, 6))
+                for c in s['curves'])
+    assert key not in seen, "duplicate interior tie geometry at {}".format(key)
     seen.add(key)
-print("build_crosstie_sets: adjacent zones sharing a boundary Z no longer emit "
-      "duplicate ('Identical rebar') crossties: OK")
+print("build_crosstie_sets: one link + one crosstie Set per zone, no duplicated "
+      "('Identical rebar') geometry across shared zone boundaries: OK")
 
 
 # ── Fix 1b (Phase 3.5.7 REVERT): Level+Offset is STRICT authority,

@@ -2,54 +2,13 @@
 from Autodesk.Revit import DB
 from pyrevit import revit
 import math
-from System.Collections.Generic import List as _CsList
 
-
-# ---------------------------------------------------------------------------
-# Group helpers (duplicated from logic_numbering — same Transaction pattern)
-# ---------------------------------------------------------------------------
-
-from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
+from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 
-
-def _eid_val(eid):
-    return get_id_value(eid)
-
-
-def _ungroup_targets(doc, elements):
-    """Ungroup Model Groups containing *elements*. Returns restore data."""
-    seen    = set()
-    restore = []
-    invalid = DB.ElementId.InvalidElementId
-    for el in elements:
-        gid = el.GroupId
-        if gid == invalid:
-            continue
-        gid_val = _eid_val(gid)
-        if gid_val in seen:
-            continue
-        seen.add(gid_val)
-        grp = doc.GetElement(gid)
-        if grp is None:
-            continue
-        try:
-            member_ids  = list(grp.GetMemberIds())
-            grp_type_id = grp.GetTypeId()
-            grp.UngroupMembers()
-            restore.append((grp_type_id, member_ids))
-        except Exception:
-            pass
-    return restore
-
-
-def _regroup_restore(doc, restore_data):
-    """Recreate groups after editing. Must be inside same Transaction."""
-    for _grp_type_id, member_ids in restore_data:
-        try:
-            doc.Create.NewGroup(_CsList[DB.ElementId](member_ids))
-        except Exception:
-            pass
 
 class CoordinateLogic:
     def __init__(self, doc):
@@ -84,7 +43,7 @@ class CoordinateLogic:
             for e in col:
                 return e
         except Exception:
-            pass
+            log_swallowed(_LOG, u'CoordinateLogic._get_base_point_by_category')
         return None
 
     def _get_project_base_point(self):
@@ -106,7 +65,7 @@ class CoordinateLogic:
                 if isinstance(loc, DB.LocationPoint):
                     return loc.Point
             except Exception:
-                pass
+                log_swallowed(_LOG, u'CoordinateLogic._base_point_model_xyz')
         return None
 
     @staticmethod
@@ -284,7 +243,7 @@ class CoordinateLogic:
             if not grp:
                 grp = def_file.Groups.Create("NOSA_Coordinates")
                 
-            with revit.Transaction("Create Coordinate Parameters"):
+            with revit.Transaction(u"NOSA — Create Coordinate Parameters"):
                 cats = app.Create.NewCategorySet()
                 cat = self.doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_StructuralFoundation)
                 cats.Insert(cat)
@@ -311,7 +270,7 @@ class CoordinateLogic:
                             # We need to map SpecTypeId back to ParameterType if we are in old Revit
                             # But here I assume I pass valid types for the running version in the caller
                             # Or I handle it here.
-                            pass
+                            log_swallowed(_LOG, u'CoordinateLogic.ensure_parameters')
 
                     if defn and not self.doc.ParameterBindings.Contains(defn):
                         self.doc.ParameterBindings.Insert(defn, binding, group_id)
@@ -322,7 +281,7 @@ class CoordinateLogic:
              if original_file: app.SharedParametersFilename = original_file
              if temp_file and os.path.exists(temp_file):
                  try: os.remove(temp_file)
-                 except Exception: pass
+                 except Exception: log_swallowed(_LOG, u'CoordinateLogic.ensure_parameters')
                  
         return len(missing), None
 
@@ -394,7 +353,7 @@ class CoordinateLogic:
         fail    = 0
         inv     = self._get_inverse_total_transform()
 
-        with revit.Transaction("Update Pile Coordinates"):
+        with revit.Transaction(u"NOSA — Update Pile Coordinates"):
             restore = _ungroup_targets(self.doc, elements)
             for el in elements:
                 if self._write_coords_to_element(

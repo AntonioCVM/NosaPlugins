@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 from Autodesk.Revit import DB
 import os, sys
 import System.Windows
@@ -10,7 +9,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-_logic = imp.load_source('viewbatchmanager_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('viewbatchmanager_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 class ViewRow(object):

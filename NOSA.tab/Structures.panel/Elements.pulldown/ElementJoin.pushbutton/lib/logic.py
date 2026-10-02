@@ -6,6 +6,8 @@ Uses Revit JoinGeometryUtils API.
 import sys
 import os
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'elementjoin'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -56,7 +58,7 @@ def load_priority():
             if saved and set(saved) == set(DEFAULT_PRIORITY):
                 return saved
     except Exception:
-        pass
+        log_swallowed(_LOG, u'load_priority')
     return list(DEFAULT_PRIORITY)
 
 
@@ -75,7 +77,7 @@ def save_priority(priority_list):
         with open(_CONFIG_FILE, 'w') as f:
             json.dump(data, f, indent=2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'save_priority')
 
 
 
@@ -91,9 +93,9 @@ def _cat_name_for_element(el):
                 if cat.Id == DB.ElementId(bic):
                     return name
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_cat_name_for_element')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_cat_name_for_element')
     return None
 
 
@@ -123,9 +125,9 @@ def collect_joinable_elements(doc, category_names=None):
                         'element':  el,
                     })
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'collect_joinable_elements')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_joinable_elements')
     return elements
 
 
@@ -179,7 +181,7 @@ def join_ordered(doc, dominant_el, subordinate_el):
         try:
             DB.JoinGeometryUtils.SwitchJoinOrder(doc, dominant_el, subordinate_el)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'join_ordered')
         return True, "{} cuts {}.".format(
             getattr(dominant_el, 'Name', str(dominant_el.Id)),
             getattr(subordinate_el, 'Name', str(subordinate_el.Id)),
@@ -311,7 +313,7 @@ def batch_join_ordered(doc, elements, priority_list, tolerance_mm=50, fix_existi
                             try:
                                 DB.JoinGeometryUtils.SwitchJoinOrder(doc, dom_el, sub_el)
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'batch_join_ordered')
                             status = 'joined'
                             msg = "{} cuts {}.".format(dominant['name'], subordinate['name'])
 

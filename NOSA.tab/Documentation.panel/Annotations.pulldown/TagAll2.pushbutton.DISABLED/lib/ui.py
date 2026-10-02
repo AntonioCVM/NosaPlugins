@@ -9,9 +9,9 @@ from System.ComponentModel import SortDescription
 from System.Collections.ObjectModel import ObservableCollection
 from System.Globalization import CultureInfo
 
-import imp
 _here = os.path.dirname(os.path.abspath(__file__))
-_logic_mod = imp.load_source('tagall_logic', os.path.join(_here, 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic_mod = load_module('tagall_logic', os.path.join(_here, 'logic.py'))
 TagLogic = _logic_mod.TagLogic
 
 def _ensure_extension_lib():

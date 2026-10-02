@@ -696,6 +696,7 @@ tie_result_off = column_rebar.build_column_reinforcement(
     stirrup_diameter_mm=10.0, dense_spacing_mm=100.0, normal_spacing_mm=200.0,
     include_crossties=False)
 assert tie_result_off['crosstie_sets'] == []
+assert tie_result_off['interior_stirrup_sets'] == []
 print("build_column_reinforcement: crosstie_sets stays empty when "
       "include_crossties is False (the default): OK")
 
@@ -707,13 +708,18 @@ tie_result_on = column_rebar.build_column_reinforcement(
     doc, host, cover_mm=40.0, bar_diameter_mm=20.0, bar_count=12,
     stirrup_diameter_mm=10.0, dense_spacing_mm=100.0, normal_spacing_mm=200.0,
     include_crossties=True)
-assert len(tie_result_on['crosstie_sets']) > 0
-for s in tie_result_on['crosstie_sets']:
-    assert 'curve' in s and 'normal' in s  # individual bar, not a Set spec
-    p_a, p_b = s['curve'].GetEndPoint(0), s['curve'].GetEndPoint(1)
-    assert p_a.Z == p_b.Z  # a crosstie is horizontal
-print("build_column_reinforcement (crossties ON): straight interior "
-      "crossties are generated for a column with genuinely interior bars: OK")
+# 2026-10-02 redesign: interior links + crossties are Sets laid out like the links.
+assert tie_result_on['crosstie_sets'] == []
+ties = tie_result_on['interior_stirrup_sets']
+assert len(ties) > 0
+layers = set(s['layer'] for s in ties)
+assert layers == {'interior_stirrup', 'crosstie'}, layers
+for s in ties:
+    assert s['style'] == 'StirrupTie' and s['spacing_mm'] > 0 and s['array_length_mm'] > 0
+    zs = set(round(c.GetEndPoint(i).Z, 9) for c in s['curves'] for i in (0, 1))
+    assert len(zs) == 1  # each tie lies in one horizontal plane
+print("build_column_reinforcement (crossties ON): interior links and crossties are "
+      "generated as horizontal StirrupTie Sets for a column with interior bars: OK")
 
 # n_u == n_v == 2 (only the 4 corners, bar_count=4) -> no interior bars
 # on either axis -> crosstie_sets must stay empty even with the flag on.
@@ -722,6 +728,7 @@ no_interior_result = column_rebar.build_column_reinforcement(
     stirrup_diameter_mm=10.0, dense_spacing_mm=100.0, normal_spacing_mm=200.0,
     include_crossties=True)
 assert no_interior_result['crosstie_sets'] == []
+assert no_interior_result['interior_stirrup_sets'] == []
 print("build_column_reinforcement (crossties ON, 4-bar column): no "
       "interior bars to tie -> crosstie_sets stays empty, no false "
       "positives: OK")

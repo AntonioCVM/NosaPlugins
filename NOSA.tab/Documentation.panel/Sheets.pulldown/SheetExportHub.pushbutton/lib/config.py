@@ -116,5 +116,5 @@ class Config:
 # Run directory check on import (plain filesystem, no Revit API); never break the import
 try:
     Config.ensure_dirs()
-except Exception:
-    pass  # nosa-lint: disable=NOSA006 - each save reports its own IO error
+except Exception:  # nosa-lint: disable=NOSA006 - each save reports its own IO error
+    pass

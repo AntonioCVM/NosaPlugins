@@ -8,6 +8,8 @@ Analiza curvas de rebar y asigna código de forma + parámetros (Shape_Code, Sha
 from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import os
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 if _here not in sys.path:
@@ -181,7 +183,7 @@ def _revit_shape(doc, rebar):
     try:
         return doc.GetElement(rebar.GetShapeId())
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_revit_shape')
     try:
         from Autodesk.Revit.DB import Element
         shapes = [doc.GetElement(i) for i in rebar.GetAllRebarShapeIds()]

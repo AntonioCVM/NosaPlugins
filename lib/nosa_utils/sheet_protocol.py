@@ -12,6 +12,8 @@ from Autodesk.Revit import DB
 
 from nosa_utils.param_element_ops import param_edit_is_unchanged, set_param_from_string
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.sheet_protocol'
 
 NOSA_ORIGINATOR = u'NOSA'
 
@@ -166,7 +168,7 @@ def find_parameter_by_names(element, names):
             if p:
                 return p
         except Exception:
-            pass
+            log_swallowed(_LOG, u'find_parameter_by_names')
     try:
         lower = {n.lower() for n in names}
         for p in element.Parameters:
@@ -175,9 +177,9 @@ def find_parameter_by_names(element, names):
                 if d and d.Name and d.Name.strip().lower() in lower:
                     return p
             except Exception:
-                pass
+                log_swallowed(_LOG, u'find_parameter_by_names')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'find_parameter_by_names')
     return None
 
 
@@ -191,7 +193,7 @@ def iter_sheet_and_titleblocks(doc, sheet):
                    .ToElements()):
             yield tb
     except Exception:
-        pass
+        log_swallowed(_LOG, u'iter_sheet_and_titleblocks')
 
 
 def _host_label(el, sheet):
@@ -201,18 +203,18 @@ def _host_label(el, sheet):
         if el.Id == sheet.Id:
             return u'ViewSheet'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_label')
     try:
         if isinstance(el, DB.ElementType):
             return u'Title block type: {}'.format(el.Name or u'?')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_label')
     try:
         cat = el.Category
         if cat and cat.Name:
             return u'{} instance'.format(cat.Name)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_label')
     return u'Title block instance'
 
 
@@ -231,9 +233,9 @@ def iter_write_hosts(doc, sheet):
                 if tid and tid != DB.ElementId.InvalidElementId:
                     type_ids.append(tid)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'iter_write_hosts')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'iter_write_hosts')
     seen = set()
     for tid in type_ids:
         try:
@@ -248,7 +250,7 @@ def iter_write_hosts(doc, sheet):
             if el_type is not None:
                 yield el_type
         except Exception:
-            pass
+            log_swallowed(_LOG, u'iter_write_hosts')
 
 
 def iter_write_hosts_tb_first(doc, sheet):
@@ -265,9 +267,9 @@ def iter_write_hosts_tb_first(doc, sheet):
                 if tid and tid != DB.ElementId.InvalidElementId:
                     type_ids.append(tid)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'iter_write_hosts_tb_first')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'iter_write_hosts_tb_first')
     yield sheet
     seen = set()
     for tid in type_ids:
@@ -283,7 +285,7 @@ def iter_write_hosts_tb_first(doc, sheet):
             if el_type is not None:
                 yield el_type
         except Exception:
-            pass
+            log_swallowed(_LOG, u'iter_write_hosts_tb_first')
 
 
 def _iter_element_parameters(el):
@@ -295,12 +297,12 @@ def _iter_element_parameters(el):
                 yield p
             return
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_iter_element_parameters')
     try:
         for p in el.Parameters:
             yield p
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_iter_element_parameters')
 
 
 def collect_titleblock_param_names(doc, sheet):
@@ -317,9 +319,9 @@ def collect_titleblock_param_names(doc, sheet):
                     if d and d.Name:
                         names.add(d.Name.strip())
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'collect_titleblock_param_names')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'collect_titleblock_param_names')
     return sorted(names)
 
 
@@ -346,7 +348,7 @@ def _write_aliases_on_element(el, aliases, value, fkey=None):
                 if ok:
                     return True, info
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_write_aliases_on_element')
     p = find_parameter_by_names(el, aliases)
     if p:
         ok, info = _try_set_parameter(p, value, fkey)
@@ -361,7 +363,7 @@ def _write_aliases_on_element(el, aliases, value, fkey=None):
                 if ok:
                     return True, info
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_write_aliases_on_element')
     return False, u''
 
 
@@ -379,7 +381,7 @@ def _write_on_project_information(doc, fkey, value):
             if ok:
                 return True, info or u'Project Information'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_write_on_project_information')
     return False, u''
 
 
@@ -414,7 +416,7 @@ def param_str(el, name_or_bip):
         if p:
             return (p.AsString() or p.AsValueString() or u'').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'param_str')
     return u''
 
 
@@ -429,7 +431,7 @@ def read_project_number(doc, sheet):
             if p:
                 return (p.AsString() or p.AsValueString() or u'').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'read_project_number')
     return u''
 
 
@@ -444,7 +446,7 @@ def read_originator(doc, sheet):
             if v:
                 return v
     except Exception:
-        pass
+        log_swallowed(_LOG, u'read_originator')
     return u''
 
 
@@ -483,7 +485,7 @@ def read_revision_role(doc, sheet, role_name):
         if p:
             return (p.AsString() or p.AsValueString() or u'').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'read_revision_role')
     return u''
 
 
@@ -534,7 +536,7 @@ def write_f7_on_hosts(doc, sheet, value):
         wrote = True
         host = u'ViewSheet.SheetNumber'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'write_f7_on_hosts')
     sheet_aliases = NOSA_FIELD_ALIASES[u'f7']
     tb_aliases = sheet_aliases + NOSA_FIELD_ALIASES[u'f7_titleblock']
     for el in iter_write_hosts(doc, sheet):
@@ -732,7 +734,7 @@ def write_form_value(doc, sheet, value):
                             first_host = _host_label(el, sheet)
                         break
             except Exception:
-                pass
+                log_swallowed(_LOG, u'write_form_value')
         if not wrote:
             try:
                 p = find_parameter_by_names(el, _FORM_WRITE_NAMES)
@@ -744,7 +746,7 @@ def write_form_value(doc, sheet, value):
                         if not first_host:
                             first_host = _host_label(el, sheet)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'write_form_value')
         if not wrote:
             fail += 1
     return ok, fail, first_host

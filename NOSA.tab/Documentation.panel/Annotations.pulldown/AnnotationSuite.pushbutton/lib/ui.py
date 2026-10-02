@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -8,13 +7,15 @@ from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationsuite'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 
 _VIS = System.Windows.Visibility.Visible
 _COL = System.Windows.Visibility.Collapsed
@@ -25,7 +26,8 @@ def _load_sibling_logic(name, module_name):
     for suffix in ('pushbutton', 'nobutton'):
         path = os.path.join(base, '{}.{}'.format(name, suffix), 'lib', 'logic.py')
         if os.path.exists(path):
-            return imp.load_source(module_name, path)
+            from nosa_utils.bootstrap import load_module
+            return load_module(module_name, path)
     raise ImportError('Cannot find logic for: ' + name)
 
 
@@ -73,9 +75,9 @@ class AnnotationSuiteWindow(NOSAWindow):
                         vp = self.doc.GetElement(vpid)
                         self._sheet_view_ids.add(get_id_value(vp.ViewId))
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'AnnotationSuiteWindow._build_sheet_view_ids')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AnnotationSuiteWindow._build_sheet_view_ids')
 
     def _load_views(self):
         self._all_view_items = [ViewItem(v) for v in _anno.get_structural_views(self.doc)]
@@ -114,7 +116,7 @@ class AnnotationSuiteWindow(NOSAWindow):
                 combo.SelectedIndex = 0
                 self._tag_lists[combo_name] = tags
             except Exception:
-                pass
+                log_swallowed(_LOG, u'AnnotationSuiteWindow._load_tag_families')
 
     def _load_spot_types(self):
         try:
@@ -122,7 +124,7 @@ class AnnotationSuiteWindow(NOSAWindow):
             self.CboSpotType.Items.Clear()
             self.CboSpotType.Items.Add(u'(default style)')
             for st in self._spot_types:
-                self.CboSpotType.Items.Add(st.Name or str(st.Id))
+                self.CboSpotType.Items.Add(element_name(st) or str(st.Id))
             self.CboSpotType.SelectedIndex = 0
         except Exception:
             self._spot_types = []
@@ -135,7 +137,7 @@ class AnnotationSuiteWindow(NOSAWindow):
             if tags and idx > 0 and idx <= len(tags):
                 return tags[idx - 1]['id']
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AnnotationSuiteWindow._get_tag_id')
         return DB.ElementId.InvalidElementId
 
     def _selected_views(self):

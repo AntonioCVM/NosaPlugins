@@ -18,6 +18,8 @@ import sys
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.dmu_lifecycle import make_updater_id, unregister as _lifecycle_unregister
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
@@ -60,7 +62,7 @@ def read_config():
             cfg.update(data)
             return cfg
     except Exception:
-        pass
+        log_swallowed(_LOG, u'read_config')
     return dict(_DEFAULTS)
 
 
@@ -72,7 +74,7 @@ def write_config(cfg):
         with io.open(_CFG_PATH, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, indent=2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'write_config')
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +125,7 @@ class PileLiveCoordUpdater(DB.IUpdater):
                     from nosa_utils.telemetry import log_error
                     log_error('DMU/logic_coords', str(_e))
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'PileLiveCoordUpdater.Execute')
             return
 
         logic = CoordinateLogic(doc)
@@ -149,7 +151,7 @@ class PileLiveCoordUpdater(DB.IUpdater):
                     inv,
                 )
             except Exception:
-                pass
+                log_swallowed(_LOG, u'PileLiveCoordUpdater.Execute')
 
     def GetUpdaterId(self):
         return self._id

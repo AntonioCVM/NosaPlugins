@@ -62,16 +62,23 @@ def load_module(name, path):
     if not os.path.isfile(path):
         raise ImportError(u'NOSA bootstrap: file not found — {}'.format(path))
 
-    # CPython 3 / IronPython with importlib
+    # CPython 3 / IronPython with importlib; errors raised by the module itself propagate
     try:
         import importlib.util as _iu
+        _iu.spec_from_file_location
+    except (ImportError, AttributeError):
+        _iu = None
+    if _iu is not None:
         spec   = _iu.spec_from_file_location(name, path)
         module = _iu.module_from_spec(spec)
         sys.modules[name] = module
-        spec.loader.exec_module(module)
+        try:
+            spec.loader.exec_module(module)
+        except Exception as ex:
+            sys.modules.pop(name, None)
+            raise ImportError(
+                u'NOSA bootstrap: cannot load {} from {}: {!r}'.format(name, path, ex))
         return module
-    except (ImportError, AttributeError):
-        pass
 
     # IronPython 2 fallback
     try:

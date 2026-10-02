@@ -165,8 +165,7 @@
                     <WrapPanel>
                         <TextBlock Text="Level:" VerticalAlignment="Center" FontSize="11"
                                    Foreground="{DynamicResource TextColor}" Margin="0,0,6,0"/>
-                        <ComboBox Name="PF_CmbLevel" Width="160" FontSize="11" Height="26" Margin="0,0,16,0"
-                                  SelectionChanged="PF_Filter_Changed"/>
+                        <ComboBox Name="PF_CmbLevel" Width="160" FontSize="11" Height="26" Margin="0,0,16,0"/>
                         <TextBlock Text="Footing type:" VerticalAlignment="Center" FontSize="11"
                                    Foreground="{DynamicResource TextColor}" Margin="0,0,6,0"/>
                         <ComboBox Name="PF_CmbFootingType" Width="220" FontSize="11" Height="26" Margin="0,0,16,0"/>
@@ -243,8 +242,7 @@
                     <WrapPanel>
                         <TextBlock Text="Level:" VerticalAlignment="Center" FontSize="11"
                                    Foreground="{DynamicResource TextColor}" Margin="0,0,6,0"/>
-                        <ComboBox Name="WF_CmbLevel" Width="160" FontSize="11" Height="26" Margin="0,0,16,0"
-                                  SelectionChanged="WF_Filter_Changed"/>
+                        <ComboBox Name="WF_CmbLevel" Width="160" FontSize="11" Height="26" Margin="0,0,16,0"/>
                         <TextBlock Text="Footing type:" VerticalAlignment="Center" FontSize="11"
                                    Foreground="{DynamicResource TextColor}" Margin="0,0,6,0"/>
                         <ComboBox Name="WF_CmbFootingType" Width="220" FontSize="11" Height="26" Margin="0,0,16,0"/>

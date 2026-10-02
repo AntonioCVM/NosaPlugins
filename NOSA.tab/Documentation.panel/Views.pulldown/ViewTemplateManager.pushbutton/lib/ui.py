@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp
+import io, csv, os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewtemplatemanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -16,8 +18,9 @@ from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_tg_logic = imp.load_source('vtm_tg_logic', os.path.join(_here, 'logic_template_guard.py'))
-_ct_logic_mod = imp.load_source('vtm_ct_logic', os.path.join(_here, 'logic_copy_templates.py'))
+from nosa_utils.bootstrap import load_module
+_tg_logic = load_module('vtm_tg_logic', os.path.join(_here, 'logic_template_guard.py'))
+_ct_logic_mod = load_module('vtm_ct_logic', os.path.join(_here, 'logic_copy_templates.py'))
 
 run_all_checks    = _tg_logic.run_all_checks
 CopyTemplateLogic = _ct_logic_mod.CopyTemplateLogic
@@ -78,9 +81,9 @@ class ViewTemplateManagerWindow(NOSAWindow):
                         vp  = self.doc.GetElement(vpid)
                         ids.add(get_id_value(vp.ViewId))
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'ViewTemplateManagerWindow._tg_collect_sheet_view_ids')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewTemplateManagerWindow._tg_collect_sheet_view_ids')
         return ids
 
     def _tg_active_checks(self):
@@ -172,7 +175,8 @@ class ViewTemplateManagerWindow(NOSAWindow):
         path = forms.save_file(file_ext='csv')
         if not path: return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Severity','Rule','Sheet','View','Type','Detail'])
                 for r in self._tg_rows:
@@ -210,7 +214,7 @@ class ViewTemplateManagerWindow(NOSAWindow):
             self.CT_TxtFilters.Text = u'Filters: {}'.format(len(info.get('filters', [])))
             self.CT_PanelInfo.Visibility = System.Windows.Visibility.Visible
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewTemplateManagerWindow._ct_show_info')
 
     def _ct_combo_changed(self, sender, args):
         self._ct_show_info(self.CT_ComboTemplates.SelectedItem)

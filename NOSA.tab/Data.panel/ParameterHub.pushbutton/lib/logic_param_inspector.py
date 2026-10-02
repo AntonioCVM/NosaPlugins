@@ -2,6 +2,8 @@
 """Parameter Inspector Logic — collect and edit element parameters."""
 import sys, os
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'parameterhub'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -27,7 +29,7 @@ def _is_builtin(param):
         bip = param.Definition.BuiltInParameter
         return bip != DB.BuiltInParameter.INVALID
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_builtin')
     try:
         return isinstance(param.Definition, DB.InternalDefinition)
     except Exception:
@@ -50,7 +52,7 @@ def _param_value_str(param):
             eid = param.AsElementId()
             return str(get_id_value(eid))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_value_str')
     return param.AsValueString() or ''
 
 
@@ -98,9 +100,9 @@ def collect_params(doc, elements):
                         }
                     param_map[name]['by_elem'][elem_idx] = param
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'collect_params')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_params')
 
     rows = []
     for name, info in sorted(param_map.items(), key=lambda x: (x[1]['group'], x[0])):
@@ -184,6 +186,6 @@ def copy_params_from_source(doc, source_elem, target_elems):
                     except Exception:
                         skipped += 1
             except Exception:
-                pass
+                log_swallowed(_LOG, u'copy_params_from_source')
         t.Commit()
     return copied, skipped

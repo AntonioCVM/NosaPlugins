@@ -3,6 +3,8 @@ import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'poursequenceplanner'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -39,7 +41,7 @@ def _find_pour_param(el):
             if p and not p.IsReadOnly and p.StorageType == DB.StorageType.String:
                 return p
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_find_pour_param')
     return None
 
 
@@ -58,9 +60,9 @@ def collect_elements_on_level(doc, level_id, categories=None):
                     if lvl and get_id_value(lvl) == get_id_value(level_id):
                         elements.append(el)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'collect_elements_on_level')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_elements_on_level')
     return elements
 
 
@@ -101,7 +103,7 @@ def _solid_pattern_id(doc):
             if pat.GetFillPattern().IsSolidFill:
                 return pat.Id
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_solid_pattern_id')
     return DB.ElementId.InvalidElementId
 
 
@@ -143,7 +145,7 @@ def apply_phase_colours(doc, view, phase_names):
                     view.SetElementOverrides(el.Id, ogs)
                     updated += 1
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'apply_phase_colours')
         t.Commit()
     return updated
 

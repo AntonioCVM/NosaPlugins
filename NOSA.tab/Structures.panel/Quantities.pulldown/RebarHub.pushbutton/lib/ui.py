@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp, io, csv
+import os, sys, io, csv
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarhub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -20,11 +22,12 @@ from nosa_utils.base_window import NOSAWindow
 _HERE    = os.path.dirname(__file__)
 _QTY_DIR = os.path.abspath(os.path.join(_HERE, '..', '..'))   # Quantities.pulldown
 
-_bs_logic    = imp.load_source('rebarhub_bslogic',
+from nosa_utils.bootstrap import load_module
+_bs_logic    = load_module('rebarhub_bslogic',
     os.path.join(_QTY_DIR, 'RebarManager.nobutton',  'lib', 'logic.py'))
-_sched_logic = imp.load_source('rebarhub_schedlogic',
+_sched_logic = load_module('rebarhub_schedlogic',
     os.path.join(_QTY_DIR, 'RebarSchedule.nobutton', 'lib', 'logic.py'))
-_aud_logic   = imp.load_source('rebarhub_audlogic',
+_aud_logic   = load_module('rebarhub_audlogic',
     os.path.join(_QTY_DIR, 'RebarAuditor.nobutton',  'lib', 'logic.py'))
 
 EXPOSURE_CLASSES = ['X0', 'XC1', 'XC2', 'XC3', 'XC4',
@@ -47,8 +50,8 @@ class BsSchedRow(object):
         self.Quantity  = str(g['quantity'])
         self.Shape     = g['shape']
         self.ShapeDesc = g['shape_desc']
-        self.TotalLenM = u'{:.2f}'.format(g['total_len_m'])
-        self.MassKg    = u'{:.2f}'.format(g['mass_kg'])
+        self.TotalLenM = u'{:.2f}'.format(float(g['total_len_m']))
+        self.MassKg    = u'{:.2f}'.format(float(g['mass_kg']))
         self.Levels    = g['levels']
         self.Hosts     = g['hosts']
 
@@ -131,7 +134,7 @@ class RebarHubWindow(NOSAWindow):
             self.ApplyTheme(cfg.get('dark_mode', False))
             self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarHubWindow.__init__')
 
         self._show_main_tab('BS')
         self._show_bs_tab('Sched')
@@ -182,7 +185,7 @@ class RebarHubWindow(NOSAWindow):
         self._bs_sched_rows.Clear()
         for g in sorted(self._bs_groups.values(), key=lambda x: x['mark']):
             self._bs_sched_rows.Add(BsSchedRow(g))
-        total_mass = sum(g['mass_kg'] for g in self._bs_groups.values())
+        total_mass = float(sum(g['mass_kg'] for g in self._bs_groups.values()))  # IronPython: no .2f on int 0
         self.TxtBsSchedStatus.Text = u'{} bar marks  ·  {} bars total  ·  {:.2f} kg total steel'.format(
             len(self._bs_groups),
             sum(g['quantity'] for g in self._bs_groups.values()),
@@ -330,7 +333,7 @@ class RebarHubWindow(NOSAWindow):
 
         if totals:
             self.TxtRsTotalBars.Text   = str(totals.n_bars or 0)
-            self.TxtRsTotalLength.Text = u'{:.2f} m'.format(totals.total_length_m or 0)
+            self.TxtRsTotalLength.Text = u'{:.2f} m'.format(float(totals.total_length_m or 0))
             self.TxtRsTotalWeight.Text = totals.total_wt_str
 
         self.ProgRs.Visibility      = Vis.Collapsed
@@ -352,7 +355,7 @@ class RebarHubWindow(NOSAWindow):
                     [DB.ElementId(Int64(int(i))) for i in ids])
                 self.uidoc.Selection.SetElementIds(eid_list)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarHubWindow.RsGrid_SelectionChanged')
 
     def RsExportXlsx_Click(self, sender, args):
         if not self._rs_rows:
@@ -366,7 +369,7 @@ class RebarHubWindow(NOSAWindow):
             try:
                 proj = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarHubWindow.RsExportXlsx_Click')
             _sched_logic.export_xlsx(self._rs_rows, self._rs_totals, path, proj)
             forms.alert(u'Excel exported:\n{}'.format(path))
         except ImportError:
@@ -420,7 +423,7 @@ class RebarHubWindow(NOSAWindow):
             if v > 0:
                 custom = v
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarHubWindow.AudRun_Click')
 
         opts = {
             'chk_cover':       True,
@@ -516,7 +519,8 @@ class RebarHubWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 for label, rows in [(u'=== COVER ===', self._aud_cover_rows),
                                     (u'=== REBAR RATIO ===', self._aud_ratio_rows),

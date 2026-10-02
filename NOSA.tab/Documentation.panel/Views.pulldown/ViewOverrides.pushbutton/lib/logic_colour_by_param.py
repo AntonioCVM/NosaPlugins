@@ -3,6 +3,8 @@ import os
 import sys
 from Autodesk.Revit import DB
 import random
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewoverrides'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -32,7 +34,7 @@ def get_categories_in_view(doc, view):
             if c is not None:
                 cats.add((get_id_value(c.Id), c.Name))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_categories_in_view')
     return sorted(cats, key=lambda x: x[1])
 
 
@@ -50,7 +52,7 @@ def get_instance_params_for_category(doc, view, category_id):
                                      DB.StorageType.Double):
                     param_names.add(p.Definition.Name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_instance_params_for_category')
     return sorted(param_names)
 
 
@@ -106,11 +108,11 @@ def apply_overrides(doc, view, value_map, color_assignments):
             if pat_id:
                 ogs.SetSurfaceForegroundPatternId(pat_id)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'apply_overrides')
         try:
             ogs.SetProjectionLineColor(col)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'apply_overrides')
         for eid in ids:
             view.SetElementOverrides(eid, ogs)
             ok += 1
@@ -127,7 +129,7 @@ def _get_solid_fill_pattern_id(doc):
             if pat.IsSolidFill:
                 return fp.Id
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_solid_fill_pattern_id')
     return None
 
 

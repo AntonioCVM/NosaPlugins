@@ -4,7 +4,7 @@ nosa_utils.compat
 =================
 IronPython 2.7 / CPython 3 shims.
 
-Import from here instead of using unicode(), basestring, xrange directly.
+Import from here instead of using the Python 2 text builtins, basestring or xrange directly.
 """
 import sys
 

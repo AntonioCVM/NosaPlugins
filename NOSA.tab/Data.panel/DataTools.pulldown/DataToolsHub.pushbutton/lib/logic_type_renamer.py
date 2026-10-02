@@ -7,7 +7,9 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
 
 _CATEGORIES = [
     (u'Walls',             'OST_Walls'),
@@ -59,10 +61,10 @@ def get_types_for_category(doc, category_name):
             name = t.get_Parameter(DB.BuiltInParameter.SYMBOL_NAME_PARAM)
             display = name.AsString() if name else u''
             if not display:
-                display = t.Name or u''
+                display = element_name(t)
             result.append({'id': get_id_value(t.Id), 'name': display, 'element': t})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_types_for_category')
     return sorted(result, key=lambda r: r['name'].lower())
 
 
@@ -89,6 +91,6 @@ def apply_renames(doc, pairs):
                 renamed += 1
             except Exception as ex:
                 failed += 1
-                errors.append(u'{} → {}: {}'.format(el.Name, new_name, ex))
+                errors.append(u'{} → {}: {}'.format(element_name(el), new_name, ex))
         t.Commit()
     return renamed, failed, errors

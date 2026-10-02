@@ -2,6 +2,9 @@
 """Create Pile Cap Logic — regular grid + irregular shapes (L, T, Plus, Z, U)."""
 from Autodesk.Revit import DB
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.pilecap_utils import point_in_polygon, distance_to_polygon_edge
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'createpilecaptype'
 
 _MM_TO_FT = _uc10.MM_TO_FT
 
@@ -50,7 +53,7 @@ def get_pile_types(doc):
             label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
             result.append((t.Id, label or u'(unnamed)'))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_pile_types')
     result.sort(key=lambda x: x[1])
     return result
 
@@ -66,7 +69,7 @@ def get_cap_types(doc):
                 label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
                 result.append((t.Id, label or u'(unnamed)'))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_cap_types')
     result.sort(key=lambda x: x[1])
     if not result:
         for t in DB.FilteredElementCollector(doc).OfClass(DB.FloorType).ToElements():
@@ -77,7 +80,7 @@ def get_cap_types(doc):
                     label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
                     result.append((t.Id, label or u'(unnamed)'))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_cap_types')
         result.sort(key=lambda x: x[1])
     return result
 
@@ -88,7 +91,7 @@ def get_all_levels(doc):
         try:
             levels.append((l.Id, l.Name, l.Elevation))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_levels')
     levels.sort(key=lambda x: x[2])
     return [(lid, name) for lid, name, _ in levels]
 
@@ -159,7 +162,7 @@ def _group_pilecap_elements(doc, element_ids, group_name):
         try:
             group.GroupType.Name = group_name
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_group_pilecap_elements')
         return group
     except Exception:
         return None
@@ -496,31 +499,6 @@ def pile_offsets_mm(cells, spacing_mm):
 # If this fails the cap is NOT created — a wrong cap silently accepted is far
 # worse than an explicit error.
 
-def _point_in_polygon(px, py, poly):
-    inside = False
-    n = len(poly)
-    j = n - 1
-    for i in range(n):
-        xi, yi = poly[i]
-        xj, yj = poly[j]
-        if ((yi > py) != (yj > py)) and \
-           (px < (xj - xi) * (py - yi) / (yj - yi) + xi):
-            inside = not inside
-        j = i
-    return inside
-
-
-def _dist_point_to_segment(px, py, ax, ay, bx, by):
-    dx, dy = bx - ax, by - ay
-    seg2 = dx * dx + dy * dy
-    if seg2 <= 0.0:
-        return ((px - ax) ** 2 + (py - ay) ** 2) ** 0.5
-    t = ((px - ax) * dx + (py - ay) * dy) / seg2
-    t = max(0.0, min(1.0, t))
-    qx, qy = ax + t * dx, ay + t * dy
-    return ((px - qx) ** 2 + (py - qy) ** 2) ** 0.5
-
-
 def validate_cap_polygon(poly_mm, offsets_mm, clearance_mm, tol_mm=1.0):
     """
     Check every pile centre lies inside the cap polygon and no closer than
@@ -530,18 +508,13 @@ def validate_cap_polygon(poly_mm, offsets_mm, clearance_mm, tol_mm=1.0):
     if not poly_mm or len(poly_mm) < 3:
         return False, [u'Cap polygon could not be computed.']
     problems = []
-    n = len(poly_mm)
     for k, (px, py) in enumerate(offsets_mm):
-        if not _point_in_polygon(px, py, poly_mm):
+        if not point_in_polygon(px, py, poly_mm):
             problems.append(
                 u'Pile {} at ({:.0f}, {:.0f}) mm falls outside the cap boundary.'
                 .format(k + 1, px, py))
             continue
-        min_d = min(
-            _dist_point_to_segment(px, py,
-                                   poly_mm[i][0], poly_mm[i][1],
-                                   poly_mm[(i + 1) % n][0], poly_mm[(i + 1) % n][1])
-            for i in range(n))
+        min_d = distance_to_polygon_edge(px, py, poly_mm)
         if min_d < clearance_mm - tol_mm:
             problems.append(
                 u'Pile {}: edge distance {:.0f} mm is below the {:.0f} mm clearance.'

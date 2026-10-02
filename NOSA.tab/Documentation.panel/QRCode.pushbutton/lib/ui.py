@@ -15,6 +15,8 @@ from pyrevit import forms
 import System.Windows
 import System.Windows.Media as Media
 import System.Windows.Input as Input
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'qrcode'
 
 # ---------------------------------------------------------------------------
 # Ensure the lib/ folder is on the path (local lib for qr_generator; extension lib for nosa_utils)
@@ -70,7 +72,7 @@ def _clean_url(url):
         if len(cleaned) < len(url):
             return cleaned, True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_clean_url')
     return url, False
 
 
@@ -163,7 +165,7 @@ class QRCodeWindow(NOSAWindow):
             if saved:
                 self.TxtUrl.Text = saved
         except Exception:
-            pass
+            log_swallowed(_LOG, u'QRCodeWindow._restore_last_url')
 
     def _save_last_url(self, url):
         try:
@@ -171,7 +173,7 @@ class QRCodeWindow(NOSAWindow):
             cfg['last_url'] = url
             self.SaveConfig(cfg)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'QRCodeWindow._save_last_url')
 
     # ------------------------------------------------------------------
     # Cleanup
@@ -182,7 +184,7 @@ class QRCodeWindow(NOSAWindow):
             try:
                 os.unlink(self._tmp_path)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'QRCodeWindow._cleanup_tmp')
             self._tmp_path = None
 
     # ------------------------------------------------------------------

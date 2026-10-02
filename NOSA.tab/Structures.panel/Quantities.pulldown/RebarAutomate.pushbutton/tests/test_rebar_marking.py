@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import sys, os
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_LIB_ROOT = os.path.abspath(os.path.join(_HERE, '..', '..', '..', '..', 'lib'))
+_LIB_ROOT = os.path.abspath(os.path.join(_HERE, '..', '..', '..', '..', '..', 'lib'))
 if _LIB_ROOT not in sys.path:
     sys.path.insert(0, _LIB_ROOT)
 

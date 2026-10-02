@@ -888,8 +888,7 @@
                                     <StackPanel>
                                         <TextBlock Text="Exposure class (EC2)" FontWeight="Bold" FontSize="12"
                                                    Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
-                                        <ComboBox Name="CV_CboExposure" FontSize="11" Margin="0,0,0,10"
-                                                  SelectionChanged="CV_Exposure_Changed"/>
+                                        <ComboBox Name="CV_CboExposure" FontSize="11" Margin="0,0,0,10"/>
                                         <TextBlock Text="Min. cover (mm):" FontSize="11" Margin="0,0,0,2"/>
                                         <TextBox Name="CV_TxtMinCover" Style="{DynamicResource CV_FieldBox}"
                                                  TextChanged="CV_MinCover_Changed"/>

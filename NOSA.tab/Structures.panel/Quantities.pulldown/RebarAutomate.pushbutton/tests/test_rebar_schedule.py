@@ -8,7 +8,10 @@ import sys
 import os
 import tempfile
 
-# Agregar lib/ al path
+# Agregar lib/ al path (plugin lib + extension lib, as inside pyRevit)
+_ext = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+if _ext not in sys.path:
+    sys.path.insert(0, _ext)
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)

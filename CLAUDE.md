@@ -51,7 +51,7 @@ except NameError:
     unicode = str  # CPython 3 compat
 ```
 
-For future CPython 3 migration, use `nosa_utils.bootstrap` instead of `imp`:
+Load sibling modules with `nosa_utils.bootstrap` (works on both runtimes; T5.4, 2026-10-01):
 
 ```python
 # Preferred future pattern (works on both runtimes)
@@ -59,8 +59,8 @@ from nosa_utils.bootstrap import load_module
 _ui = load_module('myplugin_ui', os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 ```
 
-Current code still uses `imp.load_source` directly — both work in IronPython 2.7.
-Only `nosa_utils/bootstrap.py` needs changing when migrating to CPython 3.
+Every plugin now uses `load_module` (T5.4). Never call `imp.load_source` directly:
+only `nosa_utils/bootstrap.py` knows about `imp`, so a CPython 3 migration touches one file.
 
 ---
 
@@ -108,7 +108,7 @@ Always guard with `if _lib not in sys.path: sys.path.insert(0, _lib)`.
 
 ### script.py standard header
 
-All plugins use `launch_nosa_window` — NOT the bare `imp.load_source` + `ShowDialog()` pattern.
+All plugins use `launch_nosa_window` — NOT the bare module load + `ShowDialog()` pattern.
 
 ```python
 # -*- coding: utf-8 -*-
@@ -117,7 +117,7 @@ __version__ = "1.0"
 __doc__     = "One-line description."
 __author__  = "A. Viñas"
 
-import os, sys, imp
+import os, sys
 
 # Direct pushbutton: 3×'..'  |  Pulldown pushbutton: 4×'..'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib'))
@@ -125,16 +125,18 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import launch_nosa_window
+from nosa_utils.bootstrap import load_module
 
-_ui = imp.load_source('pluginname_ui',
-                      os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
+_ui = load_module('pluginname_ui',
+                  os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 
 from pyrevit import revit
 win = _ui.MyWindow(revit.doc)
 win.ShowDialog()
 ```
 
-Use `imp.load_source` — not `nosa_utils.loader.load_local_module` which can fail silently.
+Use `nosa_utils.bootstrap.load_module` — not `imp.load_source` (IronPython-only) nor
+`nosa_utils.loader.load_local_module` (can fail silently).
 
 ---
 
@@ -248,6 +250,10 @@ Target: **Revit 2024, 2025, 2026, 2027**.
   Never `DB.ElementId(int(x))`: in Revit 2026 IronPython it is ambiguous
   (`ElementId(BuiltInParameter|BuiltInCategory|Int64)`) and raises TypeError
   (lint rule NOSA010). Read ids back with `get_id_value(eid)`.
+- Names of element types (FamilySymbol, RebarShape, RebarBarType, *Type): use
+  `nosa_utils.revit_helpers.element_name(el)`, never `el.Name` / `getattr(el, 'Name')`
+  — `.Name` raises `AttributeError: Name` on some types in IronPython (Revit 2026)
+  and pythonnet (lint rule NOSA011).
 - `Element.GetTypeId()` → returns ElementId; `doc.GetElement(id)` to resolve.
 - Avoid `FilteredElementCollector(...).ToElementIds()` in tight loops — prefer
   `.ToElements()` to avoid repeated `doc.GetElement()` calls.
@@ -297,6 +303,7 @@ _FT_TO_MM = 304.8
 | `logging.py` | `Logger` — debug logging wrapper |
 | `revit_helpers.py` | `get_id_value(eid)` and other Revit utility functions |
 | `text_utils.py` | Case conversion helpers |
+| `pilecap_utils.py` | Pile tools: polygon checks, ungroup/regroup round-trip |
 
 ---
 

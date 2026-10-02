@@ -156,8 +156,7 @@
                             <StackPanel Name="PanelIrregular" Visibility="Collapsed">
                                 <TextBlock Text="Shape" FontWeight="Bold" FontSize="11"
                                            Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
-                                <ComboBox Name="CboShape" Height="26" FontSize="11"
-                                          SelectionChanged="Shape_Changed" Margin="0,0,0,6"/>
+                                <ComboBox Name="CboShape" Height="26" FontSize="11" Margin="0,0,0,6"/>
                                 <TextBlock Name="TxtShapeDesc" Text="" FontSize="10"
                                            Foreground="{DynamicResource TextColor}" Opacity="0.65"
                                            TextWrapping="Wrap" Margin="0,0,0,10"/>

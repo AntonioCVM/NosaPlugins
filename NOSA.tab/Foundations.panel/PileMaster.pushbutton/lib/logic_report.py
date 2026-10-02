@@ -7,8 +7,10 @@ load status, and provides Excel/CSV export.
 """
 import math, io, csv
 from Autodesk.Revit import DB
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 FT2MM  = _uc10.FT_TO_MM
 FT2M   = _uc10.FT_TO_M
 
@@ -31,7 +33,7 @@ def _ps(el, bip, default=u''):
         if p and p.HasValue:
             return p.AsString() or default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_ps')
     return default
 
 
@@ -40,14 +42,14 @@ def _family_name(el):
         if isinstance(el, DB.FamilyInstance):
             return el.Symbol.FamilyName or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_family_name')
     return u''
 
 
 def _type_name(el, doc):
     try:
         t = doc.GetElement(el.GetTypeId())
-        return t.Name if t else u''
+        return element_name(t)
     except Exception:
         return u''
 
@@ -63,7 +65,7 @@ def _level_name(el, doc):
                 if lv:
                     return lv.Name or u''
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_level_name')
     return u''
 
 
@@ -79,7 +81,7 @@ def _is_pile_by_param(el):
         if p and p.AsInteger() == 1:
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_pile_by_param')
     return False
 
 
@@ -97,7 +99,7 @@ def _pile_endpoints(el):
                 return p0, p1
             return p1, p0
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pile_endpoints')
     # Fallback: bounding box
     try:
         bb = el.get_BoundingBox(None)
@@ -108,7 +110,7 @@ def _pile_endpoints(el):
             toe  = DB.XYZ(cx, cy, bb.Min.Z)
             return head, toe
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pile_endpoints')
     return None, None
 
 
@@ -128,10 +130,10 @@ def _load_status(el, doc):
                 if supp is not None:
                     return u'Loaded'
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_load_status')
         return u'Unloaded'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_load_status')
     return u'Unknown'
 
 
@@ -157,7 +159,7 @@ def _diameter_mm(el, doc):
                         if v > 0:
                             return round(v * FT2MM, 0)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_diameter_mm')
     return None
 
 
@@ -247,7 +249,7 @@ def collect_report(doc, options):
                                 match = True
                                 break
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'collect_report')
                     if not match:
                         continue
 
@@ -290,7 +292,7 @@ def collect_report(doc, options):
                     comments       = _ps(el, DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS),
                 ))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_report')
 
     sort_key = {
         'mark':  lambda r: (r.mark or ''),
@@ -368,7 +370,8 @@ def export_xlsx(rows, path, project_name=''):
 
 
 def export_csv(rows, path):
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(_HEADERS)
         for i, r in enumerate(rows, 1):

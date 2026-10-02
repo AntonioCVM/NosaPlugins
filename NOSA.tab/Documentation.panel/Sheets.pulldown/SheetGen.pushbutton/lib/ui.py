@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-import imp
 import os, sys, re
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from System.Windows.Controls import DataGridTextColumn
 from System.Windows.Data import Binding
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sheetgen'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -17,8 +18,9 @@ try:
     unicode
 except NameError:
     unicode = str
-_logic    = imp.load_source('sheetcomposer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
-_di_logic = imp.load_source('drawingindex_logic',
+from nosa_utils.bootstrap import load_module
+_logic    = load_module('sheetcomposer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+_di_logic = load_module('drawingindex_logic',
                  os.path.abspath(os.path.join(os.path.dirname(__file__),
                                               '..', '..', 'DrawingIndex.nobutton', 'lib', 'logic.py')))
 
@@ -227,7 +229,7 @@ class SheetComposerWindow(NOSAWindow):
             try:
                 self.GridEdit.Columns.Remove(col)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetComposerWindow._rebuild_extra_columns')
         self._extra_cols        = []
         self._extra_header_attr = {}
         self._extra_attr_param  = {}
@@ -296,7 +298,7 @@ class SheetComposerWindow(NOSAWindow):
             if self._new_rows.Count == 0:
                 self._new_rows.Add(NewSheetRow())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow._ensure_create_placeholder_row')
 
     def EditGrid_SelectionChanged(self, sender, args):
         """Keeps bindings stable if no action on selection."""
@@ -310,7 +312,7 @@ class SheetComposerWindow(NOSAWindow):
                 if isinstance(o, EditSheetRow):
                     rows.append(o)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow.DuplicateSelectedFromEdit_Click')
         if not rows:
             forms.alert(
                 'Select one or more sheets in the Edit Sheets grid '
@@ -352,7 +354,7 @@ class SheetComposerWindow(NOSAWindow):
                 if isinstance(o, EditSheetRow):
                     rows.append(o)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow.SendSelectionToCreateGrid_Click')
         if not rows:
             forms.alert(
                 'Select one or more sheets in the Edit grid first.')
@@ -401,10 +403,10 @@ class SheetComposerWindow(NOSAWindow):
                     if unicode(v).strip():
                         return
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'SheetComposerWindow._touch_create_placeholder_to_template')
             self._new_rows.Clear()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow._touch_create_placeholder_to_template')
 
     def BulkAddRows_Click(self, sender, args):
         try:
@@ -441,7 +443,7 @@ class SheetComposerWindow(NOSAWindow):
         try:
             self.BtnExportEditXlsx.IsEnabled = count > 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow._apply_edit_filter')
 
     # ── tab switching ─────────────────────────────────────────────────────────
 
@@ -459,7 +461,7 @@ class SheetComposerWindow(NOSAWindow):
             if idx == 3:
                 self._populate_drawing_index()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow.Tab_Changed')
 
     # ── drawing index tab ─────────────────────────────────────────────────────
 
@@ -484,7 +486,7 @@ class SheetComposerWindow(NOSAWindow):
         try:
             self._populate_drawing_index(self.TxtDiFilter.Text or '')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetComposerWindow.DrawingFilter_Changed')
 
     def ExportIdxCsv_Click(self, sender, args):
         if not self._di_raw:
@@ -545,12 +547,12 @@ class SheetComposerWindow(NOSAWindow):
                     try:
                         self.GridEdit.Items.Refresh()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'SheetComposerWindow._do_refresh')
                 self.GridEdit.Dispatcher.BeginInvoke(
                     _swt.DispatcherPriority.Background,
                     System.Action(_do_refresh))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetComposerWindow.Edit_CellEditEnding')
         except Exception as e:
             forms.alert("Could not track edit: {}".format(e))
 
@@ -613,7 +615,7 @@ class SheetComposerWindow(NOSAWindow):
 
     def OpenPlaceViews_Click(self, sender, args):
         try:
-            _pv = imp.load_source('sheetgen_place_ui',
+            _pv = load_module('sheetgen_place_ui',
                                   os.path.join(os.path.dirname(__file__), 'ui_place.py'))
             win = _pv.PlaceViewsWindow(self.doc)
             win.ShowDialog()
@@ -629,7 +631,7 @@ class SheetComposerWindow(NOSAWindow):
             try:
                 self._new_rows.Remove(row)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetComposerWindow.RemoveRow_Click')
         self._ensure_create_placeholder_row()
 
     def CreateSheets_Click(self, sender, args):

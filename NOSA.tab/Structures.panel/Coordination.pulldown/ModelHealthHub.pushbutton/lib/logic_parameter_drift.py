@@ -185,15 +185,6 @@ def resolve_key_elements(doc, keys):
 
 def export_diffs_csv(diffs, path):
     """Write drift report to CSV."""
-    import csv
-    with open(path, 'wb') as f:
-        w = csv.writer(f)
-        w.writerow(['Element', 'Parameter', 'Change', 'Baseline Value', 'Current Value'])
-        for d in diffs:
-            w.writerow([
-                d['key'].encode('utf-8'),
-                d['param'].encode('utf-8'),
-                d['change'].encode('utf-8'),
-                d['baseline'].encode('utf-8'),
-                d['current'].encode('utf-8'),
-            ])
+    from nosa_utils.export_io import write_csv
+    write_csv(path, ['Element', 'Parameter', 'Change', 'Baseline Value', 'Current Value'],
+              [[d['key'], d['param'], d['change'], d['baseline'], d['current']] for d in diffs])

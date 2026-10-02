@@ -8,7 +8,6 @@ __version__ = "2.2"
 
 import os
 import sys
-import imp
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -16,7 +15,8 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import launch_nosa_window
 
-_ui = imp.load_source(
+from nosa_utils.bootstrap import load_module
+_ui = load_module(
     'waffleslab_ui',
     os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 

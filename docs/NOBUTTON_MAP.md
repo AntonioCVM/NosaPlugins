@@ -27,7 +27,7 @@ dentro de un hub activo (`logic_*.py`), así que borrarlas no quita funcionalida
 | `Documentation.panel/Annotations.pulldown/GAAutoDimension.nobutton` | 1061 | sin referencias; absorbida en `AnnotationHub/lib/logic_ga_auto_dim.py` | muerta |
 | `Documentation.panel/Annotations.pulldown/GridBubbleBatch.nobutton` | 195 | AnnotationSuite.pushbutton/lib/ui.py:33 (`_load_sibling_logic`) | **usada** |
 | `Documentation.panel/Issue.pulldown/DrawingProtocolChecker.nobutton` | 236 | IssueWorkflowHub.pushbutton/lib/logic_issue_gate.py:20 (sufijo dinámico) | **usada** |
-| `Documentation.panel/Issue.pulldown/ExportSheets.nobutton` | 2992 | IssueWorkflowHub.pushbutton/script.py:32 (encadena Export tras Issue Gate; carga `lib/ui.py`) | **usada** |
+| `Documentation.panel/Issue.pulldown/ExportSheets.nobutton` | 2992 | ~~IssueWorkflowHub.pushbutton/script.py:32~~ — desde T3.4 el encadenado Issue Gate → Export abre `SheetExportHub`; sin referencias de carga | **borrada** (T5.7, 2026-10-01, junto con `nosa_utils.i18n`, su único usuario) |
 | `Documentation.panel/Issue.pulldown/IssueGate.nobutton` | 402 | sin referencias; absorbida en `IssueWorkflowHub/lib/logic_issue_gate.py` | muerta |
 | `Documentation.panel/Issue.pulldown/RevisionPackageDiff.nobutton` | 278 | sin referencias; absorbida en `IssueWorkflowHub/lib/logic_revision_package_diff.py` | muerta |
 | `Documentation.panel/Issue.pulldown/RevisionTracker.nobutton` | 929 | sin referencias; absorbida en `IssueWorkflowHub/lib/logic_revision_tracker.py` | muerta |
@@ -62,7 +62,7 @@ dentro de un hub activo (`logic_*.py`), así que borrarlas no quita funcionalida
 | `Structures.panel/Coordination.pulldown/ParameterDriftMonitor.nobutton` | 417 | sin referencias; absorbida en `ModelHealthHub/lib/logic_parameter_drift.py` | muerta |
 | `Structures.panel/Coordination.pulldown/WarningsTriage.nobutton` | 432 | sin referencias; absorbida en `ModelHealthHub/lib/logic_warnings_triage.py` | muerta |
 | `Structures.panel/Elements.pulldown/RebarCoverage.nobutton` | 297 | sin referencias; absorbida en `StructuralQA/lib/logic_rebar_coverage.py` | muerta |
-| `Structures.panel/QA.pulldown/ClashReport.nobutton` | 511 | sin referencias de carga (solo metadatos en `lib/nosa_utils/error_registry.py`); copia en StructuralQA/lib/logic_clash_report.py | dudosa — excluida (T3.4 en curso) |
+| `Structures.panel/QA.pulldown/ClashReport.nobutton` | 511 | sin referencias de carga; copia viva en StructuralQA/lib/logic_clash_report.py | **borrada en T3.4** |
 | `Structures.panel/QA.pulldown/DrawingChecker.nobutton` | 451 | sin referencias; absorbida en `StructuralQA/lib/logic_drawing_checker.py` | muerta |
 | `Structures.panel/QA.pulldown/FamilyAudit.nobutton` | 435 | sin referencias; absorbida en `StructuralQA/lib/logic_family_audit.py` | muerta |
 | `Structures.panel/QA.pulldown/IFCStructuralExportQA.nobutton` | 274 | sin referencias; absorbida en `StructuralQA/lib/logic_ifc_export_qa.py` | muerta |
@@ -77,8 +77,9 @@ dentro de un hub activo (`logic_*.py`), así que borrarlas no quita funcionalida
 
 - Las 12 usadas se cargan con `imp.load_source` desde hubs; se conservan enteras (algunas cargan también
   `ui.py` o `rules.json`, no solo `logic.py`).
-- `ExportSheets.nobutton` solo se usa por el encadenado Issue Gate → Export de `IssueWorkflowHub`; el
-  sucesor activo es `SheetExportHub`. Ver nota fuera de alcance en `MASTER_ROADMAP.md` (T5.2).
+- `ExportSheets.nobutton` solo se usaba por el encadenado Issue Gate → Export de `IssueWorkflowHub`; en
+  T3.4 ese encadenado pasa a abrir `SheetExportHub` (sucesor activo), así que la carpeta queda muerta.
+- `ClashReport.nobutton` borrada en T3.4 (nada la cargaba; su lógica vive en `StructuralQA`).
 
 ## Fase 2 — Borrado (aprobado y ejecutado en `577881e`)
 

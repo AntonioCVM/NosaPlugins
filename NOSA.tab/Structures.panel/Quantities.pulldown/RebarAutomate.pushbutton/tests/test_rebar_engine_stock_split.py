@@ -178,6 +178,42 @@ def test_staggered_first_piece_ignored_when_the_bar_fits_in_it():
     assert len(segs) == 1
 
 
+
+def test_hook_type_by_angle_only_returns_hooks_of_the_bar_style():
+    """A Standard bar with a Stirrup/Tie hook fails in Revit ("internal error", crossties 2026-10-02)."""
+    class _Hook(object):
+        def __init__(self, name, angle_deg, style):
+            self.Name, self.HookAngle, self.Style = name, math.radians(angle_deg), style
+    hooks = [_Hook('Stirrup/Tie - 135', 135, 'tie'), _Hook('Standard - 90', 90, 'std'),
+             _Hook('Standard - 135', 135, 'std'), _Hook('Stirrup/Tie - 90', 90, 'tie')]
+
+    class _Collector(object):
+        def __init__(self, doc):
+            pass
+        def OfClass(self, cls):
+            return self
+        def ToElements(self):
+            return hooks
+    saved = (rebar_engine.DB.__dict__.get('FilteredElementCollector'),
+             rebar_engine.DBS.__dict__.get('RebarHookType'), rebar_engine.DBS.__dict__.get('RebarStyle'))
+    rebar_engine.DB.FilteredElementCollector = _Collector
+    rebar_engine.DBS.RebarHookType = object
+    rebar_engine.DBS.RebarStyle = revit_stubs.namespace(Standard='std', StirrupTie='tie')
+    try:
+        assert rebar_engine.get_hook_type_by_angle(None, 135.0).Name == 'Standard - 135'
+        assert rebar_engine.get_hook_type_by_angle(None, 135.0, style='tie').Name == 'Stirrup/Tie - 135'
+        assert rebar_engine.get_hook_type_by_angle(None, 90.0, style='tie').Name == 'Stirrup/Tie - 90'
+        hooks.pop(2)
+        assert rebar_engine.get_hook_type_by_angle(None, 135.0) is None   # never a mismatched style
+    finally:
+        for owner, name, value in ((rebar_engine.DB, 'FilteredElementCollector', saved[0]),
+                                   (rebar_engine.DBS, 'RebarHookType', saved[1]),
+                                   (rebar_engine.DBS, 'RebarStyle', saved[2])):
+            if value is None:
+                delattr(owner, name)
+            else:
+                setattr(owner, name, value)
+
 if __name__ == '__main__':
     tests = [v for k, v in sorted(globals().items()) if k.startswith('test_')]
     failures = 0

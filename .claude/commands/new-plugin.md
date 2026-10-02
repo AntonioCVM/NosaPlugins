@@ -41,13 +41,14 @@ __version__ = "1.0"
 __doc__     = "<PluginName> v1.0 — <one line description>."
 __author__  = "NOSA Engineering"
 
-import os, sys, imp
+import os, sys
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), <correct_depth>, 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-_ui = imp.load_source('<pluginname>_ui',
+from nosa_utils.bootstrap import load_module
+_ui = load_module('<pluginname>_ui',
                       os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 
 from pyrevit import revit
@@ -91,7 +92,7 @@ Path depth rules (from lib/*.py to lib/):
 
 ```python
 # -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 from pyrevit import forms
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), <correct_depth>, 'lib'))
@@ -99,7 +100,8 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-_logic = imp.load_source('<pluginname>_logic',
+from nosa_utils.bootstrap import load_module
+_logic = load_module('<pluginname>_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 

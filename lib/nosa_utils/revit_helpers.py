@@ -3,13 +3,10 @@
 Revit API Helper Utilities
 Provides safer wrappers and common Revit API operations.
 """
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.revit_helpers'
 
-from Autodesk.Revit.DB import (
-    Transaction,
-    FilteredElementCollector,
-    BuiltInParameter,
-    StorageType
-)
+# Revit API imports are local to each function so the module imports outside Revit (unit tests).
 
 # =============================================================================
 # ELEMENT ID COMPATIBILITY (Revit 2024–2027)
@@ -25,12 +22,12 @@ def get_id_value(element_id):
         if hasattr(element_id, 'Value'):
             return int(element_id.Value)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_id_value')
     try:
         if hasattr(element_id, 'IntegerValue'):
             return int(element_id.IntegerValue)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_id_value')
     return int(str(element_id))
 
 
@@ -52,8 +49,41 @@ def coerce_element_id(val):
         if hasattr(val, 'Value') or hasattr(val, 'IntegerValue'):
             return val
     except Exception:
-        pass
+        log_swallowed(_LOG, u'coerce_element_id')
     return element_id_from_int(val)
+
+
+def element_name(element):
+    """Return an element's name, u'' if unreadable (.Name fails on some types in IronPython/pythonnet)."""
+    if element is None:
+        return u''
+    try:
+        name = element.Name
+    except Exception:
+        name = None
+    if name is not None:
+        return name
+    try:
+        from Autodesk.Revit.DB import Element
+        name = Element.Name.GetValue(element)
+    except Exception:
+        name = None
+    if name is not None:
+        return name
+    try:
+        from Autodesk.Revit.DB import BuiltInParameter as _BIP
+        bips = (_BIP.ALL_MODEL_TYPE_NAME, _BIP.SYMBOL_NAME_PARAM)
+    except Exception:
+        bips = ()
+    for bip in bips:
+        try:
+            param = element.get_Parameter(bip)
+            name = param.AsString() if param is not None else None
+        except Exception:
+            name = None
+        if name:
+            return name
+    return u''
 
 
 # =============================================================================
@@ -81,6 +111,7 @@ def safe_transaction(doc, name, func, *args, **kwargs):
         >>>     return "Success"
         >>> success, result = safe_transaction(doc, "Modify", modify_element, element, 42)
     """
+    from Autodesk.Revit.DB import Transaction
     t = Transaction(doc, name)
     try:
         t.Start()
@@ -114,6 +145,7 @@ def get_parameter_value(element, param_name, default=None):
         >>> if mark:
         >>>     print("Wall mark:", mark)
     """
+    from Autodesk.Revit.DB import StorageType
     try:
         param = element.LookupParameter(param_name)
         if param and param.HasValue:
@@ -126,7 +158,7 @@ def get_parameter_value(element, param_name, default=None):
             elif param.StorageType == StorageType.ElementId:
                 return param.AsElementId()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_parameter_value')
     
     return default
 
@@ -148,6 +180,7 @@ def set_parameter_value(element, param_name, value):
         >>> if not success:
         >>>     print("Error:", error)
     """
+    from Autodesk.Revit.DB import StorageType
     try:
         param = element.LookupParameter(param_name)
         if not param:
@@ -186,6 +219,7 @@ def get_builtin_parameter_value(element, builtin_param, default=None):
     Returns:
         Parameter value or default
     """
+    from Autodesk.Revit.DB import StorageType
     try:
         param = element.get_Parameter(builtin_param)
         if param and param.HasValue:
@@ -198,7 +232,7 @@ def get_builtin_parameter_value(element, builtin_param, default=None):
             elif param.StorageType == StorageType.ElementId:
                 return param.AsElementId()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_builtin_parameter_value')
     
     return default
 
@@ -224,6 +258,7 @@ def collect_by_category(doc, category, view_id=None, is_type=False):
         >>> walls = collect_by_category(doc, BuiltInCategory.OST_Walls)
         >>> print("Found {} walls".format(len(walls)))
     """
+    from Autodesk.Revit.DB import FilteredElementCollector
     if view_id:
         collector = FilteredElementCollector(doc, view_id)
     else:
@@ -255,6 +290,7 @@ def collect_by_class(doc, element_class, view_id=None):
         >>> from Autodesk.Revit.DB import Wall
         >>> walls = collect_by_class(doc, Wall)
     """
+    from Autodesk.Revit.DB import FilteredElementCollector
     if view_id:
         collector = FilteredElementCollector(doc, view_id)
     else:
@@ -277,6 +313,7 @@ def get_element_type_name(element):
     Returns:
         str: Type name or empty string
     """
+    from Autodesk.Revit.DB import BuiltInParameter
     try:
         type_element = element.Document.GetElement(element.GetTypeId())
         if type_element:
@@ -284,7 +321,7 @@ def get_element_type_name(element):
             if type_param:
                 return type_param.AsString() or ""
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_type_name')
     
     return ""
 
@@ -299,6 +336,7 @@ def get_element_family_name(element):
     Returns:
         str: Family name or empty string
     """
+    from Autodesk.Revit.DB import BuiltInParameter
     try:
         type_element = element.Document.GetElement(element.GetTypeId())
         if type_element:
@@ -306,7 +344,7 @@ def get_element_family_name(element):
             if family_param:
                 return family_param.AsString() or ""
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_family_name')
     
     return ""
 
@@ -325,7 +363,7 @@ def get_element_category_name(element):
         if hasattr(element, 'Category') and element.Category:
             return element.Category.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_category_name')
     
     return ""
 
@@ -375,7 +413,7 @@ def can_modify_element(element):
                 workset_id = WorksharingUtils.GetCheckoutStatus(doc, element.Id)
                 # Additional workset checks could go here
             except Exception:
-                pass
+                log_swallowed(_LOG, u'can_modify_element')
         
         return True, None
     

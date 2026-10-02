@@ -352,26 +352,20 @@ zones2 = [
     {'start_mm': 1000.0, 'end_mm': 5000.0, 'spacing_mm': 500.0},
     {'start_mm': 5000.0, 'end_mm': 6000.0, 'spacing_mm': 250.0},
 ]
-bars2 = column_rebar.build_crosstie_sets(axis2, u_dir2, v_dir2, 150.0, 100.0, 5, 2, zones2, layout='all')['crosstie_bars']
-zone_bounds_ft = set()
+# 2026-10-02: interior ties are Sets following the link zones, lifted one link diameter
+# above the links (never coplanar with them) and ending inside their zone.
+sets2 = column_rebar.build_crosstie_sets(axis2, u_dir2, v_dir2, 150.0, 100.0, 5, 2, zones2,
+                                         layout='all', link_diameter_mm=10.0)['interior_stirrup_sets']
+by_zone = {}
+for s in sets2:
+    z_mm = s['curves'][0].GetEndPoint(0).Z * _MM_PER_FT
+    by_zone.setdefault(round(z_mm, 6), []).append(s)
+assert sorted(by_zone) == [round(z['start_mm'] + 10.0, 6) for z in zones2], sorted(by_zone)
 for z in zones2:
-    zone_bounds_ft.add(z['start_mm'] / _MM_PER_FT)
-    zone_bounds_ft.add(z['end_mm'] / _MM_PER_FT)
-
-eps_ft = column_rebar._CROSSTIE_Z_EPSILON_MM / _MM_PER_FT
-violations = []
-for b in bars2:
-    z_ft = b['curve'].GetEndPoint(0).Z
-    for bound_ft in zone_bounds_ft:
-        dist = abs(z_ft - bound_ft)
-        if 1e-6 < dist < eps_ft - 1e-6:
-            violations.append((z_ft, bound_ft, dist))
-assert not violations, ("crossties found within the 50mm epsilon of a zone boundary "
-                         "(but not exactly ON it): {}".format(violations))
-print("build_crosstie_sets: no crosstie lands inside the 50mm margin around any zone "
-      "boundary (except exactly on it, for a too-short zone) -- the Z-epsilon holds: OK")
-
-assert column_rebar._CROSSTIE_Z_EPSILON_MM == 50.0
-print("build_crosstie_sets: epsilon constant is 50mm as specified: OK")
+    for s in by_zone[round(z['start_mm'] + 10.0, 6)]:
+        assert abs(s['array_length_mm'] - (z['end_mm'] - z['start_mm'] - 10.0)) < 1e-6
+        assert s['spacing_mm'] == z['spacing_mm']
+print("build_crosstie_sets: interior Sets start one link diameter above each zone start, "
+      "share its spacing and end inside it: OK")
 
 print("\nALL PHASE 3.5.6 TARGETED CHECKS PASSED")

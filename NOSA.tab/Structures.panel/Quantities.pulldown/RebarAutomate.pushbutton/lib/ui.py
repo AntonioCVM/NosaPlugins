@@ -13,6 +13,8 @@ import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
 from System.Windows.Media import SolidColorBrush, Color
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -20,7 +22,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.bootstrap import load_module
 from nosa_utils import shared_params
 from nosa_utils import standards
@@ -496,7 +498,7 @@ class RebarAutomateWindow(NOSAWindow):
                 try:
                     return standards.load(rebar_project.DEFAULT_STANDARD_CODE)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'RebarAutomateWindow._load_standard')
             return None
 
     def _host_std(self, host):
@@ -584,7 +586,7 @@ class RebarAutomateWindow(NOSAWindow):
         try:
             return max(0.0, float(self.TxtKickerHeight.Text))
         except (TypeError, ValueError, AttributeError):
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._kicker_mm')
         try:
             return max(0.0, float(self.ra_project.get('kicker_mm', 75.0)))
         except (TypeError, ValueError):
@@ -784,11 +786,13 @@ class RebarAutomateWindow(NOSAWindow):
         if not getattr(self, '_is_loaded', False):
             return
         self.PanelSideRebar.IsEnabled = self.ChkIncludeSideRebar.IsChecked == True
+        self._update_preview()
 
     def IncludeDowels_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
         self.PanelDowels.IsEnabled = self.ChkIncludeDowels.IsChecked == True
+        self._update_preview()
 
     def IncludePerimeterUBars_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -981,7 +985,7 @@ class RebarAutomateWindow(NOSAWindow):
                 width_mm = min((bbox.Max.X - bbox.Min.X) * 304.8, 4000.0)
                 thickness_mm = (bbox.Max.Z - bbox.Min.Z) * 304.8
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._mat_preview_shapes')
         spacing = self._preview_number(self.TxtSpacing, 200.0)
         dowels = kind != u'slab' and self.ChkIncludeDowels.IsChecked == True
         return preview_shapes.mat_section_shapes(
@@ -994,7 +998,10 @@ class RebarAutomateWindow(NOSAWindow):
             dowel_splice_mm=self._preview_splice(
                 self.TxtDowelSplice, self._preview_number(self.TxtDowelDiameter, 16.0)),
             kicker_mm=self._kicker_mm(),
-            column_width_mm=self._preview_number(self.TxtDowelColWidth, 400.0))
+            column_width_mm=self._preview_number(self.TxtDowelColWidth, 400.0),
+            side=kind != u'slab' and self.ChkIncludeSideRebar.IsChecked == True,
+            side_dia=self._preview_number(self.TxtSideDiameter, 10.0),
+            side_spacing_mm=self._preview_number(self.TxtSideSpacing, 300.0))
 
     def _draw_shapes(self, canvas, shapes):
         """Draw rebar_preview_shapes output (real mm, y up) fitted to the canvas, labels on the right."""
@@ -1694,7 +1701,7 @@ class RebarAutomateWindow(NOSAWindow):
                     with revit.Transaction(u'NOSA — Remove Unpropagated Bar'):
                         self.doc.Delete(rebar.Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'RebarAutomateWindow._create_grouped_bars')
 
             materialized = s.get('materialized_bars', [])
             # PHASE 3.5.8 (2026-09-02, explicit user request) — hole-closure
@@ -2090,7 +2097,7 @@ class RebarAutomateWindow(NOSAWindow):
                                     u'view cube) or switch to a 2D/plan view before '
                                     u'running, then tag manually.').format(view.Name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._run_reinforcement')
             if skip_reason is not None:
                 errors.append(u'Tagging skipped for all {} bar(s) — {}'.format(
                     len(created_rebars), skip_reason))
@@ -2100,6 +2107,7 @@ class RebarAutomateWindow(NOSAWindow):
                         tags, tag_errors = rebar_detailing.create_rebar_tags(
                             self.doc, view, created_rebars,
                             tag_type_id=rebar_detailing.tag_type_for_view(self.doc, view))
+                        rebar_detailing.resolve_tag_overlaps(self.doc, view, tags)
                     tags_created = len(tags)
                     errors.extend(tag_errors)
                 except Exception as e:
@@ -2198,7 +2206,8 @@ class RebarAutomateWindow(NOSAWindow):
             diameter_mm if shape == 'circle' else width_mm,
             diameter_mm if shape == 'circle' else depth_mm,
             cover, bar_dia, positions, link_dia, shape=shape, starters=starters,
-            starter_dia=bar_dia, link_spacing=self._preview_number(self.TxtColLinkSpacing, None)))
+            starter_dia=bar_dia, link_spacing=self._preview_number(self.TxtColLinkSpacing, None),
+            crossties=[(t['x1_mm'], t['y1_mm'], t['x2_mm'], t['y2_mm']) for t in data['crossties']]))
         self._update_column_adopted_solution_label(cover, bar_dia, int(bar_count), link_dia)
         self._update_column_elevation_preview()
 
@@ -2591,12 +2600,9 @@ class RebarAutomateWindow(NOSAWindow):
         run through a detected floor — Phase 3.4 item 2), the same
         create_rebar_set mechanism footing_rebar.build_side_rebar_set
         already proved live for a vertically-propagated closed
-        rectangle. Interior crossties (Phase 3.5 item 2), if
-        requested, are INDIVIDUAL bars (not Sets) created via
-        create_from_curves with start_hook/end_hook baked in at
-        creation — Rebar.SetHookTypeId post-creation on a Set was
-        confirmed to crash live ("hookTypeId is not valid") since a
-        Set-propagated line has no hook-aware RebarShape.
+        rectangle. Interior links and crossties, if requested, are Sets
+        too (column_rebar.interior_tie_layout), created after the
+        verticals are pinned to the faces.
         """
         # PHASE 3.5.3 item 4 — cover read from THIS host's own native
         # Rebar Cover ('Exterior' face — a column's cover is uniform
@@ -2604,6 +2610,10 @@ class RebarAutomateWindow(NOSAWindow):
         # text field.
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'column'))
+        try:
+            link_bend_mm = bar_types[values['link_dia']].StirrupTieBendDiameter * 304.8
+        except Exception:
+            link_bend_mm = None
         reinforcement = column_rebar.build_column_reinforcement(
             self.doc, host,
             cover_mm=cover_mm,
@@ -2616,7 +2626,7 @@ class RebarAutomateWindow(NOSAWindow):
             include_starter_bars=values['starter_bars'],
             use_cranked_laps=values['cranked_laps'],
             include_crossties=values['crossties'],
-            crosstie_layout=values['crosstie_layout'],
+            crosstie_layout=values['crosstie_layout'], link_bend_diameter_mm=link_bend_mm,
             std=self._host_std(host), kicker_mm=self._kicker_mm(),
             slab_top_mat_mm=self._preview_number(self.TxtTopDiaX, 12.0)
             + self._preview_number(self.TxtTopDiaY, 12.0))
@@ -2711,54 +2721,6 @@ class RebarAutomateWindow(NOSAWindow):
                         errors.append(u'Column {}: links (set) — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
 
-            # PHASE 3.5.8 item 2 — normative interior stirrup loops
-            # (collapsed crossties) use the SAME Set mechanism as the
-            # main stirrups above, not create_from_curves.
-            for iss in reinforcement.get('interior_stirrup_sets', []):
-                style = DBS.RebarStyle.StirrupTie if iss.get('style') == 'StirrupTie' else None
-                rebar = wrapper.create_rebar_set(
-                    host, iss['curves'], bar_type_link, iss['spacing_mm'], iss['array_length_mm'],
-                    normal=iss['normal'], style=style,
-                    transaction_name=u'NOSA — Create Column Interior Stirrup',
-                    link_hook=re_engine.get_link_hook_type(self.doc))
-                if rebar is None:
-                    errors.append(u'Column {}: interior stirrup (set) — {}'.format(
-                        get_id_value(host.Id), wrapper.last_error))
-                else:
-                    self._stamp_layer(rebar, u'interior_stirrup')
-                    created_rebars.append(rebar)
-                    if wrapper.last_error:
-                        errors.append(u'Column {}: interior stirrup (set) — {}'.format(
-                            get_id_value(host.Id), wrapper.last_error))
-
-            if reinforcement['crosstie_sets']:
-                hook_135 = re_engine.get_hook_type_by_angle(self.doc, 135.0)
-                hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
-                if hook_135 is None and hook_90 is None:
-                    errors.append(u'Column {}: crossties — no 135°/90° RebarHookType '
-                                  u'found in this project; crossties will be created '
-                                  u'WITHOUT hooks (not normative anchorage).'.format(
-                                      get_id_value(host.Id)))
-                # Hooks are baked in AT creation via create_from_curves
-                # (start_hook/end_hook) — NOT applied post-creation via
-                # Rebar.SetHookTypeId. That combination crashed live
-                # ("hookTypeId is not valid"): a Set-propagated bar has
-                # no hook-aware RebarShape for SetHookTypeId to target.
-                # Crossties are therefore individual bars, not Sets —
-                # see build_crosstie_sets's docstring.
-                for ct in reinforcement['crosstie_sets']:
-                    rebar = wrapper.create_from_curves(
-                        host, [ct['curve']], bar_type_link,
-                        start_hook=hook_135, end_hook=hook_90,
-                        normal=ct['normal'],
-                        transaction_name=u'NOSA — Create Column Crossties')
-                    if rebar is None:
-                        errors.append(u'Column {}: crosstie — {}'.format(
-                            get_id_value(host.Id), wrapper.last_error))
-                        continue
-                    self._stamp_layer(rebar, u'crosstie')
-                    created_rebars.append(rebar)
-
         # PHASE F7.18 (2026-09-02, explicit request — "Starter bars con
         # forma de L en columnas y muros... unidas a la cimentación") —
         # a representative 4-corner starter cage (n_u=n_v=2, matching
@@ -2778,6 +2740,14 @@ class RebarAutomateWindow(NOSAWindow):
             except Exception as e:
                 errors.append(u'Column {}: vertical bars left where Revit snapped them '
                               u'(could not pin to the faces: {}).'.format(get_id_value(host.Id), e))
+
+        # Interior links and crossties (column_rebar.interior_tie_layout) are Sets laid out like
+        # the main links, created AFTER the verticals are pinned: pinning re-targets the handles
+        # Revit snapped to other bars, so ties present by then dragged verticals to a wrong face.
+        if bar_type_link is not None:
+            self._create_interior_tie_sets(
+                host, reinforcement.get('interior_stirrup_sets', []), bar_type_link, wrapper, errors,
+                created_rebars, u'Column')
 
         if values.get('foundation_starters') and bar_type_vert is not None and \
                 re_engine.nosa_bars_in_footprint(self.doc, host, (u'dowel', u'foundation_starter')):
@@ -2845,7 +2815,7 @@ class RebarAutomateWindow(NOSAWindow):
                 try:
                     detail = u'{}\n{}'.format(detail, traceback.format_exc())
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'RebarAutomateWindow._run_column_reinforcement')
                 errors.append(u'Column {}: {}'.format(get_id_value(host.Id), detail))
 
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
@@ -2880,6 +2850,7 @@ class RebarAutomateWindow(NOSAWindow):
             self.TxtBeamStockLength.Text, u'Max stock length', errors)
         if values.get('stock_length') is not None and values['stock_length'] < 1000.0:
             errors.append(u'"Max stock length" must be at least 1000 mm.')
+        values['interior_ties'] = self.ChkBeamInteriorTies.IsChecked == True
         values['densify_ends'] = self.ChkBeamDensify.IsChecked == True
         if values['densify_ends']:
             values['dense_spacing'] = self._read_number(
@@ -2934,15 +2905,19 @@ class RebarAutomateWindow(NOSAWindow):
                 width_mm, height_mm = beam_rebar.get_beam_section_mm(
                     self.doc, beam_host, cover, bar_dia)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_preview')
         try:
             data = rebar_preview.compute_beam_section_preview(
                 width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
         except Exception:
             return
+        ties = []
+        if self.ChkBeamInteriorTies.IsChecked == True:
+            ties = preview_shapes.beam_interior_ties(
+                width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
         self._draw_shapes(canvas, preview_shapes.beam_section_shapes(
             width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia,
-            link_spacing=self._preview_number(self.TxtBeamStirrupSpacing, None)))
+            link_spacing=self._preview_number(self.TxtBeamStirrupSpacing, None), ties=ties))
         self._update_beam_elevation_preview()
 
     def _update_beam_elevation_preview(self):
@@ -2988,11 +2963,11 @@ class RebarAutomateWindow(NOSAWindow):
             try:
                 _, height_mm = beam_rebar.get_beam_section_mm(self.doc, beam_host, cover, bar_dia)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_elevation_preview')
             try:
                 length_mm = beam_rebar.get_beam_axis(beam_host).Length * 304.8
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_elevation_preview')
 
         try:
             data = rebar_preview.compute_beam_elevation_preview(
@@ -3066,15 +3041,15 @@ class RebarAutomateWindow(NOSAWindow):
                 cover = re_engine.get_native_cover_mm(
                     self.doc, wall_host, u'Exterior', cover)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
             try:
                 length_mm, height_mm = wall_rebar.get_wall_elevation_mm(wall_host)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
             try:
                 thickness_mm = wall_host.Width * 304.8
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
 
         try:
             vert_dia = float(self.TxtWallVertDia.Text)
@@ -3105,7 +3080,7 @@ class RebarAutomateWindow(NOSAWindow):
                     include_end_ubars=self.ChkWallEndUBars.IsChecked == True,
                     include_starters=include_starters, starter_length_mm=starter_length)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
             else:
                 self._draw_wall_elevation_preview(elevation_canvas, data)
 
@@ -3195,7 +3170,7 @@ class RebarAutomateWindow(NOSAWindow):
             try:
                 rect.Fill = SWM.Brushes.Transparent
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._draw_simple_section_preview')
             SWC.Canvas.SetLeft(rect, sx(-hw))
             SWC.Canvas.SetTop(rect, sy(hh))
             canvas.Children.Add(rect)
@@ -3361,7 +3336,7 @@ class RebarAutomateWindow(NOSAWindow):
                                   u'Switch Join Order, then regenerate.'.format(
                                       get_id_value(host.Id), get_id_value(joined_id)))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._process_beam')
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
         lap_mm = None
@@ -3396,7 +3371,9 @@ class RebarAutomateWindow(NOSAWindow):
             densify_ends=values.get('densify_ends', False),
             dense_spacing_mm=values.get('dense_spacing'),
             confine_length_mm=values.get('confine_length'),
-            anchorage_mm=anchorage_mm)
+            anchorage_mm=anchorage_mm,
+            include_interior_ties=values.get('interior_ties', False),
+            link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])))
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -3565,6 +3542,51 @@ class RebarAutomateWindow(NOSAWindow):
             except Exception as e:
                 errors.append(u'Beam {}: longitudinal bars left where Revit snapped them '
                               u'(could not pin to the faces: {}).'.format(get_id_value(host.Id), e))
+
+        # Interior links / crossties after the bars are pinned (see _process_column)
+        if bar_type_st is not None:
+            self._create_interior_tie_sets(
+                host, curves.get('interior_tie_sets') or [], bar_type_st, wrapper, errors,
+                created_rebars, u'Beam')
+
+    @staticmethod
+    def _bend_diameter_mm(bar_type):
+        """Stirrup/Tie bend diameter (mm) of a bar type, or None."""
+        try:
+            return bar_type.StirrupTieBendDiameter * 304.8
+        except Exception:
+            return None
+
+    def _create_interior_tie_sets(self, host, tie_sets, bar_type, wrapper, errors, created_rebars, kind):
+        """Interior links and crossties as Sets with 135° Stirrup/Tie hooks; crossties take shape 99."""
+        for iss in tie_sets:
+            style = DBS.RebarStyle.StirrupTie if iss.get('style') == 'StirrupTie' else None
+            rebar = wrapper.create_rebar_set(
+                host, iss['curves'], bar_type, iss['spacing_mm'], iss['array_length_mm'],
+                normal=iss['normal'], style=style,
+                transaction_name=u'NOSA — Create {} Interior Links'.format(kind),
+                link_hook=re_engine.get_link_hook_type(self.doc))
+            layer = iss.get('layer', u'interior_stirrup')
+            label = u'crosstie' if layer == u'crosstie' else u'interior link'
+            if rebar is None:
+                errors.append(u'{} {}: {} (set) — {}'.format(
+                    kind, get_id_value(host.Id), label, wrapper.last_error))
+                continue
+            self._stamp_layer(rebar, layer)
+            created_rebars.append(rebar)
+            if wrapper.last_error:
+                errors.append(u'{} {}: {} (set) — {}'.format(
+                    kind, get_id_value(host.Id), label, wrapper.last_error))
+            if layer == u'crosstie':
+                # BS 8666 has no standard crosstie shape: code 99 (Revit had named it "Rebar Shape N")
+                try:
+                    with DB.Transaction(self.doc, u'NOSA — Name Crosstie Shape') as t:
+                        t.Start()
+                        re_engine.name_auto_shape(self.doc, rebar, u'99')
+                        t.Commit()
+                except Exception as e:
+                    errors.append(u'{} {}: crosstie shape left unnamed ({}).'.format(
+                        kind, get_id_value(host.Id), e))
 
     def _run_beam_reinforcement(self, beams, values):
         errors = []
@@ -4065,12 +4087,10 @@ class RebarAutomateWindow(NOSAWindow):
             self.CmbRebarTagType.Items.Add(item)
         else:
             # IronPython: do NOT use lambda t: t.Name — free-var lookup
-            # raises NameError: Name. Use getattr / explicit helper.
-            def _type_name(el):
-                return getattr(el, 'Name', None) or u''
-            for tt in sorted(tag_types, key=_type_name):
+            # raises NameError: Name.
+            for tt in sorted(tag_types, key=element_name):
                 item = SWC.ComboBoxItem()
-                item.Content = _type_name(tt)
+                item.Content = element_name(tt)
                 item.Tag = tt.Id
                 self.CmbRebarTagType.Items.Add(item)
             self.CmbRebarTagType.SelectedIndex = 0
@@ -4088,11 +4108,9 @@ class RebarAutomateWindow(NOSAWindow):
             item.IsEnabled = False
             self.CmbMraType.Items.Add(item)
         else:
-            def _mra_name(el):
-                return getattr(el, 'Name', None) or u''
-            for mt in sorted(mra_types, key=_mra_name):
+            for mt in sorted(mra_types, key=element_name):
                 item = SWC.ComboBoxItem()
-                item.Content = _mra_name(mt)
+                item.Content = element_name(mt)
                 item.Tag = mt.Id
                 self.CmbMraType.Items.Add(item)
             self.CmbMraType.SelectedIndex = 0
@@ -4144,7 +4162,7 @@ class RebarAutomateWindow(NOSAWindow):
                 except Exception:
                     continue
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._selected_rebars')
         return rebars
 
     def _selected_detail_hosts(self):
@@ -4162,7 +4180,7 @@ class RebarAutomateWindow(NOSAWindow):
                 except Exception:
                     continue
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._selected_detail_hosts')
         return hosts
 
     def AutoTag_Click(self, sender, args):
@@ -4192,11 +4210,13 @@ class RebarAutomateWindow(NOSAWindow):
                     use_param_offsets=True,
                     tag_type_id=tag_type_id,
                     add_leader=False)
+                moved = rebar_detailing.resolve_tag_overlaps(self.doc, view, tags)
         except Exception as e:
             forms.alert(u'Auto Tag failed:\n{}'.format(e), title=u'NOSA — Auto Tag')
             return
 
-        msg = u'Created {} tag(s) for {} selected rebar(s).'.format(len(tags), len(rebars))
+        msg = u'Created {} tag(s) for {} selected rebar(s); {} moved clear of other tags.'.format(
+            len(tags), len(rebars), moved)
         if errors:
             msg += u'\n\n{} warning(s):\n{}'.format(
                 len(errors), u'\n'.join(errors[:8]))

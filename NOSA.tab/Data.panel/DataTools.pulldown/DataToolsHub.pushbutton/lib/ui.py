@@ -20,7 +20,6 @@ writes to the ONE shared hub footer / overlay instead of a per-tool one,
 which is exactly the "shared footer written by whichever tab is active"
 pattern used by the FootingDesigner pilot merge.
 """
-import imp
 import io
 import os
 import sys
@@ -39,11 +38,14 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_es_logic = imp.load_source('dth_es_logic', os.path.join(_here, 'logic_excel_sync.py'))
-_wh_logic = imp.load_source('dth_wh_logic', os.path.join(_here, 'logic_workset_health.py'))
-_mc_logic = imp.load_source('dth_mc_logic', os.path.join(_here, 'logic_model_cleanup.py'))
-_lm_logic = imp.load_source('dth_lm_logic', os.path.join(_here, 'logic_link_manager.py'))
-_tr_logic = imp.load_source('dth_tr_logic', os.path.join(_here, 'logic_type_renamer.py'))
+from nosa_utils.bootstrap import load_module
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'DataToolsHub'
+_es_logic = load_module('dth_es_logic', os.path.join(_here, 'logic_excel_sync.py'))
+_wh_logic = load_module('dth_wh_logic', os.path.join(_here, 'logic_workset_health.py'))
+_mc_logic = load_module('dth_mc_logic', os.path.join(_here, 'logic_model_cleanup.py'))
+_lm_logic = load_module('dth_lm_logic', os.path.join(_here, 'logic_link_manager.py'))
+_tr_logic = load_module('dth_tr_logic', os.path.join(_here, 'logic_type_renamer.py'))
 
 _MATCH_BY_UID  = 'UniqueId'
 _MATCH_BY_MARK = 'Mark'
@@ -65,7 +67,7 @@ def _lm_lcm_logic():
                                 'LinkChangeMonitor.{}'.format(suffix),
                                 'lib', 'logic.py')
             if os.path.isfile(path):
-                _lm_lcm = imp.load_source('dth_lm_lcm_logic', path)
+                _lm_lcm = load_module('dth_lm_lcm_logic', path)
                 break
         if _lm_lcm is None:
             raise ImportError(u'LinkChangeMonitor logic not found.')
@@ -146,6 +148,11 @@ class DataToolsHubWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'data_tools_hub')
+        # SelectionChanged wired in code after LoadComponent, never in XAML (NOSA106)
+        self.ES_CboKeyCol.SelectionChanged += self.ES_KeyCol_Changed
+        self.ES_CboTblKeyCol.SelectionChanged += self.ES_TblKeyCol_Changed
+        self.ES_CboTblSheet.SelectionChanged += self.ES_TblSheet_Changed
+        self.TR_CboCategory.SelectionChanged += self.TR_Category_Changed
         self.doc = doc
 
         cfg = self.LoadConfig()
@@ -920,7 +927,8 @@ class DataToolsHubWindow(NOSAWindow):
         path = forms.save_file(file_ext='csv')
         if not path: return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['=== ORPHAN VIEWS ==='])
                 w.writerow(['Type', 'Name', 'ID'])
@@ -963,11 +971,11 @@ class DataToolsHubWindow(NOSAWindow):
         try:
             self.LM_TxtSummary.Text = u'{} RVT · {} CAD · {} missing'.format(rvt, cad, missing)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DataToolsHubWindow._lm_load')
         try:
             self.TxtStatus.Text = u'{} links found.'.format(len(self._lm_data))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DataToolsHubWindow._lm_load')
 
     def _lm_apply_search(self):
         try:
@@ -1043,7 +1051,7 @@ class DataToolsHubWindow(NOSAWindow):
                     title=u'Confirm Remove', yes=True, no=True):
                 return
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DataToolsHubWindow.LM_Remove_Click')
         ok = fail = 0
         self.SetLoading(True, u'Removing…')
         try:
@@ -1149,7 +1157,8 @@ class DataToolsHubWindow(NOSAWindow):
             path = os.path.join(
                 tempfile.gettempdir(),
                 'nosa_link_changes_{}.txt'.format(_dt.datetime.now().strftime('%H%M%S')))
-            with _io.open(path, 'w', encoding='utf-8-sig') as f:
+            with _io.open(path, 'w', encoding='utf-8') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 f.write(report)
             try:
                 os.startfile(path)

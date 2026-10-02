@@ -106,6 +106,12 @@ class SheetExportHubWindow(NOSAWindow):
         self._is_initializing = True
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml_file, 'sheet_export_hub')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.ComboDiscipline.SelectionChanged += self.Discipline_Changed
+        self.ComboColumnPreset.SelectionChanged += self.ColumnPreset_Changed
+        self.ComboExportPreset.SelectionChanged += self.ExportPreset_Selected
+        self.ComboQualityPreset.SelectionChanged += self.QualityPreset_Changed
+        self.ComboDwgSetup.SelectionChanged += self.DwgSetup_Changed
         self.doc = doc
         # NOSAWindow.ApplyTheme() applies colors but doesn't touch this
         # checkbox itself (each subclass is expected to sync it, same as

@@ -8,6 +8,9 @@ import re
 import json
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.collectors import collect_views, has_view_template
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewtemplatemanager'
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'rules.json')
 
 _DEFAULT_RULES = {
@@ -56,7 +59,7 @@ def load_rules():
                 merged.update(data)
                 return merged
     except Exception:
-        pass
+        log_swallowed(_LOG, u'load_rules')
     return _DEFAULT_RULES.copy()
 
 
@@ -71,16 +74,13 @@ def _view_type_name(view):
 
 def _collect_views(doc):
     return [
-        v for v in DB.FilteredElementCollector(doc)
-              .OfClass(DB.View)
-              .ToElements()
-        if not v.IsTemplate and hasattr(v, 'ViewType')
-        and v.ViewType not in (
+        v for v in collect_views(doc, exclude_types=(
             DB.ViewType.Schedule,
             DB.ViewType.DrawingSheet,
             DB.ViewType.Legend,
             DB.ViewType.Undefined,
-        )
+        ))
+        if hasattr(v, 'ViewType')
     ]
 
 
@@ -119,7 +119,7 @@ def _has_manual_overrides(view):
                 if ov and not ov.IsEmpty():
                     return True
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_has_manual_overrides')
         return False
     except Exception:
         return False
@@ -137,8 +137,7 @@ def check_views_without_template(doc, rules):
         if vtype not in required_types:
             continue
         try:
-            tid = v.ViewTemplateId
-            if tid == DB.ElementId.InvalidElementId:
+            if not has_view_template(v):
                 issues.append({
                     'id':    get_id_value(v.Id),
                     'sheet': _sheet_for_view(doc, v),
@@ -148,7 +147,7 @@ def check_views_without_template(doc, rules):
                     'detail': 'No template assigned',
                 })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_views_without_template')
     return issues
 
 
@@ -192,7 +191,7 @@ def check_sheet_naming(doc, rules):
                     'detail': '; '.join(detail_parts),
                 })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_sheet_naming')
     return issues
 
 
@@ -212,7 +211,7 @@ def check_viewport_overrides(doc, rules):
                     'detail': 'View has manual graphic overrides',
                 })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_viewport_overrides')
     return issues
 
 
@@ -228,7 +227,7 @@ def check_crop_region(doc, rules):
                 vp = doc.GetElement(vid)
                 sheet_view_ids.add(get_id_value(vp.ViewId))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_crop_region')
     for v in _collect_views(doc):
         if get_id_value(v.Id) not in sheet_view_ids:
             continue
@@ -243,7 +242,7 @@ def check_crop_region(doc, rules):
                     'detail': 'View on sheet has no active crop region',
                 })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_crop_region')
     return issues
 
 
@@ -277,7 +276,7 @@ def _sheet_for_view(doc, view):
             if sheet:
                 return sheet.SheetNumber
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_sheet_for_view')
     return '—'
 
 

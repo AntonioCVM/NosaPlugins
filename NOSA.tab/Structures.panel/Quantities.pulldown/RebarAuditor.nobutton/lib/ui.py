@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 from Autodesk.Revit import DB
 import os, sys, io, csv
 import System.Windows
@@ -14,7 +13,8 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_logic = imp.load_source('rebaraud_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('rebaraud_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 EXPOSURE_CLASSES = ['X0','XC1','XC2','XC3','XC4',
                     'XD1','XD2','XD3','XS1','XS2','XS3',
@@ -156,7 +156,8 @@ class RebarAuditorWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 # Cover sheet
                 w.writerow([u'=== COVER ==='])

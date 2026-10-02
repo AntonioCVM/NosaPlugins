@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import json
 import math
 import os
 import re
@@ -8,14 +9,17 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.UI.Selection import ISelectionFilter
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'addpiletopilecap'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils import geometry, config_manager
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.pilecap_utils import point_in_polygon, distance_to_polygon_edge
 
 # Configuration
 PILE_FAMILY_NAMES = ["Pile Square piling", "Pile-Steel Pipe Circular"]
@@ -36,28 +40,49 @@ _geometry_cache = {}
 # =============================================================================
 # CONFIGURATION MANAGEMENT
 # =============================================================================
+# Last-used values live in the window's own NOSAWindow config
+# (_addpiletopilecap.json). Before that they were kept by a separate
+# ConfigManager file, which is still read once so nobody loses their values.
 
-config = config_manager.ConfigManager("add_pile_to_pilecap")
+_LEGACY_CONFIG_FILE = os.path.join(config_manager.ConfigManager.DEFAULT_CONFIG_DIR,
+                                   'add_pile_to_pilecap.json')
+_LAST_KEYS = ('last_spacing_mm', 'last_pile_type', 'last_embedment_mm', 'last_clearance_mm')
 
-def save_last_config(spacing_mm, pile_type_name, embedment_mm, clearance_mm=None):
-    """Save last used configuration."""
-    data = {
-        "last_spacing_mm": spacing_mm,
-        "last_pile_type": pile_type_name,
-        "last_embedment_mm": embedment_mm
-    }
-    if clearance_mm is not None:
-        data["last_clearance_mm"] = clearance_mm
-    config.update(data)
 
-def load_last_config():
-    """Load last used configuration."""
+def _read_legacy_config(path=None):
+    path = path or _LEGACY_CONFIG_FILE
+    try:
+        if os.path.exists(path):
+            with open(path, 'r') as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        log_swallowed(_LOG, u'_read_legacy_config')
+    return {}
+
+
+def load_last_config(cfg, legacy_path=None):
+    """Last-used values from the window config, falling back to the legacy file."""
+    src = cfg if any(k in cfg for k in _LAST_KEYS) else _read_legacy_config(legacy_path)
     return {
-        "spacing_mm": config.get("last_spacing_mm", DEFAULT_SPACING_MM),
-        "pile_type": config.get("last_pile_type", None),
-        "embedment_mm": config.get("last_embedment_mm", DEFAULT_EMBEDMENT_MM),
-        "clearance_mm": config.get("last_clearance_mm", DEFAULT_CLEARANCE_MM)
+        "spacing_mm": src.get("last_spacing_mm", DEFAULT_SPACING_MM),
+        "pile_type": src.get("last_pile_type", None),
+        "embedment_mm": src.get("last_embedment_mm", DEFAULT_EMBEDMENT_MM),
+        "clearance_mm": src.get("last_clearance_mm", DEFAULT_CLEARANCE_MM)
     }
+
+
+def save_last_config(cfg, spacing_mm, pile_type_name, embedment_mm, clearance_mm=None):
+    """Write last-used values into the window config dict (caller persists it)."""
+    cfg["last_spacing_mm"] = spacing_mm
+    cfg["last_pile_type"] = pile_type_name
+    cfg["last_embedment_mm"] = embedment_mm
+    if clearance_mm is not None:
+        cfg["last_clearance_mm"] = clearance_mm
+    return cfg
+
+
 def generate_triangular_grid(slab_center, span_dir, perp_dir, slab_z,
                                spacing_ft, slab_width, slab_height,
                                slab_boundary_polygon, face_inf, min_edge_distance):
@@ -104,8 +129,8 @@ def generate_hexagonal_grid(slab_center, span_dir, perp_dir, slab_z,
 def point_inside_check(x_g, y_g, slab_z, slab_boundary_polygon, face_inf, min_edge_distance):
     """Return True if point is inside the slab boundary with minimum edge clearance."""
     if slab_boundary_polygon and len(slab_boundary_polygon) >= 3:
-        if point_in_polygon_2d(x_g, y_g, slab_boundary_polygon):
-            d = point_distance_to_polygon_edge(x_g, y_g, slab_boundary_polygon)
+        if point_in_polygon(x_g, y_g, slab_boundary_polygon):
+            d = distance_to_polygon_edge(x_g, y_g, slab_boundary_polygon)
             return d >= min_edge_distance
         return False
     # Fallback: face projection
@@ -115,7 +140,7 @@ def point_inside_check(x_g, y_g, slab_z, slab_boundary_polygon, face_inf, min_ed
             if res:
                 return face_inf.IsInside(res.UVPoint)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'point_inside_check')
     return True   # accept if no boundary data
 
 class SlabFilter(ISelectionFilter):
@@ -192,7 +217,7 @@ def get_element_transform(element, options):
             if t:
                 return t
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_transform')
     
     try:
         geom_elem = element.get_Geometry(options)
@@ -201,7 +226,7 @@ def get_element_transform(element, options):
                 if hasattr(geo_obj, 'Transform') and geo_obj.Transform:
                     return geo_obj.Transform
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_transform')
     
     return None
 
@@ -247,7 +272,7 @@ def get_project_location_inverse_transform(doc):
             if t:
                 return t.Inverse
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_project_location_inverse_transform')
     return None
 
 def normalize_polygons_to_internal(doc, polygons, element, transform=None):
@@ -371,9 +396,9 @@ def get_face_boundary_points(face):
                             points.append(curve.GetEndPoint(0))
                             points.append(curve.GetEndPoint(1))
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'get_face_boundary_points')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_face_boundary_points')
     return points
 
 def get_longest_edge_direction_from_face(face):
@@ -397,9 +422,9 @@ def get_longest_edge_direction_from_face(face):
                                 max_len = length
                                 best_dir = DB.XYZ(dx / lxy, dy / lxy, 0)
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_longest_edge_direction_from_face')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_longest_edge_direction_from_face')
     
     return best_dir
 
@@ -420,51 +445,10 @@ def point_in_face(face, point):
         if proj and hasattr(face, "IsInside"):
             return face.IsInside(proj.UVPoint)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'point_in_face')
     return False
-    
-    try:
-        solid_bbox = solid.GetBoundingBox()
-    except Exception:
-        solid_bbox = None
-    
-    if not solid_bbox:
-        return polygons
-    
-    poly_bbox = get_polygons_bbox(polygons)
-    if not poly_bbox:
-        return polygons
-    
-    poly_center_x = (poly_bbox[0] + poly_bbox[2]) / 2.0
-    poly_center_y = (poly_bbox[1] + poly_bbox[3]) / 2.0
-    
-    solid_center_x = (solid_bbox.Min.X + solid_bbox.Max.X) / 2.0
-    solid_center_y = (solid_bbox.Min.Y + solid_bbox.Max.Y) / 2.0
-    
-    solid_size_x = abs(solid_bbox.Max.X - solid_bbox.Min.X)
-    solid_size_y = abs(solid_bbox.Max.Y - solid_bbox.Min.Y)
-    threshold = max(solid_size_x, solid_size_y) * 2.0
-    
-    # If polygon center is far away, apply transform or translation
-    if abs(poly_center_x - solid_center_x) > threshold or abs(poly_center_y - solid_center_y) > threshold:
-        dx = solid_center_x - poly_center_x
-        dy = solid_center_y - poly_center_y
-        
-        if transform and not (hasattr(transform, 'IsIdentity') and transform.IsIdentity):
-            transformed = apply_transform_to_polygons(polygons, transform, z_value)
-            transformed_bbox = get_polygons_bbox(transformed)
-            if transformed_bbox:
-                t_center_x = (transformed_bbox[0] + transformed_bbox[2]) / 2.0
-                t_center_y = (transformed_bbox[1] + transformed_bbox[3]) / 2.0
-                if abs(t_center_x - solid_center_x) > threshold or abs(t_center_y - solid_center_y) > threshold:
-                    dx_t = solid_center_x - t_center_x
-                    dy_t = solid_center_y - t_center_y
-                    return translate_polygons(transformed, dx_t, dy_t)
-            return transformed
-        
-        return translate_polygons(polygons, dx, dy)
-    
-    return polygons
+
+
 def extract_contour_polygons(face, transform=None):
     """Extract exterior and hole polygons from face using robust methods.
 
@@ -499,7 +483,7 @@ def extract_contour_polygons(face, transform=None):
                      polygons.append(poly_pts)
             return polygons
     except Exception as e:
-        pass
+        log_swallowed(_LOG, u'extract_contour_polygons')
 
     # Method 2: EdgeLoops (Fallback) - Requires Sorting
     try:
@@ -553,7 +537,7 @@ def extract_contour_polygons(face, transform=None):
                 
     except Exception as e:
         # Final fallback: simple endpoint collection
-        pass
+        log_swallowed(_LOG, u'extract_contour_polygons')
         
     if not polygons:
         # Original simple method as last resort
@@ -636,7 +620,7 @@ def get_slab_elevations(slab_element):
         if param_bot and param_bot.HasValue:
             bottom_z = param_bot.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_slab_elevations')
     
     # If not found, try searching by name
     if top_z is None or bottom_z is None:
@@ -661,7 +645,7 @@ def get_face_vertices(face):
                 curve = edge.AsCurve()
                 vertices.append(curve.GetEndPoint(0))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_face_vertices')
     return vertices
 
 def find_longest_edge(face):
@@ -679,7 +663,7 @@ def find_longest_edge(face):
                     end = curve.GetEndPoint(1)
                     longest_dir = (end - start).Normalize()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'find_longest_edge')
     return longest_dir, longest_length
 def calculate_pile_distribution(dimension, spacing):
     """
@@ -763,68 +747,9 @@ def extract_face_boundary_points(face):
                 pt = curve.GetEndPoint(0)
                 boundary_points.append((pt.X, pt.Y))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'extract_face_boundary_points')
     return boundary_points
 
-def point_in_polygon_2d(x, y, polygon):
-    """
-    Check if point (x,y) is inside polygon using ray casting algorithm.
-    polygon is a list of (x, y) tuples.
-    """
-    if len(polygon) < 3:
-        return False
-    
-    n = len(polygon)
-    inside = False
-    
-    p1x, p1y = polygon[0]
-    for i in range(1, n + 1):
-        p2x, p2y = polygon[i % n]
-        if y > min(p1y, p2y):
-            if y <= max(p1y, p2y):
-                if x <= max(p1x, p2x):
-                    if p1y != p2y:
-                        xinters = (y - p1y) * (p2x - p1x) / (p2y - p1y) + p1x
-                    if p1x == p2x or x <= xinters:
-                        inside = not inside
-        p1x, p1y = p2x, p2y
-    
-    return inside
-
-def point_distance_to_polygon_edge(x, y, polygon):
-    """Calculate minimum distance from point to polygon edges."""
-    if len(polygon) < 2:
-        return float('inf')
-    
-    min_dist = float('inf')
-    n = len(polygon)
-    
-    for i in range(n):
-        p1x, p1y = polygon[i]
-        p2x, p2y = polygon[(i + 1) % n]
-        
-        # Vector from p1 to p2
-        dx = p2x - p1x
-        dy = p2y - p1y
-        
-        # Length squared
-        len_sq = dx * dx + dy * dy
-        if len_sq == 0:
-            # p1 and p2 are the same point
-            dist = math.sqrt((x - p1x)**2 + (y - p1y)**2)
-        else:
-            # Parameter t for closest point on line segment
-            t = max(0, min(1, ((x - p1x) * dx + (y - p1y) * dy) / len_sq))
-            
-            # Closest point on segment
-            closest_x = p1x + t * dx
-            closest_y = p1y + t * dy
-            
-            dist = math.sqrt((x - closest_x)**2 + (y - closest_y)**2)
-        
-        min_dist = min(min_dist, dist)
-    
-    return min_dist
 def get_pile_height(symbol):
     """Get pile height from family symbol parameters."""
     height = None
@@ -845,7 +770,7 @@ def get_pile_height(symbol):
                         height = val
                         break
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_pile_height')
     return height
 
 def generate_manual_grid(uidoc, slab_z):
@@ -922,8 +847,8 @@ def generate_irregular_grid(slab_center, span_dir, perp_dir, slab_z, spacing_ft,
             pt_valid = False
             edge_dist = None
             if slab_boundary_polygon and len(slab_boundary_polygon) >= 3:
-                if point_in_polygon_2d(x_global, y_global, slab_boundary_polygon):
-                    edge_dist = point_distance_to_polygon_edge(
+                if point_in_polygon(x_global, y_global, slab_boundary_polygon):
+                    edge_dist = distance_to_polygon_edge(
                         x_global, y_global, slab_boundary_polygon)
                     if edge_dist >= min_edge_distance:
                         pt_valid = True
@@ -940,7 +865,7 @@ def generate_irregular_grid(slab_center, span_dir, perp_dir, slab_z, spacing_ft,
                                 (projected_pt.Y - y_global) ** 2)
                             if xy_distance < 0.1:
                                 if edge_dist is None and slab_boundary_polygon:
-                                    edge_dist = point_distance_to_polygon_edge(
+                                    edge_dist = distance_to_polygon_edge(
                                         x_global, y_global, slab_boundary_polygon)
                                 if edge_dist is not None:
                                     if edge_dist >= min_edge_distance:
@@ -948,7 +873,7 @@ def generate_irregular_grid(slab_center, span_dir, perp_dir, slab_z, spacing_ft,
                                 else:
                                     pt_valid = True
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'generate_irregular_grid')
             if pt_valid:
                 grid_points.append(DB.XYZ(x_global, y_global, slab_z))
             else:
@@ -995,7 +920,7 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
     try:
         doc.Regenerate()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_pile_at_point')
 
     current_top_z = None
     try:
@@ -1003,7 +928,7 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
         if param_top and param_top.HasValue:
             current_top_z = param_top.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_pile_at_point')
     if current_top_z is None:
         try:
             for param in pile_instance.Parameters:
@@ -1012,14 +937,14 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
                         current_top_z = param.AsDouble()
                         break
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     if current_top_z is None:
         try:
             pile_bbox = pile_instance.get_BoundingBox(None)
             if pile_bbox:
                 current_top_z = pile_bbox.Max.Z
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     z_move = 0.0
     if current_top_z is not None:
         z_move = pile_top_z - current_top_z
@@ -1036,12 +961,12 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
                         param.Set(height_offset_needed)
                         break
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     try:
         if JoinGeometryUtils.AreElementsJoined(doc, pile_instance, slab):
             JoinGeometryUtils.UnjoinGeometry(doc, pile_instance, slab)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_pile_at_point')
     if abs(span_rotation_angle) > 0.001:
         try:
             pile_location = pile_instance.Location
@@ -1055,7 +980,7 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
             DB.ElementTransformUtils.RotateElement(
                 doc, pile_instance.Id, rotation_axis, span_rotation_angle)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     return pile_instance, current_top_z, z_move
 
 
@@ -1069,7 +994,7 @@ def unjoin_piles_from_slab(doc, pile_ids, slab):
                 JoinGeometryUtils.UnjoinGeometry(doc, pile_elem, slab)
                 count += 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'unjoin_piles_from_slab')
     return count
 
 
@@ -1137,7 +1062,7 @@ def find_next_core_number(doc):
     pattern = re.compile(r'^Core (\d+)$', re.IGNORECASE)
     max_num = 0
     for g in all_groups:
-        name = getattr(g, 'Name', None) or getattr(g.GroupType, 'Name', None) or u''
+        name = getattr(g, 'Name', None) or element_name(g.GroupType)
         m = pattern.match(name)
         if m:
             num = int(m.group(1))

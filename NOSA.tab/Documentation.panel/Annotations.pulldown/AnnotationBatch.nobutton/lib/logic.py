@@ -4,7 +4,7 @@ AnnotationBatch Logic — Batch-apply spot elevations, structural beam tags,
 column marks and grid bubbles to structural views based on configurable rules.
 """
 from Autodesk.Revit import DB
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 _FT_TO_MM = _uc10.FT_TO_MM
 
@@ -60,7 +60,8 @@ def get_tag_families(doc, bic):
         for sym in syms:
             try:
                 fam_name = sym.Family.Name if (hasattr(sym, 'Family') and sym.Family) else ''
-                label = '{}: {}'.format(fam_name, sym.Name) if fam_name else sym.Name
+                sym_name = element_name(sym)
+                label = '{}: {}'.format(fam_name, sym_name) if fam_name else sym_name
                 tags.append({'name': label, 'id': sym.Id, 'symbol': sym})
             except Exception:
                 pass

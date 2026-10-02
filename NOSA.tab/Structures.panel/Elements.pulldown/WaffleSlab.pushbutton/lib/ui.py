@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
@@ -9,6 +8,8 @@ import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
 from System.Windows.Media import SolidColorBrush, Color
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'waffleslab'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -16,8 +17,9 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_logic = imp.load_source('waffleslab_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
-_preview = imp.load_source('waffleslab_ui_preview', os.path.join(os.path.dirname(__file__), 'ui_preview.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('waffleslab_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+_preview = load_module('waffleslab_ui_preview', os.path.join(os.path.dirname(__file__), 'ui_preview.py'))
 
 
 class WaffleSlabWindow(NOSAWindow):
@@ -30,10 +32,10 @@ class WaffleSlabWindow(NOSAWindow):
         self.output = output
 
         cfg = _logic.load_config(output)
-        self.TxtIntereje.Text = str(cfg.get('default_intereje', 800))
-        self.TxtAncho.Text    = str(cfg.get('default_ancho_nervio', 120))
-        self.TxtCanto.Text    = str(cfg.get('default_canto', 300))
-        self.TxtLosa.Text     = str(cfg.get('default_losa', 50))
+        self.TxtGridSpacing.Text = str(cfg.get('default_intereje', 800))
+        self.TxtRibWidth.Text    = str(cfg.get('default_ancho_nervio', 120))
+        self.TxtTotalDepth.Text    = str(cfg.get('default_canto', 300))
+        self.TxtToppingThickness.Text     = str(cfg.get('default_losa', 50))
 
         saved = self.LoadConfig()
         self.ApplyTheme(saved.get('dark_mode', False))
@@ -41,18 +43,18 @@ class WaffleSlabWindow(NOSAWindow):
 
         self.LogLine(u'Waffle Slab ready — enter parameters and click Create.')
 
-        self.TxtIntereje.TextChanged += lambda s, a: self._refresh_inline_preview()
-        self.TxtAncho.TextChanged    += lambda s, a: self._refresh_inline_preview()
-        self.TxtCanto.TextChanged    += lambda s, a: self._refresh_inline_preview()
-        self.TxtLosa.TextChanged     += lambda s, a: self._refresh_inline_preview()
+        self.TxtGridSpacing.TextChanged += lambda s, a: self._refresh_inline_preview()
+        self.TxtRibWidth.TextChanged    += lambda s, a: self._refresh_inline_preview()
+        self.TxtTotalDepth.TextChanged    += lambda s, a: self._refresh_inline_preview()
+        self.TxtToppingThickness.TextChanged     += lambda s, a: self._refresh_inline_preview()
         self.InlinePreviewCanvas.SizeChanged += lambda s, a: self._refresh_inline_preview()
 
     def _refresh_inline_preview(self):
         canvas = self.InlinePreviewCanvas
         canvas.Children.Clear()
         try:
-            intereje = max(100, int(self.TxtIntereje.Text.strip() or '800')) / 1000.0
-            ancho    = max(10,  int(self.TxtAncho.Text.strip()    or '120')) / 1000.0
+            grid_spacing = max(100, int(self.TxtGridSpacing.Text.strip() or '800')) / 1000.0
+            width    = max(10,  int(self.TxtRibWidth.Text.strip()    or '120')) / 1000.0
         except (ValueError, Exception):
             return
 
@@ -77,61 +79,61 @@ class WaffleSlabWindow(NOSAWindow):
         canvas.Children.Add(bnd)
 
         x = 0.0
-        while x <= W + intereje * 0.5:
+        while x <= W + grid_spacing * 0.5:
             rib = SWS.Rectangle()
-            rib.Width  = max(1.0, ancho * scale)
+            rib.Width  = max(1.0, width * scale)
             rib.Height = H * scale
             rib.Fill   = SolidColorBrush(Color.FromArgb(90, 100, 149, 237))
-            SWC.Canvas.SetLeft(rib, sx(x - ancho / 2.0)); SWC.Canvas.SetTop(rib, sy(H))
+            SWC.Canvas.SetLeft(rib, sx(x - width / 2.0)); SWC.Canvas.SetTop(rib, sy(H))
             canvas.Children.Add(rib)
-            x += intereje
+            x += grid_spacing
 
         y = 0.0
-        while y <= H + intereje * 0.5:
+        while y <= H + grid_spacing * 0.5:
             rib = SWS.Rectangle()
             rib.Width  = W * scale
-            rib.Height = max(1.0, ancho * scale)
+            rib.Height = max(1.0, width * scale)
             rib.Fill   = SolidColorBrush(Color.FromArgb(90, 100, 149, 237))
-            SWC.Canvas.SetLeft(rib, sx(0)); SWC.Canvas.SetTop(rib, sy(y + ancho / 2.0))
+            SWC.Canvas.SetLeft(rib, sx(0)); SWC.Canvas.SetTop(rib, sy(y + width / 2.0))
             canvas.Children.Add(rib)
-            y += intereje
+            y += grid_spacing
 
-        caseton = max(0.0, intereje - ancho)
-        xv = intereje / 2.0
+        void_former = max(0.0, grid_spacing - width)
+        xv = grid_spacing / 2.0
         while xv < W:
-            yv = intereje / 2.0
+            yv = grid_spacing / 2.0
             while yv < H:
                 void = SWS.Rectangle()
-                void.Width  = max(1.0, caseton * scale)
-                void.Height = max(1.0, caseton * scale)
+                void.Width  = max(1.0, void_former * scale)
+                void.Height = max(1.0, void_former * scale)
                 void.Fill   = SolidColorBrush(Color.FromArgb(55, 200, 200, 200))
                 void.Stroke = SWM.Brushes.LightGray
                 void.StrokeThickness = 0.5
-                SWC.Canvas.SetLeft(void, sx(xv - caseton / 2.0))
-                SWC.Canvas.SetTop(void,  sy(yv + caseton / 2.0))
+                SWC.Canvas.SetLeft(void, sx(xv - void_former / 2.0))
+                SWC.Canvas.SetTop(void,  sy(yv + void_former / 2.0))
                 canvas.Children.Add(void)
-                yv += intereje
-            xv += intereje
+                yv += grid_spacing
+            xv += grid_spacing
 
-        n_x = max(0, int(W / intereje))
-        n_y = max(0, int(H / intereje))
-        void_pct = ((caseton / intereje) ** 2 * 100) if intereje > 0 else 0
+        n_x = max(0, int(W / grid_spacing))
+        n_y = max(0, int(H / grid_spacing))
+        void_pct = ((void_former / grid_spacing) ** 2 * 100) if grid_spacing > 0 else 0
         try:
             self.TxtPreviewDims.Text = (
                 u'Example 5×5 m slab — '
                 u'spacing {:.0f} mm · rib {:.0f} mm · '
                 u'{:.0f}% voids ({}×{} bays)'.format(
-                    intereje * 1000, ancho * 1000, void_pct, n_x, n_y))
+                    grid_spacing * 1000, width * 1000, void_pct, n_x, n_y))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'WaffleSlabWindow._refresh_inline_preview')
 
     def _read_params(self):
         try:
             return {
-                'intereje': int(self.TxtIntereje.Text.strip()),
-                'ancho_nervio': int(self.TxtAncho.Text.strip()),
-                'canto': int(self.TxtCanto.Text.strip()),
-                'losa': int(self.TxtLosa.Text.strip()),
+                'intereje': int(self.TxtGridSpacing.Text.strip()),
+                'ancho_nervio': int(self.TxtRibWidth.Text.strip()),
+                'canto': int(self.TxtTotalDepth.Text.strip()),
+                'losa': int(self.TxtToppingThickness.Text.strip()),
                 'radio_macizado_factor': 1.5,
             }
         except ValueError:
@@ -151,7 +153,7 @@ class WaffleSlabWindow(NOSAWindow):
             'radio_macizado_factor': params.get('radio_macizado_factor', 1.5),
         }, self.output)
 
-        valid, message, warnings = _logic.validar_parametros_multinormativa(
+        valid, message, warnings = _logic.validate_parameters(
             params['intereje'], params['ancho_nervio'], params['canto'], params['losa'])
         if not valid:
             forms.alert(u'Invalid parameters:\n\n{}'.format(message))
@@ -164,9 +166,9 @@ class WaffleSlabWindow(NOSAWindow):
         self.Hide()
         try:
             if self.RbRect.IsChecked:
-                boundary = _logic.crear_boundary_rectangular(self.uidoc)
+                boundary = _logic.create_rectangular_boundary(self.uidoc)
             else:
-                boundary = _logic.seleccionar_boundary_curves(self.doc, self.uidoc)
+                boundary = _logic.select_boundary_curves(self.doc, self.uidoc)
         finally:
             self.Show()
 
@@ -184,28 +186,28 @@ class WaffleSlabWindow(NOSAWindow):
 
         self.SetLoading(True, u'Creating waffle slab…')
         try:
-            creator = _logic.ForjadoReticularReal(self.doc, params, self.output)
-            success = creator.generar_forjado(boundary)
+            creator = _logic.WaffleSlabBuilder(self.doc, params, self.output)
+            success = creator.generate_waffle_slab(boundary)
         finally:
             self.SetLoading(False)
 
         if success:
-            self.LogLine(u'Main floor: {}'.format('Yes' if creator.forjado_principal else 'No'))
-            self.LogLine(u'Compression slab: {}'.format('Yes' if creator.losa_compresion else 'No'))
-            self.LogLine(u'Voids created: {}'.format(creator.openings_creados))
-            if creator.openings_fallidos:
-                self.LogLine(u'Voids failed: {}'.format(creator.openings_fallidos))
-            self.LogLine(u'Solid zones (columns): {}'.format(len(creator.columnas)))
+            self.LogLine(u'Main floor: {}'.format('Yes' if creator.main_slab else 'No'))
+            self.LogLine(u'Compression slab: {}'.format('Yes' if creator.topping_slab else 'No'))
+            self.LogLine(u'Voids created: {}'.format(creator.openings_created))
+            if creator.openings_failed:
+                self.LogLine(u'Voids failed: {}'.format(creator.openings_failed))
+            self.LogLine(u'Solid zones (columns): {}'.format(len(creator.columns)))
             forms.alert(
                 u'Waffle slab created.\n\n'
                 u'Main floor: {}\n'
                 u'Compression slab: {}\n'
                 u'Voids: {}\n'
                 u'Failed voids: {}'.format(
-                    'Yes' if creator.forjado_principal else 'No',
-                    'Yes' if creator.losa_compresion else 'No',
-                    creator.openings_creados,
-                    creator.openings_fallidos,
+                    'Yes' if creator.main_slab else 'No',
+                    'Yes' if creator.topping_slab else 'No',
+                    creator.openings_created,
+                    creator.openings_failed,
                 ),
                 title=u'Success',
             )

@@ -25,7 +25,8 @@ def _lm(n, p):
         s = _iu.spec_from_file_location(n, p); m = _iu.module_from_spec(s)
         sys.modules[n] = m; s.loader.exec_module(m); return m
     except (ImportError, AttributeError):
-        import imp; m = imp.load_source(n, p); sys.modules[n] = m; return m
+        from nosa_utils.bootstrap import load_module
+        m = load_module(n, p); sys.modules[n] = m; return m
 
 _lm('pilemaster_logic_coords_local',    os.path.join(lib_path, 'logic_coords.py'))
 _lm('pilemaster_logic_numbering_local', os.path.join(lib_path, 'logic_numbering.py'))

@@ -2,12 +2,14 @@
 import os, sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'footingdesigner'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
 
 _MM_TO_FT = _uc10.MM_TO_FT
@@ -23,7 +25,7 @@ def _symbol_label(sym):
         p = sym.get_Parameter(DB.BuiltInParameter.ALL_MODEL_TYPE_NAME)
         tname = p.AsString() if p else None
         if not tname:
-            tname = sym.Name
+            tname = element_name(sym) or str(get_id_value(sym.Id))
     except Exception:
         tname = str(get_id_value(sym.Id))
     return u'{} : {}'.format(fam, tname)
@@ -35,7 +37,7 @@ def _column_base_point(col):
         if isinstance(loc, DB.LocationPoint):
             return loc.Point
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_column_base_point')
     try:
         bb = col.get_BoundingBox(None)
         if bb:
@@ -43,7 +45,7 @@ def _column_base_point(col):
                           (bb.Min.Y + bb.Max.Y) / 2.0,
                           bb.Min.Z)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_column_base_point')
     return None
 
 
@@ -57,12 +59,12 @@ def _column_base_level_id(doc, col):
                 if lid and lid != DB.ElementId.InvalidElementId:
                     return lid
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_column_base_level_id')
     try:
         if col.LevelId and col.LevelId != DB.ElementId.InvalidElementId:
             return col.LevelId
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_column_base_level_id')
     return None
 
 
@@ -78,9 +80,9 @@ def _existing_footing_points(doc):
                 if isinstance(loc, DB.LocationPoint):
                     pts.append(loc.Point)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_existing_footing_points')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_existing_footing_points')
     return pts
 
 
@@ -124,7 +126,7 @@ def collect_structural_columns(doc):
                 'has_footing': _has_footing_near(pt, footing_pts),
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_structural_columns')
     rows.sort(key=lambda r: (r['level'], r['type_name']))
     return rows
 
@@ -145,9 +147,9 @@ def collect_footing_symbols(doc):
                     continue
                 result.append({'symbol': sym, 'name': _symbol_label(sym)})
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_footing_symbols')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'collect_footing_symbols')
     result.sort(key=lambda r: r['name'].lower())
     return result
 
@@ -196,7 +198,7 @@ def create_footings(doc, columns, symbol):
         try:
             t.RollBack()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_footings')
         errors.append(u'Transaction failed: {}'.format(ex))
         return 0, 0, len(columns), errors
     return created, skipped, failed, errors

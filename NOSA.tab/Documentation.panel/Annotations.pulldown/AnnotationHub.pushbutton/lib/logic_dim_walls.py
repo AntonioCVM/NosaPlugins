@@ -1,6 +1,9 @@
 ﻿# -*- coding: utf-8 -*-
 from Autodesk.Revit import DB
 from pyrevit import revit
+from nosa_utils.revit_helpers import element_name
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationhub'
 
 class DimensionLogic:
     def __init__(self, doc):
@@ -15,10 +18,7 @@ class DimensionLogic:
         return list(collector.ToElements())
 
     def get_name(self, element):
-        try:
-            return element.Name
-        except Exception:
-            return str(element.Id)
+        return element_name(element) or str(element.Id)
 
     def get_dimension_types(self):
         """Get all Linear and Radial dimension types."""
@@ -101,7 +101,7 @@ class DimensionLogic:
             # But for Arc Length, we need references *at the ends*.
             pass
         except Exception:
-            pass
+            log_swallowed(_LOG, u'DimensionLogic.get_wall_references')
             
         # For standard Length/Arc Length, we actually need references perpendicular to the wall direction at the ends.
         # Finding those is tricky with HostObjectUtils (which gives side faces).
@@ -324,7 +324,7 @@ class DimensionLogic:
                 try:
                     log_fn(msg)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'DimensionLogic._log')
 
         geo = self.get_wall_curve_data(wall)
         if not geo['is_arc']: return []

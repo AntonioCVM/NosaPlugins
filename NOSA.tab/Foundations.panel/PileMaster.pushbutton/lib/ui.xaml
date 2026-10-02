@@ -215,7 +215,7 @@
             <StackPanel Grid.Row="2" VerticalAlignment="Bottom" Margin="20">
                 <StackPanel Margin="0,0,0,10">
                     <TextBlock Text="SCOPE" Style="{StaticResource HintText}" FontWeight="SemiBold"/>
-                    <ComboBox Name="cmbScope" SelectedIndex="2" Margin="0,6,0,0">
+                    <ComboBox Name="cmbScope" Margin="0,6,0,0">
                         <ComboBoxItem Content="Active View"/>
                         <ComboBoxItem Content="Selection"/>
                         <ComboBoxItem Content="Entire Project"/>
@@ -325,7 +325,7 @@
                             </Border>
 
                             <TextBlock Text="Coordinate reference" Style="{StaticResource SectionTitle}" FontSize="13" Margin="0,0,0,8"/>
-                            <ComboBox Name="cmbCoordType" SelectedIndex="0" Margin="0,0,0,14">
+                            <ComboBox Name="cmbCoordType" Margin="0,0,0,14">
                                 <ComboBoxItem Content="Coordination (shared) — recommended"/>
                                 <ComboBoxItem Content="Survey Point"/>
                                 <ComboBoxItem Content="Project Base Point"/>
@@ -420,8 +420,7 @@
                               AlternatingRowBackground="#06000000"
                               Background="Transparent"
                               BorderBrush="{DynamicResource BorderColor}"
-                              GridLinesVisibility="Horizontal" FontSize="11"
-                              SelectionChanged="ReportGrid_SelectionChanged">
+                              GridLinesVisibility="Horizontal" FontSize="11">
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="No."       Binding="{Binding no_str}"      Width="38"/>
                             <DataGridTextColumn Header="Mark"      Binding="{Binding mark_str}"    Width="70"/>

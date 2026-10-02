@@ -2,19 +2,24 @@
 """ViewFilter Batch Logic — bulk-manage view filters across multiple views."""
 import sys, os
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewoverrides'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.collectors import collect_views
 
-_SKIP_VIEW_TYPES = {
-    DB.ViewType.Internal,
-    DB.ViewType.Undefined,
-    DB.ViewType.ProjectBrowser,
-    DB.ViewType.SystemBrowser,
-    DB.ViewType.DrawingSheet,
-    DB.ViewType.Legend,
-    DB.ViewType.Schedule,
-}
+
+def _skip_view_types():
+    return {
+        DB.ViewType.Internal,
+        DB.ViewType.Undefined,
+        DB.ViewType.ProjectBrowser,
+        DB.ViewType.SystemBrowser,
+        DB.ViewType.DrawingSheet,
+        DB.ViewType.Legend,
+        DB.ViewType.Schedule,
+    }
 
 
 def get_all_project_filters(doc):
@@ -37,7 +42,7 @@ def get_all_project_filters(doc):
                 if cat and cat.Name:
                     cats.append(cat.Name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_project_filters')
         result.append({'id': f.Id, 'name': f.Name, 'categories': cats})
     return sorted(result, key=lambda x: x['name'].lower())
 
@@ -47,16 +52,8 @@ def get_applicable_views(doc):
     Returns all non-template views where filters can be applied,
     sorted by (ViewType, Name).
     """
-    col = DB.FilteredElementCollector(doc)\
-          .OfClass(DB.View)\
-          .WhereElementIsNotElementType()\
-          .ToElements()
     views = []
-    for v in col:
-        if v.IsTemplate:
-            continue
-        if v.ViewType in _SKIP_VIEW_TYPES:
-            continue
+    for v in collect_views(doc, exclude_types=_skip_view_types()):
         if not v.Name:
             continue
         views.append(v)
@@ -131,7 +128,7 @@ def apply_filters_to_views(doc, filter_infos, target_views, source_view=None):
                             vis = source_view.GetFilterVisibility(fid)
                             view.SetFilterVisibility(fid, vis)
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'apply_filters_to_views')
                     applied += 1
                 except Exception:
                     skipped += 1

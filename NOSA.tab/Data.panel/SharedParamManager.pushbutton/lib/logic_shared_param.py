@@ -10,6 +10,8 @@ conflicts) — usually the result of the .txt file being swapped or a
 parameter being re-created instead of re-used.
 """
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sharedparammanager'
 
 _EMPTY_GUID = u'00000000-0000-0000-0000-000000000000'
 
@@ -50,7 +52,7 @@ def _param_type_label(defn):
         except Exception:
             return dt.TypeId.rsplit(u':', 1)[-1].split(u'-')[0]
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_type_label')
     try:
         return str(defn.ParameterType)
     except Exception:

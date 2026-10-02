@@ -65,6 +65,8 @@ class XYZ(object):
         return XYZ(self.X * s, self.Y * s, self.Z * s)
     def DotProduct(self, o):
         return self.X * o.X + self.Y * o.Y + self.Z * o.Z
+    def CrossProduct(self, o):
+        return XYZ(self.Y * o.Z - self.Z * o.Y, self.Z * o.X - self.X * o.Z, self.X * o.Y - self.Y * o.X)
     def GetLength(self):
         return math.sqrt(self.X**2 + self.Y**2 + self.Z**2)
     def Normalize(self):
@@ -206,35 +208,78 @@ zones = [
     {'start_mm': 3000.0, 'end_mm': 6000.0, 'spacing_mm': 200.0},
 ]
 
-# n_u = n_v = 3 -> exactly ONE interior position per axis (the "8 bars
-# total, one extra per long edge" example the user gave) -> must
-# collapse into one closed interior stirrup loop PER ZONE, not
-# individual crossing crossties.
+# n_u = n_v = 3 -> ONE interior bar per side (8 bars): two crossed crossties per zone, one per
+# axis (2026-10-02: a diamond cannot wrap the mid-side bars inside Revit's cover line, so Revit
+# squeezed and shifted it into the bars).
 result = column_rebar.build_crosstie_sets(axis, u_dir, v_dir, 150.0, 100.0, 3, 3, zones, layout='all')
-assert result['crosstie_bars'] == [], "the diamond (1 interior per axis) case must not emit individual crossties"
-assert len(result['interior_stirrup_sets']) == len(zones), (
-    "expected one interior stirrup Set per zone ({}), got {}".format(
-        len(zones), len(result['interior_stirrup_sets'])))
-for iss in result['interior_stirrup_sets']:
-    assert len(iss['curves']) == 4, "interior loop must be a closed 4-segment shape"
-    assert iss['style'] == 'StirrupTie'
-    # closed: each curve's end must meet the next curve's start
-    for i in range(4):
-        c0, c1 = iss['curves'][i], iss['curves'][(i + 1) % 4]
-        p_end, p_next_start = c0.GetEndPoint(1), c1.GetEndPoint(0)
-        assert p_end.DistanceTo(p_next_start) < 1e-9, "interior loop is not actually closed"
-print("build_crosstie_sets: the 'diamond' case (1 interior bar per axis) collapses "
-      "into ONE closed 4-segment interior stirrup loop per zone (StirrupTie, "
-      "Set-propagated) instead of individual crossing crossties: OK")
+assert result['crosstie_bars'] == []
+sets = result['interior_stirrup_sets']
+assert len(sets) == 2 * len(zones), len(sets)
+for iss in sets:
+    assert iss['layer'] == 'crosstie' and iss['style'] == 'StirrupTie' and len(iss['curves']) == 1
+print("build_crosstie_sets: one interior bar per side -> two crossed 135/135 crossties per zone "
+      "(StirrupTie Sets), no diamond: OK")
 
 # n_u = 5 (2 interior positions on u), n_v = 2 (0 on v) -> must NOT
 # collapse (an axis has more than 1 interior position) -- unchanged
 # individual-crosstie behaviour, already covered by test_phase353/356
 # but re-asserted here against the NEW dict return shape.
 result2 = column_rebar.build_crosstie_sets(axis, u_dir, v_dir, 150.0, 100.0, 5, 2, zones, layout='all')
-assert result2['interior_stirrup_sets'] == [], "2+ interior positions on one axis must NOT collapse"
-assert len(result2['crosstie_bars']) > 0
-print("build_crosstie_sets: an axis with 2+ interior positions keeps individual "
-      "crossties unchanged (does not collapse): OK")
+assert result2['crosstie_bars'] == []
+assert sorted(s['layer'] for s in result2['interior_stirrup_sets']) == [
+    'crosstie', 'crosstie', 'interior_stirrup', 'interior_stirrup']
+print("build_crosstie_sets: 3 interior bars on one axis -> one interior link (outer pair) "
+      "+ one crosstie (middle bar) per zone: OK")
 
+# Every tie passes OUTSIDE the bars it restrains, seated like a corner bar in a main link
+# (user review 2026-10-02: ties were drawn through / inside the bars, then 3-5 mm into them).
+import math as _m
+
+SEATED = 15.0 + (20.0 - (20.0 - 10.0) / _m.sqrt(2.0) - 10.0)
+
+
+def _seg_dist(p, a, b):
+    ax, ay = b[0] - a[0], b[1] - a[1]
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * ax + (p[1] - a[1]) * ay) / float(ax * ax + ay * ay)))
+    return _m.hypot(p[0] - a[0] - t * ax, p[1] - a[1] - t * ay)
+
+
+for n_u, n_v in ((5, 2), (5, 3), (5, 5), (4, 6), (3, 3)):
+    hw = hd = 250.0
+    us = [-hw + i * 2 * hw / (n_u - 1) for i in range(n_u)]
+    vs = [-hd + i * 2 * hd / (n_v - 1) for i in range(n_v)]
+    interior = [(u, s * hd) for u in us[1:-1] for s in (1, -1)] + \
+               [(s * hw, v) for v in vs[1:-1] for s in (1, -1)]
+    shapes = column_rebar.interior_tie_layout(hw, hd, n_u, n_v, 'all', 20.0, 10.0)
+    for bar in interior:
+        best = {}
+        for sh in shapes:
+            pts = sh['points']
+            segs = len(pts) if sh['closed'] else len(pts) - 1
+            for i in range(segs):
+                d = _seg_dist(bar, pts[i], pts[(i + 1) % len(pts)])
+                best[sh['kind']] = min(best.get(sh['kind'], 1e9), d)
+        # every tie leg is (20 + 10) / 2 + the bend-seat extra (2.93 mm: H20 in an H10 link on a
+        # 40 mm mandrel, rebar_engine.link_corner_extra_inset_mm) from the bar it holds
+        assert abs(min(best.values()) - SEATED) < 0.05, (n_u, n_v, bar, best)
+print("interior_tie_layout: every interior bar is held from outside, seated like a main-link corner "
+      "bar ({:.2f} mm to the tie centreline), for 5x2, 5x3, 5x5, 4x6 and 3x3: OK".format(SEATED))
+
+# A crosstie runs D/2 past each bar so its 135 deg hooks wrap the bars it ties.
+ct = [s for s in column_rebar.interior_tie_layout(250.0, 250.0, 3, 4, 'all', 20.0, 10.0, 40.0)
+      if s['kind'] == 'crosstie'][0]
+(u0, v0), (u1, v1) = ct['points']
+assert abs(u0 + SEATED) < 1e-6 and abs(v0 - 270.0) < 1e-6 and abs(v1 + 270.0) < 1e-6, ct
+print("interior_tie_layout: crosstie seated beside the bar and run D/2 past it: OK")
+
+# A crosstie's Left hooks bend to normal x direction: its points are ordered so they bend towards
+# the bars it wraps, whatever the frame (a beam's width x height x axis frame flipped them).
+for u_dir, v_dir in ((XYZ(1, 0, 0), XYZ(0, 1, 0)), (XYZ(-1, 0, 0), XYZ(0, 1, 0))):
+    normal = XYZ(0, 0, 1)
+    for shape in column_rebar.interior_tie_layout(250.0, 250.0, 3, 3, 'all', 20.0, 10.0):
+        pts = [u_dir.Multiply(u) + v_dir.Multiply(v) for u, v in shape['points']]
+        pts = column_rebar.hook_side_points(pts, shape, u_dir, v_dir, normal)
+        side = u_dir.Multiply(shape['toward'][0]) + v_dir.Multiply(shape['toward'][1])
+        assert normal.CrossProduct((pts[1] - pts[0]).Normalize()).DotProduct(side) > 0, shape
+print("hook_side_points: crosstie hooks bend towards their bars in either frame: OK")
 print("\nALL PHASE 3.5.8 TARGETED CHECKS PASSED")

@@ -4,6 +4,8 @@ Logic for Sheet/Scope Box visibility.
 """
 from Autodesk.Revit import DB
 from pyrevit import revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 class SheetLogic:
     def __init__(self, doc):
         self.doc = doc
@@ -80,7 +82,7 @@ class SheetLogic:
                 grp = def_file.Groups.Create("NOSA_Visibility")
             
             # 3. Create Definitions and Bindings
-            with revit.Transaction("Create Visibility Parameters"):
+            with revit.Transaction(u"NOSA — Create Visibility Parameters"):
                 # Prepare Category Set
                 cats = app.Create.NewCategorySet()
                 cat = self.doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_StructuralFoundation)
@@ -149,7 +151,7 @@ class SheetLogic:
                 if temp_file and os.path.exists(temp_file):
                     os.remove(temp_file)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetLogic.ensure_parameters')
                 
         return len(missing), None
 
@@ -171,7 +173,7 @@ class SheetLogic:
              # Ideally one element has them all, but let's be safe.
              sample_el = elements[0]
              
-             with revit.Transaction("Enable Group Variance"):
+             with revit.Transaction(u"NOSA — Enable Group Variance"):
                  for pname in param_names:
                      # Check if we need to enable it
                      p = sample_el.LookupParameter(pname)
@@ -191,7 +193,7 @@ class SheetLogic:
                                      idef.SetAllowVaryBetweenGroups(self.doc, True)
                          except Exception as e:
                              # print("Could not set vary by group for {}: {}".format(pname, e))
-                             pass
+                             log_swallowed(_LOG, u'SheetLogic.update_visibility')
         
         updated_count = 0
         outside_count = 0
@@ -199,7 +201,7 @@ class SheetLogic:
         # Track which elements are "covered" by at least one zone
         covered_ids = set()
         
-        with revit.Transaction("Update Sheet Visibility"):
+        with revit.Transaction(u"NOSA — Update Sheet Visibility"):
             for z_name, sb in zone_mapping.items():
                 param_name = "Show_in_{}".format(z_name)
                 

@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import imp
 import System.Windows
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationhub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -13,10 +14,12 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils.collectors import collect_views
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_dw_logic = imp.load_source('annhub_dw_logic',  os.path.join(_here, 'logic_dim_walls.py'))
-_ga_logic = imp.load_source('annhub_ga_logic',  os.path.join(_here, 'logic_ga_auto_dim.py'))
+from nosa_utils.bootstrap import load_module
+_dw_logic = load_module('annhub_dw_logic',  os.path.join(_here, 'logic_dim_walls.py'))
+_ga_logic = load_module('annhub_ga_logic',  os.path.join(_here, 'logic_ga_auto_dim.py'))
 
 DimensionLogic = _dw_logic.DimensionLogic
 
@@ -55,17 +58,9 @@ class AnnotationHubWindow(NOSAWindow):
         if types:
             self.DW_ComboDimTypes.SelectedIndex = 0
 
-        collector = (DB.FilteredElementCollector(self.doc)
-                     .OfClass(DB.View)
-                     .WhereElementIsNotElementType())
-        views = []
-        for v in collector:
-            if v.IsTemplate:
-                continue
-            if v.ViewType in (DB.ViewType.FloorPlan,
-                              DB.ViewType.EngineeringPlan,
-                              DB.ViewType.AreaPlan):
-                views.append(v)
+        views = collect_views(self.doc, include_types=(DB.ViewType.FloorPlan,
+                                                       DB.ViewType.EngineeringPlan,
+                                                       DB.ViewType.AreaPlan))
         views.sort(key=lambda x: x.Name)
 
         self._dw_all_views = [_ViewItem(v) for v in views]
@@ -127,7 +122,7 @@ class AnnotationHubWindow(NOSAWindow):
             import System.Windows.Forms as _WF
             _WF.Application.DoEvents()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AnnotationHubWindow.DW_Run_Click')
 
         created  = 0
         failed   = 0

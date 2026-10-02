@@ -5,6 +5,13 @@ from Autodesk.Revit import DB
 
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils.telemetry import log_swallowed
+
+try:
+    unicode
+except NameError:
+    unicode = str  # CPython 3 compat
+_LOG = u'nosa_utils.param_element_ops'
 
 
 def param_value_display(param):
@@ -21,7 +28,7 @@ def param_value_display(param):
                 if vs:
                     return vs
             except Exception:
-                pass
+                log_swallowed(_LOG, u'param_value_display')
             return u'{:.6g}'.format(param.AsDouble())
         if st == DB.StorageType.Integer:
             try:
@@ -34,7 +41,7 @@ def param_value_display(param):
         if st == DB.StorageType.ElementId:
             return unicode(get_id_value(param.AsElementId()))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'param_value_display')
     try:
         return param.AsValueString() or u''
     except Exception:
@@ -53,7 +60,7 @@ def _param_kind_label(p):
         if bip is not None and (inv is None or bip != inv):
             return u'built_in'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_kind_label')
     return u'other'
 
 
@@ -77,9 +84,9 @@ def discover_param_specs(sample_elements, writable_only=False, max_sample=350):
                     k = _param_kind_label(p)
                     buckets.setdefault(n, set()).add(k)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'discover_param_specs')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'discover_param_specs')
     out = []
     for name in sorted(buckets):
         ks = buckets[name]
@@ -105,16 +112,16 @@ def lookup_param_named(el, name):
         if p:
             return p
     except Exception:
-        pass
+        log_swallowed(_LOG, u'lookup_param_named')
     try:
         for p in el.Parameters:
             try:
                 if p and p.Definition and p.Definition.Name == name:
                     return p
             except Exception:
-                pass
+                log_swallowed(_LOG, u'lookup_param_named')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'lookup_param_named')
     return None
 
 
@@ -137,7 +144,7 @@ def user_double_to_internal(param, txt):
         if uid is not None and uu is not None:
             return uu.ConvertToInternalUnits(display_val, uid)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'user_double_to_internal')
     return display_val
 
 
@@ -196,7 +203,7 @@ def param_edit_is_unchanged(param, new_txt):
             except Exception:
                 return False
     except Exception:
-        pass
+        log_swallowed(_LOG, u'param_edit_is_unchanged')
 
     try:
         return unicode(param.AsValueString() or u'').strip() == ns
@@ -277,7 +284,7 @@ def preview_apply_strings(tuples, max_rows=12):
                 except Exception:
                     lbl = unicode(type(el).__name__)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'preview_apply_strings')
         try:
             pn = p.Definition.Name if p and p.Definition else u'?'
         except Exception:

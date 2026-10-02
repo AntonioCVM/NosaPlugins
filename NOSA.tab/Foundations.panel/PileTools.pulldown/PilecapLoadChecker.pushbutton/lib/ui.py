@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import io
 import os
 import sys
@@ -17,7 +16,8 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.revit_helpers import element_id_from_int
-_logic = imp.load_source('pilechk_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('pilechk_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 class PhaseItem(object):
@@ -223,7 +223,8 @@ class PilecapLoadCheckerWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Status', 'Type', 'Name', 'Piles',
                             'N (kN)', 'Mx (kN·m)', 'My (kN·m)',

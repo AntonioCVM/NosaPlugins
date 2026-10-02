@@ -299,8 +299,7 @@
 
                                         <TextBlock Text="Key column:" FontSize="11"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
-                                        <ComboBox Name="ES_CboKeyCol" Height="26" FontSize="11"
-                                                  SelectionChanged="ES_KeyCol_Changed" Margin="0,0,0,10"/>
+                                        <ComboBox Name="ES_CboKeyCol" Height="26" FontSize="11" Margin="0,0,0,10"/>
 
                                         <TextBlock Text="Match elements by:" FontSize="11"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
@@ -348,12 +347,10 @@
                                                    Margin="0,0,0,10"/>
                                         <TextBlock Text="Worksheet:" FontSize="11"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
-                                        <ComboBox Name="ES_CboTblSheet" Height="26" FontSize="11"
-                                                  SelectionChanged="ES_TblSheet_Changed" Margin="0,0,0,10"/>
+                                        <ComboBox Name="ES_CboTblSheet" Height="26" FontSize="11" Margin="0,0,0,10"/>
                                         <TextBlock Text="Key column:" FontSize="11"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,3"/>
-                                        <ComboBox Name="ES_CboTblKeyCol" Height="26" FontSize="11"
-                                                  SelectionChanged="ES_TblKeyCol_Changed" Margin="0,0,0,10"/>
+                                        <ComboBox Name="ES_CboTblKeyCol" Height="26" FontSize="11" Margin="0,0,0,10"/>
                                         <TextBlock Text="Match elements by:" FontSize="11"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
                                         <RadioButton Name="ES_RdoTblMark" Content="Mark parameter" IsChecked="True"/>
@@ -791,8 +788,7 @@
                                     <StackPanel>
                                         <TextBlock Text="Category" FontWeight="Bold" FontSize="12"
                                                    Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
-                                        <ComboBox Name="TR_CboCategory" FontSize="11"
-                                                  SelectionChanged="TR_Category_Changed"/>
+                                        <ComboBox Name="TR_CboCategory" FontSize="11"/>
                                     </StackPanel>
                                 </Border>
 

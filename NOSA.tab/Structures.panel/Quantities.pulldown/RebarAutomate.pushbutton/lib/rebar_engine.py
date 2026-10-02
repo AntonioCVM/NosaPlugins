@@ -142,6 +142,8 @@ import math
 from Autodesk.Revit import DB
 from Autodesk.Revit.DB import Structure as DBS
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _MM_PER_FT = 304.8
 
@@ -214,7 +216,7 @@ def get_host_solid(host, include_nested=True):
                 if obj.Volume > best_vol:
                     best, best_vol = obj, obj.Volume
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_host_solid')
         elif include_nested and isinstance(obj, DB.GeometryInstance):
             try:
                 nested = obj.GetInstanceGeometry()
@@ -228,7 +230,7 @@ def get_host_solid(host, include_nested=True):
                         if inner.Volume > best_vol:
                             best, best_vol = inner, inner.Volume
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_host_solid')
     return best
 
 
@@ -419,7 +421,7 @@ def _material_fck_mpa(doc, material_id):
             if fck > 1.0:
                 return fck
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_material_fck_mpa')
     # UK templates carry the class in the name only ("Concrete - RC32/40").
     from nosa_utils import laps
     return laps.fck_from_material_name(DB.Element.Name.GetValue(material))
@@ -436,7 +438,7 @@ def host_fck_mpa(doc, host):
             if param is not None and param.AsElementId() != DB.ElementId.InvalidElementId:
                 candidates.append(param.AsElementId())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'host_fck_mpa')
         try:
             structure = elem.GetCompoundStructure()
             if structure is not None:
@@ -445,7 +447,7 @@ def host_fck_mpa(doc, host):
                     candidates.append(structure.GetMaterialId(index))
                 candidates.extend(layer.MaterialId for layer in structure.GetLayers())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'host_fck_mpa')
     for material_id in candidates:
         try:
             fck = _material_fck_mpa(doc, material_id)
@@ -904,6 +906,27 @@ def starter_foot_z(doc, foundation, own_bbox, cover_mm, bar_dia_mm, mat_dias_mm=
     return own_bbox.Min.Z + (cover_mm + 2.0 * bar_dia_mm) / _MM_PER_FT, 'assumed'
 
 
+def name_auto_shape(doc, rebar, code=u'99'):
+    """
+    Give the RebarShape Revit auto-created for this bar (named "Rebar Shape N")
+    the BS 8666 code `code`, so labels and schedules read the code. Template
+    shapes (numeric names) are never renamed, nor is anything when a shape
+    called `code` already exists. Call inside a transaction; returns the name
+    the bar's shape ends up with.
+    """
+    shape = doc.GetElement(rebar.GetShapeId())
+    if shape is None:
+        return None
+    name = DB.Element.Name.GetValue(shape)
+    if not name or name.strip().isdigit():
+        return name
+    for other in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape):
+        if DB.Element.Name.GetValue(other) == code:
+            return name
+    DB.Element.Name.SetValue(shape, code)
+    return code
+
+
 def link_corner_extra_inset_mm(bar_dia_mm, link_dia_mm, link_bend_dia_mm=None):
     """
     Extra inset (mm) of a corner bar nested in its link's bend, beyond
@@ -1059,7 +1082,7 @@ def set_workshop_bent(rebar):
         rebar.GetFreeFormAccessor().WorkshopInstructions = DBS.RebarWorkInstructions.Bent
         return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'set_workshop_bent')
     try:
         param = rebar.get_Parameter(DB.BuiltInParameter.REBAR_WORKSHOP_INSTRUCTIONS)
         return bool(param is not None and not param.IsReadOnly and param.Set(0))
@@ -1222,16 +1245,17 @@ def get_rebar_shape_by_name(doc, name):
     name_lo = (name or u'').strip().lower()
     if not name_lo:
         return None
+    from nosa_utils.revit_helpers import element_name
     for rs in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape).ToElements():
         try:
-            if rs.Name.strip().lower() == name_lo:
+            if element_name(rs).strip().lower() == name_lo:
                 return rs
         except Exception:
             continue
     return None
 
 
-def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
+def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0, style=None):
     """
     Find the project's RebarHookType whose HookAngle matches angle_deg
     (Phase 5, footing hooks/dowels).
@@ -1248,9 +1272,17 @@ def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
                        footing dowels and hooked mat bars are written
                        for.
         tolerance_deg  (float): matching tolerance, degrees.
+        style          (DBS.RebarStyle or None): the style of the bar the
+                       hook goes on, Standard when None. Only hooks of
+                       that style are returned: a Standard bar with a
+                       Stirrup/Tie hook (or the reverse) makes
+                       Rebar.CreateFromCurves fail with "An internal
+                       error has occurred" (column crossties, verified
+                       live in Revit 2024, 2026-10-02).
 
     Returns:
-        DBS.RebarHookType, or None if no hook type is within tolerance.
+        DBS.RebarHookType, or None if no hook type of that style is
+        within tolerance.
 
     CALLER RESPONSIBILITY: a None return means "warn the user, don't
     create the hooked bars" — per this project's explicit rule, never
@@ -1260,11 +1292,15 @@ def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
     """
     target_rad = math.radians(angle_deg)
     tol_rad = math.radians(tolerance_deg)
+    if style is None:
+        style = DBS.RebarStyle.Standard
     best, best_diff = None, 1e9
 
     for ht in DB.FilteredElementCollector(doc).OfClass(DBS.RebarHookType).ToElements():
         try:
             angle = ht.HookAngle
+            if ht.Style != style:
+                continue
         except Exception:
             continue
         diff = abs(angle - target_rad)
@@ -1954,7 +1990,7 @@ class RebarWrapper(object):
                 if validation is not None and validation != DBS.RebarFreeFormValidationResult.Success:
                     self.last_error = u'Rebar.CreateFreeForm validation reported: {}'.format(validation)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarWrapper.create_freeform_group')
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFreeForm failed: {}'.format(e)

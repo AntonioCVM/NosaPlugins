@@ -29,6 +29,7 @@ RULES = {
     'NOSA008': ('low', "'from pyrevit import DB' inside a function - prefer 'from Autodesk.Revit import DB'"),
     'NOSA009': ('high', 'Spanish text in a user-facing Python string'),
     'NOSA010': ('high', "ElementId(int(...)) is ambiguous in Revit 2026 IronPython - use nosa_utils.revit_helpers.element_id_from_int"),
+    'NOSA011': ('medium', ".Name read on a Revit type (symbol/type/shape) can raise or be hidden in IronPython/pythonnet - use nosa_utils.revit_helpers.element_name"),
     'NOSA100': ('critical', 'XAML is not well-formed'),
     'NOSA101': ('critical', "'{Binding type}' collides with a Python keyword - rename the attribute"),
     'NOSA102': ('critical', "'{Binding _x}' - underscore-prefixed attributes cannot be bound"),
@@ -152,6 +153,87 @@ def check_sys_path(path, tree, findings):
             findings.append(Finding('NOSA004', path, node.lineno, rel(target)))
 
 
+TYPE_CLASSES = ('FamilySymbol', 'ElementType', 'RebarShape', 'RebarBarType', 'RebarHookType',
+                'WallType', 'FloorType', 'RoofType', 'CeilingType', 'DimensionType', 'SpotDimensionType',
+                'FilledRegionType', 'ViewFamilyType', 'TextNoteType', 'RevitLinkType', 'GroupType',
+                'MultiReferenceAnnotationType', 'FabricSheetType')
+TYPE_ATTRS = ('Symbol', 'WallType', 'FloorType', 'GroupType')
+TYPE_ID_CALLS = ('GetTypeId', 'GetShapeId')
+TYPE_ID_ATTRS = ('RebarShapeId',)
+
+
+def _scope_nodes(scope):
+    """Nodes of one function/module scope, excluding nested function bodies."""
+    stack = list(ast.iter_child_nodes(scope))
+    while stack:
+        node = stack.pop()
+        yield node
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+
+
+def _is_type_expr(node):
+    """Expression that evaluates to a Revit element type: x.Symbol, doc.GetElement(x.GetTypeId())."""
+    if isinstance(node, ast.Attribute) and node.attr in TYPE_ATTRS:
+        return True
+    if isinstance(node, ast.Call) and _call_name(node) == 'GetElement' and node.args:
+        for sub in ast.walk(node.args[0]):
+            if isinstance(sub, ast.Call) and _call_name(sub) in TYPE_ID_CALLS:
+                return True
+            if isinstance(sub, ast.Attribute) and sub.attr in TYPE_ID_ATTRS:
+                return True
+    return False
+
+
+def _is_type_collection(node):
+    """Collector expression that yields element types (OfClass(FamilySymbol), WhereElementIsElementType())."""
+    for sub in ast.walk(node):
+        if not isinstance(sub, ast.Call):
+            continue
+        name = _call_name(sub)
+        if name == 'WhereElementIsElementType':
+            return True
+        if name == 'OfClass' and sub.args:
+            arg = sub.args[0]
+            cls = arg.attr if isinstance(arg, ast.Attribute) else getattr(arg, 'id', None)
+            if cls in TYPE_CLASSES:
+                return True
+    return False
+
+
+def check_type_name(path, tree, findings):
+    seen = set()
+    scopes = [tree] + [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+    for scope in scopes:
+        nodes = list(_scope_nodes(scope))
+        collections, types_ = set(), set()
+        for node in nodes:
+            if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                if _is_type_collection(node.value):
+                    collections.add(node.targets[0].id)
+                elif _is_type_expr(node.value):
+                    types_.add(node.targets[0].id)
+        for node in nodes:
+            if isinstance(node, (ast.For, ast.comprehension)) and isinstance(node.target, ast.Name):
+                it = node.iter
+                if _is_type_collection(it) or (isinstance(it, ast.Name) and it.id in collections):
+                    types_.add(node.target.id)
+
+        def is_type(expr):
+            return (isinstance(expr, ast.Name) and expr.id in types_) or _is_type_expr(expr)
+
+        for node in nodes:
+            target = None
+            if isinstance(node, ast.Attribute) and node.attr == 'Name' and isinstance(node.ctx, ast.Load):
+                target = node.value
+            elif isinstance(node, ast.Call) and _call_name(node) == 'getattr' and len(node.args) >= 2                     and _str_value(node.args[1]) == 'Name':
+                target = node.args[0]
+            if target is not None and is_type(target) and node.lineno not in seen:
+                seen.add(node.lineno)
+                findings.append(Finding('NOSA011', path, node.lineno))
+
+
 def lint_python(path):
     findings = []
     src = read_text(path)
@@ -179,6 +261,7 @@ def lint_python(path):
             findings.append(Finding('NOSA002', path, node.lineno, node.attr))
 
     check_sys_path(path, tree, findings)
+    check_type_name(path, tree, findings)
 
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):

@@ -52,7 +52,8 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
                        include_top=False, top_cover_mm=None, top_dia_x=None, top_dia_y=None,
                        top_spacing_mm=None, ubars=False, ubar_dia=None, is_floor=False,
                        bottom_hooks=False, top_hooks=False, dowels=False, dowel_dia=None,
-                       dowel_splice_mm=600.0, kicker_mm=75.0, column_width_mm=400.0):
+                       dowel_splice_mm=600.0, kicker_mm=75.0, column_width_mm=400.0,
+                       side=False, side_dia=None, side_spacing_mm=None):
     """Section through a footing or slab, cut along X: X bars in plane, Y bars end-on."""
     w, t, c = float(width_mm), float(thickness_mm), float(cover_mm)
     half = w / 2.0
@@ -98,6 +99,22 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
                                    ubar_dia, 'ubar'))
             labels.append((t / 2.0, u'U-bars H{:g} @ {:g}, leg {:.0f}{}'.format(
                 ubar_dia, spacing_mm, leg, u' (2h)' if is_floor and leg >= 2.0 * t - 1 else u'')))
+    if side and side_dia and side_spacing_mm and not is_floor:
+        # footing_rebar.build_side_rebar_set: a closed perimeter loop inset cover + d/2, repeated
+        # upwards between the mats — its side legs cut end-on, the X leg in plane
+        x_side = half - c - side_dia / 2.0
+        bottom_limit = c + dia_x + dia_y + side_dia / 2.0
+        if t1 is not None:
+            top_limit = t - float(top_cover_mm) - top_dia_x - top_dia_y - side_dia / 2.0
+        else:
+            top_limit = t - c - side_dia / 2.0
+        levels = _spaced(bottom_limit, top_limit, float(side_spacing_mm))
+        for y in levels:
+            shapes.append(_bar([(-x_side, y), (x_side, y)], side_dia, 'link'))
+            for sign in (-1.0, 1.0):
+                shapes.append(_dot(sign * x_side, y, side_dia, 'link'))
+        labels.append(((bottom_limit + top_limit) / 2.0, u'Side bars H{:g} @ {:g} ({} levels)'.format(
+            side_dia, side_spacing_mm, len(levels))))
     if dowels and dowel_dia:
         mat_top = c + dia_x + dia_y
         lap_top = t + kicker_mm + dowel_splice_mm
@@ -123,7 +140,8 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
 
 
 def column_section_shapes(width_mm, depth_mm, cover_mm, bar_dia, positions, link_dia,
-                          shape='rect', starters=False, starter_dia=None, link_spacing=None):
+                          shape='rect', starters=False, starter_dia=None, link_spacing=None,
+                          crossties=None):
     """Plan section of a column: verticals (positions from the generator's layout), link, starters lapped inside."""
     c = float(cover_mm)
     shapes = []
@@ -140,6 +158,8 @@ def column_section_shapes(width_mm, depth_mm, cover_mm, bar_dia, positions, link
         shapes.append({'kind': 'concrete', 'x0': -hw, 'y0': -hd, 'x1': hw, 'y1': hd})
         lw, ld = hw - c - link_dia / 2.0, hd - c - link_dia / 2.0
         shapes.append(_bar([(-lw, -ld), (lw, -ld), (lw, ld), (-lw, ld), (-lw, -ld)], link_dia, 'link'))
+    for x1, y1, x2, y2 in crossties or []:
+        shapes.append(_bar([(x1, y1), (x2, y2)], link_dia, 'link'))
     max_x = max(abs(x) for x, _ in positions) if positions else 0.0
     max_y = max(abs(y) for _, y in positions) if positions else 0.0
     for x, y in positions:
@@ -159,7 +179,8 @@ def column_section_shapes(width_mm, depth_mm, cover_mm, bar_dia, positions, link
     label = u'{} H{:g}   links H{:g}{}'.format(len(positions), bar_dia, link_dia,
                                               u' @ {:g}'.format(link_spacing) if link_spacing else u'')
     shapes.append(_text(right, depth_mm / 2.0 - 20.0, label))
-    shapes.append(_text(right, depth_mm / 2.0 - 90.0, u'cover {:g}'.format(c)))
+    shapes.append(_text(right, depth_mm / 2.0 - 90.0, u'cover {:g}{}'.format(
+        c, u'   + crossties' if crossties else u'')))
     if starters and starter_dia:
         shapes.append(_text(right, depth_mm / 2.0 - 160.0,
                             u'o  starters/dowels H{:g}, lapped inside'.format(starter_dia)))
@@ -217,15 +238,30 @@ def column_elevation_shapes(width_mm, height_mm, cover_mm, bar_dia, link_dia, no
     return shapes
 
 
+def beam_interior_ties(width_mm, height_mm, cover_mm, bar_dia, n_top, n_bottom, link_dia):
+    """Interior links / crossties of a beam section, relative to its centre (column rule)."""
+    from rebar_preview import _crosstie_lines_preview
+    n_u = max(int(n_top or 0), int(n_bottom or 0))
+    if n_u <= 2:
+        return []
+    bend_r = 2.0 * link_dia
+    extra = 0.0 if bend_r <= bar_dia / 2.0 else bend_r - (bend_r - bar_dia / 2.0) / math.sqrt(2.0) - bar_dia / 2.0
+    inset = cover_mm + link_dia + bar_dia / 2.0 + extra
+    return _crosstie_lines_preview(width_mm / 2.0 - inset, height_mm / 2.0 - inset, n_u, 2, 'all',
+                                   bar_dia, link_dia)
+
+
 def beam_section_shapes(width_mm, height_mm, cover_mm, bar_dia, n_top, n_bottom, link_dia,
-                        link_spacing=None):
-    """Cross-section of a beam: link, top and bottom rows seated in its corners."""
+                        link_spacing=None, ties=None):
+    """Cross-section of a beam: link, top and bottom rows seated in its corners (+ interior ties)."""
     w, h, c = float(width_mm), float(height_mm), float(cover_mm)
     hw = w / 2.0
     shapes = [{'kind': 'concrete', 'x0': -hw, 'y0': 0.0, 'x1': hw, 'y1': h}]
     lw = hw - c - link_dia / 2.0
     shapes.append(_bar([(-lw, c + link_dia / 2.0), (lw, c + link_dia / 2.0), (lw, h - c - link_dia / 2.0),
                         (-lw, h - c - link_dia / 2.0), (-lw, c + link_dia / 2.0)], link_dia, 'link'))
+    for x1, y1, x2, y2 in ties or []:
+        shapes.append(_bar([(x1, y1 + h / 2.0), (x2, y2 + h / 2.0)], link_dia, 'link'))
     bend_r = 2.0 * link_dia
     extra = 0.0 if bend_r <= bar_dia / 2.0 else bend_r - (bend_r - bar_dia / 2.0) / math.sqrt(2.0) - bar_dia / 2.0
     inset = c + link_dia + bar_dia / 2.0 + extra

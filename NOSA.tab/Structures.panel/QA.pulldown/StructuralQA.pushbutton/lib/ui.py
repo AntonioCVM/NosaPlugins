@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp
+import io, csv, os, sys
 import System.Windows
 import System.Windows.Media
 from System.Collections.ObjectModel import ObservableCollection
@@ -19,13 +19,14 @@ from nosa_utils.revit_helpers import get_id_value, element_id_from_int
 _LOG = u'StructuralQA/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_cr_logic = imp.load_source('sqa_cr_logic', os.path.join(_here, 'logic_clash_report.py'))
-_dc_logic = imp.load_source('sqa_dc_logic', os.path.join(_here, 'logic_drawing_checker.py'))
-_fa_logic = imp.load_source('sqa_fa_logic', os.path.join(_here, 'logic_family_audit.py'))
-_iq_logic = imp.load_source('sqa_iq_logic', os.path.join(_here, 'logic_ifc_export_qa.py'))
-_si_logic = imp.load_source('sqa_si_logic', os.path.join(_here, 'logic_schedule_impact.py'))
-_rc_logic = imp.load_source('sqa_rc_logic', os.path.join(_here, 'logic_rebar_coverage.py'))
-_qq_logic = imp.load_source('sqa_qq_logic', os.path.join(_here, 'logic_quantification_qa.py'))
+from nosa_utils.bootstrap import load_module
+_cr_logic = load_module('sqa_cr_logic', os.path.join(_here, 'logic_clash_report.py'))
+_dc_logic = load_module('sqa_dc_logic', os.path.join(_here, 'logic_drawing_checker.py'))
+_fa_logic = load_module('sqa_fa_logic', os.path.join(_here, 'logic_family_audit.py'))
+_iq_logic = load_module('sqa_iq_logic', os.path.join(_here, 'logic_ifc_export_qa.py'))
+_si_logic = load_module('sqa_si_logic', os.path.join(_here, 'logic_schedule_impact.py'))
+_rc_logic = load_module('sqa_rc_logic', os.path.join(_here, 'logic_rebar_coverage.py'))
+_qq_logic = load_module('sqa_qq_logic', os.path.join(_here, 'logic_quantification_qa.py'))
 
 CR_ClashLogic = _cr_logic.ClashLogic
 
@@ -196,6 +197,10 @@ class QQ_QARow(object):
 class StructuralQAWindow(NOSAWindow):
 
     def __init__(self, doc):
+        # Handlers wired in code check this so no early SelectionChanged
+        # reaches them before __init__ has finished (see RebarAutomate).
+        self._is_loaded = False
+
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'structural_qa_hub')
         self.doc = doc
@@ -211,6 +216,8 @@ class StructuralQAWindow(NOSAWindow):
         self._si_init()
         self._rc_init()
         self._qq_init()
+
+        self._is_loaded = True
 
     # ══════════════════════════════════════════════════════════════════
     # TAB 1: CLASH REPORT
@@ -351,7 +358,7 @@ class StructuralQAWindow(NOSAWindow):
         try:
             ids = List[DB.ElementId]([element_id_from_int(item.Id1),
                                       element_id_from_int(item.Id2)])
-            with revit.Transaction("Isolate Clash"):
+            with revit.Transaction(u"NOSA — Isolate Clash"):
                 revit.active_view.IsolateElementsTemporary(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:
@@ -364,7 +371,8 @@ class StructuralQAWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['#', 'Severity', 'Volume (m³)',
                             'Element 1', 'Category 1', 'ID 1',
@@ -423,7 +431,8 @@ class StructuralQAWindow(NOSAWindow):
         ).format(total=len(list(self._cr_results)), summary=summary_rows, rows=rows_html)
 
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 f.write(html)
             import subprocess
             subprocess.Popen(['start', path], shell=True)
@@ -616,6 +625,7 @@ class StructuralQAWindow(NOSAWindow):
         self._fa_search_on = False
         self.FA_CboCategory.ItemsSource   = [_FA_ALL_CATS]
         self.FA_CboCategory.SelectedIndex = 0
+        self.FA_CboCategory.SelectionChanged += self.FA_Category_Changed
 
     def FA_Scan_Click(self, sender, args):
         self.SetLoading(True, "Scanning families...")
@@ -642,6 +652,8 @@ class StructuralQAWindow(NOSAWindow):
         self._fa_apply_filters()
 
     def FA_Category_Changed(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
         self._fa_apply_filters()
 
     def _fa_apply_filters(self):
@@ -991,7 +1003,8 @@ class StructuralQAWindow(NOSAWindow):
         path = forms.save_file(file_ext='csv')
         if not path: return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Coverage', '{}%'.format(self._rc_data['coverage_pct'])])
                 w.writerow([])
@@ -1187,7 +1200,8 @@ class StructuralQAWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['=== CONCRETE QUANTITIES ==='])
                 w.writerow(['Category', 'Material', 'Level', 'Volume m3', 'Area m2', 'Count'])

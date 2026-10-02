@@ -18,6 +18,9 @@ import sys, os, traceback
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+_ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
+if _ext_lib not in sys.path:
+    sys.path.insert(0, _ext_lib)
 
 def _lm(n, p):
     try:
@@ -25,7 +28,8 @@ def _lm(n, p):
         s = _iu.spec_from_file_location(n, p); m = _iu.module_from_spec(s)
         sys.modules[n] = m; s.loader.exec_module(m); return m
     except (ImportError, AttributeError):
-        import imp; m = imp.load_source(n, p); sys.modules[n] = m; return m
+        from nosa_utils.bootstrap import load_module
+        m = load_module(n, p); sys.modules[n] = m; return m
 
 from pyrevit import revit
 from nosa_utils.logging import Logger

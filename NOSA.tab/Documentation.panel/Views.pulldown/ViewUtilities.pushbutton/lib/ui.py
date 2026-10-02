@@ -19,7 +19,6 @@ Follows the FootingDesigner / PileMaster pattern:
 """
 import os
 import sys
-import imp
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 
@@ -27,6 +26,8 @@ from pyrevit import forms, revit
 from Autodesk.Revit import DB
 from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -36,12 +37,13 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils import unit_conversion as _uc10
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_align_logic    = imp.load_source('vu_align_logic',    os.path.join(_here, 'logic_align_view_titles.py'))
-_bay_logic      = imp.load_source('vu_bay_logic',       os.path.join(_here, 'logic_bay_sections.py'))
-_level_logic    = imp.load_source('vu_level_logic',     os.path.join(_here, 'logic_level_navigator.py'))
-_viewdep_logic  = imp.load_source('vu_viewdep_logic',   os.path.join(_here, 'logic_view_dependency_explorer.py'))
-_halftone_logic = imp.load_source('vu_halftone_logic',  os.path.join(_here, 'logic_halftone_selection.py'))
-_secbox_logic   = imp.load_source('vu_secbox_logic',    os.path.join(_here, 'logic_section_boxer.py'))
+from nosa_utils.bootstrap import load_module
+_align_logic    = load_module('vu_align_logic',    os.path.join(_here, 'logic_align_view_titles.py'))
+_bay_logic      = load_module('vu_bay_logic',       os.path.join(_here, 'logic_bay_sections.py'))
+_level_logic    = load_module('vu_level_logic',     os.path.join(_here, 'logic_level_navigator.py'))
+_viewdep_logic  = load_module('vu_viewdep_logic',   os.path.join(_here, 'logic_view_dependency_explorer.py'))
+_halftone_logic = load_module('vu_halftone_logic',  os.path.join(_here, 'logic_halftone_selection.py'))
+_secbox_logic   = load_module('vu_secbox_logic',    os.path.join(_here, 'logic_section_boxer.py'))
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -102,6 +104,9 @@ class ViewUtilitiesWindow(NOSAWindow):
     def __init__(self, doc, uidoc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'view_utilities')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.AV_ComboMode.SelectedIndex = 0
+        self.LN_GridLevels.SelectionChanged += self.LN_Grid_SelectionChanged
         self.doc   = doc
         self.uidoc = uidoc
 
@@ -200,7 +205,7 @@ class ViewUtilitiesWindow(NOSAWindow):
             else:
                 forms.alert("Not a viewport.")
         except OperationCanceledException:
-            pass
+            log_swallowed(_LOG, u'ViewUtilitiesWindow.AV_PickRef_Click')
         except Exception as e:
             forms.alert("Could not pick reference viewport: {}".format(str(e)))
         finally:
@@ -245,7 +250,7 @@ class ViewUtilitiesWindow(NOSAWindow):
 
         count = 0
         errors = []
-        with revit.Transaction("Align Titles"):
+        with revit.Transaction(u"NOSA — Align Titles"):
             for item in self.av_matching_items:
                 try:
                     target_vp = item['viewport']
@@ -282,7 +287,7 @@ class ViewUtilitiesWindow(NOSAWindow):
             self.BS_TxtLog.AppendText(msg + "\n")
             self.BS_TxtLog.ScrollToEnd()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewUtilitiesWindow._bs_log')
 
     def _bs_populate_view_types(self):
         self.BS_CmbViewType.Items.Clear()

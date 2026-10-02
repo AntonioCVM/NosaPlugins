@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 import System.Windows
 from System.Windows.Controls import Canvas as WPFCanvas
 from System.Windows.Media import SolidColorBrush, Color
@@ -8,13 +8,16 @@ from System.Windows.Shapes import Polygon as WPFPolygon
 from System.Windows import Point
 from System.Windows.Media import PointCollection
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'createpilecaptype'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
-_logic = imp.load_source('createpilecap_logic',
+from nosa_utils.bootstrap import load_module
+_logic = load_module('createpilecap_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 _CAP_FILL   = Color.FromRgb(220, 220, 220)
@@ -33,6 +36,8 @@ class CreatePilecapWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'create_pilecap')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CboShape.SelectionChanged += self.Shape_Changed
         self.doc    = doc
         self._mode  = 'regular'
         self._shape_keys = list(_logic.IRREGULAR_SHAPES.keys())
@@ -140,7 +145,7 @@ class CreatePilecapWindow(NOSAWindow):
             else:
                 self._draw_irregular()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'CreatePilecapWindow._refresh_preview')
 
     def _parse_spacing_clearance(self):
         try: spc = max(100.0, float(self.TxtSpacing.Text   or '900'))
@@ -344,7 +349,7 @@ class CreatePilecapWindow(NOSAWindow):
         try:
             pt = revit.uidoc.Selection.PickPoint('Click to place pile cap centre')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'CreatePilecapWindow.Place_Click')
         self.Show()
         if pt is None:
             return

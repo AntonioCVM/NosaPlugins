@@ -4,76 +4,13 @@ from pyrevit import revit
 import sys
 import re
 from collections import defaultdict, OrderedDict
-from System.Collections.Generic import List as _CsList
 
+from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
+from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 
-# ---------------------------------------------------------------------------
-# Group helpers — shared by numbering and coords
-# ---------------------------------------------------------------------------
-
-from nosa_utils.revit_helpers import get_id_value
-
-
-def _eid_val(eid):
-    """Return integer value of an ElementId (Revit 2024–2027)."""
-    return get_id_value(eid)
-
-
-def _ungroup_targets(doc, elements, output=None):
-    """
-    Ungroup every Model Group that contains any of *elements*.
-    Must be called inside an open Transaction.
-    Returns list of (group_type_id, member_ids) needed to restore afterwards.
-    Elements that are not in a group are silently skipped.
-    """
-    seen     = set()
-    restore  = []
-    invalid  = DB.ElementId.InvalidElementId
-
-    for el in elements:
-        gid = el.GroupId
-        if gid == invalid:
-            continue
-        gid_val = _eid_val(gid)
-        if gid_val in seen:
-            continue
-        seen.add(gid_val)
-
-        grp = doc.GetElement(gid)
-        if grp is None:
-            continue
-        try:
-            member_ids  = list(grp.GetMemberIds())
-            grp_type_id = grp.GetTypeId()
-            grp.UngroupMembers()
-            restore.append((grp_type_id, member_ids))
-            if output:
-                output.print_md(u'  - Ungrouped: {} members'.format(len(member_ids)))
-        except Exception as e:
-            if output:
-                output.print_md(u'  - WARNING: could not ungroup group {}: {}'.format(gid_val, e))
-
-    return restore
-
-
-def _regroup_restore(doc, restore_data, output=None):
-    """
-    Recreate Model Groups after parameter editing.
-    restore_data comes from _ungroup_targets.
-    Must be called inside the same Transaction.
-    """
-    n = 0
-    for _grp_type_id, member_ids in restore_data:
-        try:
-            id_list = _CsList[DB.ElementId](member_ids)
-            doc.Create.NewGroup(id_list)
-            n += 1
-        except Exception as e:
-            if output:
-                output.print_md(u'  - WARNING: could not regroup: {}'.format(e))
-    if output and n:
-        output.print_md(u'  - Regrouped: {} group(s) restored'.format(n))
-    return n
 
 class NumberingLogic:
     def __init__(self, doc):
@@ -144,7 +81,7 @@ class NumberingLogic:
             type_id = element.GetTypeId()
             type_elem = self.doc.GetElement(type_id)
             fam_name = type_elem.FamilyName
-            type_name = type_elem.Name
+            type_name = element_name(type_elem)
             
             if is_pile:
                 # Piles: Group by Family + Type (for Prefixing)
@@ -229,7 +166,7 @@ class NumberingLogic:
                         if fam_param:
                             fam_name = fam_param.AsString()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'NumberingLogic.group_by_type')
                 
                 # Only group by Family Name (not Type)
                 if fam_name:
@@ -342,7 +279,7 @@ class NumberingLogic:
                         if fam_param:
                             fam_name = fam_param.AsString()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'NumberingLogic.apply_numbering')
                 
                 if not fam_name:
                     continue
@@ -372,7 +309,7 @@ class NumberingLogic:
         # Piles: sequential per prefix
         # Caps: grouped by family + dimensions (simplified: same family = same number for all)
         
-        with revit.Transaction("Batch Numbering"):
+        with revit.Transaction(u"NOSA — Batch Numbering"):
 
             # Ungroup any Model Groups that contain target elements so their
             # instance parameters (Mark, Comments) become writable.
@@ -459,7 +396,7 @@ class NumberingLogic:
                             try:
                                 p_comm.Set("")
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'NumberingLogic.apply_numbering')
                 
                 output.print_md("- Final global counter: **{}**".format(global_counter))
             
@@ -529,7 +466,7 @@ class NumberingLogic:
                             try:
                                 p_mark.Set("")
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'NumberingLogic.apply_numbering')
                     
                     cap_seq_counters[prefix] += 1
         

@@ -3,6 +3,8 @@ import io
 """Sheet Composer Logic — clone sheets, renumber, edit params, import/export CSV."""
 import sys, os, csv
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sheetgen'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -30,7 +32,7 @@ def get_all_sheets(doc):
                 'sheet':  s,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_sheets')
     result.sort(key=lambda r: r['number'])
     return result
 
@@ -50,7 +52,7 @@ def get_titleblock_types(doc):
             label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
             pairs.append((t.Id, label))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_titleblock_types')
     pairs.sort(key=lambda x: x[1])
     return pairs
 
@@ -79,15 +81,15 @@ def clone_sheet(doc, source_sheet, new_number, new_name, titleblock_id):
                 try:
                     DB.Viewport.Create(doc, new_sheet.Id, view.Id, center)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'clone_sheet')
             else:
                 try:
                     dup_id = view.Duplicate(DB.ViewDuplicateOption.WithDetailing)
                     DB.Viewport.Create(doc, new_sheet.Id, dup_id, center)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'clone_sheet')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'clone_sheet')
     return new_sheet
 
 
@@ -99,7 +101,7 @@ def _existing_sheet_numbers_lower(doc):
             if sn:
                 out.add(sn)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_existing_sheet_numbers_lower')
     return out
 
 
@@ -171,7 +173,7 @@ def duplicate_sheets_nosa_incremental(doc, source_sheets, count, titleblock_id,
             if n:
                 existing.add(n)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'duplicate_sheets_nosa_incremental')
 
     with DB.Transaction(doc, u'NOSA — Duplicate Sheets') as t:
         t.Start()
@@ -220,7 +222,7 @@ def duplicate_sheets_nosa_incremental(doc, source_sheets, count, titleblock_id,
                                     if p and not p.IsReadOnly:
                                         p.Set(pkg)
                                 except Exception:
-                                    pass
+                                    log_swallowed(_LOG, u'duplicate_sheets_nosa_incremental')
                     created += 1
                 except Exception as ex:
                     errors.append(u'{}: {}'.format(new_f7, ex))
@@ -258,7 +260,7 @@ def renumber_sheets(doc, sheet_ids, prefix, start, step, suffix, pad):
                 s = doc.GetElement(coerce_element_id(sid))
                 s.SheetNumber = "{}{}".format(temp_prefix, i)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'renumber_sheets')
         for i, sid in enumerate(sheet_ids):
             try:
                 s = doc.GetElement(coerce_element_id(sid))
@@ -294,7 +296,7 @@ def _param_str(el, pname):
         if p:
             return (p.AsString() or p.AsValueString() or '').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_str')
     return ''
 
 
@@ -318,9 +320,9 @@ def get_sheet_param_names(doc):
                     if d and d.Name and d.Name not in exclude:
                         names.add(d.Name)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'get_sheet_param_names')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_sheet_param_names')
         sampled += 1
         if sampled >= 5:
             break
@@ -434,7 +436,7 @@ def create_sheets_from_data(doc, rows, titleblock_id):
                         try:
                             write_param(new_sheet, pname, val, doc)
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'create_sheets_from_data')
                 created += 1
             except Exception as e:
                 errors.append("{}: {}".format(num, e))
@@ -481,7 +483,7 @@ def import_sheets_from_csv(doc, rows, titleblock_id, mode='create'):
                     el = existing[num]
                     if name:
                         try: write_param(el, 'Sheet Name', name)
-                        except Exception: pass
+                        except Exception: log_swallowed(_LOG, u'import_sheets_from_csv')
                     for pname in NOSA_PARAMS:
                         val = row.get(pname)
                         if not val and pname == 'Form':
@@ -490,7 +492,7 @@ def import_sheets_from_csv(doc, rows, titleblock_id, mode='create'):
                             try:
                                 write_param(el, pname, val, doc)
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'import_sheets_from_csv')
                     updated += 1
                 else:
                     skipped += 1
@@ -509,7 +511,7 @@ def import_sheets_from_csv(doc, rows, titleblock_id, mode='create'):
                                 try:
                                     write_param(new_sheet, pname, val, doc)
                                 except Exception:
-                                    pass
+                                    log_swallowed(_LOG, u'import_sheets_from_csv')
                         created += 1
                     except Exception:
                         skipped += 1
@@ -527,7 +529,8 @@ def export_csv_sheets(sheets, path):
         return
     _FIELDS  = ['number', 'name'] + NOSA_PARAMS
     _HEADERS = {'number': 'Number', 'name': 'Name'}
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow([_HEADERS.get(k, k) for k in _FIELDS])
         for s in sheets:
@@ -586,7 +589,7 @@ def export_xlsx_sheets(sheets, path):
             c.font = font
         ws.freeze_panes = 'A2'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'export_xlsx_sheets')
     for s in sheets:
         ws.append([u'{}'.format(s.get(k, '') or u'') for k in _FIELDS])
     try:
@@ -594,5 +597,5 @@ def export_xlsx_sheets(sheets, path):
             width = max(len(u'{}'.format(c.value or u'')) for c in col) + 2
             ws.column_dimensions[col[0].column_letter].width = min(width, 60)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'export_xlsx_sheets')
     wb.save(path)

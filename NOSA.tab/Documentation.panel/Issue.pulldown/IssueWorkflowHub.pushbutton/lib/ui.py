@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 import csv
@@ -21,11 +20,14 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_pc_logic  = imp.load_source('iwh_pc_logic',  os.path.join(_here, 'logic_protocol_checker.py'))
-_ig_logic  = imp.load_source('iwh_ig_logic',  os.path.join(_here, 'logic_issue_gate.py'))
-_rpd_logic = imp.load_source('iwh_rpd_logic', os.path.join(_here, 'logic_revision_package_diff.py'))
-_rt_logic  = imp.load_source('iwh_rt_logic',  os.path.join(_here, 'logic_revision_tracker.py'))
-_sim_logic = imp.load_source('iwh_sim_logic', os.path.join(_here, 'logic_sheet_issue_manager.py'))
+from nosa_utils.bootstrap import load_module
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
+_pc_logic  = load_module('iwh_pc_logic',  os.path.join(_here, 'logic_protocol_checker.py'))
+_ig_logic  = load_module('iwh_ig_logic',  os.path.join(_here, 'logic_issue_gate.py'))
+_rpd_logic = load_module('iwh_rpd_logic', os.path.join(_here, 'logic_revision_package_diff.py'))
+_rt_logic  = load_module('iwh_rt_logic',  os.path.join(_here, 'logic_revision_tracker.py'))
+_sim_logic = load_module('iwh_sim_logic', os.path.join(_here, 'logic_sheet_issue_manager.py'))
 
 _SEARCH_PLACEHOLDER = u'Search issues…'
 
@@ -191,6 +193,9 @@ class IssueWorkflowHubWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'issue_workflow_hub')
+        # SelectionChanged wired in code after LoadComponent, never in XAML (NOSA106)
+        self.RT_CboRevision.SelectionChanged += self.RT_CboRevision_Changed
+        self.RT_ListSnapshots.SelectionChanged += self.RT_Snapshot_SelectionChanged
         self.doc = doc
         self.proceed_to_export = False
 
@@ -439,7 +444,7 @@ class IssueWorkflowHubWindow(NOSAWindow):
                     if sheet.SheetNumber in numbers:
                         ids.Add(sheet.Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'IssueWorkflowHubWindow.IG_SelectSheets_Click')
             revit.uidoc.Selection.SetElementIds(ids)
             self.IG_TxtGateStatus.Text = u'Selected {} sheet(s) in the model.'.format(ids.Count)
         except Exception as e:
@@ -735,7 +740,8 @@ class IssueWorkflowHubWindow(NOSAWindow):
             return
         try:
             import io
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow([u'Change', u'Category', u'Name', u'ID', u'Detail'])
                 for r in self._rt_delta_rows:

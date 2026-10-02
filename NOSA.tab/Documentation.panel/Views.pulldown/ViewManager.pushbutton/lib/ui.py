@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-import imp
 import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewmanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -13,7 +14,8 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
 
-_logic = imp.load_source('viewmanager_logic',
+from nosa_utils.bootstrap import load_module
+_logic = load_module('viewmanager_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -22,7 +24,7 @@ def _load_sibling_logic(name, module_name):
     for suffix in ('pushbutton', 'nobutton'):
         path = os.path.join(base, '{}.{}'.format(name, suffix), 'lib', 'logic.py')
         if os.path.exists(path):
-            return imp.load_source(module_name, path)
+            return load_module(module_name, path)
     raise ImportError('Cannot find logic for: ' + name)
 
 
@@ -61,6 +63,8 @@ class ViewManagerWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'view_manager')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CmbRenCase.SelectionChanged += self.RenameRule_Changed
         self.doc = doc
         self._tabs = {
             'BtnTabCreate':    self.TabCreate,
@@ -152,7 +156,7 @@ class ViewManagerWindow(NOSAWindow):
                 row.OnSheet  = info.get('sheet', u'')
                 row.DetailNo = info.get('detail', u'')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewManagerWindow._make_row')
         return row
 
     def _refresh_dup(self):
@@ -218,7 +222,7 @@ class ViewManagerWindow(NOSAWindow):
                 row.DetailNo = u'{}'.format(txt)
                 self._rename_detail_pending[vid] = row.DetailNo
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewManagerWindow.Rename_CellEdit')
 
     def _refresh_clean(self):
         self.GridClean.ItemsSource = [
@@ -386,7 +390,7 @@ class ViewManagerWindow(NOSAWindow):
         try:
             self._refresh_rename()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewManagerWindow.RenameRule_Changed')
 
     def Rename_Click(self, sender, args):
         from pyrevit import forms

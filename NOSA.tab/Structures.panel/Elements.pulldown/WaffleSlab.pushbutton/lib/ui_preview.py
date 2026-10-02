@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 """
 WaffleSlab 2D Preview Window.
 
@@ -79,55 +78,55 @@ class WafflePreviewWindow(NOSAWindow):
         SWC.Canvas.SetTop(bnd, sy(by1))
         canvas.Children.Add(bnd)
 
-        intereje = self.params.get('intereje', 800) / 1000.0   # m
-        ancho    = self.params.get('ancho_nervio', 120) / 1000.0
+        grid_spacing = self.params.get('intereje', 800) / 1000.0   # m
+        width    = self.params.get('ancho_nervio', 120) / 1000.0
 
         # Vertical ribs
         x = bx0
         while x <= bx1:
             rib = SWS.Rectangle()
-            rib.Width  = max(1.0, ancho * scale)
+            rib.Width  = max(1.0, width * scale)
             rib.Height = max(1.0, H * scale)
             rib.Fill   = SolidColorBrush(Color.FromArgb(90, 100, 149, 237))
             rib.Stroke = SWM.Brushes.Transparent
-            SWC.Canvas.SetLeft(rib, sx(x - ancho / 2.0))
+            SWC.Canvas.SetLeft(rib, sx(x - width / 2.0))
             SWC.Canvas.SetTop(rib, sy(by1))
             canvas.Children.Add(rib)
-            x += intereje
+            x += grid_spacing
 
         # Horizontal ribs
         y = by0
         while y <= by1:
             rib = SWS.Rectangle()
             rib.Width  = max(1.0, W * scale)
-            rib.Height = max(1.0, ancho * scale)
+            rib.Height = max(1.0, width * scale)
             rib.Fill   = SolidColorBrush(Color.FromArgb(90, 100, 149, 237))
             rib.Stroke = SWM.Brushes.Transparent
             SWC.Canvas.SetLeft(rib, sx(bx0))
-            SWC.Canvas.SetTop(rib, sy(y + ancho / 2.0))
+            SWC.Canvas.SetTop(rib, sy(y + width / 2.0))
             canvas.Children.Add(rib)
-            y += intereje
+            y += grid_spacing
 
         # Voids (casetones)
-        caseton = intereje - ancho
-        xv = bx0 + intereje / 2.0
+        void_former = grid_spacing - width
+        xv = bx0 + grid_spacing / 2.0
         while xv < bx1:
-            yv = by0 + intereje / 2.0
+            yv = by0 + grid_spacing / 2.0
             while yv < by1:
                 void = SWS.Rectangle()
-                void.Width  = max(1.0, caseton * scale)
-                void.Height = max(1.0, caseton * scale)
+                void.Width  = max(1.0, void_former * scale)
+                void.Height = max(1.0, void_former * scale)
                 void.Fill   = SolidColorBrush(Color.FromArgb(60, 200, 200, 200))
                 void.Stroke = SWM.Brushes.LightGray
                 void.StrokeThickness = 0.5
-                SWC.Canvas.SetLeft(void, sx(xv - caseton / 2.0))
-                SWC.Canvas.SetTop(void, sy(yv + caseton / 2.0))
+                SWC.Canvas.SetLeft(void, sx(xv - void_former / 2.0))
+                SWC.Canvas.SetTop(void, sy(yv + void_former / 2.0))
                 canvas.Children.Add(void)
-                yv += intereje
-            xv += intereje
+                yv += grid_spacing
+            xv += grid_spacing
 
         # Column solid zones
-        solid_r = max(intereje * 1.5, ancho * 3) / 2.0
+        solid_r = max(grid_spacing * 1.5, width * 3) / 2.0
         for (cx, cy) in self.col_locs:
             dot = SWS.Ellipse()
             dot.Width  = max(4.0, solid_r * scale * 2)
@@ -170,21 +169,21 @@ class WafflePreviewWindow(NOSAWindow):
             H = by1 - by0
             total_area = W * H
 
-            intereje = self.params.get('intereje', 800) / 1000.0
-            ancho    = self.params.get('ancho_nervio', 120) / 1000.0
-            canto    = self.params.get('canto', 300) / 1000.0
-            losa     = self.params.get('losa', 50) / 1000.0
+            grid_spacing = self.params.get('intereje', 800) / 1000.0
+            width    = self.params.get('ancho_nervio', 120) / 1000.0
+            depth    = self.params.get('canto', 300) / 1000.0
+            slab     = self.params.get('losa', 50) / 1000.0
 
             # Void fraction
-            caseton = intereje - ancho
-            void_frac = (caseton / intereje) ** 2
+            void_former = grid_spacing - width
+            void_frac = (void_former / grid_spacing) ** 2
 
             # Concrete = (total - voids) × depth + compression_slab × total
-            concrete_m3 = total_area * (1 - void_frac) * canto + total_area * losa
+            concrete_m3 = total_area * (1 - void_frac) * depth + total_area * slab
             # Formwork = bottom face of voids + side faces of ribs
-            n_voids_x = max(1, int(W / intereje))
-            n_voids_y = max(1, int(H / intereje))
-            formwork_m2 = (n_voids_x * n_voids_y * caseton * caseton +  # void bottoms
+            n_voids_x = max(1, int(W / grid_spacing))
+            n_voids_y = max(1, int(H / grid_spacing))
+            formwork_m2 = (n_voids_x * n_voids_y * void_former * void_former +  # void bottoms
                            total_area * (1 - void_frac))                  # rib sides approx
 
             self.TxtQuant.Text = (

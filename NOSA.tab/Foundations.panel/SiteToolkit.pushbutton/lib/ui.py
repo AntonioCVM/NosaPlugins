@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import io, csv, os, sys, imp
+import io, csv, os, sys
 
 from pyrevit import forms
 from System.Collections.ObjectModel import ObservableCollection
@@ -11,7 +11,8 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_st_logic = imp.load_source('st_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_st_logic = load_module('st_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 def _fmt(val, decimals=0):
@@ -129,7 +130,8 @@ class SiteToolkitWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(header)
                 for row in rows:

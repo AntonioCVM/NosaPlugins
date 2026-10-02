@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -25,7 +27,7 @@ def _read_version():
         mt = datetime.datetime.fromtimestamp(os.path.getmtime(vfile))
         date = u'{} {}'.format(_MONTHS[mt.month - 1], mt.year)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_read_version')
     return ver, date
 
 
@@ -114,7 +116,7 @@ class NOSADashboardWindow(NOSAWindow):
                 elif item.endswith('.pulldown'):
                     count += NOSADashboardWindow._count_recursive(full)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'NOSADashboardWindow._count_recursive')
         return count
 
     @staticmethod
@@ -138,14 +140,14 @@ class NOSADashboardWindow(NOSAWindow):
                                         version = _ln.split('=', 1)[1].strip().strip('"\'')
                                         break
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'NOSADashboardWindow._collect_plugins')
                     result.append(PluginItem(panel_label, name, version))
                 elif item.endswith('.pulldown'):
                     sub = item.replace('.pulldown', '')
                     NOSADashboardWindow._collect_plugins(
                         full, u'{} / {}'.format(panel_label, sub), result)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'NOSADashboardWindow._collect_plugins')
 
     def _get_panels_info(self):
         tab = self._nosa_tab()
@@ -181,7 +183,7 @@ class NOSADashboardWindow(NOSAWindow):
                                 rel = os.path.relpath(path, self._root).replace('\\', '/')
                                 hits.append('{}:{}'.format(rel, i))
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'NOSADashboardWindow._scan_bad_db_imports')
         return hits
 
     def _get_all_plugins(self):
@@ -278,7 +280,7 @@ class NOSADashboardWindow(NOSAWindow):
                 try:
                     p.Kill()
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'NOSADashboardWindow._git_info')
                 return u'git timed out'
             out = p.StandardOutput.ReadToEnd().strip()
             return u'last commit: {}'.format(out) if out else u'git returned nothing'
@@ -394,7 +396,7 @@ class NOSADashboardWindow(NOSAWindow):
             try:
                 self.TxtErrorLog.ScrollToEnd()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'NOSADashboardWindow._populate_errors')
         except Exception as e:
             self.TxtErrorLog.Text = u'Could not read log: {}'.format(e)
             self.TxtErrorCount.Text = u''
@@ -421,7 +423,7 @@ class NOSADashboardWindow(NOSAWindow):
                 from pyrevit import forms
                 forms.alert(u'Could not clear log: {}'.format(e))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'NOSADashboardWindow.ClearErrors_Click')
 
     def OpenLogFolder_Click(self, sender, args):
         try:
@@ -430,7 +432,7 @@ class NOSADashboardWindow(NOSAWindow):
             if os.path.isdir(folder):
                 subprocess.Popen('explorer "{}"'.format(folder))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'NOSADashboardWindow.OpenLogFolder_Click')
 
     def ResetUsage_Click(self, sender, args):
         try:
@@ -446,7 +448,7 @@ class NOSADashboardWindow(NOSAWindow):
                 from pyrevit import forms
                 forms.alert(u'Reset error: {}'.format(e))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'NOSADashboardWindow.ResetUsage_Click')
 
     # ------------------------------------------------------------------
     # Events
@@ -459,7 +461,7 @@ class NOSADashboardWindow(NOSAWindow):
             try:
                 getattr(self, btn_name).Tag = ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'NOSADashboardWindow.Nav_Click')
         clicked = sender.Name
         if clicked in self._panels:
             self._panels[clicked].Visibility = vis.Visible

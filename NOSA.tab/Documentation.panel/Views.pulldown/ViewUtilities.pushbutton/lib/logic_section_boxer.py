@@ -8,12 +8,15 @@
 # instead of running a standalone script.
 import os
 import sys
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.revit_helpers import element_name
 
 from Autodesk.Revit import DB
 from pyrevit import forms
@@ -43,7 +46,7 @@ def _union_bbox(elements, view=None):
                 mins.append(bb.Min)
                 maxs.append(bb.Max)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_union_bbox')
     if not mins:
         return None
     min_x = min(p.X for p in mins)
@@ -95,7 +98,7 @@ def create_section_box(doc, uidoc):
         t.Start()
         view3d = DB.View3D.CreateIsometric(doc, vt_3d.Id)
         view3d.Name = u'NOSA — Section Box {}'.format(
-            ', '.join(doc.GetElement(eid).Name
+            ', '.join(element_name(doc.GetElement(eid))
                       for eid in sel_ids[:2]
                       if doc.GetElement(eid) is not None))[:60]
 

@@ -7,6 +7,8 @@ Provides common user interface functions and helpers.
 from pyrevit import forms, script
 import os
 import json
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.ui_helpers'
 
 # =============================================================================
 # PROGRESS REPORTING
@@ -188,7 +190,7 @@ class ConfigHelper:
             try:
                 os.makedirs(self.config_dir)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ConfigHelper.__init__')
         
         self.config_file = os.path.join(
             self.config_dir,
@@ -230,7 +232,7 @@ class ConfigHelper:
                 with open(self.config_file, 'r') as f:
                     return json.load(f)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ConfigHelper.load')
         
         return defaults
     

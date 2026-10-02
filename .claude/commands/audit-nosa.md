@@ -16,7 +16,7 @@ Scans every plugin in the extension and produces a prioritised report of all vio
 - `{Binding type}` in XAML → Python keyword collision
 - `{Binding _*}` in XAML → silent WPF binding failure
 - Wrong sys.path depth (e.g. 4 `..` in a pulldown that needs 5)
-- `nosa_utils.loader.load_local_module` → can fail silently, use `imp.load_source`
+- `nosa_utils.loader.load_local_module` (can fail silently) or bare `imp.load_source` → use `nosa_utils.bootstrap.load_module`
 
 ### High (break visually or functionally)
 - Spanish UI strings in TextBlock/TextBox/Button content

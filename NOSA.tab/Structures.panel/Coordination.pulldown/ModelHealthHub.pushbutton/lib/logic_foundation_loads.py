@@ -269,7 +269,8 @@ def export_csv(rows, path):
                'N (kN)', 'Vx (kN)', 'Vy (kN)', 'Mx (kN·m)', 'My (kN·m)', 'Nodes']
     keys    = ['id', 'mark', 'etype', 'level', 'loc',
                'N_kN', 'Vx_kN', 'Vy_kN', 'Mx_kNm', 'My_kNm', 'nodes']
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(headers)
         for r in rows:

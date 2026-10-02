@@ -2,12 +2,15 @@
 import os, sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sheetgen'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.collectors import collect_views, placed_view_ids
 from nosa_utils import unit_conversion as _uc10
 
 _MM_TO_FT = _uc10.MM_TO_FT
@@ -22,36 +25,22 @@ def _placeable_types():
         try:
             result.add(getattr(DB.ViewType, n))
         except AttributeError:
-            pass
+            log_swallowed(_LOG, u'_placeable_types')
     return result
-
-
-def _placed_ids(doc):
-    placed = set()
-    for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet).ToElements():
-        try:
-            for vid in sheet.GetAllPlacedViews():
-                placed.add(get_id_value(vid))
-        except Exception:
-            pass
-    return placed
 
 
 def unplaced_views(doc):
     """Placeable model/drafting views not on any sheet."""
-    placed = _placed_ids(doc)
-    ok_types = _placeable_types()
+    placed = placed_view_ids(doc, all_placed=True)
     result = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, include_types=_placeable_types()):
         try:
-            if v.IsTemplate or v.ViewType not in ok_types:
-                continue
             if get_id_value(v.Id) in placed:
                 continue
             result.append({'view': v, 'name': v.Name or u'',
                            'type': str(v.ViewType).split('.')[-1]})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'unplaced_views')
     result.sort(key=lambda r: (r['type'], r['name'].lower()))
     return result
 
@@ -62,12 +51,11 @@ def legend_views(doc):
         legend_t = DB.ViewType.Legend
     except AttributeError:
         return result
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, include_types=(legend_t,)):
         try:
-            if not v.IsTemplate and v.ViewType == legend_t:
-                result.append({'view': v, 'name': v.Name or u''})
+            result.append({'view': v, 'name': v.Name or u''})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'legend_views')
     result.sort(key=lambda r: r['name'].lower())
     return result
 
@@ -81,7 +69,7 @@ def real_sheets(doc):
             result.append({'sheet': s,
                            'label': u'{} — {}'.format(s.SheetNumber, s.Name)})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'real_sheets')
     result.sort(key=lambda r: r['label'].lower())
     return result
 
@@ -94,7 +82,7 @@ def placeholder_sheets(doc):
                 result.append({'sheet': s, 'number': s.SheetNumber or u'',
                                'name': s.Name or u''})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'placeholder_sheets')
     result.sort(key=lambda r: r['number'])
     return result
 
@@ -115,7 +103,7 @@ def _taken_numbers(doc):
         try:
             taken.add((s.SheetNumber or u'').lower())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_taken_numbers')
     return taken
 
 
@@ -142,7 +130,7 @@ def create_sheets_with_views(doc, views, tb_id, prefix, start, pad,
                 try:
                     sheet.Name = view.Name if name_from_view else (fixed_name or view.Name)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_sheets_with_views')
                 if DB.Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id):
                     u0, v0, u1, v1 = _sheet_rect(sheet)
                     centre = DB.XYZ((u0 + u1) / 2.0, (v0 + v1) / 2.0, 0)
@@ -238,7 +226,7 @@ def create_placeholders(doc, prefix, start, count, pad, name):
                 try:
                     ph.Name = name or u'PLACEHOLDER'
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_placeholders')
                 created += 1
                 n += 1
             except Exception as ex:
@@ -269,7 +257,7 @@ def convert_placeholders(doc, placeholders, tb_id):
                 try:
                     sheet.Name = name
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'convert_placeholders')
                 converted += 1
             except Exception as ex:
                 failed += 1

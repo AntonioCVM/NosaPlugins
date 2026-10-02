@@ -5,6 +5,8 @@ Data retrieval utilities for pilecap creation in Revit.
 from pyrevit import revit
 from Autodesk.Revit import DB
 import sys
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilecap_utils.data_retrieval'
 
 # Constants
 OST_STRUCTURAL_FOUNDATION = -2001300
@@ -12,9 +14,12 @@ OST_STRUCTURAL_FOUNDATION = -2001300
 # Helper to import from parent lib if needed (assuming nosa_utils is in path)
 # NOSA utils are expected to be in sys.path
 try:
-    from nosa_utils.revit_helpers import get_id_value
+    from nosa_utils.revit_helpers import get_id_value, element_name
     from nosa_utils.unit_conversion import feet_to_mm
 except ImportError:
+    def element_name(element):
+        return getattr(element, 'Name', None) or u''
+
     def feet_to_mm(val):
         return val * 304.8
 
@@ -47,7 +52,7 @@ def get_slab_thickness(slab_type):
             if thickness_param and thickness_param.HasValue:
                 return feet_to_mm(thickness_param.AsDouble())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_slab_thickness')
         
         # Metodo 2: Buscar por nombre o ID
         for param in slab_type.Parameters:
@@ -66,7 +71,7 @@ def get_slab_thickness(slab_type):
             if default_thickness_param and default_thickness_param.HasValue:
                 return feet_to_mm(default_thickness_param.AsDouble())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_slab_thickness')
             
     except Exception as e:
         print("Advertencia: No se pudo obtener el espesor del tipo de losa: {}".format(str(e)))
@@ -100,17 +105,16 @@ def get_foundation_slab_types():
                             if type_name_param and type_name_param.HasValue:
                                 type_name = type_name_param.AsString()
                             else:
-                                if hasattr(floor_type, 'Name'):
-                                    type_name = floor_type.Name
+                                type_name = element_name(floor_type) or type_name
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'get_foundation_slab_types')
                         
                         family_name = 'Unknown'
                         try:
                             if floor_type.Family:
                                 family_name = floor_type.Family.Name
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'get_foundation_slab_types')
                         
                         # Excluir "Pile Cap" y buscar solo Foundation Slabs
                         if "pile cap" not in type_name.lower() and "pile cap" not in family_name.lower():
@@ -138,17 +142,16 @@ def get_foundation_slab_types():
                         if type_name_param and type_name_param.HasValue:
                             type_name = type_name_param.AsString()
                         else:
-                            if hasattr(floor_type, 'Name'):
-                                type_name = floor_type.Name
+                            type_name = element_name(floor_type) or type_name
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_foundation_slab_types')
                     
                     family_name = 'Unknown'
                     try:
                         if floor_type.Family:
                             family_name = floor_type.Family.Name
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_foundation_slab_types')
                     
                     type_name_lower = type_name.lower()
                     family_name_lower = family_name.lower()
@@ -218,10 +221,9 @@ def get_pile_types():
                             if symbol_name_param and symbol_name_param.HasValue:
                                 symbol_name = symbol_name_param.AsString()
                             else:
-                                if hasattr(symbol, 'Name'):
-                                    symbol_name = symbol.Name
+                                symbol_name = element_name(symbol) or symbol_name
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_pile_types')
                     
                     if 'pile cap' in family_name.lower() or 'pile cap' in symbol_name.lower():
                         continue
@@ -235,7 +237,7 @@ def get_pile_types():
                         if not symbol.IsActive:
                             symbol.Activate()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_pile_types')
                     
                     pile_options.append(display_name)
                     pile_dict[display_name] = get_id_value(symbol.Id)
@@ -313,7 +315,7 @@ def get_pile_height(pile_family_symbol):
                 if param.HasValue:
                     return param.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_pile_height')
     return None
 
 def get_pile_min_embedment(pile_family_symbol):
@@ -329,5 +331,5 @@ def get_pile_min_embedment(pile_family_symbol):
                 if param.HasValue and param.StorageType == DB.StorageType.Double:
                     return feet_to_mm(param.AsDouble())
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_pile_min_embedment')
     return 0.0

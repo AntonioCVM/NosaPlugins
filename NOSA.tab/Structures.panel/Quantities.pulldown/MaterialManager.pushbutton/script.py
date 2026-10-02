@@ -23,6 +23,9 @@ from pyrevit import revit
 lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
+_ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
+if _ext_lib not in sys.path:
+    sys.path.insert(0, _ext_lib)
 
 from nosa_utils.base_window import launch_nosa_window
 
@@ -32,7 +35,8 @@ def _lm(n, p):
         s = _iu.spec_from_file_location(n, p); m = _iu.module_from_spec(s)
         sys.modules[n] = m; s.loader.exec_module(m); return m
     except (ImportError, AttributeError):
-        import imp; m = imp.load_source(n, p); sys.modules[n] = m; return m
+        from nosa_utils.bootstrap import load_module
+        m = load_module(n, p); sys.modules[n] = m; return m
 
 ui_module = _lm('materialmanager_ui_local', os.path.join(lib_path, 'ui.py'))
 MaterialManagerWindow = ui_module.MaterialManagerWindow

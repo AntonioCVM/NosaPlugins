@@ -10,6 +10,8 @@ import io, os, json, datetime
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from pyrevit import revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
@@ -93,7 +95,7 @@ def add_revision_to_sheets(doc, revision_id, sheet_ids):
                     sheet.AddRevision(revision_id)
                     count += 1
             except Exception:
-                pass
+                log_swallowed(_LOG, u'add_revision_to_sheets')
     return count
 
 
@@ -108,7 +110,7 @@ def remove_revision_from_sheets(doc, revision_id, sheet_ids):
                     sheet.RemoveRevision(revision_id)
                     count += 1
             except Exception:
-                pass
+                log_swallowed(_LOG, u'remove_revision_from_sheets')
     return count
 
 
@@ -163,7 +165,7 @@ def load_auto_rules(doc_title=''):
                 data = json.load(f)
             return data.get(doc_title, [])
     except Exception:
-        pass
+        log_swallowed(_LOG, u'load_auto_rules')
     return []
 
 
@@ -208,7 +210,7 @@ def apply_auto_rules(doc, rules):
                     target_rev = rv
                     break
             except Exception:
-                pass
+                log_swallowed(_LOG, u'apply_auto_rules')
         if target_rev is None:
             report.append({'prefix': prefix, 'revision_desc': rev_desc,
                            'assigned': 0, 'skipped': 0,
@@ -301,7 +303,7 @@ def _element_snapshot(el, cat_name):
         try:
             params[str(bip)] = _param_value(el, bip)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_element_snapshot')
     loc = None
     try:
         if isinstance(el.Location, DB.LocationPoint):
@@ -311,7 +313,7 @@ def _element_snapshot(el, cat_name):
             p0 = el.Location.Curve.GetEndPoint(0)
             loc = (round(p0.X, 3), round(p0.Y, 3), round(p0.Z, 3))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_element_snapshot')
     return {
         'id':       get_id_value(el.Id),
         'name':     getattr(el, 'Name', ''),
@@ -360,7 +362,7 @@ def list_snapshots():
                 'count': d.get('count', 0),
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'list_snapshots')
     return snaps
 
 

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-import os, sys, imp
+import os, sys
 import System.Windows
 import System.Windows.Media
 from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewoverrides'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -15,8 +17,9 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 
 _here      = os.path.dirname(os.path.abspath(__file__))
-_vf_logic  = imp.load_source('vo_vf_logic', os.path.join(_here, 'logic_view_filter_batch.py'))
-_cbp_logic = imp.load_source('vo_cbp_logic', os.path.join(_here, 'logic_colour_by_param.py'))
+from nosa_utils.bootstrap import load_module
+_vf_logic  = load_module('vo_vf_logic', os.path.join(_here, 'logic_view_filter_batch.py'))
+_cbp_logic = load_module('vo_cbp_logic', os.path.join(_here, 'logic_colour_by_param.py'))
 
 _ALL_TYPES  = u'All Types'
 _SEARCH_VP  = u'Search views...'
@@ -55,6 +58,13 @@ class ViewOverridesWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'view_overrides')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.VF_CboSourceView.SelectionChanged += self.VF_SourceView_Changed
+        self.VF_LstFilters.SelectionChanged += self.VF_FilterList_SelectionChanged
+        self.VF_CboViewType.SelectionChanged += self.VF_ViewType_Changed
+        self.VF_GridViews.SelectionChanged += self.VF_ViewGrid_SelectionChanged
+        self.CP_CmbCategory.SelectionChanged += self.CP_Category_Changed
+        self.CP_CmbParam.SelectionChanged += self.CP_Param_Changed
         self.doc   = doc
         self.uidoc = revit.uidoc
 
@@ -321,7 +331,7 @@ class ViewOverridesWindow(NOSAWindow):
             try:
                 vr.FilterCount = len(list(vr.View.GetFilters()))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ViewOverridesWindow._vf_reload_counts')
         self.VF_GridViews.Items.Refresh()
 
     # ══════════════════════════════════════════════════════════════════

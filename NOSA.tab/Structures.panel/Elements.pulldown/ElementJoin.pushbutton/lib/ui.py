@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import imp
 import io
 import os
 import sys
@@ -9,6 +8,8 @@ import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'elementjoin'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -17,7 +18,8 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
-_logic = imp.load_source('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 # ── Data rows ────────────────────────────────────────────────────────────────
@@ -173,7 +175,7 @@ class ElementJoinWindow(NOSAWindow):
             name = getattr(self._picked_a, 'Name', str(self._picked_a.Id)) if self._picked_a else "None"
             self.TxtPickedA.Text = "A: {}".format(name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementJoinWindow.PickA_Click')
         self.Show()
 
     def PickB_Click(self, sender, args):
@@ -185,7 +187,7 @@ class ElementJoinWindow(NOSAWindow):
             name = getattr(self._picked_b, 'Name', str(self._picked_b.Id)) if self._picked_b else "None"
             self.TxtPickedB.Text = "B: {}".format(name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementJoinWindow.PickB_Click')
         self.Show()
 
     # ── main run ─────────────────────────────────────────────────────────────
@@ -266,7 +268,7 @@ class ElementJoinWindow(NOSAWindow):
                                 })
                                 break
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'ElementJoinWindow._run_batch')
             else:
                 elements = _logic.collect_joinable_elements(self.doc, cats)
         except Exception as e:
@@ -338,7 +340,8 @@ class ElementJoinWindow(NOSAWindow):
         if not path:
             return
         try:
-            with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+            with io.open(path, 'w', encoding='utf-8', newline='') as f:
+                f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
                 w = csv.writer(f)
                 w.writerow(['Status', 'Category A', 'Element A', 'Category B', 'Element B', 'Note'])
                 for r in self._rows:

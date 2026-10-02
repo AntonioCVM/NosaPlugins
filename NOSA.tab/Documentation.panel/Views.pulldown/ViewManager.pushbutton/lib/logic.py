@@ -2,12 +2,16 @@
 import os, sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewmanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.collectors import (apply_view_template, collect_view_templates,
+                                   collect_views, placed_view_ids)
 from nosa_utils import unit_conversion as _uc10
 
 
@@ -21,7 +25,7 @@ def get_levels(doc):
         try:
             levels.append((lv.Id, lv.Name, lv.Elevation))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_levels')
     levels.sort(key=lambda x: x[2])
     return levels
 
@@ -33,7 +37,7 @@ def get_plan_view_family_types(doc):
         try:
             wanted.append(getattr(DB.ViewFamily, name))
         except AttributeError:
-            pass
+            log_swallowed(_LOG, u'get_plan_view_family_types')
     result = []
     for vft in (DB.FilteredElementCollector(doc)
                   .OfClass(DB.ViewFamilyType).ToElements()):
@@ -43,12 +47,12 @@ def get_plan_view_family_types(doc):
             fam = str(vft.ViewFamily).split('.')[-1]
             try:
                 p = vft.get_Parameter(DB.BuiltInParameter.ALL_MODEL_TYPE_NAME)
-                tname = (p.AsString() if p else None) or vft.Name
+                tname = (p.AsString() if p else None) or element_name(vft)
             except Exception:
                 tname = str(get_id_value(vft.Id))
             result.append((vft.Id, u'{} : {}'.format(fam, tname)))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_plan_view_family_types')
     result.sort(key=lambda x: x[1].lower())
     return result
 
@@ -59,7 +63,7 @@ def _existing_view_names(doc):
         try:
             names.add((v.Name or u'').lower())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_existing_view_names')
     return names
 
 
@@ -93,18 +97,16 @@ def create_plan_views(doc, level_ids, vft_id, name_pattern,
                 try:
                     view.Name = _unique_name(base, taken)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_plan_views')
                 if scale:
                     try:
                         view.Scale = int(scale)
                     except Exception:
-                        pass
-                if template_id is not None and \
-                        template_id != DB.ElementId.InvalidElementId:
-                    try:
-                        view.ViewTemplateId = template_id
-                    except Exception:
-                        pass
+                        log_swallowed(_LOG, u'create_plan_views')
+                try:
+                    apply_view_template(view, template_id)
+                except Exception:
+                    log_swallowed(_LOG, u'create_plan_views')
                 created += 1
             except Exception as ex:
                 failed += 1
@@ -154,7 +156,7 @@ def duplicate_views(doc, view_ids, mode='duplicate', copies=1, name_pattern=u'{n
                     try:
                         new_view.Name = _unique_name(base, taken)
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'duplicate_views')
                     created += 1
             except Exception as ex:
                 failed += 1
@@ -165,24 +167,12 @@ def duplicate_views(doc, view_ids, mode='duplicate', copies=1, name_pattern=u'{n
 
 # ── Unplaced views (Clean tab) ─────────────────────────────────────────────────
 
-def _placed_view_ids(doc):
-    placed = set()
-    for sheet in (DB.FilteredElementCollector(doc)
-                    .OfClass(DB.ViewSheet).ToElements()):
-        try:
-            for vid in sheet.GetAllPlacedViews():
-                placed.add(get_id_value(vid))
-        except Exception:
-            pass
-    return placed
-
-
 def unplaced_views(doc):
     """
     Views not placed on any sheet (excluding templates, sheets, schedules,
     legends, and system browser views). Returns list of dicts.
     """
-    placed = _placed_view_ids(doc)
+    placed = placed_view_ids(doc, all_placed=True)
     skip_types = set()
     for name in ('Schedule', 'ColumnSchedule', 'PanelSchedule', 'Legend',
                  'DrawingSheet', 'ProjectBrowser', 'SystemBrowser',
@@ -190,13 +180,11 @@ def unplaced_views(doc):
         try:
             skip_types.add(getattr(DB.ViewType, name))
         except AttributeError:
-            pass
+            log_swallowed(_LOG, u'unplaced_views')
     result = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_views(doc, exclude_types=skip_types):
         try:
-            if v.IsTemplate or isinstance(v, DB.ViewSheet):
-                continue
-            if v.ViewType in skip_types:
+            if isinstance(v, DB.ViewSheet):
                 continue
             vid = get_id_value(v.Id)
             if vid in placed:
@@ -208,7 +196,7 @@ def unplaced_views(doc):
                 'type':   str(v.ViewType).split('.')[-1],
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'unplaced_views')
     result.sort(key=lambda r: (r['type'], r['name'].lower()))
     return result
 
@@ -245,10 +233,10 @@ def sheet_map(doc):
                 if p:
                     det = p.AsString() or u''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'sheet_map')
             result[get_id_value(vp.ViewId)] = {'sheet': snum, 'detail': det}
         except Exception:
-            pass
+            log_swallowed(_LOG, u'sheet_map')
     return result
 
 
@@ -264,7 +252,7 @@ def set_detail_numbers(doc, updates):
         try:
             vp_by_view[get_id_value(vp.ViewId)] = vp
         except Exception:
-            pass
+            log_swallowed(_LOG, u'set_detail_numbers')
 
     ok = failed = 0
     errors = []
@@ -297,13 +285,12 @@ def get_all_view_templates(doc):
     [(ElementId, label)] sorted by name.
     """
     result = []
-    for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+    for v in collect_view_templates(doc):
         try:
-            if v.IsTemplate:
-                result.append((v.Id, u'{}  [{}]'.format(
-                    v.Name or u'(unnamed)', str(v.ViewType).split('.')[-1])))
+            result.append((v.Id, u'{}  [{}]'.format(
+                v.Name or u'(unnamed)', str(v.ViewType).split('.')[-1])))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_view_templates')
     result.sort(key=lambda x: x[1].lower())
     return result
 
@@ -333,19 +320,19 @@ def set_view_properties(doc, view_ids, scale=None, detail_level=None,
                         v.Scale = int(scale)
                         touched = True
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'set_view_properties')
                 if detail_level:
                     try:
                         v.DetailLevel = getattr(DB.ViewDetailLevel, detail_level)
                         touched = True
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'set_view_properties')
                 if discipline:
                     try:
                         v.Discipline = getattr(DB.ViewDiscipline, discipline)
                         touched = True
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'set_view_properties')
                 if touched:
                     ok += 1
                 else:
@@ -372,7 +359,7 @@ def _vft_by_family(doc, family_name):
             if vft.ViewFamily == wanted:
                 return vft
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_vft_by_family')
     return None
 
 
@@ -403,7 +390,7 @@ def create_3d_per_level(doc, name_pattern=u'{level} - 3D'):
                 try:
                     view.Name = _unique_name(base, taken)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_3d_per_level')
                 bb = DB.BoundingBoxXYZ()
                 bb.Min = DB.XYZ(-big, -big, elev)
                 bb.Max = DB.XYZ(big, big, top)
@@ -434,12 +421,12 @@ def create_drafting_views(doc, count, name_pattern=u'DRAFTING {n}', scale=None):
                 try:
                     view.Name = _unique_name(base, taken)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_drafting_views')
                 if scale:
                     try:
                         view.Scale = int(scale)
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'create_drafting_views')
                 created += 1
             except Exception as ex:
                 failed += 1
@@ -461,7 +448,7 @@ def export_view_preview(doc, view, folder):
         try:
             os.remove(old)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'export_view_preview')
     opts = DB.ImageExportOptions()
     opts.ExportRange = DB.ExportRange.SetOfViews
     ids = _List[DB.ElementId]()

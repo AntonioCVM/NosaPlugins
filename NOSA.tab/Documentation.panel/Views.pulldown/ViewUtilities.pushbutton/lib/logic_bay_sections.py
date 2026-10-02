@@ -7,6 +7,8 @@ import os
 import sys
 from Autodesk.Revit import DB
 import math
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -30,7 +32,7 @@ def get_grids(doc):
                 'is_arc': isinstance(curve, DB.Arc),
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_grids')
     return sorted(result, key=lambda x: x['name'])
 
 
@@ -41,7 +43,7 @@ def safe_element_name(el):
         if n:
             return n
     except Exception:
-        pass
+        log_swallowed(_LOG, u'safe_element_name')
     for bip in (DB.BuiltInParameter.SYMBOL_NAME_PARAM,
                 DB.BuiltInParameter.ALL_MODEL_TYPE_NAME,
                 DB.BuiltInParameter.VIEW_NAME):
@@ -52,7 +54,7 @@ def safe_element_name(el):
                 if v:
                     return v
         except Exception:
-            pass
+            log_swallowed(_LOG, u'safe_element_name')
     return u'Type {}'.format(get_id_value(el.Id))
 
 
@@ -115,7 +117,7 @@ def _get_model_extents(doc):
                     maxs.append(bb.Max)
                     count += 1
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_get_model_extents')
         if not mins:
             return -100, 100, -100, 100, -10, 50  # defaults in feet
         min_x = min(p.X for p in mins)
@@ -153,7 +155,7 @@ def create_section_view(doc, view_type_id, origin, look_dir, up_dir,
     try:
         view.Name = view_name[:60]
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_section_view')
     return view
 
 
@@ -203,7 +205,7 @@ def create_bay_sections(doc, grid_a_id, grid_b_id, section_type_id,
                                  u'{} Long'.format(name_ab))
         created.append(v1.Id)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_bay_sections')
 
     # Transverse section (perpendicular to grid A)
     try:
@@ -213,6 +215,6 @@ def create_bay_sections(doc, grid_a_id, grid_b_id, section_type_id,
                                  u'{} Trans'.format(name_ab))
         created.append(v2.Id)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_bay_sections')
 
     return created

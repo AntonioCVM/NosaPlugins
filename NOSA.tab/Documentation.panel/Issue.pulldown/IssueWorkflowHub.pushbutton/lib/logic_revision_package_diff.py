@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import csv
 import json
 import os
 import sys
@@ -9,6 +8,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'IssueWorkflowHub'
 
 
 def snapshot_revisions(doc):
@@ -38,9 +39,9 @@ def snapshot_revisions(doc):
                     'rev_desc': _pstr(u'Current Revision Description'),
                 }
             except Exception:
-                pass
+                log_swallowed(_LOG, u'snapshot_revisions')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'snapshot_revisions')
     return result
 
 
@@ -100,16 +101,7 @@ def diff_snapshots(baseline, current):
 def export_transmittal_csv(diffs, path):
     """Export only changed/new sheets to a CSV transmittal list."""
     rows = [r for r in diffs if r['change'] != u'Unchanged']
-    with open(path, 'wb') as f:
-        w = csv.writer(f)
-        w.writerow(['Sheet No', 'Sheet Name', 'Change', 'Previous Rev', 'New Rev', 'Date', 'Description'])
-        for r in rows:
-            w.writerow([
-                r['number'].encode('utf-8'),
-                r['name'].encode('utf-8'),
-                r['change'].encode('utf-8'),
-                r['old_rev'].encode('utf-8'),
-                r['new_rev'].encode('utf-8'),
-                r['new_date'].encode('utf-8'),
-                r['new_desc'].encode('utf-8'),
-            ])
+    from nosa_utils.export_io import write_csv
+    write_csv(path, ['Sheet No', 'Sheet Name', 'Change', 'Previous Rev', 'New Rev', 'Date', 'Description'],
+              [[r['number'], r['name'], r['change'], r['old_rev'], r['new_rev'], r['new_date'], r['new_desc']]
+               for r in rows])

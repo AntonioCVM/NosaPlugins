@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 import os
 import sys
-import imp
 
 import System
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
 from System.Collections.ObjectModel import ObservableCollection
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'elementcommentshub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', 'lib'))
@@ -16,8 +17,9 @@ if _lib not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 
 _here = os.path.dirname(os.path.abspath(__file__))
-_logic = imp.load_source('elc_logic', os.path.join(_here, 'logic.py'))
-_dmu = imp.load_source('elc_logic_dmu', os.path.join(_here, 'logic_dmu.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('elc_logic', os.path.join(_here, 'logic.py'))
+_dmu = load_module('elc_logic_dmu', os.path.join(_here, 'logic_dmu.py'))
 
 
 class GroupRow(object):
@@ -152,11 +154,11 @@ class ElementCommentsHubWindow(NOSAWindow):
                 try:
                     self._refresh_preview()
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'ElementCommentsHubWindow._do_refresh')
             self.GridGroups.Dispatcher.BeginInvoke(
                 _swt.DispatcherPriority.Background, System.Action(_do_refresh))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementCommentsHubWindow.Groups_CellEdit')
 
     def OnlyEmpty_Changed(self, sender, args):
         self._refresh_preview()
@@ -198,7 +200,7 @@ class ElementCommentsHubWindow(NOSAWindow):
             for item in self._auto_cat_items():
                 item.IsChecked = item.Key in wanted
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementCommentsHubWindow._restore_auto_state')
 
     def _auto_cat_items(self):
         return list(self.ListAutoCategories.ItemsSource or [])
@@ -218,7 +220,7 @@ class ElementCommentsHubWindow(NOSAWindow):
                 self.TxtAutoStatus.Text = (
                     u'Inactive — enable to auto-assign Comments when elements are placed.')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementCommentsHubWindow._apply_auto_ui')
 
     def AutoInit(self):
         """Called once after XAML load to seed the Automatic-tab category list."""
@@ -243,7 +245,7 @@ class ElementCommentsHubWindow(NOSAWindow):
             cfg['categories'] = cats
             _dmu.write_config(cfg)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementCommentsHubWindow.AutoCategoryCheck_Changed')
 
     # ── shared ────────────────────────────────────────────────────────────
 

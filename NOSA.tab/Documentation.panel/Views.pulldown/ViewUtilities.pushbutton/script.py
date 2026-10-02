@@ -6,7 +6,7 @@ __doc__     = ("Align view titles, generate bay sections, navigate levels, "
                "section-box actions — all in one hub.")
 __author__  = "A. Viñas"
 
-import os, sys, imp
+import os, sys
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -14,7 +14,8 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import launch_nosa_window
 
-_ui = imp.load_source('viewutilities_ui',
+from nosa_utils.bootstrap import load_module
+_ui = load_module('viewutilities_ui',
                       os.path.join(os.path.dirname(__file__), 'lib', 'ui.py'))
 
 from pyrevit import revit

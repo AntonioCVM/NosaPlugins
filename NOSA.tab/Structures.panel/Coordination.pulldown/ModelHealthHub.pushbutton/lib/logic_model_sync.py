@@ -220,7 +220,8 @@ def export_csv(results, path):
             'calc_len', 'revit_len',
             'calc_level', 'revit_level',
             'revit_id']
-    with io.open(path, 'w', encoding='utf-8-sig', newline='') as f:
+    with io.open(path, 'w', encoding='utf-8', newline='') as f:
+        f.write(u'\ufeff')  # one BOM: 'utf-8-sig' repeats it on every write in IronPython
         w = csv.writer(f)
         w.writerow(headers)
         for r in results:

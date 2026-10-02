@@ -66,6 +66,8 @@ import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 # PHASE F2 — same sys.path convention as rebar_batch.py: this module can
 # be loaded standalone (a legacy phase test script, or a stub-Revit dev
@@ -109,12 +111,6 @@ _MM_PER_FT = 304.8
 # the smaller margin was still occasionally insufficient.
 _AXIS_CLAMP_EPSILON_MM = 5.0
 _AXIS_CLAMP_EPSILON_FT = _AXIS_CLAMP_EPSILON_MM / _MM_PER_FT
-
-# PHASE 3.5.6 item 4 — how far inward from a stirrup zone's own
-# boundary the FIRST/LAST crosstie of that zone is inset, mm — see
-# build_crosstie_sets's own comment for why (zone boundaries are
-# exactly where a detected floor's own thickness was cut out).
-_CROSSTIE_Z_EPSILON_MM = 50.0
 
 # PHASE 3.5.9 item 4 — number of straight chords approximating a
 # circular column's tie (Revit rejects a closed 2-Arc loop outright —
@@ -495,7 +491,7 @@ def _lookup_length_param_mm(host, names):
         if symbol is not None:
             candidates.append(symbol)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_lookup_length_param_mm')
 
     for elem in candidates:
         for name in names:
@@ -2021,177 +2017,127 @@ def _subtract_floor_bands(zones, floor_bands_mm):
     return result
 
 
-def build_crosstie_sets(axis, u_dir, v_dir, half_w_mm, half_d_mm, n_u, n_v, zones,
-                         layout='all'):
+def interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout='all',
+                        bar_diameter_mm=20.0, link_diameter_mm=10.0, link_bend_diameter_mm=None):
     """
-    PHASE 3.4/3.5 item 5 — normative interior crossties ("grapas"):
-    once a column has bars BEYOND its 4 corners (any n_u or n_v > 2),
-    those intermediate bars have no stirrup leg directly restraining
-    them — a straight crosstie connecting each intermediate bar to its
-    DIRECT MIRROR across the section (same coordinate on the OTHER
-    axis, negated on its own) is the normative fix. One Rebar Set per
-    (crosstie pair, Z zone) — the SAME zones the main stirrups use
-    (post floor-band exclusion, see _subtract_floor_bands), so
-    crossties share the identical spacing/densification and likewise
-    never run through a floor's own thickness.
+    Plan layout (mm, column-local u/v) of the interior links and crossties that
+    restrain the intermediate (non-corner) vertical bars — 2026-10-02 redesign
+    after the user's review: every tie wraps the bars from OUTSIDE.
 
-    PHASE 3.5 item 2 (live-Revit fix): returned as INDIVIDUAL bars, one
-    per (pair, zone, spacing position) — NOT as a Rebar Set spec.
-    Earlier phases tried create_rebar_set (a Set has no hook slot) +
-    Rebar.SetHookTypeId afterwards to add normative 135°/90° hooks;
-    live testing confirmed Revit rejects that combination outright
-    ("hookTypeId is not valid") because SetHookTypeId only works on a
-    bar whose RebarShape already defines a hook end, which a plain
-    Set-propagated line does not. The mechanism that DOES work is
-    baking the hooks in AT creation via
-    RebarWrapper.create_from_curves(start_hook=, end_hook=) — proven
-    live for footing dowels — so crossties trade Set-grouping for
-    per-bar hook creation here specifically; this does not apply to
-    verticals/stirrups, which keep the Set architecture untouched.
+    Per axis, interior bars are paired outermost-inwards (1st with last, 2nd
+    with last-but-one...) by closed rectangular links whose legs pass outside
+    each bar; an odd middle bar gets a straight crosstie beside it whose
+    135 deg hooks wrap both opposite bars (one interior bar per side: two
+    crossed crossties). No diamond: to wrap a mid-side bar from outside its
+    corner must cross the main link's band, beyond the cover line, and Revit
+    squeezes and shifts any Stirrup/Tie that does (measured live 2026-10-02).
 
-    PHASE 3.5 — layout='alternate' ties only every OTHER intermediate
-    position per edge (position 0, 2, 4, ... of that edge's own
-    interior list) instead of every one — a common, code-permitted
-    relaxation for lightly-loaded columns; 'all' (the default) ties
-    every intermediate bar.
+    Every leg is (bar + link) / 2 + the bend-seat extra from the bar it holds,
+    where Revit seats a bar in a link's bend; the crosstie also runs D/2 past
+    the bars so its hooks wrap them. Revit re-seats a single vertical bar in
+    the hook of a crosstie around it: with this offset the bar stays at its
+    design position touching the tie (searched live over offset x run,
+    Revit 2024, 2026-10-02); a tangent crosstie dragged it 10 mm sideways and
+    20 mm inwards.
 
-    Args:
-        axis                  (DB.Line): column centreline.
-        u_dir, v_dir          (DB.XYZ): local cross-section axes.
-        half_w_mm, half_d_mm  (float): cross-section half-extents, mm —
-                              SAME convention as _face_groups /
-                              _perimeter_positions (cover + bar-radius
-                              inset already applied by the caller).
-        n_u, n_v              (int): bars per edge — see
-                              _perimeter_positions.
-        zones                 (list[dict]): {'start_mm','end_mm',
-                              'spacing_mm'} — post floor-band exclusion.
-        layout                ('all' or 'alternate'): which intermediate
-                              bars get tied — see above.
+    half_w_mm / half_d_mm are the vertical bar centre half-extents.
+    layout='alternate' restrains every other interior bar.
+    link_bend_diameter_mm: the link bar type's Stirrup/Tie bend diameter
+    (Revit RebarBarType.StirrupTieBendDiameter); 4 d when unknown.
 
     Returns:
-        {'crosstie_bars': [{'curve': DB.Line, 'normal': DB.XYZ}, ...],
-         'interior_stirrup_sets': [{'curves','normal','array_length_mm',
-                                     'spacing_mm','style'}, ...]}
-        — PHASE 3.5.8 item 2: 'interior_stirrup_sets' (one closed loop
-        per zone, Set-propagated exactly like the main stirrups) is
-        used INSTEAD OF 'crosstie_bars' whenever neither axis has more
-        than one genuinely interior position (see collapse_to_loop
-        below); otherwise 'interior_stirrup_sets' is empty and
-        'crosstie_bars' holds one entry per individual crosstie bar
-        (pair x evenly-spaced Z position across ALL zones, same
-        max-spacing convention as _evenly_spaced/
-        SetLayoutAsMaximumSpacing elsewhere in this module — a Z shared
-        by two adjacent zones' own boundary is emitted exactly ONCE,
-        Phase 3.5.3 item 1). Both are empty if the column has no
-        genuinely interior bars at all (n_u <= 2 and n_v <= 2 — only
-        the 4 corners, nothing to tie).
+        list of {'points': [(u, v), ...], 'closed': bool, 'kind': 'link' | 'crosstie',
+                 'toward': (du, dv) — crossties only: from the tie to the bars it wraps}
     """
     us = _edge_positions(-half_w_mm, half_w_mm, n_u)
     vs = _edge_positions(-half_d_mm, half_d_mm, n_v)
     us_interior = us[1:-1] if n_u > 2 else []
     vs_interior = vs[1:-1] if n_v > 2 else []
+    # Every leg sits where Revit seats a bar in a link's bend: touching the leg ((bar + link) / 2)
+    # plus the bend-seat extra of rebar_engine.link_corner_extra_inset_mm (2.9 mm for H20 in an
+    # H10 link on a 40 mm mandrel) — the main links already use it. Tangent legs (no extra) made
+    # Revit's 25 mm bend radius bite 3-5 mm into the bars (measured live, Revit 2024, 2026-10-02).
+    bend_r = (link_bend_diameter_mm or 4.0 * link_diameter_mm) / 2.0
+    bar_r = bar_diameter_mm / 2.0
+    extra = bend_r - (bend_r - bar_r) / math.sqrt(2.0) - bar_r if bend_r > bar_r else 0.0
+    r = (bar_diameter_mm + link_diameter_mm) / 2.0 + extra
+    hook_run = bend_r        # crosstie end past the bar axis, so its hook wraps the bar
 
-    # PHASE 3.5.8 item 2 FIX — normative redesign ("el refactor
-    # normativo"): when NEITHER axis has more than one genuinely
-    # interior bar position (e.g. 8 bars total on a square column — one
-    # extra bar per long edge, at each edge's own midpoint), the up-to-2
-    # individual straight crossties that used to connect each interior
-    # bar straight across to its mirror are collapsed into ONE closed
-    # interior stirrup loop PER Z ZONE instead — a normative interior
-    # tie (EHE/BS-style) connecting all of that zone's interior bars in
-    # one closed 4-segment Set, reusing the exact same
-    # create_rebar_set/RebarStyle.StirrupTie mechanism already proven
-    # live for the main stirrups, instead of dozens of individual
-    # hooked create_from_curves calls per column (the reported mass
-    # "Internal Error" source). Only collapses when at least one
-    # interior position exists and NEITHER axis has more than one — an
-    # axis with 2+ interior positions keeps the individual-crosstie
-    # path below unchanged, since one loop cannot correctly embrace
-    # more than one bar per side without leaving the others uncaught.
-    collapse_to_loop = (len(us_interior) <= 1 and len(vs_interior) <= 1
-                         and (bool(us_interior) or bool(vs_interior)))
+    if layout == 'alternate':
+        us_interior = us_interior[0::2]
+        vs_interior = vs_interior[0::2]
 
-    interior_stirrup_sets = []
-    pairs = []
-    if collapse_to_loop:
-        u_int_mm = us_interior[0] if us_interior else 0.0
-        v_int_mm = vs_interior[0] if vs_interior else 0.0
-        p_start0 = axis.GetEndPoint(0)
-        axis_dir0 = axis.Direction
-        for zone in zones:
-            base = p_start0 + axis_dir0.Multiply(zone['start_mm'] / _MM_PER_FT)
-            p_top = (base + u_dir.Multiply(u_int_mm / _MM_PER_FT)
-                     + v_dir.Multiply(half_d_mm / _MM_PER_FT))
-            p_right = (base + u_dir.Multiply(half_w_mm / _MM_PER_FT)
-                       + v_dir.Multiply(v_int_mm / _MM_PER_FT))
-            p_bottom = (base + u_dir.Multiply(u_int_mm / _MM_PER_FT)
-                        + v_dir.Multiply(-half_d_mm / _MM_PER_FT))
-            p_left = (base + u_dir.Multiply(-half_w_mm / _MM_PER_FT)
-                      + v_dir.Multiply(v_int_mm / _MM_PER_FT))
-            loop = [DB.Line.CreateBound(p_top, p_right), DB.Line.CreateBound(p_right, p_bottom),
-                    DB.Line.CreateBound(p_bottom, p_left), DB.Line.CreateBound(p_left, p_top)]
-            interior_stirrup_sets.append({
-                'curves': loop, 'normal': axis_dir0,
-                'array_length_mm': zone['end_mm'] - zone['start_mm'],
-                'spacing_mm': zone['spacing_mm'], 'style': 'StirrupTie',
-            })
-    else:
-        if layout == 'alternate':
-            us_interior = us_interior[0::2]
-            vs_interior = vs_interior[0::2]
-        pairs = [((u, half_d_mm), (u, -half_d_mm)) for u in us_interior]
-        pairs += [((half_w_mm, v), (-half_w_mm, v)) for v in vs_interior]
+    shapes = []
+    for i in range(len(us_interior) // 2):
+        a, b = us_interior[i] - r, us_interior[-1 - i] + r
+        shapes.append({'points': [(a, half_d_mm + r), (b, half_d_mm + r),
+                                  (b, -half_d_mm - r), (a, -half_d_mm - r)],
+                       'closed': True, 'kind': 'link'})
+    if len(us_interior) % 2:
+        m = us_interior[len(us_interior) // 2] - r
+        shapes.append({'points': [(m, half_d_mm + hook_run), (m, -half_d_mm - hook_run)],
+                       'closed': False, 'kind': 'crosstie', 'toward': (1.0, 0.0)})
+    for i in range(len(vs_interior) // 2):
+        a, b = vs_interior[i] - r, vs_interior[-1 - i] + r
+        shapes.append({'points': [(-half_w_mm - r, a), (half_w_mm + r, a),
+                                  (half_w_mm + r, b), (-half_w_mm - r, b)],
+                       'closed': True, 'kind': 'link'})
+    if len(vs_interior) % 2:
+        m = vs_interior[len(vs_interior) // 2] - r
+        shapes.append({'points': [(-half_w_mm - hook_run, m), (half_w_mm + hook_run, m)],
+                       'closed': False, 'kind': 'crosstie', 'toward': (0.0, 1.0)})
+    return shapes
 
-    # PHASE 3.5.3 item 1 FIX — "Identical rebar" live warnings, x114:
-    # generate_column_stirrup_zones' own 3-zone joint/middle/joint
-    # split makes ADJACENT zones share a boundary Z exactly (zone[i]'s
-    # end_mm == zone[i+1]'s start_mm, by construction). _evenly_spaced
-    # is INCLUSIVE of both its own lo and hi by contract, so that
-    # shared boundary was previously emitted TWICE — once as zone[i]'s
-    # last position, once again as zone[i+1]'s first — producing two
-    # geometrically IDENTICAL crossties per (pair, shared boundary).
-    # Computed ONCE here (independent of `pairs`) and deduplicated
-    # against the immediately preceding zone's own last position.
-    z_positions_mm = []
-    prev_end_mm = None
-    for zone in zones:
-        zone_positions = _evenly_spaced(zone['start_mm'], zone['end_mm'], zone['spacing_mm'])
-        # PHASE 3.5.6 item 4 — inset the FIRST and LAST crosstie of
-        # EVERY zone by _CROSSTIE_Z_EPSILON_MM inward from that zone's
-        # own boundary. A zone boundary is exactly where
-        # _subtract_floor_bands cut this zone at a detected floor's
-        # own thickness — a crosstie landing precisely on that cut
-        # sits right at the edge of the column's local notch from the
-        # slab (a live "Internal Error" source, x32 reports). This
-        # margin keeps every crosstie strictly inside the column's own
-        # solid core, clear of any floor-band cut. Skipped for a zone
-        # too short to absorb the margin on both ends (span <= 2x the
-        # epsilon) or with only one position (already centred, not at
-        # either boundary) — the dedup check just below still handles
-        # the too-short case's shared-boundary duplicate correctly.
-        span_mm = zone['end_mm'] - zone['start_mm']
-        if len(zone_positions) >= 2 and span_mm > 2.0 * _CROSSTIE_Z_EPSILON_MM:
-            zone_positions = list(zone_positions)
-            zone_positions[0] = min(zone_positions[0] + _CROSSTIE_Z_EPSILON_MM, zone['end_mm'])
-            zone_positions[-1] = max(zone_positions[-1] - _CROSSTIE_Z_EPSILON_MM, zone['start_mm'])
-        if (zone_positions and prev_end_mm is not None
-                and abs(zone_positions[0] - prev_end_mm) < 1e-6):
-            zone_positions = zone_positions[1:]
-        z_positions_mm.extend(zone_positions)
-        prev_end_mm = zone['end_mm']
 
+def hook_side_points(pts, shape, u_dir, v_dir, normal):
+    """
+    A crosstie's two points ordered so its hooks bend towards the bars it wraps: Revit bends a
+    "Left" hook to normal x direction, so a line drawn the other way hooked the next bar
+    instead (beam, measured live 2026-10-02). Links are returned unchanged.
+    """
+    toward = shape.get('toward')
+    if shape.get('closed') or not toward or len(pts) != 2:
+        return pts
+    side = u_dir.Multiply(toward[0]) + v_dir.Multiply(toward[1])
+    left = normal.CrossProduct((pts[1] - pts[0]).Normalize())
+    return pts if left.DotProduct(side) > 0 else [pts[1], pts[0]]
+
+
+def build_crosstie_sets(axis, u_dir, v_dir, half_w_mm, half_d_mm, n_u, n_v, zones,
+                        layout='all', bar_diameter_mm=20.0, link_diameter_mm=10.0,
+                        link_bend_diameter_mm=None):
+    """
+    Interior links / crossties of a rectangular column as Rebar SETS, one per
+    (shape, Z zone), laid out like the main links (same zones and spacing),
+    lifted one link diameter above them so the two never share a plane.
+    Plan geometry: interior_tie_layout.
+
+    Returns:
+        {'crosstie_bars': [] (kept for callers; ties are no longer single bars),
+         'interior_stirrup_sets': [{'curves', 'normal', 'array_length_mm',
+                                    'spacing_mm', 'style': 'StirrupTie',
+                                    'layer': 'interior_stirrup' | 'crosstie'}, ...]}
+    """
+    shapes = interior_tie_layout(half_w_mm, half_d_mm, n_u, n_v, layout,
+                                 bar_diameter_mm, link_diameter_mm, link_bend_diameter_mm)
     p_start = axis.GetEndPoint(0)
     axis_dir = axis.Direction
-    bars = []
-    for (u1, v1), (u2, v2) in pairs:
-        p1 = u_dir.Multiply(u1 / _MM_PER_FT) + v_dir.Multiply(v1 / _MM_PER_FT)
-        p2 = u_dir.Multiply(u2 / _MM_PER_FT) + v_dir.Multiply(v2 / _MM_PER_FT)
-        for z_mm in z_positions_mm:
-            base = p_start + axis_dir.Multiply(z_mm / _MM_PER_FT)
-            line = DB.Line.CreateBound(base + p1, base + p2)
-            bars.append({'curve': line, 'normal': axis_dir})
-    return {'crosstie_bars': bars, 'interior_stirrup_sets': interior_stirrup_sets}
+    sets = []
+    for zone in zones:
+        length = zone['end_mm'] - zone['start_mm'] - link_diameter_mm
+        if length < 0:
+            continue
+        base = p_start + axis_dir.Multiply((zone['start_mm'] + link_diameter_mm) / _MM_PER_FT)
+        for shape in shapes:
+            pts = hook_side_points(
+                [base + u_dir.Multiply(u / _MM_PER_FT) + v_dir.Multiply(v / _MM_PER_FT)
+                 for u, v in shape['points']], shape, u_dir, v_dir, axis_dir)
+            count = len(pts) if shape['closed'] else len(pts) - 1
+            curves = [DB.Line.CreateBound(pts[i], pts[(i + 1) % len(pts)]) for i in range(count)]
+            sets.append({'curves': curves, 'normal': axis_dir, 'array_length_mm': length,
+                         'spacing_mm': zone['spacing_mm'], 'style': 'StirrupTie',
+                         'layer': 'crosstie' if shape['kind'] == 'crosstie' else 'interior_stirrup'})
+    return {'crosstie_bars': [], 'interior_stirrup_sets': sets}
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -2512,7 +2458,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 starter_bar_length_mm=None, starter_bar_multiplier=40.0,
                                 use_cranked_laps=False, crank_offset_mm=None,
                                 crank_slope=6.0, include_crossties=False,
-                                crosstie_layout='all',
+                                crosstie_layout='all', link_bend_diameter_mm=None,
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
                                 end_offset_mm=50.0, std=None, kicker_mm=0.0,
                                 slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
@@ -2874,7 +2820,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     if include_crossties:
         crossties = build_crosstie_sets(
             axis, u_dir, v_dir, bar_half_w_mm, bar_half_d_mm, n_u, n_v, zones,
-            layout=crosstie_layout)
+            layout=crosstie_layout, bar_diameter_mm=bar_diameter_mm,
+            link_diameter_mm=stirrup_diameter_mm, link_bend_diameter_mm=link_bend_diameter_mm)
         crosstie_sets = crossties['crosstie_bars']
         interior_stirrup_sets = crossties['interior_stirrup_sets']
 

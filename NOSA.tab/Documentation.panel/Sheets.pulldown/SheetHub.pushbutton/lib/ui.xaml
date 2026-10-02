@@ -172,8 +172,7 @@
                                 <TextBox Name="TxtSheetsFilter" Style="{StaticResource FieldBox}"
                                          TextChanged="SheetsFilter_Changed" Margin="0,0,0,8"/>
                                 <TextBlock Text="Package" Style="{StaticResource HintText}" Margin="0,0,0,3"/>
-                                <ComboBox Name="CmbPackageFilter" Height="26" FontSize="11"
-                                          SelectionChanged="PackageFilter_Changed" Margin="0,0,0,8"/>
+                                <ComboBox Name="CmbPackageFilter" Height="26" FontSize="11" Margin="0,0,0,8"/>
                                 <CheckBox Name="ChkChangesOnly" Content="Changes only"
                                           Margin="0,2" Click="ChangesOnly_Changed"/>
                                 <CheckBox Name="ChkAllowRenumber" Content="Allow sheet number changes (F7)"
@@ -224,24 +223,22 @@
                                     <TextBox Name="SnTxtF1" Style="{StaticResource FieldBox}" TextChanged="SnFieldChanged" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F3 — Functional:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
-                                    <ComboBox Name="SnCmbF3" Height="26" FontSize="11" SelectionChanged="SnFieldChanged" Margin="0,2,0,6"/>
+                                    <ComboBox Name="SnCmbF3" Height="26" FontSize="11" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F4 — Spatial:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
-                                    <ComboBox Name="SnCmbF4" Height="26" FontSize="11" IsEditable="True"
-                                              SelectionChanged="SnFieldChanged" Margin="0,2,0,6"/>
+                                    <ComboBox Name="SnCmbF4" Height="26" FontSize="11" IsEditable="True" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F5 — Form:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
-                                    <ComboBox Name="SnCmbF5" Height="26" FontSize="11" SelectionChanged="SnFieldChanged" Margin="0,2,0,6"/>
+                                    <ComboBox Name="SnCmbF5" Height="26" FontSize="11" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F6 — Discipline:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
-                                    <ComboBox Name="SnCmbF6" Height="26" FontSize="11" SelectionChanged="SnFieldChanged" Margin="0,2,0,6"/>
+                                    <ComboBox Name="SnCmbF6" Height="26" FontSize="11" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F7 — Document No.:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
                                     <TextBox Name="SnTxtF7" Style="{StaticResource FieldBox}" TextChanged="SnFieldChanged" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F8 — Revision:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
-                                    <ComboBox Name="SnCmbF8" Height="26" FontSize="11" IsEditable="True"
-                                              SelectionChanged="SnFieldChanged" Margin="0,2,0,6"/>
+                                    <ComboBox Name="SnCmbF8" Height="26" FontSize="11" IsEditable="True" Margin="0,2,0,6"/>
 
                                     <TextBlock Text="F9 — Sheet title:" FontSize="10" Opacity="0.7" Foreground="{DynamicResource TextColor}"/>
                                     <TextBox Name="SnTxtF9" Style="{StaticResource FieldBox}" TextChanged="SnFieldChanged" Margin="0,2,0,10"/>

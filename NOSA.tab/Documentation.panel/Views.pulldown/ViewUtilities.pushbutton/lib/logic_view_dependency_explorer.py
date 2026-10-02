@@ -7,6 +7,8 @@ import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -14,35 +16,34 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils.collectors import collect_views, template_id_of
 
-_SKIP_TYPES = {
-    DB.ViewType.DrawingSheet,
-    DB.ViewType.Schedule,
-    DB.ViewType.Legend,
-    DB.ViewType.Walkthrough,
-    DB.ViewType.Internal,
-    DB.ViewType.Undefined,
-}
+
+def _skip_types():
+    return {
+        DB.ViewType.DrawingSheet,
+        DB.ViewType.Schedule,
+        DB.ViewType.Legend,
+        DB.ViewType.Walkthrough,
+        DB.ViewType.Internal,
+        DB.ViewType.Undefined,
+    }
 
 
 def get_all_views(doc):
     result = []
     try:
-        for v in DB.FilteredElementCollector(doc).OfClass(DB.View).ToElements():
+        for v in collect_views(doc, exclude_types=_skip_types()):
             try:
-                if v.IsTemplate:
-                    continue
-                if v.ViewType in _SKIP_TYPES:
-                    continue
                 result.append({
                     'id':   get_id_value(v.Id),
                     'name': v.Name or u'',
                     'type': str(v.ViewType).replace('ViewType.', ''),
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_all_views')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_all_views')
     return sorted(result, key=lambda x: (x['type'], x['name'].lower()))
 
 
@@ -52,7 +53,7 @@ def _param_str(el, name):
         if p and p.HasValue:
             return (p.AsString() or p.AsValueString() or u'').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_str')
     return u''
 
 
@@ -82,8 +83,8 @@ def analyse_view(doc, view_id_int):
 
     # Template
     try:
-        tid = view.ViewTemplateId
-        if tid and tid != DB.ElementId.InvalidElementId:
+        tid = template_id_of(view)
+        if tid is not None:
             tmpl = doc.GetElement(tid)
             if tmpl:
                 result['template'] = {
@@ -91,7 +92,7 @@ def analyse_view(doc, view_id_int):
                     'name': tmpl.Name or u'',
                 }
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
 
     # Filters
     try:
@@ -108,7 +109,7 @@ def analyse_view(doc, view_id_int):
                 'visible': visible,
             })
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
 
     # Sheets that contain this view
     sheets = []
@@ -124,9 +125,9 @@ def analyse_view(doc, view_id_int):
                             'name':   sheet.Name or u'',
                         })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'analyse_view')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
     result['sheets'] = sorted(sheets, key=lambda x: x['number'])
 
     # Revisions from those sheets
@@ -152,7 +153,7 @@ def analyse_view(doc, view_id_int):
                         try:
                             seq = str(rev.SequenceNumber)
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'analyse_view')
                     result['revisions'].append({
                         'sequence':    seq,
                         'date':        date,
@@ -160,9 +161,9 @@ def analyse_view(doc, view_id_int):
                         'sheet':       sh['number'],
                     })
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'analyse_view')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'analyse_view')
 
     # Dependent views
     try:
@@ -176,6 +177,6 @@ def analyse_view(doc, view_id_int):
                 'name': dv.Name or u'',
             })
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
 
     return result

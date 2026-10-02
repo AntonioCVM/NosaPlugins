@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-import imp
 import os, sys
 import System.Windows
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'projectsetupwizard'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', 'lib'))
@@ -11,7 +12,8 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 
-_logic = imp.load_source('projsetup_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
+from nosa_utils.bootstrap import load_module
+_logic = load_module('projsetup_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
 class ProjectSetupWindow(NOSAWindow):
@@ -35,7 +37,7 @@ class ProjectSetupWindow(NOSAWindow):
             self.TxtAddress.Text = info.get('address', '')
             self.TxtStatus.Text  = info.get('status', '')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ProjectSetupWindow._prefill')
 
     def Configure_Click(self, sender, args):
         results = []
