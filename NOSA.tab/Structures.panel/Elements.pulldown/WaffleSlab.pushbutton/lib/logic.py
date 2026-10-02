@@ -210,49 +210,29 @@ def create_floor_type_with_thickness(doc, thickness_mm, type_name, output):
             except Exception:
                 continue
 
-        new_type_id = base_type.Duplicate(type_name)
-        new_type = doc.GetElement(new_type_id)
+        new_type = base_type.Duplicate(type_name)
+        if isinstance(new_type, DB.ElementId):
+            new_type = doc.GetElement(new_type)
 
-        compound_structure = new_type.GetCompoundStructure()
-
-        if compound_structure:
-            layer_count = compound_structure.LayerCount
-
-            for i in range(layer_count - 1, -1, -1):
-                compound_structure.DeleteLayer(i)
-
-            material_id = None
-            materials = DB.FilteredElementCollector(doc).OfClass(DB.Material).ToElements()
-            for mat in materials:
-                mat_name = _get_element_name(mat).lower() if hasattr(mat, 'Name') else ""
-                if any(keyword in mat_name for keyword in ['concrete', 'hormigon', 'structural']):
+        material_id = DB.ElementId.InvalidElementId
+        old_structure = new_type.GetCompoundStructure()
+        if old_structure:
+            material_id = old_structure.GetMaterialId(max(0, old_structure.StructuralMaterialIndex))
+        if material_id == DB.ElementId.InvalidElementId:
+            for mat in DB.FilteredElementCollector(doc).OfClass(DB.Material).ToElements():
+                if any(k in _get_element_name(mat).lower() for k in ('concrete', 'hormigon', 'structural')):
                     material_id = mat.Id
                     break
 
-            if not material_id and materials:
-                material_id = materials[0].Id
+        structure = DB.CompoundStructure.CreateSingleLayerCompoundStructure(
+            DB.MaterialFunctionAssignment.Structure, thickness_mm * MM_TO_FEET, material_id)
+        structure.StructuralMaterialIndex = 0
+        if old_structure:
+            structure.EndCap = old_structure.EndCap
+        new_type.SetCompoundStructure(structure)
 
-            thickness_ft = thickness_mm * MM_TO_FEET
-            compound_structure.SetLayerWidth(
-                compound_structure.AppendLayer(
-                    thickness_ft,
-                    material_id if material_id else DB.ElementId.InvalidElementId,
-                    0
-                ),
-                thickness_ft
-            )
-
-            compound_structure.StructuralMaterialIndex = 0
-            compound_structure.SetNumberOfShellLayers(DB.ShellLayerType.Exterior, 0)
-            compound_structure.SetNumberOfShellLayers(DB.ShellLayerType.Interior, 0)
-
-            new_type.SetCompoundStructure(compound_structure)
-
-            output.print_md("Created FloorType: **{}** with {}mm thickness".format(type_name, thickness_mm))
-            return new_type
-        else:
-            output.print_md("⚠ Could not modify thickness, using duplicated type")
-            return new_type
+        output.print_md("Created FloorType: **{}** with {}mm thickness".format(type_name, thickness_mm))
+        return new_type
 
     except Exception as e:
         output.print_md("⚠ Error creating custom floor type: {}".format(str(e)))
@@ -342,7 +322,9 @@ class WaffleSlabBuilder:
 
     def create_slab_with_recesses(self, boundary_curves, void_positions, level, base_elevation):
         try:
-            floor_type = get_structural_floor_type(self.doc, self.output)
+            rib_height_mm = self.total_depth - self.topping_thickness
+            floor_type = create_floor_type_with_thickness(
+                self.doc, rib_height_mm, u"Waffle Ribs {}mm".format(rib_height_mm), self.output)
 
             if not floor_type:
                 raise Exception("No valid floor type found")
@@ -390,7 +372,8 @@ class WaffleSlabBuilder:
 
             param_offset = floor.get_Parameter(DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)
             if param_offset and not param_offset.IsReadOnly:
-                param_offset.Set(base_elevation)
+                # rib top sits under the compression slab
+                param_offset.Set(base_elevation - level.Elevation - self.topping_thickness * MM_TO_FEET)
 
             try:
                 structural_param = floor.get_Parameter(DB.BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)
@@ -408,7 +391,7 @@ class WaffleSlabBuilder:
 
     def create_topping_slab(self, boundary_curves, level, base_elevation):
         try:
-            floor_type_name = "Losa Compresión {}mm".format(self.topping_thickness)
+            floor_type_name = u"Compression Slab {}mm".format(self.topping_thickness)
             floor_type = create_floor_type_with_thickness(self.doc, self.topping_thickness, floor_type_name, self.output)
 
             if not floor_type:
@@ -436,8 +419,7 @@ class WaffleSlabBuilder:
             except Exception:
                 pass
 
-            rib_height = (self.total_depth - self.topping_thickness) * MM_TO_FEET
-            offset_compression = base_elevation + rib_height
+            offset_compression = base_elevation - level.Elevation
 
             param_offset = floor.get_Parameter(DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)
             if param_offset and not param_offset.IsReadOnly:
@@ -602,6 +584,7 @@ class WaffleSlabBuilder:
                 self.topping_slab = self.create_topping_slab(boundary_curves, level, elev_base)
                 if self.topping_slab and self.main_slab:
                     try:
+                        self.doc.Regenerate()
                         DB.JoinGeometryUtils.JoinGeometry(
                             self.doc, self.main_slab, self.topping_slab)
                     except Exception as e:
