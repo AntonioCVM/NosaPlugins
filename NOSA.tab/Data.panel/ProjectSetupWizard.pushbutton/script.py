@@ -23,12 +23,13 @@ lib_path = os.path.join(os.path.dirname(__file__), 'lib')
 if lib_path not in sys.path:
     sys.path.insert(0, lib_path)
 
-from nosa_utils.base_window import launch_nosa_window
 
 _ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                          '..', '..', '..', 'lib'))
 if _ext_lib not in sys.path:
     sys.path.insert(0, _ext_lib)
+
+from nosa_utils.base_window import launch_nosa_window
 
 try:
     import importlib.util as _iu
