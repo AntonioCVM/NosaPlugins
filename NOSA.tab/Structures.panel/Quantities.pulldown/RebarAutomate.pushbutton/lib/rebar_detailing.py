@@ -460,6 +460,7 @@ def resolve_tag_overlaps(doc, view, tags, gap_paper_mm=1.0, leader_after_steps=1
     leader so it still points at its bar. Call inside a transaction. Returns tags moved.
     """
     from nosa_utils.label_layout import deoverlap
+    from nosa_utils.revit_helpers import get_id_value
     if not tags:
         return 0
     doc.Regenerate()
@@ -469,11 +470,10 @@ def resolve_tag_overlaps(doc, view, tags, gap_paper_mm=1.0, leader_after_steps=1
     except Exception:
         scale = 50
     gap = gap_paper_mm * scale / _MM_PER_FT
-    new_ids = set(t.Id.IntegerValue if hasattr(t.Id, 'IntegerValue') else t.Id.Value for t in tags)
+    new_ids = set(get_id_value(t.Id) for t in tags)
     obstacles = []
     for other in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag).ToElements():
-        oid = other.Id.IntegerValue if hasattr(other.Id, 'IntegerValue') else other.Id.Value
-        if oid in new_ids:
+        if get_id_value(other.Id) in new_ids:
             continue
         rect = _text_rect(other, _view_rect(other, view, right, up))
         if rect is not None:
