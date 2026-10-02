@@ -6,6 +6,8 @@ from pyrevit import revit
 from Autodesk.Revit import DB
 from System.Collections.Generic import List
 from Autodesk.Revit.DB import JoinGeometryUtils
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilecap_utils.creation'
 
 try:
     from nosa_utils.unit_conversion import mm_to_feet, feet_to_mm
@@ -147,7 +149,7 @@ def create_pilecap_elements(num_horizontal, num_vertical, pile_spacing,
     """Crea los elementos (losa y pilotes) en una transaccion."""
     t = None
     try:
-        t = DB.Transaction(_doc(), "Create Pilecap Elements")
+        t = DB.Transaction(_doc(), u"NOSA — Create Pilecap Elements")
         t.Start()
         
         foundation_slab = create_foundation_slab(width, length, level, center_point, slab_type)
@@ -162,7 +164,7 @@ def create_pilecap_elements(num_horizontal, num_vertical, pile_spacing,
             if offset_param and offset_param.HasValue:
                 slab_offset = offset_param.AsDouble()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pilecap_elements')
 
         piles = create_piles_array(
             center_point, num_horizontal, num_vertical, pile_spacing,
@@ -181,7 +183,7 @@ def create_pilecap_elements(num_horizontal, num_vertical, pile_spacing,
                 try:
                     if JoinGeometryUtils.AreElementsJoined(_doc(), slab_element, pile):
                         JoinGeometryUtils.UnjoinGeometry(_doc(), slab_element, pile)
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'create_pilecap_elements')
         
         t.Commit()
         return foundation_slab, piles
@@ -198,7 +200,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
     
     t = None
     try:
-        t = DB.Transaction(_doc(), "Create and Rename Group")
+        t = DB.Transaction(_doc(), u"NOSA — Create and Rename Group")
         t.Start()
         
         # Unjoin check
@@ -208,7 +210,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
                 try:
                     if JoinGeometryUtils.AreElementsJoined(_doc(), slab_element, pile):
                         JoinGeometryUtils.UnjoinGeometry(_doc(), slab_element, pile)
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'create_and_rename_group')
         
         ids = List[DB.ElementId]([foundation_slab.Id] + [p.Id for p in piles])
         group = _doc().Create.NewGroup(ids)
@@ -223,7 +225,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
                 try:
                     if JoinGeometryUtils.AreElementsJoined(_doc(), slab_element, pile):
                         JoinGeometryUtils.UnjoinGeometry(_doc(), slab_element, pile)
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'create_and_rename_group')
         
         # Rename logic
         num_piles = num_horizontal * num_vertical
@@ -233,7 +235,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
         
         # Post-commit rename
         rename_success = False
-        t2 = DB.Transaction(_doc(), "Rename Group")
+        t2 = DB.Transaction(_doc(), u"NOSA — Rename Group")
         t2.Start()
         try:
             gt = group.GroupType
@@ -247,8 +249,8 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
                 try:
                     gt.Name = group_name
                     rename_success = True
-                except Exception: pass
-        except Exception: pass
+                except Exception: log_swallowed(_LOG, u'create_and_rename_group')
+        except Exception: log_swallowed(_LOG, u'create_and_rename_group')
         
         if rename_success: 
             t2.Commit()
@@ -273,7 +275,7 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
     try:
         if _doc().IsModifiable: _doc().Regenerate()
         
-        t = DB.Transaction(_doc(), "Crear Encepado Independiente")
+        t = DB.Transaction(_doc(), u"NOSA — Create Standalone Pilecap")
         t.Start()
         
         slab = create_foundation_slab(width, length, level, center_point, slab_type)
@@ -289,7 +291,7 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
             if offset_param and offset_param.HasValue:
                 slab_offset = offset_param.AsDouble()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_independent_elements')
         
         piles = create_piles_array(
             center_point, num_horizontal, num_vertical, pile_spacing,
@@ -305,7 +307,7 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
                 try:
                     if JoinGeometryUtils.AreElementsJoined(_doc(), slab_elem, p):
                         JoinGeometryUtils.UnjoinGeometry(_doc(), slab_elem, p)
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'create_independent_elements')
         
         t.Commit()
         _doc().Regenerate()
@@ -314,7 +316,7 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
             try:
                 ids = List[DB.ElementId]([e.Id for e in elements if e])
                 _uidoc().Selection.SetElementIds(ids)
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'create_independent_elements')
             
         return elements
         

@@ -13,6 +13,8 @@ from System.Windows.Controls import Canvas as WPFCanvas
 from System.Windows.Media import SolidColorBrush, Color, PointCollection
 from System.Windows.Shapes import Ellipse, Polygon as WPFPolygon
 from System.Windows import Point
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'addpiletopilecap'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -82,7 +84,7 @@ class _CreatePilesEventHandler(IExternalEventHandler):
                 window.SetLoading(False)
                 forms.alert(u'Unexpected error:\n{}'.format(ex), title=u'NOSA — Error')
             except Exception:
-                pass
+                log_swallowed(_LOG, u'Execute')
 
     def GetName(self):
         return u'NOSA_AddPileToPilecap_CreatePiles'
@@ -353,13 +355,13 @@ class AddPileToPilecapWindow(NOSAWindow):
         try:
             self._refresh_preview()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AddPileToPilecapWindow.Preview_Changed')
 
     def _refresh_preview(self):
         try:
             self._draw_preview()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AddPileToPilecapWindow._refresh_preview')
 
     def _draw_preview(self):
         self.PileCanvas.Children.Clear()

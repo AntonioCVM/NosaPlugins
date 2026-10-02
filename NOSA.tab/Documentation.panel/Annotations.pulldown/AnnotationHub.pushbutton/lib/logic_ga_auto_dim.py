@@ -9,6 +9,8 @@ Module 3: Floor/slab corners  → corner dims to nearest H/V grid
 from Autodesk.Revit import DB
 from pyrevit import revit
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationhub'
 # ── constants ──────────────────────────────────────────────────────────────────
 FT2MM      = _uc10.FT_TO_MM  # feet → mm
 MM2FT      = _uc10.MM_TO_FT   # mm  → feet
@@ -27,7 +29,7 @@ def dim_offset_ft(view, paper_mm=DEFAULT_OFFSET_PAPER_MM):
         if scale > 0:
             return paper_mm * scale * MM2FT
     except Exception:
-        pass
+        log_swallowed(_LOG, u'dim_offset_ft')
     return _FALLBACK_OFFSET_FT
 
 # BuiltInCategory constants resolved lazily inside functions — not at module level
@@ -52,13 +54,13 @@ def _elem_center(el):
             c = loc.Curve
             return c.Evaluate(0.5, True)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_elem_center')
     try:
         bb = el.get_BoundingBox(None)
         if bb:
             return (bb.Min + bb.Max) * 0.5
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_elem_center')
     return None
 
 
@@ -91,7 +93,7 @@ def get_grids(doc):
             else:
                 v_grids.append(g)  # mostly vertical
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_grids')
     return {'h': h_grids, 'v': v_grids}
 
 
@@ -157,7 +159,7 @@ def _faces_in_direction(el, target_normal, view=None):
                 if dot > 0.85:
                     result.append(face.Reference)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_process_solid')
 
     for obj in geo:
         if isinstance(obj, DB.GeometryInstance):
@@ -190,7 +192,7 @@ def _center_ref_family(el, direction):
             if ref:
                 return ref
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_center_ref_family')
     return None
 
 
@@ -235,9 +237,9 @@ def _existing_dim_signatures(view):
                                 for r in refs)
                 sigs.add(key)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_existing_dim_signatures')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_existing_dim_signatures')
     return sigs
 
 
@@ -258,7 +260,7 @@ def _create_dim(doc, view, refs, line, existing_sigs=None):
                 return None
             existing_sigs.add(key)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_create_dim')
 
     ref_arr = DB.ReferenceArray()
     for r in refs:
@@ -403,7 +405,7 @@ def _wall_refs_at_ends(wall, view):
         if len(refs) >= 2:
             return refs[0], refs[1]
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_wall_refs_at_ends')
     return None, None
 
 
@@ -436,7 +438,7 @@ def _wall_side_refs(wall, view, grids_h, grids_v):
             if len(refs) >= 2:
                 return refs[:2]
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_wall_side_refs')
     return []
 
 
@@ -572,7 +574,7 @@ def _floor_corner_points(floor):
             corners.append((pt, ref))
 
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_floor_corner_points')
     return corners
 
 
@@ -663,7 +665,7 @@ def _grid_extents(grids):
             xs.extend([p0.X, p1.X])
             ys.extend([p0.Y, p1.Y])
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_grid_extents')
     if not xs:
         return 0.0, 0.0, 0.0, 0.0
     return min(xs), max(xs), min(ys), max(ys)

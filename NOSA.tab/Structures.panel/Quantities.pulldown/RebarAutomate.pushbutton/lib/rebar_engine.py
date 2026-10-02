@@ -142,6 +142,8 @@ import math
 from Autodesk.Revit import DB
 from Autodesk.Revit.DB import Structure as DBS
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _MM_PER_FT = 304.8
 
@@ -214,7 +216,7 @@ def get_host_solid(host, include_nested=True):
                 if obj.Volume > best_vol:
                     best, best_vol = obj, obj.Volume
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_host_solid')
         elif include_nested and isinstance(obj, DB.GeometryInstance):
             try:
                 nested = obj.GetInstanceGeometry()
@@ -228,7 +230,7 @@ def get_host_solid(host, include_nested=True):
                         if inner.Volume > best_vol:
                             best, best_vol = inner, inner.Volume
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_host_solid')
     return best
 
 
@@ -419,7 +421,7 @@ def _material_fck_mpa(doc, material_id):
             if fck > 1.0:
                 return fck
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_material_fck_mpa')
     # UK templates carry the class in the name only ("Concrete - RC32/40").
     from nosa_utils import laps
     return laps.fck_from_material_name(DB.Element.Name.GetValue(material))
@@ -436,7 +438,7 @@ def host_fck_mpa(doc, host):
             if param is not None and param.AsElementId() != DB.ElementId.InvalidElementId:
                 candidates.append(param.AsElementId())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'host_fck_mpa')
         try:
             structure = elem.GetCompoundStructure()
             if structure is not None:
@@ -445,7 +447,7 @@ def host_fck_mpa(doc, host):
                     candidates.append(structure.GetMaterialId(index))
                 candidates.extend(layer.MaterialId for layer in structure.GetLayers())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'host_fck_mpa')
     for material_id in candidates:
         try:
             fck = _material_fck_mpa(doc, material_id)
@@ -1059,7 +1061,7 @@ def set_workshop_bent(rebar):
         rebar.GetFreeFormAccessor().WorkshopInstructions = DBS.RebarWorkInstructions.Bent
         return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'set_workshop_bent')
     try:
         param = rebar.get_Parameter(DB.BuiltInParameter.REBAR_WORKSHOP_INSTRUCTIONS)
         return bool(param is not None and not param.IsReadOnly and param.Set(0))
@@ -1955,7 +1957,7 @@ class RebarWrapper(object):
                 if validation is not None and validation != DBS.RebarFreeFormValidationResult.Success:
                     self.last_error = u'Rebar.CreateFreeForm validation reported: {}'.format(validation)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarWrapper.create_freeform_group')
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFreeForm failed: {}'.format(e)

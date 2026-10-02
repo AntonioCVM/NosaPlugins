@@ -8,6 +8,8 @@ All functions apply quick-filters (OfCategory / OfClass / WhereElementIsNotEleme
 BEFORE any Python-side filtering, following NOSA convention.
 """
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.collectors'
 
 
 def collect_by_category(doc, bic, is_type=False, view=None):
@@ -56,7 +58,7 @@ def collect_views(doc, exclude_templates=True, exclude_types=None, include_types
                 continue
             result.append(v)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_views')
     return result
 
 
@@ -68,7 +70,7 @@ def collect_view_templates(doc):
             if v.IsTemplate:
                 result.append(v)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_view_templates')
     return result
 
 
@@ -95,7 +97,7 @@ def used_view_template_ids(doc):
             if tid is not None:
                 used.add(get_id_value(tid))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'used_view_template_ids')
     return used
 
 
@@ -178,7 +180,7 @@ def placed_view_ids(doc, all_placed=False):
                 for vid in sheet.GetAllPlacedViews():
                     ids.add(get_id_value(vid))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'placed_view_ids')
             continue
         for vp_id in sheet.GetAllViewports():
             try:
@@ -186,5 +188,5 @@ def placed_view_ids(doc, all_placed=False):
                 if vp is not None:
                     ids.add(get_id_value(vp.ViewId))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'placed_view_ids')
     return ids

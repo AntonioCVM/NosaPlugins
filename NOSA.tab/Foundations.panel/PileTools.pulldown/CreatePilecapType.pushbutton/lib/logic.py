@@ -3,6 +3,8 @@
 from Autodesk.Revit import DB
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.pilecap_utils import point_in_polygon, distance_to_polygon_edge
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'createpilecaptype'
 
 _MM_TO_FT = _uc10.MM_TO_FT
 
@@ -51,7 +53,7 @@ def get_pile_types(doc):
             label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
             result.append((t.Id, label or u'(unnamed)'))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_pile_types')
     result.sort(key=lambda x: x[1])
     return result
 
@@ -67,7 +69,7 @@ def get_cap_types(doc):
                 label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
                 result.append((t.Id, label or u'(unnamed)'))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_cap_types')
     result.sort(key=lambda x: x[1])
     if not result:
         for t in DB.FilteredElementCollector(doc).OfClass(DB.FloorType).ToElements():
@@ -78,7 +80,7 @@ def get_cap_types(doc):
                     label = u'{} : {}'.format(fam_name, type_name) if fam_name else type_name
                     result.append((t.Id, label or u'(unnamed)'))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_cap_types')
         result.sort(key=lambda x: x[1])
     return result
 
@@ -89,7 +91,7 @@ def get_all_levels(doc):
         try:
             levels.append((l.Id, l.Name, l.Elevation))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_levels')
     levels.sort(key=lambda x: x[2])
     return [(lid, name) for lid, name, _ in levels]
 
@@ -160,7 +162,7 @@ def _group_pilecap_elements(doc, element_ids, group_name):
         try:
             group.GroupType.Name = group_name
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_group_pilecap_elements')
         return group
     except Exception:
         return None

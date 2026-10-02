@@ -2,6 +2,8 @@
 import os, sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sheetgen'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -23,7 +25,7 @@ def _placeable_types():
         try:
             result.add(getattr(DB.ViewType, n))
         except AttributeError:
-            pass
+            log_swallowed(_LOG, u'_placeable_types')
     return result
 
 
@@ -38,7 +40,7 @@ def unplaced_views(doc):
             result.append({'view': v, 'name': v.Name or u'',
                            'type': str(v.ViewType).split('.')[-1]})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'unplaced_views')
     result.sort(key=lambda r: (r['type'], r['name'].lower()))
     return result
 
@@ -53,7 +55,7 @@ def legend_views(doc):
         try:
             result.append({'view': v, 'name': v.Name or u''})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'legend_views')
     result.sort(key=lambda r: r['name'].lower())
     return result
 
@@ -67,7 +69,7 @@ def real_sheets(doc):
             result.append({'sheet': s,
                            'label': u'{} — {}'.format(s.SheetNumber, s.Name)})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'real_sheets')
     result.sort(key=lambda r: r['label'].lower())
     return result
 
@@ -80,7 +82,7 @@ def placeholder_sheets(doc):
                 result.append({'sheet': s, 'number': s.SheetNumber or u'',
                                'name': s.Name or u''})
         except Exception:
-            pass
+            log_swallowed(_LOG, u'placeholder_sheets')
     result.sort(key=lambda r: r['number'])
     return result
 
@@ -101,7 +103,7 @@ def _taken_numbers(doc):
         try:
             taken.add((s.SheetNumber or u'').lower())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_taken_numbers')
     return taken
 
 
@@ -128,7 +130,7 @@ def create_sheets_with_views(doc, views, tb_id, prefix, start, pad,
                 try:
                     sheet.Name = view.Name if name_from_view else (fixed_name or view.Name)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_sheets_with_views')
                 if DB.Viewport.CanAddViewToSheet(doc, sheet.Id, view.Id):
                     u0, v0, u1, v1 = _sheet_rect(sheet)
                     centre = DB.XYZ((u0 + u1) / 2.0, (v0 + v1) / 2.0, 0)
@@ -224,7 +226,7 @@ def create_placeholders(doc, prefix, start, count, pad, name):
                 try:
                     ph.Name = name or u'PLACEHOLDER'
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_placeholders')
                 created += 1
                 n += 1
             except Exception as ex:
@@ -255,7 +257,7 @@ def convert_placeholders(doc, placeholders, tb_id):
                 try:
                     sheet.Name = name
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'convert_placeholders')
                 converted += 1
             except Exception as ex:
                 failed += 1

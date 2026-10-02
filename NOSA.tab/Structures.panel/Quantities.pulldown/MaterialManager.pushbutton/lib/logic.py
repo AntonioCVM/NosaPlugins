@@ -4,6 +4,8 @@ import io
 import sys, os, csv
 from Autodesk.Revit import DB
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'materialmanager'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -56,7 +58,7 @@ def collect_materials(doc):
                 key = get_id_value(mid)
                 use_counts[key] = use_counts.get(key, 0) + 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_materials')
 
     for t in DB.FilteredElementCollector(doc).WhereElementIsElementType().ToElements():
         try:
@@ -64,7 +66,7 @@ def collect_materials(doc):
                 key = get_id_value(mid)
                 use_counts[key] = use_counts.get(key, 0) + 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_materials')
 
     mats = DB.FilteredElementCollector(doc).OfClass(DB.Material).ToElements()
     result = []
@@ -82,7 +84,7 @@ def collect_materials(doc):
                 'material':  mat,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_materials')
 
     result.sort(key=lambda r: (r['class'], r['name'].lower()))
     return result
@@ -176,13 +178,13 @@ def _level_name(doc, el):
             if lvl:
                 return lvl.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_level_name')
     try:
         param = el.get_Parameter(DB.BuiltInParameter.SCHEDULE_LEVEL_PARAM)
         if param:
             return param.AsValueString() or u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_level_name')
     return u'—'
 
 
@@ -204,7 +206,7 @@ def _get_structural_material(doc, el):
                 if mat:
                     return mat_id, _safe_name(mat)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_structural_material')
     try:
         ids = list(el.GetMaterialIds(False))
         if ids:
@@ -212,7 +214,7 @@ def _get_structural_material(doc, el):
             if mat:
                 return ids[0], _safe_name(mat)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_structural_material')
     return None, None
 
 
@@ -327,7 +329,7 @@ def collect_element_materials_from_selection(doc, element_ids):
                 'proposed_name': prop_name or u'—',
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_element_materials_from_selection')
 
     result.sort(key=lambda r: (r['category'], r['level'], r['type_name']))
     return result
@@ -377,7 +379,7 @@ def _assign_material_any_param(el, material_id, reason_log=None):
             except Exception:
                 continue
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_assign_material_any_param')
 
     if reason_log is not None:
         if readonly_names:

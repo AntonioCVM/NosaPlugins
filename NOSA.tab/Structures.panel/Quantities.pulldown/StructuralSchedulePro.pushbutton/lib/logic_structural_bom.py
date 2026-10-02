@@ -10,6 +10,8 @@ from collections import defaultdict
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'structuralschedulepro'
 # ── unit conversions ───────────────────────────────────────────────────────────
 FT3_M3  = 0.0283168
 FT2_M2  = 0.0929030
@@ -51,7 +53,7 @@ def _pd(el, bip, default=0.0):
             v = p.AsDouble()
             return v if v > 0 else default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pd')
     return default
 
 
@@ -61,7 +63,7 @@ def _ps(el, bip, default=''):
         if p and p.HasValue:
             return p.AsString() or default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_ps')
     return default
 
 
@@ -71,7 +73,7 @@ def _pi(el, bip, default=0):
         if p and p.HasValue:
             return p.AsInteger()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pi')
     return default
 
 
@@ -93,7 +95,7 @@ def _is_steel(el, doc):
             if mt == DB.Structure.StructuralMaterialType.Steel:
                 return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_steel')
     # 2. Structural material parameter → material class / name
     try:
         p = el.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
@@ -107,7 +109,7 @@ def _is_steel(el, doc):
                 if any(k in name for k in _STEEL_NAME_KEYS):
                     return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_steel')
     return False
 
 
@@ -136,7 +138,7 @@ def _level_name(el, doc, level_map):
                 if lvid in level_map:
                     return level_map[lvid]
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_level_name')
     return u'No level'
 
 
@@ -148,14 +150,14 @@ def _material_name(el, doc):
             if mat:
                 return mat.Name or u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_material_name')
     try:
         for mat_id in el.GetMaterialIds(False):
             mat = doc.GetElement(mat_id)
             if mat:
                 return mat.Name or u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_material_name')
     return u'—'
 
 
@@ -171,7 +173,7 @@ def _family_type_names(el, doc):
             family_name = el.Category.Name if el.Category else u'—'
             type_name   = (element_name(t) or u'—') if t else u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_family_type_names')
     return family_name, type_name
 
 
@@ -196,9 +198,9 @@ def _volume_m3(el):
                     if area_ft2 > 0:
                         return length_ft * area_ft2 * FT3_M3
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_volume_m3')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_volume_m3')
     return 0.0
 
 
@@ -259,7 +261,7 @@ def _build_rebar_index(doc):
 
             idx[host_id] += total_len_ft * FT_M * area_m2_bar * STEEL_DENSITY_KG_M3
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_build_rebar_index')
     return idx
 
 
@@ -383,7 +385,7 @@ def collect_bom(doc, options):
                             if get_id_value(p.AsElementId()) == exclude_phase_id:
                                 continue
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'collect_bom')
 
                 # Level filter
                 if filter_lv_id is not None:
@@ -398,7 +400,7 @@ def collect_bom(doc, options):
                                     lv_match = True
                                     break
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'collect_bom')
                     if not lv_match:
                         continue
 
@@ -442,7 +444,7 @@ def collect_bom(doc, options):
                 r.el_ids.append(get_id_value(el.Id))
 
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_bom')
 
     all_rows = sorted(rows_by_key.values(),
                       key=lambda r: (r.group or '', r.category or '',

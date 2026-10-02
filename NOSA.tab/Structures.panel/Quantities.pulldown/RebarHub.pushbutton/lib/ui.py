@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import os, sys, io, csv
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarhub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -132,7 +134,7 @@ class RebarHubWindow(NOSAWindow):
             self.ApplyTheme(cfg.get('dark_mode', False))
             self.ChkDarkMode.IsChecked = cfg.get('dark_mode', False)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarHubWindow.__init__')
 
         self._show_main_tab('BS')
         self._show_bs_tab('Sched')
@@ -353,7 +355,7 @@ class RebarHubWindow(NOSAWindow):
                     [DB.ElementId(Int64(int(i))) for i in ids])
                 self.uidoc.Selection.SetElementIds(eid_list)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarHubWindow.RsGrid_SelectionChanged')
 
     def RsExportXlsx_Click(self, sender, args):
         if not self._rs_rows:
@@ -367,7 +369,7 @@ class RebarHubWindow(NOSAWindow):
             try:
                 proj = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarHubWindow.RsExportXlsx_Click')
             _sched_logic.export_xlsx(self._rs_rows, self._rs_totals, path, proj)
             forms.alert(u'Excel exported:\n{}'.format(path))
         except ImportError:
@@ -421,7 +423,7 @@ class RebarHubWindow(NOSAWindow):
             if v > 0:
                 custom = v
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarHubWindow.AudRun_Click')
 
         opts = {
             'chk_cover':       True,

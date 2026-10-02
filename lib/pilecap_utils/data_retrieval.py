@@ -5,6 +5,8 @@ Data retrieval utilities for pilecap creation in Revit.
 from pyrevit import revit
 from Autodesk.Revit import DB
 import sys
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilecap_utils.data_retrieval'
 
 # Constants
 OST_STRUCTURAL_FOUNDATION = -2001300
@@ -50,7 +52,7 @@ def get_slab_thickness(slab_type):
             if thickness_param and thickness_param.HasValue:
                 return feet_to_mm(thickness_param.AsDouble())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_slab_thickness')
         
         # Metodo 2: Buscar por nombre o ID
         for param in slab_type.Parameters:
@@ -69,7 +71,7 @@ def get_slab_thickness(slab_type):
             if default_thickness_param and default_thickness_param.HasValue:
                 return feet_to_mm(default_thickness_param.AsDouble())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_slab_thickness')
             
     except Exception as e:
         print("Advertencia: No se pudo obtener el espesor del tipo de losa: {}".format(str(e)))
@@ -105,14 +107,14 @@ def get_foundation_slab_types():
                             else:
                                 type_name = element_name(floor_type) or type_name
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'get_foundation_slab_types')
                         
                         family_name = 'Unknown'
                         try:
                             if floor_type.Family:
                                 family_name = floor_type.Family.Name
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'get_foundation_slab_types')
                         
                         # Excluir "Pile Cap" y buscar solo Foundation Slabs
                         if "pile cap" not in type_name.lower() and "pile cap" not in family_name.lower():
@@ -142,14 +144,14 @@ def get_foundation_slab_types():
                         else:
                             type_name = element_name(floor_type) or type_name
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_foundation_slab_types')
                     
                     family_name = 'Unknown'
                     try:
                         if floor_type.Family:
                             family_name = floor_type.Family.Name
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_foundation_slab_types')
                     
                     type_name_lower = type_name.lower()
                     family_name_lower = family_name.lower()
@@ -221,7 +223,7 @@ def get_pile_types():
                             else:
                                 symbol_name = element_name(symbol) or symbol_name
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_pile_types')
                     
                     if 'pile cap' in family_name.lower() or 'pile cap' in symbol_name.lower():
                         continue
@@ -235,7 +237,7 @@ def get_pile_types():
                         if not symbol.IsActive:
                             symbol.Activate()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_pile_types')
                     
                     pile_options.append(display_name)
                     pile_dict[display_name] = get_id_value(symbol.Id)
@@ -313,7 +315,7 @@ def get_pile_height(pile_family_symbol):
                 if param.HasValue:
                     return param.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_pile_height')
     return None
 
 def get_pile_min_embedment(pile_family_symbol):
@@ -329,5 +331,5 @@ def get_pile_min_embedment(pile_family_symbol):
                 if param.HasValue and param.StorageType == DB.StorageType.Double:
                     return feet_to_mm(param.AsDouble())
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_pile_min_embedment')
     return 0.0

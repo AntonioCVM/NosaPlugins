@@ -38,6 +38,8 @@ from nosa_utils.dmu_lifecycle import (
     unregister as _lifecycle_unregister,
     COMMENTS_GUID_STR,
 )
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'elementcommentshub'
 
 _CFG_PATH = os.path.join(
     os.getenv('APPDATA', ''),
@@ -117,7 +119,7 @@ def _write_last_type_id(el, type_id_int):
         entity.Set[System.Int64](_TRACK_FIELD, System.Int64(type_id_int))
         el.SetEntity(entity)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_write_last_type_id')
 
 
 def _sync_element_comment(doc, elc_logic, el, cat_key, fam_name, type_name):
@@ -166,7 +168,7 @@ def read_config():
             cfg.update(data)
             return cfg
     except Exception:
-        pass
+        log_swallowed(_LOG, u'read_config')
     return dict(_DEFAULTS)
 
 
@@ -178,7 +180,7 @@ def write_config(cfg):
         with io.open(_CFG_PATH, 'w', encoding='utf-8') as f:
             json.dump(cfg, f, indent=2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'write_config')
 
 
 class ElementCommentUpdater(DB.IUpdater):
@@ -216,7 +218,7 @@ class ElementCommentUpdater(DB.IUpdater):
                     from nosa_utils.telemetry import log_error
                     log_error('DMU/ElementComments logic import', str(e))
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'ElementCommentUpdater.Execute')
             return
 
         wanted = set(cfg.get('categories') or [])
@@ -232,7 +234,7 @@ class ElementCommentUpdater(DB.IUpdater):
                     continue
                 _sync_element_comment(doc, _elc_logic, el, cat_key, fam_name, type_name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ElementCommentUpdater.Execute')
 
     def GetUpdaterId(self):
         return self._id

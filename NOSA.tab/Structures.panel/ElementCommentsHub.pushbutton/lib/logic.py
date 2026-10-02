@@ -18,6 +18,8 @@ from Autodesk.Revit import DB
 from pyrevit import revit
 
 from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'elementcommentshub'
 
 # ---------------------------------------------------------------------------
 # Target categories
@@ -74,7 +76,7 @@ def _read_family_and_type(type_elem):
         if p:
             fam_name = p.AsString() or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_read_family_and_type')
     if not fam_name:
         try:
             fam_name = type_elem.FamilyName or u''
@@ -87,7 +89,7 @@ def _read_family_and_type(type_elem):
         if p:
             type_name = p.AsString() or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_read_family_and_type')
     if not type_name:
         type_name = element_name(type_elem)
 
@@ -227,7 +229,7 @@ class TypeCommentsLogic(object):
                     if val:
                         grp.current_comment = val
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'TypeCommentsLogic.group_by_type')
         return groups
 
     # -- apply ------------------------------------------------------------
@@ -261,7 +263,7 @@ class TypeCommentsLogic(object):
                             written += 1
                             any_ok = True
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'TypeCommentsLogic.apply_comments')
                 if any_ok:
                     groups_written += 1
         return written, groups_written

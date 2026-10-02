@@ -7,6 +7,8 @@ from System.Collections.Generic import List
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'surveyexport'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -145,7 +147,7 @@ class SurveyExportWindow(NOSAWindow):
             ids = List[DB.ElementId]([DB.ElementId(Int64(int(r.id))) for r in selected])
             revit.uidoc.Selection.SetElementIds(ids)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SurveyExportWindow.SV_Grid_SelectionChanged')
 
     def SV_Select_Click(self, sender, args):
         if not self._sv_rows:
@@ -168,7 +170,7 @@ class SurveyExportWindow(NOSAWindow):
             try:
                 name = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SurveyExportWindow.SV_ExportXlsx_Click')
             _sv_logic.export_xlsx(self._sv_rows, path, name)
             forms.alert(u'Excel exported:\n{}'.format(path))
         except ImportError:
@@ -307,7 +309,7 @@ class SurveyExportWindow(NOSAWindow):
             ids = List[DB.ElementId]([DB.ElementId(Int64(int(r.id))) for r in selected])
             revit.uidoc.Selection.SetElementIds(ids)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SurveyExportWindow.PS_Grid_SelectionChanged')
 
     def PS_Select_Click(self, sender, args):
         if not self._ps_rows:
@@ -330,7 +332,7 @@ class SurveyExportWindow(NOSAWindow):
             try:
                 name = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SurveyExportWindow.PS_ExportXlsx_Click')
             _ps_logic.export_xlsx(self._ps_rows, path, name)
             forms.alert(u'Excel exported:\n{}'.format(path))
         except ImportError:

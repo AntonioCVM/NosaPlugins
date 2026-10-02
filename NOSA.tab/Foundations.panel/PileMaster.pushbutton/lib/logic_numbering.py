@@ -8,6 +8,8 @@ from collections import defaultdict, OrderedDict
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
 from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 
 
 class NumberingLogic:
@@ -164,7 +166,7 @@ class NumberingLogic:
                         if fam_param:
                             fam_name = fam_param.AsString()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'NumberingLogic.group_by_type')
                 
                 # Only group by Family Name (not Type)
                 if fam_name:
@@ -277,7 +279,7 @@ class NumberingLogic:
                         if fam_param:
                             fam_name = fam_param.AsString()
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'NumberingLogic.apply_numbering')
                 
                 if not fam_name:
                     continue
@@ -394,7 +396,7 @@ class NumberingLogic:
                             try:
                                 p_comm.Set("")
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'NumberingLogic.apply_numbering')
                 
                 output.print_md("- Final global counter: **{}**".format(global_counter))
             
@@ -464,7 +466,7 @@ class NumberingLogic:
                             try:
                                 p_mark.Set("")
                             except Exception:
-                                pass
+                                log_swallowed(_LOG, u'NumberingLogic.apply_numbering')
                     
                     cap_seq_counters[prefix] += 1
         

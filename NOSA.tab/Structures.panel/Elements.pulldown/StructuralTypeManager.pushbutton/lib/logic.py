@@ -5,6 +5,8 @@ import sys
 import os
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'structuraltypemanager'
 # lib = NOSA.extension/lib (StructuralType…/lib is 5 levels below extension root)
 _lib = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
@@ -36,7 +38,7 @@ def type_family_type_label(el_type):
                 if el_type.Family and getattr(el_type.Family, 'Name', None):
                     fn = unicode(el_type.Family.Name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'type_family_type_label')
             tn = u''
             try:
                 tn = unicode(element_name(el_type))
@@ -46,7 +48,7 @@ def type_family_type_label(el_type):
                 return u'{} — {}'.format(fn, tn)
             return tn or fn
     except Exception:
-        pass
+        log_swallowed(_LOG, u'type_family_type_label')
     try:
         fn = getattr(el_type, 'FamilyName', None)
         nm = element_name(el_type)
@@ -56,7 +58,7 @@ def type_family_type_label(el_type):
             return u'{} — {}'.format(fu, nu)
         return nu or fu
     except Exception:
-        pass
+        log_swallowed(_LOG, u'type_family_type_label')
     name = element_name(el_type)
     if name:
         return unicode(name)
@@ -80,9 +82,9 @@ def _selected_type_ids(doc, uidoc):
                 if isinstance(el, DB.FamilyInstance) and el.Symbol:
                     ids.add(get_id_value(el.Symbol.Id))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_selected_type_ids')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_selected_type_ids')
     return ids
 
 
@@ -130,12 +132,12 @@ def gather_element_types(doc, bic_name, family_subs, type_subs,
                 if typ_f and typ_f not in lbl:
                     continue
             except Exception:
-                pass
+                log_swallowed(_LOG, u'gather_element_types')
             types_list.append(et)
             if len(types_list) >= _TYPE_CAP:
                 break
     except Exception:
-        pass
+        log_swallowed(_LOG, u'gather_element_types')
 
     hint = u''
     if len(types_list) >= _TYPE_CAP:

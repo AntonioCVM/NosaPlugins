@@ -12,6 +12,8 @@ setting-out tables and pile coordinate export, not site-scale data):
 import os, sys, math
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sitetoolkit'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -114,7 +116,7 @@ def get_property_lines(doc):
             try:
                 total_len_mm += c.Length * _FT_TO_MM
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_property_lines')
         name = element_name(el) or u'—'
         rows.append({
             'id': get_id_value(el.Id), 'name': name,

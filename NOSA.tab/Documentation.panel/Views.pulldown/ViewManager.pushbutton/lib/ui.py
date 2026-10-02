@@ -3,6 +3,8 @@ import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewmanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -154,7 +156,7 @@ class ViewManagerWindow(NOSAWindow):
                 row.OnSheet  = info.get('sheet', u'')
                 row.DetailNo = info.get('detail', u'')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewManagerWindow._make_row')
         return row
 
     def _refresh_dup(self):
@@ -220,7 +222,7 @@ class ViewManagerWindow(NOSAWindow):
                 row.DetailNo = u'{}'.format(txt)
                 self._rename_detail_pending[vid] = row.DetailNo
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewManagerWindow.Rename_CellEdit')
 
     def _refresh_clean(self):
         self.GridClean.ItemsSource = [
@@ -388,7 +390,7 @@ class ViewManagerWindow(NOSAWindow):
         try:
             self._refresh_rename()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewManagerWindow.RenameRule_Changed')
 
     def Rename_Click(self, sender, args):
         from pyrevit import forms

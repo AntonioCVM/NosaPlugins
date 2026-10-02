@@ -8,6 +8,8 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'waffleslab'
 
 _PLUGIN_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 _ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
@@ -108,7 +110,7 @@ def _curve_samples_xy(curve):
             pts.append((p0.X, p0.Y))
             pts.append((p1.X, p1.Y))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_curve_samples_xy')
     return pts
 
 
@@ -150,19 +152,19 @@ def _get_element_name(element):
     try:
         return element.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_element_name')
     try:
         name_param = element.get_Parameter(DB.BuiltInParameter.SYMBOL_NAME_PARAM)
         if name_param:
             return name_param.AsString()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_element_name')
     try:
         name_param = element.LookupParameter("Type Name")
         if name_param:
             return name_param.AsString()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_element_name')
     return "Unknown"
 
 
@@ -367,7 +369,7 @@ class WaffleSlabBuilder:
                 if name_param and not name_param.IsReadOnly:
                     name_param.Set("Waffle Slab")
             except Exception:
-                pass
+                log_swallowed(_LOG, u'WaffleSlabBuilder.create_slab_with_recesses')
 
             param_offset = floor.get_Parameter(DB.BuiltInParameter.FLOOR_HEIGHTABOVELEVEL_PARAM)
             if param_offset and not param_offset.IsReadOnly:
@@ -379,7 +381,7 @@ class WaffleSlabBuilder:
                 if structural_param and not structural_param.IsReadOnly:
                     structural_param.Set(1)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'WaffleSlabBuilder.create_slab_with_recesses')
 
             return floor
 
@@ -416,7 +418,7 @@ class WaffleSlabBuilder:
                 if name_param and not name_param.IsReadOnly:
                     name_param.Set("Waffle Slab - Compression Layer")
             except Exception:
-                pass
+                log_swallowed(_LOG, u'WaffleSlabBuilder.create_topping_slab')
 
             offset_compression = base_elevation - level.Elevation
 
@@ -429,7 +431,7 @@ class WaffleSlabBuilder:
                 if structural_param and not structural_param.IsReadOnly:
                     structural_param.Set(1)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'WaffleSlabBuilder.create_topping_slab')
 
             return floor
 
@@ -704,7 +706,7 @@ def show_preview(doc, params, boundary, PreviewWindowClass):
                 if min_x - 1 <= cx_m <= max_x + 1 and min_y - 1 <= cy_m <= max_y + 1:
                     col_locs.append((cx_m, cy_m))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'show_preview')
 
     preview = PreviewWindowClass(params, bbox, col_locs)
 

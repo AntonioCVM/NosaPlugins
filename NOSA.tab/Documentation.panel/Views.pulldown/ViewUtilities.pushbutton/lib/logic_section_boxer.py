@@ -8,6 +8,8 @@
 # instead of running a standalone script.
 import os
 import sys
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -44,7 +46,7 @@ def _union_bbox(elements, view=None):
                 mins.append(bb.Min)
                 maxs.append(bb.Max)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_union_bbox')
     if not mins:
         return None
     min_x = min(p.X for p in mins)

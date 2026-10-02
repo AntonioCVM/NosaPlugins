@@ -11,6 +11,8 @@ import math
 import os
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 re_engine = None
@@ -46,7 +48,7 @@ def _wall_height_ft(host):
             if h > 1e-6:
                 return h
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_wall_height_ft')
     bbox = host.get_BoundingBox(None)
     if bbox is None:
         raise ValueError(u'Could not determine wall height.')
@@ -393,7 +395,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         if bbox is not None:
             z0 = bbox.Min.Z
     except Exception:
-        pass
+        log_swallowed(_LOG, u'build_wall_reinforcement')
 
     starter_mm = 0.0
     # a straight bar's end sits ON the cover (Revit snaps it there anyway, 2026-10-01)
@@ -432,7 +434,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                                 u'join them (Modify > Join) so the section reads as one '
                                 u'monolithic element.'.format(slab.Id))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'build_wall_reinforcement')
     if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')
 

@@ -53,6 +53,8 @@ wrong" more often than "throws", so it warrants the defensive,
 None-returning style instead.
 """
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _MM_PER_FT = 304.8
 
@@ -552,7 +554,7 @@ def create_multi_rebar_annotation(doc, view, rebars, mra_type=None,
         try:
             options.TagHasLeader = bool(tag_has_leader)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_multi_rebar_annotation')
 
         ids = NetList[DB.ElementId]()
         for rebar in rebars:
@@ -628,7 +630,7 @@ def create_stirrup_dimension_smart(doc, view, stirrup_rebars, host=None,
                 if hasattr(loc, 'Curve') and loc.Curve is not None:
                     axis_line = loc.Curve
             except Exception:
-                pass
+                log_swallowed(_LOG, u'create_stirrup_dimension_smart')
         
         # Fallback: compute axis from first and last stirrup
         if axis_line is None:
@@ -703,7 +705,7 @@ def tag_rebar_set_along_run(doc, view, rebar_set, tag_type_id=None,
                                   orientation=DB.TagOrientation.Horizontal,
                                   tag_type_id=tag_type_id, add_leader=False)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'tag_rebar_set_along_run')
         
         # For dimension, we need to extract individual bar positions
         # For a ShapeDrivenAccessor rebar, we can't easily get individual
@@ -716,6 +718,6 @@ def tag_rebar_set_along_run(doc, view, rebar_set, tag_type_id=None,
         # version-dependent. For now, return tag only.
         
     except Exception:
-        pass
+        log_swallowed(_LOG, u'tag_rebar_set_along_run')
     
     return tag, dim

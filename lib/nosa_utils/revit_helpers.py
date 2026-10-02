@@ -3,6 +3,8 @@
 Revit API Helper Utilities
 Provides safer wrappers and common Revit API operations.
 """
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.revit_helpers'
 
 # Revit API imports are local to each function so the module imports outside Revit (unit tests).
 
@@ -20,12 +22,12 @@ def get_id_value(element_id):
         if hasattr(element_id, 'Value'):
             return int(element_id.Value)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_id_value')
     try:
         if hasattr(element_id, 'IntegerValue'):
             return int(element_id.IntegerValue)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_id_value')
     return int(str(element_id))
 
 
@@ -47,7 +49,7 @@ def coerce_element_id(val):
         if hasattr(val, 'Value') or hasattr(val, 'IntegerValue'):
             return val
     except Exception:
-        pass
+        log_swallowed(_LOG, u'coerce_element_id')
     return element_id_from_int(val)
 
 
@@ -156,7 +158,7 @@ def get_parameter_value(element, param_name, default=None):
             elif param.StorageType == StorageType.ElementId:
                 return param.AsElementId()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_parameter_value')
     
     return default
 
@@ -230,7 +232,7 @@ def get_builtin_parameter_value(element, builtin_param, default=None):
             elif param.StorageType == StorageType.ElementId:
                 return param.AsElementId()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_builtin_parameter_value')
     
     return default
 
@@ -319,7 +321,7 @@ def get_element_type_name(element):
             if type_param:
                 return type_param.AsString() or ""
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_type_name')
     
     return ""
 
@@ -342,7 +344,7 @@ def get_element_family_name(element):
             if family_param:
                 return family_param.AsString() or ""
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_family_name')
     
     return ""
 
@@ -361,7 +363,7 @@ def get_element_category_name(element):
         if hasattr(element, 'Category') and element.Category:
             return element.Category.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_category_name')
     
     return ""
 
@@ -411,7 +413,7 @@ def can_modify_element(element):
                 workset_id = WorksharingUtils.GetCheckoutStatus(doc, element.Id)
                 # Additional workset checks could go here
             except Exception:
-                pass
+                log_swallowed(_LOG, u'can_modify_element')
         
         return True, None
     

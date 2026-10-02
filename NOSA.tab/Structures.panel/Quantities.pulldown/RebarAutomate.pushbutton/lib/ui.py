@@ -13,6 +13,8 @@ import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
 from System.Windows.Media import SolidColorBrush, Color
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -496,7 +498,7 @@ class RebarAutomateWindow(NOSAWindow):
                 try:
                     return standards.load(rebar_project.DEFAULT_STANDARD_CODE)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'RebarAutomateWindow._load_standard')
             return None
 
     def _host_std(self, host):
@@ -584,7 +586,7 @@ class RebarAutomateWindow(NOSAWindow):
         try:
             return max(0.0, float(self.TxtKickerHeight.Text))
         except (TypeError, ValueError, AttributeError):
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._kicker_mm')
         try:
             return max(0.0, float(self.ra_project.get('kicker_mm', 75.0)))
         except (TypeError, ValueError):
@@ -981,7 +983,7 @@ class RebarAutomateWindow(NOSAWindow):
                 width_mm = min((bbox.Max.X - bbox.Min.X) * 304.8, 4000.0)
                 thickness_mm = (bbox.Max.Z - bbox.Min.Z) * 304.8
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._mat_preview_shapes')
         spacing = self._preview_number(self.TxtSpacing, 200.0)
         dowels = kind != u'slab' and self.ChkIncludeDowels.IsChecked == True
         return preview_shapes.mat_section_shapes(
@@ -1694,7 +1696,7 @@ class RebarAutomateWindow(NOSAWindow):
                     with revit.Transaction(u'NOSA — Remove Unpropagated Bar'):
                         self.doc.Delete(rebar.Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'RebarAutomateWindow._create_grouped_bars')
 
             materialized = s.get('materialized_bars', [])
             # PHASE 3.5.8 (2026-09-02, explicit user request) — hole-closure
@@ -2090,7 +2092,7 @@ class RebarAutomateWindow(NOSAWindow):
                                     u'view cube) or switch to a 2D/plan view before '
                                     u'running, then tag manually.').format(view.Name)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._run_reinforcement')
             if skip_reason is not None:
                 errors.append(u'Tagging skipped for all {} bar(s) — {}'.format(
                     len(created_rebars), skip_reason))
@@ -2846,7 +2848,7 @@ class RebarAutomateWindow(NOSAWindow):
                 try:
                     detail = u'{}\n{}'.format(detail, traceback.format_exc())
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'RebarAutomateWindow._run_column_reinforcement')
                 errors.append(u'Column {}: {}'.format(get_id_value(host.Id), detail))
 
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
@@ -2935,7 +2937,7 @@ class RebarAutomateWindow(NOSAWindow):
                 width_mm, height_mm = beam_rebar.get_beam_section_mm(
                     self.doc, beam_host, cover, bar_dia)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_preview')
         try:
             data = rebar_preview.compute_beam_section_preview(
                 width_mm, height_mm, cover, bar_dia, n_top, n_bottom, st_dia)
@@ -2989,11 +2991,11 @@ class RebarAutomateWindow(NOSAWindow):
             try:
                 _, height_mm = beam_rebar.get_beam_section_mm(self.doc, beam_host, cover, bar_dia)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_elevation_preview')
             try:
                 length_mm = beam_rebar.get_beam_axis(beam_host).Length * 304.8
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_elevation_preview')
 
         try:
             data = rebar_preview.compute_beam_elevation_preview(
@@ -3067,15 +3069,15 @@ class RebarAutomateWindow(NOSAWindow):
                 cover = re_engine.get_native_cover_mm(
                     self.doc, wall_host, u'Exterior', cover)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
             try:
                 length_mm, height_mm = wall_rebar.get_wall_elevation_mm(wall_host)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
             try:
                 thickness_mm = wall_host.Width * 304.8
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
 
         try:
             vert_dia = float(self.TxtWallVertDia.Text)
@@ -3106,7 +3108,7 @@ class RebarAutomateWindow(NOSAWindow):
                     include_end_ubars=self.ChkWallEndUBars.IsChecked == True,
                     include_starters=include_starters, starter_length_mm=starter_length)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._update_wall_preview')
             else:
                 self._draw_wall_elevation_preview(elevation_canvas, data)
 
@@ -3196,7 +3198,7 @@ class RebarAutomateWindow(NOSAWindow):
             try:
                 rect.Fill = SWM.Brushes.Transparent
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarAutomateWindow._draw_simple_section_preview')
             SWC.Canvas.SetLeft(rect, sx(-hw))
             SWC.Canvas.SetTop(rect, sy(hh))
             canvas.Children.Add(rect)
@@ -3362,7 +3364,7 @@ class RebarAutomateWindow(NOSAWindow):
                                   u'Switch Join Order, then regenerate.'.format(
                                       get_id_value(host.Id), get_id_value(joined_id)))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._process_beam')
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
         lap_mm = None
@@ -4141,7 +4143,7 @@ class RebarAutomateWindow(NOSAWindow):
                 except Exception:
                     continue
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._selected_rebars')
         return rebars
 
     def _selected_detail_hosts(self):
@@ -4159,7 +4161,7 @@ class RebarAutomateWindow(NOSAWindow):
                 except Exception:
                     continue
         except Exception:
-            pass
+            log_swallowed(_LOG, u'RebarAutomateWindow._selected_detail_hosts')
         return hosts
 
     def AutoTag_Click(self, sender, args):

@@ -4,6 +4,8 @@ import sys
 import codecs
 
 import System.Windows
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'structuraltypemanager'
 
 _lib = os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
@@ -61,7 +63,7 @@ def _sel_combo_text(cmb, txt):
         try:
             cmb.Text = t
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_sel_combo_text')
 
 
 class TypeParamRow(object):
@@ -81,7 +83,7 @@ class TypeParamRow(object):
         try:
             p = _logic.lookup_param_named(el_type, pname)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'TypeParamRow.__init__')
         self.ParamRef = p
         self.CurrentVal = u''
         if p:
@@ -99,7 +101,7 @@ class TypeParamRow(object):
                 if p2:
                     self.AuxVal = _logic._param_value_display(p2)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'TypeParamRow.__init__')
 
 
 class StructuralTypeManagerWindow(NOSAWindow):
@@ -150,7 +152,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
         try:
             self.ComboCategory.SelectedIndex = 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow.__init__')
 
         self.ComboParamScope.Items.Clear()
         for s in self._SCOPE_LABELS:
@@ -158,14 +160,14 @@ class StructuralTypeManagerWindow(NOSAWindow):
         try:
             self.ComboParamScope.SelectedIndex = 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow.__init__')
 
         self.ComboParamAux.Items.Clear()
         self.ComboParamAux.Items.Add(u'— none —')
         try:
             self.ComboParamAux.SelectedIndex = 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow.__init__')
         cfg = self.LoadConfig()
         self.ChkDarkMode.IsChecked = cfg.get(u'dark_mode', self.dark_mode)
         self._reload_presets_combo()
@@ -177,7 +179,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
                 else System.Windows.Visibility.Collapsed)
             self.TxtLoadingMsg.Text = msg
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow._set_loading')
 
     def _tb(self, ctrl):
         try:
@@ -263,7 +265,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
                     int(hit.get(u'scope_index', 0)),
                     max(0, self.ComboParamScope.Items.Count - 1))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'StructuralTypeManagerWindow.PresetLoad_Changed')
             self.ChkRestrictSelection.IsChecked = bool(hit.get(u'restrict_selection'))
             self.ChkExcludeNonModifiable.IsChecked = bool(hit.get(u'exclude_non_modifiable'))
             self.ChkOpenWorksetsOnly.IsChecked = bool(hit.get(u'only_open_worksets'))
@@ -320,7 +322,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
             if self.ComboParam.Items.Count and self.ComboParam.SelectedIndex < 0:
                 self.ComboParam.SelectedIndex = 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow._refresh_lists')
 
         self.ComboParamAux.Items.Clear()
         self.ComboParamAux.Items.Add(u'— none —')
@@ -368,7 +370,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
             try:
                 self.ComboParamAux.SelectedIndex = 0
             except Exception:
-                pass
+                log_swallowed(_LOG, u'StructuralTypeManagerWindow.Scan_Click')
             return
         self.TxtRowCount.Text = u'{} {}'.format(len(elems), hint or u'')
 
@@ -389,7 +391,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
             if it is not None:
                 return unicode(it).strip()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow._primary_param_pick')
         try:
             return unicode(self.ComboParam.Text or u'').strip()
         except Exception:
@@ -437,7 +439,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
             try:
                 self.GridMain.Items.Refresh()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'StructuralTypeManagerWindow._rebuild')
         finally:
             self._set_loading(False)
 
@@ -454,7 +456,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
         try:
             self.GridMain.Items.Refresh()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow.FillAll_Click')
 
     def Duplicate_Click(self, sender, args):
         chose = []
@@ -463,7 +465,7 @@ class StructuralTypeManagerWindow(NOSAWindow):
                 if isinstance(o, TypeParamRow):
                     chose.append(o)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'StructuralTypeManagerWindow.Duplicate_Click')
         if len(chose) != 1:
             forms.alert(u'Select single row.')
             return

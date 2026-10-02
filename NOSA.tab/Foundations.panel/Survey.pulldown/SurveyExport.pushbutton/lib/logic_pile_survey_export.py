@@ -11,6 +11,8 @@ import math, io, csv
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'surveyexport'
 FT2MM = _uc10.FT_TO_MM
 FT_M  = _uc10.FT_TO_M
 
@@ -32,7 +34,7 @@ def _ps(el, bip, default=u''):
         if p and p.HasValue:
             return p.AsString() or default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_ps')
     return default
 
 
@@ -42,7 +44,7 @@ def _pd(el, bip, default=0.0):
         if p and p.HasValue:
             return p.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pd')
     return default
 
 
@@ -54,7 +56,7 @@ def _is_pile(el, doc):
         if p and p.AsInteger() == 1:
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_pile')
     # 2. Family name contains pile keyword
     try:
         name = ''
@@ -66,7 +68,7 @@ def _is_pile(el, doc):
         if any(kw in name_lo for kw in _PILE_KEYWORDS):
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_pile')
     # 3. Type name contains pile keyword
     try:
         t = doc.GetElement(el.GetTypeId())
@@ -75,7 +77,7 @@ def _is_pile(el, doc):
             if any(kw in tname for kw in _PILE_KEYWORDS):
                 return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_pile')
     return False
 
 
@@ -116,10 +118,10 @@ def _pile_geometry(el):
                 if bb:
                     length_mm = abs(bb.Max.Z - bb.Min.Z) * FT2MM
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_pile_geometry')
             return pt, None, round(length_mm, 0), None, 90.0, 0.0
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pile_geometry')
     return None, None, 0.0, None, 0.0, 0.0
 
 
@@ -135,14 +137,14 @@ def _diameter_mm(el, doc):
                 if v > 0:
                     return round(v * FT2MM, 0)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_diameter_mm')
     # Try instance parameter
     try:
         p = el.LookupParameter('Diameter') or el.LookupParameter('Diámetro')
         if p and p.HasValue:
             return round(p.AsDouble() * FT2MM, 0)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_diameter_mm')
     return None
 
 
@@ -156,7 +158,7 @@ def _level_name(el, doc):
                 if lv:
                     return lv.Name or u''
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_level_name')
     return u''
 
 
@@ -222,7 +224,7 @@ def collect_piles(doc, options):
                             lv_match = True
                             break
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'collect_piles')
                 if not lv_match:
                     continue
 

@@ -6,6 +6,8 @@ from System import Int64
 from System.Collections.ObjectModel import ObservableCollection
 from System.Collections.Generic import List
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'structuralschedulepro'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -61,7 +63,7 @@ class ScheduleProWindow(NOSAWindow):
         try:
             self.SP_TxtProjectName.Text = doc.ProjectInformation.Name or ''
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ScheduleProWindow.__init__')
 
         cfg = self.LoadConfig()
         self.ApplyTheme(cfg.get('dark_mode', False))
@@ -293,7 +295,7 @@ class ScheduleProWindow(NOSAWindow):
                 eid_list = List[DB.ElementId]([DB.ElementId(Int64(int(i))) for i in ids])
                 revit.uidoc.Selection.SetElementIds(eid_list)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ScheduleProWindow.BOM_Grid_SelectionChanged')
 
     def BOM_ExportXlsx_Click(self, sender, args):
         if not self._bom_rows:
@@ -306,7 +308,7 @@ class ScheduleProWindow(NOSAWindow):
             try:
                 proj_name = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ScheduleProWindow.BOM_ExportXlsx_Click')
             _bom_logic.export_xlsx(self._bom_rows, self._bom_totals, path, proj_name)
             forms.alert(u'Excel exported:\n{}'.format(path))
         except ImportError:

@@ -6,6 +6,8 @@ from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewoverrides'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -329,7 +331,7 @@ class ViewOverridesWindow(NOSAWindow):
             try:
                 vr.FilterCount = len(list(vr.View.GetFilters()))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ViewOverridesWindow._vf_reload_counts')
         self.VF_GridViews.Items.Refresh()
 
     # ══════════════════════════════════════════════════════════════════

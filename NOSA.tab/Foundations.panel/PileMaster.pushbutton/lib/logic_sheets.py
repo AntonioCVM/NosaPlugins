@@ -4,6 +4,8 @@ Logic for Sheet/Scope Box visibility.
 """
 from Autodesk.Revit import DB
 from pyrevit import revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 class SheetLogic:
     def __init__(self, doc):
         self.doc = doc
@@ -149,7 +151,7 @@ class SheetLogic:
                 if temp_file and os.path.exists(temp_file):
                     os.remove(temp_file)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetLogic.ensure_parameters')
                 
         return len(missing), None
 
@@ -191,7 +193,7 @@ class SheetLogic:
                                      idef.SetAllowVaryBetweenGroups(self.doc, True)
                          except Exception as e:
                              # print("Could not set vary by group for {}: {}".format(pname, e))
-                             pass
+                             log_swallowed(_LOG, u'SheetLogic.update_visibility')
         
         updated_count = 0
         outside_count = 0

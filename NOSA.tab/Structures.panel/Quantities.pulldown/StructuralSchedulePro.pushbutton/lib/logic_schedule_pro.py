@@ -2,6 +2,8 @@ import sys
 # -*- coding: utf-8 -*-
 """Structural Schedule Pro — Logic"""
 import io, csv, datetime, os
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'structuralschedulepro'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -33,7 +35,7 @@ def _param_str(el, bip):
         if p and p.HasValue:
             return (p.AsString() or '').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_str')
     return ''
 
 
@@ -43,7 +45,7 @@ def _lookup_str(el, name):
         if p and p.HasValue:
             return (p.AsString() or '').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_lookup_str')
     return ''
 
 
@@ -60,7 +62,7 @@ def _level_name(doc, el):
                 if lv:
                     return lv.Name
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_level_name')
     return u'—'
 
 
@@ -73,13 +75,13 @@ def _length_m(el):
             if p and p.HasValue:
                 return round(p.AsDouble() * FT2M, 2)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_length_m')
     try:
         lc = el.Location
         if isinstance(lc, LocationCurve):
             return round(lc.Curve.Length * FT2M, 2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_length_m')
     return None
 
 
@@ -94,7 +96,7 @@ def _material(el):
                 if mat:
                     return mat.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_material')
     return u'—'
 
 
@@ -147,7 +149,7 @@ def collect_schedule(doc, categories, extra_params=None):
                     row['ep_' + pname] = _lookup_str(el, pname) or u'—'
                 rows.append(row)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_schedule')
 
     rows.sort(key=lambda r: (r['level'], r['category'], r['mark']))
     return rows
@@ -266,7 +268,7 @@ def export_pdf(rows, path, project_name='', extra_params=None):
                 ])
                 return path, True   # PDF generated
             except Exception:
-                pass
+                log_swallowed(_LOG, u'export_pdf')
     return html_path, False  # fell back to HTML
 
 

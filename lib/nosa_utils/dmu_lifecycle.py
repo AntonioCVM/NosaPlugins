@@ -6,6 +6,8 @@ than one updater without collisions. The default keeps existing callers
 
 import System
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.dmu_lifecycle'
 
 _GUID_STR = 'C4F8E23A-7B51-4D0A-9F1C-3E7A8B2D5C06'            # Pile Live Coordinates
 COMMENTS_GUID_STR = '8A1E4F3B-6C2D-4A9E-B7F1-2D9C5A3E1B8F'     # Element Comments Hub
@@ -29,7 +31,7 @@ def unregister(app, guid_str=_GUID_STR):
         if DB.UpdaterRegistry.IsUpdaterRegistered(updater_id):
             DB.UpdaterRegistry.UnregisterUpdater(updater_id)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'unregister')
 
 
 ALL_GUIDS = (_GUID_STR, COMMENTS_GUID_STR)

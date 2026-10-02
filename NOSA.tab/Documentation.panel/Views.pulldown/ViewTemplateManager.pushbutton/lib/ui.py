@@ -5,6 +5,8 @@ from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewtemplatemanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -79,9 +81,9 @@ class ViewTemplateManagerWindow(NOSAWindow):
                         vp  = self.doc.GetElement(vpid)
                         ids.add(get_id_value(vp.ViewId))
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'ViewTemplateManagerWindow._tg_collect_sheet_view_ids')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewTemplateManagerWindow._tg_collect_sheet_view_ids')
         return ids
 
     def _tg_active_checks(self):
@@ -212,7 +214,7 @@ class ViewTemplateManagerWindow(NOSAWindow):
             self.CT_TxtFilters.Text = u'Filters: {}'.format(len(info.get('filters', [])))
             self.CT_PanelInfo.Visibility = System.Windows.Visibility.Visible
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewTemplateManagerWindow._ct_show_info')
 
     def _ct_combo_changed(self, sender, args):
         self._ct_show_info(self.CT_ComboTemplates.SelectedItem)

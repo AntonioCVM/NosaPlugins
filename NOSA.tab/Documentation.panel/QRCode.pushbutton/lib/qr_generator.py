@@ -18,6 +18,8 @@ generate_nosa_qr(url, size_mm=24, dpi=300)
 import os
 import sys
 import math
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'qrcode'
 
 _ORANGE = (255, 95, 0, 255)
 _BLACK  = (0,   0,  0, 255)
@@ -99,7 +101,7 @@ def _find_cpython3_exe():
                         candidates.append(p)
         os.unlink(out_tmp)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_find_cpython3_exe')
 
     # Return first candidate that really is Python 3
     for p in candidates:
@@ -113,7 +115,7 @@ def _find_cpython3_exe():
             if ret == 0 and 'Python 3' in ver_str:
                 return p
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_find_cpython3_exe')
 
     return None
 
@@ -176,7 +178,7 @@ def _ensure_deps(confirm=None):
         from PIL import Image  # noqa: F401
         return True, None
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_ensure_deps')
 
     # Fallback: subprocess with a valid Python exe
     py = _find_valid_cpython_exe()
@@ -236,7 +238,7 @@ def _paste_logo(img, cx, cy, logo_d):
             img.paste(logo, (px, py), logo.split()[3])
             return
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_paste_logo')
     # Vector fallback
     from PIL import ImageDraw as _IDraw
     draw = _IDraw.Draw(img)
@@ -407,7 +409,7 @@ def _generate_ironpython(url, size_mm, dpi, confirm=None):
         try:
             os.unlink(url_file)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_generate_ironpython')
 
     if ret != 0:
         if os.path.exists(tmp):
@@ -497,13 +499,13 @@ def _generate_matrix_ironpython(url):
         try:
             os.unlink(url_file)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_generate_matrix_ironpython')
 
     if ret != 0:
         try:
             os.unlink(json_out)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_generate_matrix_ironpython')
         raise RuntimeError(u'QR matrix subprocess failed with code {}'.format(ret))
 
     try:
@@ -514,7 +516,7 @@ def _generate_matrix_ironpython(url):
         try:
             os.unlink(json_out)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_generate_matrix_ironpython')
 
 
 def generate_nosa_qr_matrix(url):

@@ -7,6 +7,8 @@ from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationsuite'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -73,9 +75,9 @@ class AnnotationSuiteWindow(NOSAWindow):
                         vp = self.doc.GetElement(vpid)
                         self._sheet_view_ids.add(get_id_value(vp.ViewId))
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'AnnotationSuiteWindow._build_sheet_view_ids')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AnnotationSuiteWindow._build_sheet_view_ids')
 
     def _load_views(self):
         self._all_view_items = [ViewItem(v) for v in _anno.get_structural_views(self.doc)]
@@ -114,7 +116,7 @@ class AnnotationSuiteWindow(NOSAWindow):
                 combo.SelectedIndex = 0
                 self._tag_lists[combo_name] = tags
             except Exception:
-                pass
+                log_swallowed(_LOG, u'AnnotationSuiteWindow._load_tag_families')
 
     def _load_spot_types(self):
         try:
@@ -135,7 +137,7 @@ class AnnotationSuiteWindow(NOSAWindow):
             if tags and idx > 0 and idx <= len(tags):
                 return tags[idx - 1]['id']
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AnnotationSuiteWindow._get_tag_id')
         return DB.ElementId.InvalidElementId
 
     def _selected_views(self):

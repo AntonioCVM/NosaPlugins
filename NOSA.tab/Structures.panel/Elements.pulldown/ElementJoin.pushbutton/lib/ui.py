@@ -8,6 +8,8 @@ import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'elementjoin'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -173,7 +175,7 @@ class ElementJoinWindow(NOSAWindow):
             name = getattr(self._picked_a, 'Name', str(self._picked_a.Id)) if self._picked_a else "None"
             self.TxtPickedA.Text = "A: {}".format(name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementJoinWindow.PickA_Click')
         self.Show()
 
     def PickB_Click(self, sender, args):
@@ -185,7 +187,7 @@ class ElementJoinWindow(NOSAWindow):
             name = getattr(self._picked_b, 'Name', str(self._picked_b.Id)) if self._picked_b else "None"
             self.TxtPickedB.Text = "B: {}".format(name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ElementJoinWindow.PickB_Click')
         self.Show()
 
     # ── main run ─────────────────────────────────────────────────────────────
@@ -266,7 +268,7 @@ class ElementJoinWindow(NOSAWindow):
                                 })
                                 break
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'ElementJoinWindow._run_batch')
             else:
                 elements = _logic.collect_joinable_elements(self.doc, cats)
         except Exception as e:

@@ -7,6 +7,8 @@ import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -39,9 +41,9 @@ def get_all_views(doc):
                     'type': str(v.ViewType).replace('ViewType.', ''),
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_all_views')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_all_views')
     return sorted(result, key=lambda x: (x['type'], x['name'].lower()))
 
 
@@ -51,7 +53,7 @@ def _param_str(el, name):
         if p and p.HasValue:
             return (p.AsString() or p.AsValueString() or u'').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_str')
     return u''
 
 
@@ -90,7 +92,7 @@ def analyse_view(doc, view_id_int):
                     'name': tmpl.Name or u'',
                 }
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
 
     # Filters
     try:
@@ -107,7 +109,7 @@ def analyse_view(doc, view_id_int):
                 'visible': visible,
             })
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
 
     # Sheets that contain this view
     sheets = []
@@ -123,9 +125,9 @@ def analyse_view(doc, view_id_int):
                             'name':   sheet.Name or u'',
                         })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'analyse_view')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
     result['sheets'] = sorted(sheets, key=lambda x: x['number'])
 
     # Revisions from those sheets
@@ -151,7 +153,7 @@ def analyse_view(doc, view_id_int):
                         try:
                             seq = str(rev.SequenceNumber)
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'analyse_view')
                     result['revisions'].append({
                         'sequence':    seq,
                         'date':        date,
@@ -159,9 +161,9 @@ def analyse_view(doc, view_id_int):
                         'sheet':       sh['number'],
                     })
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'analyse_view')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'analyse_view')
 
     # Dependent views
     try:
@@ -175,6 +177,6 @@ def analyse_view(doc, view_id_int):
                 'name': dv.Name or u'',
             })
     except Exception:
-        pass
+        log_swallowed(_LOG, u'analyse_view')
 
     return result

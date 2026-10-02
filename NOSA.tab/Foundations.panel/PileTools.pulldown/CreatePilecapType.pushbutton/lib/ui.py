@@ -8,6 +8,8 @@ from System.Windows.Shapes import Polygon as WPFPolygon
 from System.Windows import Point
 from System.Windows.Media import PointCollection
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'createpilecaptype'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -143,7 +145,7 @@ class CreatePilecapWindow(NOSAWindow):
             else:
                 self._draw_irregular()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'CreatePilecapWindow._refresh_preview')
 
     def _parse_spacing_clearance(self):
         try: spc = max(100.0, float(self.TxtSpacing.Text   or '900'))
@@ -347,7 +349,7 @@ class CreatePilecapWindow(NOSAWindow):
         try:
             pt = revit.uidoc.Selection.PickPoint('Click to place pile cap centre')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'CreatePilecapWindow.Place_Click')
         self.Show()
         if pt is None:
             return

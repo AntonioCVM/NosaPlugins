@@ -2,6 +2,8 @@
 import os, sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'footingdesigner'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -21,7 +23,7 @@ def _type_name(el_type):
             if n:
                 return n
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_type_name')
     return element_name(el_type) or str(get_id_value(el_type.Id))
 
 
@@ -33,13 +35,13 @@ def _wall_level_name(doc, wall):
             if lv:
                 return lv.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_wall_level_name')
     try:
         lv = doc.GetElement(wall.LevelId)
         if lv:
             return lv.Name
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_wall_level_name')
     return u'No Level'
 
 
@@ -48,13 +50,13 @@ def _is_structural(wall):
         if wall.StructuralUsage != DB.Structure.StructuralWallUsage.NonBearing:
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_structural')
     try:
         p = wall.get_Parameter(DB.BuiltInParameter.WALL_STRUCTURAL_SIGNIFICANT)
         if p and p.AsInteger() == 1:
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_structural')
     return False
 
 
@@ -75,9 +77,9 @@ def walls_with_footing(doc):
             try:
                 ids.add(get_id_value(wf.WallId))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'walls_with_footing')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'walls_with_footing')
     return ids
 
 
@@ -103,7 +105,7 @@ def collect_structural_walls(doc):
                 if isinstance(loc, DB.LocationCurve):
                     length_m = loc.Curve.Length * _FT_TO_M
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_structural_walls')
             wid = get_id_value(wall.Id)
             rows.append({
                 'element':     wall,
@@ -114,7 +116,7 @@ def collect_structural_walls(doc):
                 'has_footing': wid in existing,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_structural_walls')
     rows.sort(key=lambda r: (r['level'], r['type_name']))
     return rows
 
@@ -128,7 +130,7 @@ def collect_footing_types(doc):
                     .ToElements()):
             result.append({'id_obj': t.Id, 'name': _type_name(t)})
     except Exception:
-        pass
+        log_swallowed(_LOG, u'collect_footing_types')
     result.sort(key=lambda r: r['name'].lower())
     return result
 
@@ -162,7 +164,7 @@ def create_footings(doc, walls, footing_type_id):
         try:
             t.RollBack()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_footings')
         errors.append(u'Transaction failed: {}'.format(ex))
         return 0, 0, len(walls), errors
     return created, skipped, failed, errors

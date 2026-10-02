@@ -26,6 +26,8 @@ from pyrevit import forms, revit
 from Autodesk.Revit import DB
 from Autodesk.Revit.UI.Selection import ObjectType
 from Autodesk.Revit.Exceptions import OperationCanceledException
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -203,7 +205,7 @@ class ViewUtilitiesWindow(NOSAWindow):
             else:
                 forms.alert("Not a viewport.")
         except OperationCanceledException:
-            pass
+            log_swallowed(_LOG, u'ViewUtilitiesWindow.AV_PickRef_Click')
         except Exception as e:
             forms.alert("Could not pick reference viewport: {}".format(str(e)))
         finally:
@@ -285,7 +287,7 @@ class ViewUtilitiesWindow(NOSAWindow):
             self.BS_TxtLog.AppendText(msg + "\n")
             self.BS_TxtLog.ScrollToEnd()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ViewUtilitiesWindow._bs_log')
 
     def _bs_populate_view_types(self):
         self.BS_CmbViewType.Items.Clear()

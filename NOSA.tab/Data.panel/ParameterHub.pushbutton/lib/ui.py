@@ -5,6 +5,8 @@ from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'parameterhub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', 'lib'))
@@ -85,14 +87,14 @@ class _BERow(object):
         try:
             p = _be_logic.lookup_param_named(elem, pname)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'__init__')
         self.ParamRef   = p
         self.CurrentVal = u''
         if p:
             try:
                 self.CurrentVal = _be_logic._param_value_display(p)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'__init__')
         self.NewVal  = self.CurrentVal
         self.CanEdit = p is not None and (not p.IsReadOnly)
         self.AuxVal  = u''
@@ -102,7 +104,7 @@ class _BERow(object):
                 if p2:
                     self.AuxVal = _be_logic._param_value_display(p2)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'__init__')
 
 
 def _sel_combo_text(cmb, txt):
@@ -121,7 +123,7 @@ def _sel_combo_text(cmb, txt):
         try:
             cmb.Text = t
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_sel_combo_text')
 
 
 def _csv_cell(v):
@@ -343,7 +345,7 @@ class ParameterHubWindow(NOSAWindow):
         try:
             self.BE_ComboCategory.SelectedIndex = 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_init')
 
         self.BE_ComboParamScope.Items.Clear()
         for s in _BE_SCOPE_LABELS:
@@ -351,14 +353,14 @@ class ParameterHubWindow(NOSAWindow):
         try:
             self.BE_ComboParamScope.SelectedIndex = 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_init')
 
         self.BE_ComboParamAux.Items.Clear()
         self.BE_ComboParamAux.Items.Add(u'— none —')
         try:
             self.BE_ComboParamAux.SelectedIndex = 0
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_init')
 
         self._be_reload_presets()
 
@@ -369,7 +371,7 @@ class ParameterHubWindow(NOSAWindow):
                 else System.Windows.Visibility.Collapsed)
             self.BE_TxtLoadingMsg.Text = msg
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_set_loading')
 
     def _be_tb(self, ctrl):
         try:
@@ -419,7 +421,7 @@ class ParameterHubWindow(NOSAWindow):
             if self.BE_ComboParamAux.SelectedIndex > 0:
                 p_aux = ensure_text(self.BE_ComboParamAux.SelectedItem)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_gather_preset')
         return {
             u'name':                  preset_name,
             u'category_code':         code,
@@ -462,7 +464,7 @@ class ParameterHubWindow(NOSAWindow):
                         if self.BE_ComboCategory.Items[i].Code == code:
                             self.BE_ComboCategory.SelectedIndex = i; break
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'ParameterHubWindow.BE_PresetLoad_Changed')
             self.BE_TxtFamFilter.Text  = hit.get(u'fam_filter',  u'') or u''
             self.BE_TxtTypeFilter.Text = hit.get(u'type_filter', u'') or u''
             self.BE_TxtParamFilter.Text = hit.get(u'txt_param_filter', u'') or u''
@@ -471,7 +473,7 @@ class ParameterHubWindow(NOSAWindow):
                 self.BE_ComboParamScope.SelectedIndex = min(
                     ix, self.BE_ComboParamScope.Items.Count - 1)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ParameterHubWindow.BE_PresetLoad_Changed')
             self.BE_ChkRestrictSelection.IsChecked     = bool(hit.get(u'restrict_selection'))
             self.BE_ChkExcludeNonModifiable.IsChecked  = bool(hit.get(u'exclude_non_modifiable'))
             self.BE_ChkOpenWorksetsOnly.IsChecked       = bool(hit.get(u'only_open_worksets'))
@@ -485,7 +487,7 @@ class ParameterHubWindow(NOSAWindow):
             _sel_combo_text(self.BE_ComboParam,    ensure_text(hit.get(u'param_primary', u'')).strip())
             _sel_combo_text(self.BE_ComboParamAux, ensure_text(hit.get(u'param_aux',     u'')).strip())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow.BE_PresetLoad_Changed')
         pname = self._be_current_param()
         aux   = self._be_current_aux()
         if pname and self._be_elements:
@@ -537,7 +539,7 @@ class ParameterHubWindow(NOSAWindow):
             try:
                 self.BE_ComboParam.SelectedIndex = 0
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ParameterHubWindow._be_refresh_param_lists')
         self.BE_ComboParamAux.Items.Clear()
         self.BE_ComboParamAux.Items.Add(u'— none —')
         for n in names:
@@ -548,7 +550,7 @@ class ParameterHubWindow(NOSAWindow):
             try:
                 self.BE_ComboParamAux.SelectedIndex = 0
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ParameterHubWindow._be_refresh_param_lists')
 
     def BE_Scan_Click(self, sender, args):
         if self._be_preset_loading:
@@ -590,7 +592,7 @@ class ParameterHubWindow(NOSAWindow):
             if it is not None:
                 return ensure_text(it).strip()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_current_param')
         try:
             return ensure_text(self.BE_ComboParam.Text or u'').strip()
         except Exception:
@@ -601,7 +603,7 @@ class ParameterHubWindow(NOSAWindow):
             if self.BE_ComboParamAux.SelectedIndex == 0:
                 return None
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow._be_current_aux')
         try:
             it = self.BE_ComboParamAux.SelectedItem
             if it is None:
@@ -638,7 +640,7 @@ class ParameterHubWindow(NOSAWindow):
             try:
                 self.BE_GridMain.Items.Refresh()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'ParameterHubWindow._be_rebuild_grid')
         finally:
             self._be_set_loading(False)
 
@@ -648,7 +650,7 @@ class ParameterHubWindow(NOSAWindow):
             if isinstance(row, _BERow) and not row.CanEdit:
                 args.Cancel = True
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow.BE_Grid_Main_BeginningEdit')
 
     def BE_FillAll_Click(self, sender, args):
         val = self._be_tb(self.BE_TxtApplyAll)
@@ -658,7 +660,7 @@ class ParameterHubWindow(NOSAWindow):
         try:
             self.BE_GridMain.Items.Refresh()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow.BE_FillAll_Click')
 
     def BE_Apply_Click(self, sender, args):
         pname = self._be_current_param()
@@ -688,7 +690,7 @@ class ParameterHubWindow(NOSAWindow):
                     if ensure_text(row.NewVal).strip() == ensure_text(row.CurrentVal).strip():
                         continue
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'ParameterHubWindow.BE_Apply_Click')
             tuples.append((p, row.NewVal))
         if not tuples:
             forms.alert(u'Nothing to apply.')
@@ -721,7 +723,7 @@ class ParameterHubWindow(NOSAWindow):
                 _trace.log_event(u'bulk_param', u'apply_result',
                                  u'ok={} fail={} skip={}'.format(ok, fail, sk))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'ParameterHubWindow.BE_Apply_Click')
         forms.alert(u'OK {}\nFail {}\nSkip {}'.format(ok, fail, sk),
                     title=u'Parameter Hub — Bulk Editor')
         if pname:

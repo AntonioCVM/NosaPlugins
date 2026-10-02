@@ -5,6 +5,8 @@ from System.Collections.ObjectModel import ObservableCollection
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'texttools'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -38,7 +40,7 @@ try:
                 if c:
                     return (-c.Y, c.X)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_loc')
             return (0, 0)
         return sorted(elems, key=_loc)
 except ImportError:
@@ -98,9 +100,9 @@ class TextToolsWindow(NOSAWindow):
                     if col.GetElementCount() > 0:
                         cats.append(cat)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'TextToolsWindow._br_get_cats')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'TextToolsWindow._br_get_cats')
         return sorted(cats, key=lambda c: c.Name)
 
     def BR_Mode_Changed(self, sender, args):
@@ -303,7 +305,7 @@ class TextToolsWindow(NOSAWindow):
                     if p and p.StorageType == DB.StorageType.String and not p.IsReadOnly:
                         result.append((e, p))
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'TextToolsWindow._cc_get_targets')
             return result
 
     def _cc_get_text(self, elem, param):
@@ -366,7 +368,7 @@ class TextToolsWindow(NOSAWindow):
                     self._cc_set_text(elem, param, new_val)
                     changed += 1
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'TextToolsWindow.CC_Apply_Click')
             t.Commit()
         self.CC_TxtStatus.Text     = u'Done. Changed: {}  |  Unchanged: {}'.format(
             changed, len(self._cc_changes) - changed)

@@ -5,6 +5,8 @@ import System.Windows
 
 from Autodesk.Revit import DB
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationhub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -120,7 +122,7 @@ class AnnotationHubWindow(NOSAWindow):
             import System.Windows.Forms as _WF
             _WF.Application.DoEvents()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'AnnotationHubWindow.DW_Run_Click')
 
         created  = 0
         failed   = 0

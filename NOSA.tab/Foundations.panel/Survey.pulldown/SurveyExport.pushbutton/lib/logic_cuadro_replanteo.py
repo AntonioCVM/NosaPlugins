@@ -9,6 +9,8 @@ import math, io, csv
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'surveyexport'
 FT2MM = _uc10.FT_TO_MM
 
 _PILE_KEYWORDS = [
@@ -41,7 +43,7 @@ def _ps(el, bip, default=u''):
         if p and p.HasValue:
             return p.AsString() or default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_ps')
     return default
 
 
@@ -50,7 +52,7 @@ def _family_name(el):
         if isinstance(el, DB.FamilyInstance):
             return el.Symbol.FamilyName or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_family_name')
     return u''
 
 
@@ -77,7 +79,7 @@ def _bb_dims(el):
                     abs(bb.Max.Y - bb.Min.Y) * FT2MM,
                     abs(bb.Max.Z - bb.Min.Z) * FT2MM)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_bb_dims')
     return None
 
 
@@ -127,7 +129,7 @@ def _is_pile(el, doc):
         if p and p.AsInteger() == 1:
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_pile')
     # 2. Family / type name keyword match
     if _name_contains(el, doc, _PILE_KEYWORDS):
         return True
@@ -147,7 +149,7 @@ def _is_pilecap(el, doc):
         if p and p.AsInteger() == 1:
             return True
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_is_pilecap')
     # 2. Family / type name keyword match
     if _name_contains(el, doc, _PILECAP_KEYWORDS):
         return True
@@ -168,7 +170,7 @@ def _level_name(el, doc):
                 if lv:
                     return lv.Name or u''
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_level_name')
     return u''
 
 
@@ -180,7 +182,7 @@ def _material_name(el, doc):
             if mat:
                 return mat.Name or u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_material_name')
     return u'—'
 
 
@@ -207,7 +209,7 @@ def _element_location(el):
                     round(base.Z * FT2MM, 1),
                     round(rot, 2))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_element_location')
     try:
         bb = el.get_BoundingBox(None)
         if bb:
@@ -216,7 +218,7 @@ def _element_location(el):
             cz = bb.Min.Z * FT2MM
             return (round(cx, 1), round(cy, 1), round(cz, 1), 0.0)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_element_location')
     return (None, None, None, 0.0)
 
 
@@ -256,13 +258,13 @@ def _classify(el, doc, bic):
         if p and p.AsInteger() == 1:
             return CAT_PILE
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_classify')
     try:
         p = el.LookupParameter('NOSA_IsPileCap')
         if p and p.AsInteger() == 1:
             return CAT_PILECAP
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_classify')
 
     # Keyword match — check pilecap FIRST (more specific)
     if _name_contains(el, doc, _PILECAP_KEYWORDS):
@@ -326,7 +328,7 @@ def collect_survey(doc, options):
                                     lv_match = True
                                     break
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'collect_survey')
                     if not lv_match:
                         continue
 
@@ -349,7 +351,7 @@ def collect_survey(doc, options):
                     'comments': _ps(el, DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS),
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'collect_survey')
 
     sort_map = {
         'mark':  lambda r: (r['mark'] or ''),

@@ -2,6 +2,8 @@
 """ViewFilter Batch Logic — bulk-manage view filters across multiple views."""
 import sys, os
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewoverrides'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -40,7 +42,7 @@ def get_all_project_filters(doc):
                 if cat and cat.Name:
                     cats.append(cat.Name)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_all_project_filters')
         result.append({'id': f.Id, 'name': f.Name, 'categories': cats})
     return sorted(result, key=lambda x: x['name'].lower())
 
@@ -126,7 +128,7 @@ def apply_filters_to_views(doc, filter_infos, target_views, source_view=None):
                             vis = source_view.GetFilterVisibility(fid)
                             view.SetFilterVisibility(fid, vis)
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'apply_filters_to_views')
                     applied += 1
                 except Exception:
                     skipped += 1

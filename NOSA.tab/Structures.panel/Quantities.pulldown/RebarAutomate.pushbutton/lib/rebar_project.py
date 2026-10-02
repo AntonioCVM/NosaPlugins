@@ -28,6 +28,8 @@ on a fake/mock doc in a pure test) — no `import Autodesk.Revit` here.
 import hashlib
 import json
 import os
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 # NOSA works to BS 8666:2020 / EC2 (UK NA): the default for any document without settings.
 DEFAULT_STANDARD_CODE = u'BS-8666-2020'
@@ -58,7 +60,7 @@ def doc_key(doc):
     try:
         path = doc.PathName or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'doc_key')
     if not path:
         try:
             path = doc.Title or u'untitled'
@@ -94,7 +96,7 @@ def load(doc):
             if isinstance(loaded, dict):
                 data.update(loaded)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'load')
     return data
 
 

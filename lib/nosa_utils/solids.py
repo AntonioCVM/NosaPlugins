@@ -18,6 +18,8 @@ usable return value instead of propagating the failure:
     union_solids(solids)        -> union, skipping members that fail
 """
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.solids'
 
 
 def _geo_options(view=None, compute_refs=False):
@@ -47,7 +49,7 @@ def iter_solids(element, view=None):
                     if isinstance(sub, DB.Solid) and sub.Volume > 1e-9:
                         yield sub
         except Exception:
-            pass
+            log_swallowed(_LOG, u'iter_solids')
 
 
 def get_solids(element, view=None):
@@ -88,7 +90,7 @@ def union_solids(solids):
             if merged is not None and merged.Volume > 0.0:
                 result = merged
         except Exception:
-            pass
+            log_swallowed(_LOG, u'union_solids')
     return result
 
 
@@ -115,7 +117,7 @@ def total_volume(element, view=None):
         try:
             total += s.Volume
         except Exception:
-            pass
+            log_swallowed(_LOG, u'total_volume')
     return total
 
 
@@ -160,5 +162,5 @@ def safe_difference(solid, cutter):
         if cut.Volume <= 0.0:
             return solid
     except Exception:
-        pass
+        log_swallowed(_LOG, u'safe_difference')
     return cut

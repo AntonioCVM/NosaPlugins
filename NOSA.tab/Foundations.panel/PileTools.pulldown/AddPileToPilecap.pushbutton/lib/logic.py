@@ -9,6 +9,8 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.UI.Selection import ISelectionFilter
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from System.Collections.Generic import List
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'addpiletopilecap'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -56,7 +58,7 @@ def _read_legacy_config(path=None):
             if isinstance(data, dict):
                 return data
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_read_legacy_config')
     return {}
 
 
@@ -138,7 +140,7 @@ def point_inside_check(x_g, y_g, slab_z, slab_boundary_polygon, face_inf, min_ed
             if res:
                 return face_inf.IsInside(res.UVPoint)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'point_inside_check')
     return True   # accept if no boundary data
 
 class SlabFilter(ISelectionFilter):
@@ -215,7 +217,7 @@ def get_element_transform(element, options):
             if t:
                 return t
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_transform')
     
     try:
         geom_elem = element.get_Geometry(options)
@@ -224,7 +226,7 @@ def get_element_transform(element, options):
                 if hasattr(geo_obj, 'Transform') and geo_obj.Transform:
                     return geo_obj.Transform
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_transform')
     
     return None
 
@@ -270,7 +272,7 @@ def get_project_location_inverse_transform(doc):
             if t:
                 return t.Inverse
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_project_location_inverse_transform')
     return None
 
 def normalize_polygons_to_internal(doc, polygons, element, transform=None):
@@ -394,9 +396,9 @@ def get_face_boundary_points(face):
                             points.append(curve.GetEndPoint(0))
                             points.append(curve.GetEndPoint(1))
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'get_face_boundary_points')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_face_boundary_points')
     return points
 
 def get_longest_edge_direction_from_face(face):
@@ -420,9 +422,9 @@ def get_longest_edge_direction_from_face(face):
                                 max_len = length
                                 best_dir = DB.XYZ(dx / lxy, dy / lxy, 0)
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'get_longest_edge_direction_from_face')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_longest_edge_direction_from_face')
     
     return best_dir
 
@@ -443,7 +445,7 @@ def point_in_face(face, point):
         if proj and hasattr(face, "IsInside"):
             return face.IsInside(proj.UVPoint)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'point_in_face')
     return False
 
 
@@ -481,7 +483,7 @@ def extract_contour_polygons(face, transform=None):
                      polygons.append(poly_pts)
             return polygons
     except Exception as e:
-        pass
+        log_swallowed(_LOG, u'extract_contour_polygons')
 
     # Method 2: EdgeLoops (Fallback) - Requires Sorting
     try:
@@ -535,7 +537,7 @@ def extract_contour_polygons(face, transform=None):
                 
     except Exception as e:
         # Final fallback: simple endpoint collection
-        pass
+        log_swallowed(_LOG, u'extract_contour_polygons')
         
     if not polygons:
         # Original simple method as last resort
@@ -618,7 +620,7 @@ def get_slab_elevations(slab_element):
         if param_bot and param_bot.HasValue:
             bottom_z = param_bot.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_slab_elevations')
     
     # If not found, try searching by name
     if top_z is None or bottom_z is None:
@@ -643,7 +645,7 @@ def get_face_vertices(face):
                 curve = edge.AsCurve()
                 vertices.append(curve.GetEndPoint(0))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_face_vertices')
     return vertices
 
 def find_longest_edge(face):
@@ -661,7 +663,7 @@ def find_longest_edge(face):
                     end = curve.GetEndPoint(1)
                     longest_dir = (end - start).Normalize()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'find_longest_edge')
     return longest_dir, longest_length
 def calculate_pile_distribution(dimension, spacing):
     """
@@ -745,7 +747,7 @@ def extract_face_boundary_points(face):
                 pt = curve.GetEndPoint(0)
                 boundary_points.append((pt.X, pt.Y))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'extract_face_boundary_points')
     return boundary_points
 
 def get_pile_height(symbol):
@@ -768,7 +770,7 @@ def get_pile_height(symbol):
                         height = val
                         break
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_pile_height')
     return height
 
 def generate_manual_grid(uidoc, slab_z):
@@ -871,7 +873,7 @@ def generate_irregular_grid(slab_center, span_dir, perp_dir, slab_z, spacing_ft,
                                 else:
                                     pt_valid = True
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'generate_irregular_grid')
             if pt_valid:
                 grid_points.append(DB.XYZ(x_global, y_global, slab_z))
             else:
@@ -918,7 +920,7 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
     try:
         doc.Regenerate()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_pile_at_point')
 
     current_top_z = None
     try:
@@ -926,7 +928,7 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
         if param_top and param_top.HasValue:
             current_top_z = param_top.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_pile_at_point')
     if current_top_z is None:
         try:
             for param in pile_instance.Parameters:
@@ -935,14 +937,14 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
                         current_top_z = param.AsDouble()
                         break
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     if current_top_z is None:
         try:
             pile_bbox = pile_instance.get_BoundingBox(None)
             if pile_bbox:
                 current_top_z = pile_bbox.Max.Z
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     z_move = 0.0
     if current_top_z is not None:
         z_move = pile_top_z - current_top_z
@@ -959,12 +961,12 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
                         param.Set(height_offset_needed)
                         break
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     try:
         if JoinGeometryUtils.AreElementsJoined(doc, pile_instance, slab):
             JoinGeometryUtils.UnjoinGeometry(doc, pile_instance, slab)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_pile_at_point')
     if abs(span_rotation_angle) > 0.001:
         try:
             pile_location = pile_instance.Location
@@ -978,7 +980,7 @@ def create_pile_at_point(doc, pt, pile_symbol, level, slab, pile_top_z, span_rot
             DB.ElementTransformUtils.RotateElement(
                 doc, pile_instance.Id, rotation_axis, span_rotation_angle)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_pile_at_point')
     return pile_instance, current_top_z, z_move
 
 
@@ -992,7 +994,7 @@ def unjoin_piles_from_slab(doc, pile_ids, slab):
                 JoinGeometryUtils.UnjoinGeometry(doc, pile_elem, slab)
                 count += 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'unjoin_piles_from_slab')
     return count
 
 

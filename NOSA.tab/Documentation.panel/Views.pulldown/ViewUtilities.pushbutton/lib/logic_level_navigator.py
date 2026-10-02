@@ -5,6 +5,8 @@
 # same-named 'logic.py' loaded elsewhere in the Revit session).
 import os, sys
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewutilities'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -41,7 +43,7 @@ def get_levels_with_views(doc):
                 if v.Discipline == DB.ViewDiscipline.Structural:
                     level_views[lid] = v
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_levels_with_views')
 
     result = []
     for lv in levels:

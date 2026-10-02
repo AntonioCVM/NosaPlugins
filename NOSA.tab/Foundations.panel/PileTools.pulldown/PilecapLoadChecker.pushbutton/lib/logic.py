@@ -11,6 +11,8 @@ from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import geometry as _geometry
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilecaploadchecker'
 _FT_TO_MM = _uc10.FT_TO_MM
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'pilecap_rules.json')
 
@@ -38,7 +40,7 @@ def load_rules():
             rules.update({k: v for k, v in data.items() if k in _DEFAULT_RULES})
             return rules
     except Exception:
-        pass
+        log_swallowed(_LOG, u'load_rules')
     return dict(_DEFAULT_RULES)
 
 
@@ -61,9 +63,9 @@ def get_phases(doc):
                 pid = get_id_value(ph.Id)
                 phases.append({'id': pid, 'name': ph.Name})
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_phases')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_phases')
     return phases
 
 
@@ -104,7 +106,7 @@ def _pile_location(pile):
             pt = pile.Location.Point
             return (pt.X, pt.Y)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pile_location')
     return None
 
 
@@ -117,7 +119,7 @@ def _element_phase_id(el):
             if eid != DB.ElementId.InvalidElementId:
                 return get_id_value(eid)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_element_phase_id')
     return None
 
 
@@ -160,15 +162,15 @@ def get_analytical_loads(doc, el):
         try:
             am = DB.Structure.AnalyticalModelStick.GetAnalyticalModelStick(el)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_try')
         if am is None:
             try: am = el.GetAnalyticalModel()
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'_try')
         if am is None:
             return None
         bcs = None
         try: bcs = list(am.GetAnalyticalModelBoundaryConditions())
-        except Exception: pass
+        except Exception: log_swallowed(_LOG, u'_try')
         if not bcs:
             return None
         reactions = []
@@ -183,7 +185,7 @@ def get_analytical_loads(doc, el):
                     'My': r.Moment.Y * _FTLB2KNM,
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_try')
         if not reactions:
             return None
         gov = max(reactions, key=lambda r: abs(r.get('N', 0) or 0))
@@ -292,7 +294,7 @@ def _check_single_element(el, rules, piles):
                     })
                     break
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_check_single_element')
 
     return issues
 
@@ -368,7 +370,7 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
                     'semaphore': sem,
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_all_pilecaps')
 
     # Strip foundations (LocationCurve)
     if 'strips' in selected_bics:
@@ -391,7 +393,7 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
                     'type': 'Strip',
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_all_pilecaps')
 
     # Retaining walls (OST_Walls)
     if 'walls' in selected_bics:
@@ -418,7 +420,7 @@ def check_all_pilecaps(doc, phase_id=None, selected_bics=None, rules=None):
                     'type': 'Wall',
                 })
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_all_pilecaps')
 
     ok   = sum(1 for r in results if r['status'] == 'OK')
     fail = sum(1 for r in results if r['status'] == 'FAIL')
@@ -458,7 +460,7 @@ def get_editable_params(doc, cap_id):
                                     'bip_or_name': bip, 'unit': 'mm'})
                     seen.add(label)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_editable_params')
 
         # LookupParameter candidates
         name_candidates = [
@@ -476,8 +478,8 @@ def get_editable_params(doc, cap_id):
                                     'bip_or_name': pname, 'unit': 'mm'})
                     seen.add(pname)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_editable_params')
 
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_editable_params')
     return results

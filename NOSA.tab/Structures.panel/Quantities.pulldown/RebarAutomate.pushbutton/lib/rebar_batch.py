@@ -33,6 +33,8 @@ import datetime
 import os
 import sys
 import uuid
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _LIB = os.path.abspath(os.path.join(_HERE, '..', '..', '..', '..', '..', 'lib'))
@@ -253,7 +255,7 @@ class RebarBatch(object):
             try:
                 transaction_group.RollBack()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'RebarBatch.run')
             return BatchResult(
                 batch_id=self.ctx['batch_id'], created=[], skipped=[],
                 errors=[u'Batch aborted and rolled back: {}'.format(e)], summary={})

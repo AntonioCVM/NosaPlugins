@@ -1,6 +1,8 @@
 ﻿# -*- coding: utf-8 -*-
 import sys, os
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewtemplatemanager'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -71,7 +73,7 @@ class CopyTemplateLogic:
             info["has_overrides"] = len(info["filters"]) > 0
             
         except Exception as e:
-            pass
+            log_swallowed(_LOG, u'CopyTemplateLogic.get_template_info')
         
         return info
 
@@ -98,7 +100,7 @@ class CopyTemplateLogic:
                     target_view.SetCategoryOverrides(cat.Id, override)
                     copied_categories += 1
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'CopyTemplateLogic.copy_overrides_to_view')
             
             # Copy filters
             copied_filters = 0
@@ -113,9 +115,9 @@ class CopyTemplateLogic:
                         target_view.SetFilterOverrides(filter_id, filter_override)
                         copied_filters += 1
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'CopyTemplateLogic.copy_overrides_to_view')
             except Exception:
-                pass
+                log_swallowed(_LOG, u'CopyTemplateLogic.copy_overrides_to_view')
                 
             return True, {"categories": copied_categories, "filters": copied_filters}
         except Exception as e:

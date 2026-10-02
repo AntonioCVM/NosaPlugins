@@ -2,6 +2,8 @@
 """Bulk Parameter Editor — one parameter across filtered instances."""
 import sys, os
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'parameterhub'
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
@@ -29,19 +31,19 @@ def _fam_type_label(el):
                     if hasattr(sym.Family, 'Name'):
                         fn = sym.Family.Name or u''
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_fam_type_label')
                 sn = ''
                 try:
                     sp = sym.get_Parameter(DB.BuiltInParameter.SYMBOL_NAME_PARAM)
                     if sp:
                         sn = sp.AsString() or u''
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_fam_type_label')
                 tn = element_name(sym)
                 lbl = u'{} — {}'.format(fn, tn or sn) if fn else (tn or sn or u'')
                 return lbl or fn
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_fam_type_label')
     try:
         if el.Category:
             cn = ensure_text(el.Category.Name)
@@ -58,7 +60,7 @@ def _display_name(el):
         if isinstance(el, DB.FamilyInstance) and el.Symbol:
             return ensure_text(element_name(el.Symbol))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_display_name')
     try:
         return ensure_text(getattr(el, 'Name', None) or u'')
     except Exception:
@@ -117,7 +119,7 @@ def gather_instances(doc, bic_name, family_subs, type_subs,
                 if typ_f and typ_f not in tn and typ_f not in lbl:
                     continue
         except Exception:
-            pass
+            log_swallowed(_LOG, u'gather_instances')
         elems.append(el)
         if len(elems) >= _ELEM_CAP:
             break

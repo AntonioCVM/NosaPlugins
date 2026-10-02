@@ -3,6 +3,8 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import math
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _PARALLEL_TOL = 1e-6
 _FT_TO_MM = 304.8
@@ -56,7 +58,7 @@ def bar_variants(rebar, bar_dia_mm):
             if not rebar.DoesBarExistAtPosition(i):
                 continue
         except Exception:
-            pass
+            log_swallowed(_LOG, u'bar_variants')
         try:
             curves = list(rebar.GetCenterlineCurves(False, False, False,
                                                     MultiplanarOption.IncludeOnlyPlanarCurves, i))

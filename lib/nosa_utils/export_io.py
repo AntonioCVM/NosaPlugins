@@ -21,6 +21,8 @@ import csv
 import json
 import os
 import datetime
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.export_io'
 
 _CFG = os.path.join(
     os.getenv('APPDATA', ''),
@@ -34,7 +36,7 @@ def _load_last_folder():
         if folder and os.path.isdir(folder):
             return folder
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_load_last_folder')
     return os.path.join(os.path.expanduser('~'), 'Documents')
 
 
@@ -46,7 +48,7 @@ def _save_last_folder(folder):
         with open(_CFG, 'w') as f:
             json.dump({'last_folder': folder}, f)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_save_last_folder')
 
 
 def ask_save_path(default_name, extension='csv'):

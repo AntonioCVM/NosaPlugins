@@ -5,6 +5,8 @@ import sys
 import os
 import System
 from System.Collections.ObjectModel import ObservableCollection
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 
 _ext_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _ext_lib not in sys.path:
@@ -360,7 +362,7 @@ class PileMasterWindow(NOSAWindow):
             if mode in modes:
                 self.cmbCoordType.SelectedIndex = modes.index(mode)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'PileMasterWindow._restore_live_state')
 
     def _apply_live_ui(self, is_active):
         """Update toggle button, dot colour and status text."""
@@ -379,7 +381,7 @@ class PileMasterWindow(NOSAWindow):
                     u'Inactive — enable to auto-update coords when piles move or are created.'
                 )
         except Exception:
-            pass
+            log_swallowed(_LOG, u'PileMasterWindow._apply_live_ui')
 
     def _current_config_from_ui(self):
         """Build a config dict from the current UI state."""
@@ -532,7 +534,7 @@ class PileMasterWindow(NOSAWindow):
             if ids:
                 self.uidoc.Selection.SetElementIds(List[DB.ElementId](ids))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'PileMasterWindow.ReportGrid_SelectionChanged')
 
     def ReportXlsx_Click(self, sender, args):
         if not self._report_rows:
@@ -545,7 +547,7 @@ class PileMasterWindow(NOSAWindow):
             try:
                 proj = self.doc.ProjectInformation.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'PileMasterWindow.ReportXlsx_Click')
             _report_xlsx(self._report_rows, path, proj)
             forms.alert(u'Excel exported:\n{}'.format(path))
         except ImportError:

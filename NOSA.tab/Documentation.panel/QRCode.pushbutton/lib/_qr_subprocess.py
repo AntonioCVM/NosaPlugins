@@ -69,7 +69,7 @@ def _paste_logo(img, cx, cy, logo_d):
             py = int(round(cy - sz / 2))
             img.paste(logo, (px, py), logo.split()[3])
             return
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - standalone CPython process, no nosa_utils/telemetry
             pass
     # Vector fallback
     draw = ImageDraw.Draw(img)

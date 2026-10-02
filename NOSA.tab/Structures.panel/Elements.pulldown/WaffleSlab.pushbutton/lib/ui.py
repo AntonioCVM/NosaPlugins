@@ -8,6 +8,8 @@ import System.Windows.Shapes as SWS
 import System.Windows.Controls as SWC
 from System.Windows.Media import SolidColorBrush, Color
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'waffleslab'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -123,7 +125,7 @@ class WaffleSlabWindow(NOSAWindow):
                 u'{:.0f}% voids ({}×{} bays)'.format(
                     grid_spacing * 1000, width * 1000, void_pct, n_x, n_y))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'WaffleSlabWindow._refresh_inline_preview')
 
     def _read_params(self):
         try:

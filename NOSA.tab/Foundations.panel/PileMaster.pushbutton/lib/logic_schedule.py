@@ -2,6 +2,8 @@
 """PileMaster — create or open a Revit schedule for pile elements."""
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 
 _SCHEDULE_NAME = u'NOSA — Pile Schedule'
 _FIELD_PARAMS = None
@@ -29,7 +31,7 @@ def list_pile_schedules(doc):
             if defn and defn.CategoryId == cat.Id:
                 results.append((vs.Name or u'', get_id_value(vs.Id)))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'list_pile_schedules')
     return sorted(results, key=lambda x: x[0].lower())
 
 
@@ -42,13 +44,13 @@ def create_or_open_schedule(doc, uidoc):
                 existing = vs
                 break
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_or_open_schedule')
 
     if existing is not None:
         try:
             uidoc.ActiveView = existing
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_or_open_schedule')
         return existing, False, u'Opened existing schedule.'
 
     cat = doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_StructuralFoundation)
@@ -61,10 +63,10 @@ def create_or_open_schedule(doc, uidoc):
             defn.AddField(DB.ScheduleFieldType.Instance, bip)
             added += 1
         except Exception:
-            pass
+            log_swallowed(_LOG, u'create_or_open_schedule')
     try:
         uidoc.ActiveView = sched
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_or_open_schedule')
     msg = u'Created schedule with {} field(s).'.format(added)
     return sched, True, msg

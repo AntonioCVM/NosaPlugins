@@ -5,6 +5,8 @@ Common geometry functions used across multiple scripts.
 """
 
 from Autodesk.Revit.DB import XYZ, LocationPoint, LocationCurve, Options, Solid
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.geometry'
 
 # =============================================================================
 # ELEMENT CENTER EXTRACTION
@@ -54,7 +56,7 @@ def get_element_center(element, use_bbox_fallback=True):
             return get_bounding_box_center(element)
         
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_element_center')
     
     return None
 
@@ -79,7 +81,7 @@ def get_bounding_box_center(element, view=None):
                 (bbox.Min.Z + bbox.Max.Z) / 2.0
             )
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_bounding_box_center')
     
     return None
 
@@ -130,7 +132,7 @@ def get_solid_from_element(element, options=None):
                 except Exception:
                     continue
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_solid_from_element')
     
     return None
 
@@ -292,6 +294,6 @@ def point_in_polygons(point_x, point_y, polygons):
                 # If area is tiny, it might be artifact, but generally if in hole -> False
                 return False
             except Exception:
-                pass
+                log_swallowed(_LOG, u'point_in_polygons')
     
     return True

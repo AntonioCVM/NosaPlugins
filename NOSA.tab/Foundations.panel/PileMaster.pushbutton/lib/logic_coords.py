@@ -6,6 +6,8 @@ import math
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
 from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'pilemaster'
 
 
 class CoordinateLogic:
@@ -41,7 +43,7 @@ class CoordinateLogic:
             for e in col:
                 return e
         except Exception:
-            pass
+            log_swallowed(_LOG, u'CoordinateLogic._get_base_point_by_category')
         return None
 
     def _get_project_base_point(self):
@@ -63,7 +65,7 @@ class CoordinateLogic:
                 if isinstance(loc, DB.LocationPoint):
                     return loc.Point
             except Exception:
-                pass
+                log_swallowed(_LOG, u'CoordinateLogic._base_point_model_xyz')
         return None
 
     @staticmethod
@@ -268,7 +270,7 @@ class CoordinateLogic:
                             # We need to map SpecTypeId back to ParameterType if we are in old Revit
                             # But here I assume I pass valid types for the running version in the caller
                             # Or I handle it here.
-                            pass
+                            log_swallowed(_LOG, u'CoordinateLogic.ensure_parameters')
 
                     if defn and not self.doc.ParameterBindings.Contains(defn):
                         self.doc.ParameterBindings.Insert(defn, binding, group_id)
@@ -279,7 +281,7 @@ class CoordinateLogic:
              if original_file: app.SharedParametersFilename = original_file
              if temp_file and os.path.exists(temp_file):
                  try: os.remove(temp_file)
-                 except Exception: pass
+                 except Exception: log_swallowed(_LOG, u'CoordinateLogic.ensure_parameters')
                  
         return len(missing), None
 

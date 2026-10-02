@@ -9,6 +9,8 @@ letter suffixes (05A, 05B ... without I, O, Q). Host ids never enter the mark.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 import sys, os
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 if _here not in sys.path:
@@ -213,7 +215,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
             try:
                 a_mm = float(params.split('A=')[1].split(';')[0])
             except (IndexError, ValueError):
-                pass
+                log_swallowed(_LOG, u'cluster_order')
         return (-_bar_diameter_mm(doc, first), _read(doc, first.Id, "NOSA_Rebar_Shape_Code") or "99",
                 -a_mm, get_id_value(first.Id))
 
@@ -245,7 +247,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
                     if param is not None and not param.IsReadOnly:
                         param.Set(value)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'deduplicate_and_mark')
 
     return {
         "total_positions": len(clusters),

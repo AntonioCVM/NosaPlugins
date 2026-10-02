@@ -3,6 +3,8 @@ import os, sys
 import System.Windows
 from System.Collections.ObjectModel import ObservableCollection
 from pyrevit import forms, revit
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'materialmanager'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
@@ -108,7 +110,7 @@ class MaterialManagerWindow(NOSAWindow):
                 self.SidebarMaterials.Visibility = v.Collapsed
                 self.SidebarElements.Visibility  = v.Visible
         except Exception:
-            pass
+            log_swallowed(_LOG, u'MaterialManagerWindow.Tab_Changed')
 
     # ── materials scan ────────────────────────────────────────────────────────
 

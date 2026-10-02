@@ -11,6 +11,8 @@ import tempfile
 
 from Autodesk.Revit import DB
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'qrcode'
 _VERSION = 'v11'
 
 _QR_SIZE_MM = 24.0
@@ -36,7 +38,7 @@ class _LoadOptions(DB.IFamilyLoadOptions):
         try:
             overwriteParameterValues.Value = True
         except (AttributeError, TypeError):
-            pass
+            log_swallowed(_LOG, u'OnFamilyFound')
         return True
 
     def OnSharedFamilyFound(self, sharedFamily, familyInUse,
@@ -45,7 +47,7 @@ class _LoadOptions(DB.IFamilyLoadOptions):
             source.Value = DB.FamilySource.Family
             overwriteParameterValues.Value = True
         except (AttributeError, TypeError):
-            pass
+            log_swallowed(_LOG, u'OnSharedFamilyFound')
         return True
 
 
@@ -81,7 +83,7 @@ def _reload_via_file(fam_doc, doc):
             try:
                 os.unlink(tmp)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_reload_via_file')
 
 
 def _load_family(fam_doc, doc):
@@ -90,7 +92,7 @@ def _load_family(fam_doc, doc):
         try:
             fam_doc.Close(False)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_load_family')
     except Exception as e1:
         try:
             _reload_via_file(fam_doc, doc)
@@ -191,11 +193,11 @@ def _get_unique_titleblock_families(doc):
                             if fid not in families:
                                 families[fid] = fam
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'_get_unique_titleblock_families')
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_get_unique_titleblock_families')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_get_unique_titleblock_families')
         _loop_debug.append(u'sheet_fallback_found:{}'.format(len(families)))
 
     return list(families.values())
@@ -241,7 +243,7 @@ def _find_qr_images(fam_doc):
                 )
             candidates.append((img, view, centre, w, h))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_find_qr_images')
 
     if not candidates:
         return [], None, None, None, None
@@ -265,13 +267,13 @@ def _set_size(img, width_ft, height_ft):
     try:
         img.LockProportions = False
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_set_size')
     try:
         img.Width  = width_ft
         img.Height = height_ft
         return
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_set_size')
     for bip, val in [
         (DB.BuiltInParameter.RASTER_SYMBOL_SIZEX, width_ft),
         (DB.BuiltInParameter.RASTER_SYMBOL_SIZEY, height_ft),
@@ -281,7 +283,7 @@ def _set_size(img, width_ft, height_ft):
             if p and not p.IsReadOnly:
                 p.Set(val)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_set_size')
 
 
 def _place_image(fam_doc, view, img_type_id, centre_xyz, width_ft, height_ft):
@@ -304,7 +306,7 @@ def _find_vector_qr_elements(fam_doc):
             if element_name(frt).startswith('NOSA_QR_'):
                 qr_type_ids.add(frt.Id)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_find_vector_qr_elements')
     if not qr_type_ids:
         return []
     return [fr for fr in DB.FilteredElementCollector(fam_doc).OfClass(DB.FilledRegion).ToElements()
@@ -329,7 +331,7 @@ def _vector_anchor_from_frs(fam_doc, frs):
                     mx[1] = max(mx[1], bb.Max.Y)
                     found_any = True
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_vector_anchor_from_frs')
         if found_any:
             owner_view = v
             break
@@ -373,12 +375,12 @@ def _update_family(doc, family, png_path):
                 try:
                     fam_doc.Delete(img.Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_update_family')
             for el in vec_els:
                 try:
                     fam_doc.Delete(el.Id)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_update_family')
             img_type = _load_image_type(fam_doc, png_path)
             _place_image(fam_doc, owner_view, img_type.Id, pos,
                          _QR_SIZE_FT, _QR_SIZE_FT)
@@ -394,7 +396,7 @@ def _update_family(doc, family, png_path):
             try:
                 fam_doc.Close(False)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_update_family')
         return 'error', u'[{}] {}'.format(step, e)
 
 
@@ -458,6 +460,6 @@ def run(doc, qr_data, mode='png'):
             try:
                 os.unlink(png_path)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'run')
     return results
 

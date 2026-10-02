@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import os, sys, json
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'sheethub'
 
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                      '..', '..', '..', '..', '..', 'lib'))
@@ -399,7 +401,7 @@ class SheetHubWindow(NOSAWindow):
                 if p and set_param_from_string(p, value or u''):
                     return True
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetHubWindow._write_sheet_package')
         return False
 
     def _populate_package_combos(self):
@@ -448,7 +450,7 @@ class SheetHubWindow(NOSAWindow):
                     if key not in merged or not merged.get(key):
                         merged[key] = namer.get(key, merged.get(key, u''))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetHubWindow._merge_namer_config')
         return merged
 
     def _init_sheets_context_menu(self):
@@ -614,7 +616,7 @@ class SheetHubWindow(NOSAWindow):
             if p:
                 return (p.AsString() or p.AsValueString() or u'').strip()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetHubWindow._read_sheet_package')
         return u''
 
     def _refresh_row_from_revit(self, row, cfg):
@@ -749,14 +751,14 @@ class SheetHubWindow(NOSAWindow):
             else:
                 return
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SheetHubWindow.SheetsGrid_CellEditEnding')
         def _refresh():
             try:
                 review, approved, err, ok = self._sheets_refresh_status()
                 self._update_sheets_status_text(review, approved, err, ok)
                 self.SheetsGrid.Items.Refresh()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetHubWindow._refresh')
         self.SheetsGrid.Dispatcher.BeginInvoke(
             _swt.DispatcherPriority.Background,
             System.Action(_refresh))
@@ -848,7 +850,7 @@ class SheetHubWindow(NOSAWindow):
             try:
                 self.doc.Regenerate()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetHubWindow.SheetsApply_Click')
         finally:
             self.SetLoading(False)
         for row in rows:
@@ -856,7 +858,7 @@ class SheetHubWindow(NOSAWindow):
                 try:
                     self._refresh_row_from_revit(row, cfg)
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'SheetHubWindow.SheetsApply_Click')
         review, approved, err, ok_count = self._sheets_refresh_status()
         self._update_sheets_status_text(review, approved, err, ok_count)
         self.SheetsGrid.Items.Refresh()
@@ -1063,7 +1065,7 @@ class SheetHubWindow(NOSAWindow):
                 if tb_inst is not None:
                     tb_id = tb_inst.GetTypeId()
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SheetHubWindow._dup_titleblock_id')
         if tb_id == DB.ElementId.InvalidElementId:
             _, _, sc = _hub_logics()
             types = sc.get_titleblock_types(self.doc)

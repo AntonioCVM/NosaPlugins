@@ -7,6 +7,8 @@ levels, title block sheets, project parameters.
 from Autodesk.Revit import DB
 from pyrevit import revit
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'projectsetupwizard'
 _NOSA_WORKSETS = [
     'NOSA_Structure',
     'NOSA_Architecture',
@@ -37,24 +39,24 @@ def set_project_info(doc, info):
     with revit.Transaction('NOSA Setup — Project Information'):
         if 'name' in info and info['name']:
             try: pi.Name = info['name']
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'set_project_info')
         if 'number' in info and info['number']:
             try: pi.Number = info['number']
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'set_project_info')
         if 'client' in info and info['client']:
             try: pi.ClientName = info['client']
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'set_project_info')
         if 'address' in info and info['address']:
             try: pi.Address = info['address']
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'set_project_info')
         if 'status' in info and info['status']:
             try: pi.Status = info['status']
-            except Exception: pass
+            except Exception: log_swallowed(_LOG, u'set_project_info')
         if 'code' in info and info['code']:
             p = pi.LookupParameter('Building Code')
             if p and not p.IsReadOnly:
                 try: p.Set(info['code'])
-                except Exception: pass
+                except Exception: log_swallowed(_LOG, u'set_project_info')
     return True
 
 
@@ -68,7 +70,7 @@ def create_worksets(doc):
                      .OfKind(DB.WorksetKind.UserWorkset)):
             existing.add(ws.Name)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'create_worksets')
 
     created = 0
     with revit.Transaction('NOSA Setup — Create Worksets'):
@@ -78,7 +80,7 @@ def create_worksets(doc):
                     DB.Workset.Create(doc, name)
                     created += 1
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'create_worksets')
     return created, None
 
 
@@ -103,7 +105,7 @@ def create_standard_levels(doc):
                 lv.Name = name
                 created += 1
             except Exception:
-                pass
+                log_swallowed(_LOG, u'create_standard_levels')
     return created, None
 
 

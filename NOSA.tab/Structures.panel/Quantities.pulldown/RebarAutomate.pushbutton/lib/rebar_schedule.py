@@ -8,6 +8,8 @@ Recolecta barras, agrupa por posición, calcula longitudes de corte, exporta CSV
 from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import os
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 if _here not in sys.path:
@@ -224,7 +226,7 @@ def group_by_position(doc, rebar_ids):
                         if mark_param and mark_param.HasValue:
                             pos.host_mark = mark_param.AsString() or u""
                 except:
-                    pass
+                    log_swallowed(_LOG, u'group_by_position')
         
         rebar = doc.GetElement(rid)
         positions[key].add_bar(rid, _bar_quantity(rebar))
@@ -423,7 +425,7 @@ def export_xlsx(schedule_data, output_path):
                     if cell.value:
                         max_length = max(max_length, len(str(cell.value)))
                 except:
-                    pass
+                    log_swallowed(_LOG, u'export_xlsx')
             ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
 
         # Second sheet — "Rebar Weight Schedule" summary by diameter,

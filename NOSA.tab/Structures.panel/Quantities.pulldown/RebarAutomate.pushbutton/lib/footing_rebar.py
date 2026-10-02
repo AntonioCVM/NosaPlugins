@@ -249,6 +249,8 @@ import os
 import sys
 
 from Autodesk.Revit import DB
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarautomate'
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 # PHASE F2 — same sys.path convention as rebar_batch.py: this module can
@@ -335,7 +337,7 @@ def _lookup_length_param_mm(host, names):
         if symbol is not None:
             candidates.append(symbol)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_lookup_length_param_mm')
     for elem in candidates:
         for name in names:
             try:

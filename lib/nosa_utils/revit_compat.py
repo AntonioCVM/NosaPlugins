@@ -40,6 +40,8 @@ Usage
     c = revit_compat.api(year=2025)        # explicit year, e.g. in a test
     dia_mm = c.from_internal(c.bar_diameter(bar_type))
 """
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.revit_compat'
 
 _MM_PER_FT = 304.8
 
@@ -64,12 +66,12 @@ def get_id_value(element_id):
         if hasattr(element_id, 'Value'):
             return int(element_id.Value)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_id_value')
     try:
         if hasattr(element_id, 'IntegerValue'):
             return int(element_id.IntegerValue)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_id_value')
     return int(str(element_id))
 
 
