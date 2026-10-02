@@ -207,15 +207,15 @@ def check_views_without_template(doc):
 # ── Template Guard checks (absorbed — lib lives under Views pulldown) ─────────
 
 def _templateguard_logic():
-    import imp as _imp
-    ext_root = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '..', '..', '..'))
-    for suffix in ('nobutton', 'pushbutton'):
-        path = os.path.join(ext_root, 'NOSA.tab', 'Documentation.panel',
-                            'Views.pulldown',
-                            'TemplateGuard.{}'.format(suffix), 'lib', 'logic.py')
+    from nosa_utils.bootstrap import load_module
+    views = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '..', '..', '..', '..', '..',
+        'NOSA.tab', 'Documentation.panel', 'Views.pulldown'))
+    for rel in (('ViewTemplateManager.pushbutton', 'lib', 'logic_template_guard.py'),
+                ('TemplateGuard.nobutton', 'lib', 'logic.py')):
+        path = os.path.join(views, *rel)
         if os.path.isfile(path):
-            return _imp.load_source('drawingchecker_tg_logic', path)
+            return load_module('drawingchecker_tg_logic', path)
     return None
 
 

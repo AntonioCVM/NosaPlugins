@@ -29,7 +29,7 @@ def _lm(n, p):
         sys.modules[n] = m; s.loader.exec_module(m); return m
     except (ImportError, AttributeError):
         from nosa_utils.bootstrap import load_module
-        import imp; m = load_module(n, p); sys.modules[n] = m; return m
+        m = load_module(n, p); sys.modules[n] = m; return m
 
 from pyrevit import revit
 from nosa_utils.logging import Logger

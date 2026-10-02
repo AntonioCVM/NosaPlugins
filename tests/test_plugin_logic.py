@@ -188,6 +188,20 @@ class StructuralQATests(unittest.TestCase):
         self.assertEqual(len(problems), 3)
 
 
+class StructuralQADrawingCheckerTests(unittest.TestCase):
+    """'Structures.panel/QA.pulldown/StructuralQA.pushbutton' — drawing checker reuses Template Guard rules."""
+
+    def test_template_guard_rules_come_from_view_template_manager(self):
+        m = _plugin('Structures.panel', 'QA.pulldown', 'StructuralQA.pushbutton', 'lib', 'logic_drawing_checker.py')
+        with permissive_imports():
+            tg = m._templateguard_logic()
+        self.assertIsNotNone(tg)
+        self.assertIn('ViewTemplateManager.pushbutton', tg.__file__)
+        for name in ('load_rules', 'check_wrong_scale', 'check_sheet_naming', 'check_viewport_overrides',
+                     'check_crop_region', 'check_detail_level'):
+            self.assertTrue(callable(getattr(tg, name)), name)
+
+
 class ElementJoinTests(unittest.TestCase):
     """'Structures.panel/Elements.pulldown/ElementJoin.pushbutton'"""
 

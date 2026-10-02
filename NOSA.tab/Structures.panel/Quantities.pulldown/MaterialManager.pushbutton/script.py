@@ -36,7 +36,7 @@ def _lm(n, p):
         sys.modules[n] = m; s.loader.exec_module(m); return m
     except (ImportError, AttributeError):
         from nosa_utils.bootstrap import load_module
-        import imp; m = load_module(n, p); sys.modules[n] = m; return m
+        m = load_module(n, p); sys.modules[n] = m; return m
 
 ui_module = _lm('materialmanager_ui_local', os.path.join(lib_path, 'ui.py'))
 MaterialManagerWindow = ui_module.MaterialManagerWindow
