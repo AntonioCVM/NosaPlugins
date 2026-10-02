@@ -14,7 +14,7 @@ int warnings0 = doc.GetWarnings().Count;
 
 var level = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).First();
 var baseSym = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).OfCategory(BuiltInCategory.OST_StructuralColumns)
-    .Cast<FamilySymbol>().FirstOrDefault(s => s.Family.StructuralMaterialType == StructuralMaterialType.Concrete
+    .Cast<FamilySymbol>().FirstOrDefault(s => s.Family.StructuralMaterialType == Autodesk.Revit.DB.Structure.StructuralMaterialType.Concrete
         && s.LookupParameter("b") != null && s.LookupParameter("h") != null);
 if (baseSym == null) return "ABORT: no concrete rectangular column type with b/h";
 
@@ -65,7 +65,7 @@ for (int k = 0; k < cases.Length; k++) {
     Func<Autodesk.Revit.DB.Structure.Rebar, string> layer = r => {
         var p = r.LookupParameter("NOSA_Rebar_Layer"); var s = p == null ? null : p.AsString();
         if (!string.IsNullOrEmpty(s)) return s;
-        var cs = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, 0);
+        var cs = r.GetCenterlineCurves(false, true, true, Autodesk.Revit.DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves, 0);
         var longest = cs.OrderByDescending(c => c.Length).First();
         if (Math.Abs(longest.GetEndPoint(0).Z - longest.GetEndPoint(1).Z) > 0.5 * longest.Length) return "vertical";
         bool closed = cs.First().GetEndPoint(0).DistanceTo(cs.Last().GetEndPoint(1)) < 0.05;
@@ -78,14 +78,14 @@ for (int k = 0; k < cases.Length; k++) {
     var verts = new List<XYZ>();
     foreach (var r in rebars.Where(r => layer(r) == "vertical")) {
         for (int bi = 0; bi < r.NumberOfBarPositions; bi++)
-            foreach (var cv in r.GetTransformedCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, bi))
+            foreach (var cv in r.GetTransformedCenterlineCurves(false, true, true, Autodesk.Revit.DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves, bi))
                 if (Math.Abs(cv.GetEndPoint(0).Z - cv.GetEndPoint(1).Z) > 1) verts.Add(new XYZ(cv.GetEndPoint(0).X, cv.GetEndPoint(0).Y, 0));
     }
     foreach (var r in rebars.Where(r => layer(r) == "crosstie" || layer(r) == "interior_stirrup").Take(2)) {
         var hs = r.GetHookTypeId(0); var he = r.GetHookTypeId(1);
         Func<ElementId, string> hookName = id => id == ElementId.InvalidElementId ? "none"
             : Math.Round(((Autodesk.Revit.DB.Structure.RebarHookType)doc.GetElement(id)).HookAngle * 180 / Math.PI) + "deg";
-        var curves = r.GetCenterlineCurves(false, true, true, MultiplanarOption.IncludeOnlyPlanarCurves, 0);
+        var curves = r.GetCenterlineCurves(false, true, true, Autodesk.Revit.DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves, 0);
         var straight = curves.OrderByDescending(c => c.Length).First();
         double dia = r.LookupParameter("Bar Diameter") != null ? r.LookupParameter("Bar Diameter").AsDouble() / MM : 0;
         string ends = string.Join(" ; ", new[] { straight.GetEndPoint(0), straight.GetEndPoint(1) }.Select(p => {

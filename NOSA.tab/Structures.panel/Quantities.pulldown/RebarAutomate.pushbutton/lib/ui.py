@@ -2735,10 +2735,13 @@ class RebarAutomateWindow(NOSAWindow):
                             get_id_value(host.Id), wrapper.last_error))
 
             if reinforcement['crosstie_sets']:
-                hook_135 = re_engine.get_hook_type_by_angle(self.doc, 135.0)
-                hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
+                # Crossties are ties: StirrupTie style with Stirrup/Tie hooks. A Standard
+                # bar with a Stirrup/Tie hook made every crosstie fail ("internal error").
+                tie_style = DBS.RebarStyle.StirrupTie
+                hook_135 = re_engine.get_hook_type_by_angle(self.doc, 135.0, style=tie_style)
+                hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0, style=tie_style)
                 if hook_135 is None and hook_90 is None:
-                    errors.append(u'Column {}: crossties — no 135°/90° RebarHookType '
+                    errors.append(u'Column {}: crossties — no 135°/90° Stirrup/Tie RebarHookType '
                                   u'found in this project; crossties will be created '
                                   u'WITHOUT hooks (not normative anchorage).'.format(
                                       get_id_value(host.Id)))
@@ -2751,7 +2754,7 @@ class RebarAutomateWindow(NOSAWindow):
                 # see build_crosstie_sets's docstring.
                 for ct in reinforcement['crosstie_sets']:
                     rebar = wrapper.create_from_curves(
-                        host, [ct['curve']], bar_type_link,
+                        host, [ct['curve']], bar_type_link, style=tie_style,
                         start_hook=hook_135, end_hook=hook_90,
                         normal=ct['normal'],
                         transaction_name=u'NOSA — Create Column Crossties')

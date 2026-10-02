@@ -1234,7 +1234,7 @@ def get_rebar_shape_by_name(doc, name):
     return None
 
 
-def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
+def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0, style=None):
     """
     Find the project's RebarHookType whose HookAngle matches angle_deg
     (Phase 5, footing hooks/dowels).
@@ -1251,9 +1251,17 @@ def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
                        footing dowels and hooked mat bars are written
                        for.
         tolerance_deg  (float): matching tolerance, degrees.
+        style          (DBS.RebarStyle or None): the style of the bar the
+                       hook goes on, Standard when None. Only hooks of
+                       that style are returned: a Standard bar with a
+                       Stirrup/Tie hook (or the reverse) makes
+                       Rebar.CreateFromCurves fail with "An internal
+                       error has occurred" (column crossties, verified
+                       live in Revit 2024, 2026-10-02).
 
     Returns:
-        DBS.RebarHookType, or None if no hook type is within tolerance.
+        DBS.RebarHookType, or None if no hook type of that style is
+        within tolerance.
 
     CALLER RESPONSIBILITY: a None return means "warn the user, don't
     create the hooked bars" — per this project's explicit rule, never
@@ -1263,11 +1271,15 @@ def get_hook_type_by_angle(doc, angle_deg=90.0, tolerance_deg=1.0):
     """
     target_rad = math.radians(angle_deg)
     tol_rad = math.radians(tolerance_deg)
+    if style is None:
+        style = DBS.RebarStyle.Standard
     best, best_diff = None, 1e9
 
     for ht in DB.FilteredElementCollector(doc).OfClass(DBS.RebarHookType).ToElements():
         try:
             angle = ht.HookAngle
+            if ht.Style != style:
+                continue
         except Exception:
             continue
         diff = abs(angle - target_rad)
