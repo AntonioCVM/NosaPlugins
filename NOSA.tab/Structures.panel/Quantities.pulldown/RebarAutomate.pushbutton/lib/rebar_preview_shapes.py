@@ -52,7 +52,8 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
                        include_top=False, top_cover_mm=None, top_dia_x=None, top_dia_y=None,
                        top_spacing_mm=None, ubars=False, ubar_dia=None, is_floor=False,
                        bottom_hooks=False, top_hooks=False, dowels=False, dowel_dia=None,
-                       dowel_splice_mm=600.0, kicker_mm=75.0, column_width_mm=400.0):
+                       dowel_splice_mm=600.0, kicker_mm=75.0, column_width_mm=400.0,
+                       side=False, side_dia=None, side_spacing_mm=None):
     """Section through a footing or slab, cut along X: X bars in plane, Y bars end-on."""
     w, t, c = float(width_mm), float(thickness_mm), float(cover_mm)
     half = w / 2.0
@@ -98,6 +99,22 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
                                    ubar_dia, 'ubar'))
             labels.append((t / 2.0, u'U-bars H{:g} @ {:g}, leg {:.0f}{}'.format(
                 ubar_dia, spacing_mm, leg, u' (2h)' if is_floor and leg >= 2.0 * t - 1 else u'')))
+    if side and side_dia and side_spacing_mm and not is_floor:
+        # footing_rebar.build_side_rebar_set: a closed perimeter loop inset cover + d/2, repeated
+        # upwards between the mats — its side legs cut end-on, the X leg in plane
+        x_side = half - c - side_dia / 2.0
+        bottom_limit = c + dia_x + dia_y + side_dia / 2.0
+        if t1 is not None:
+            top_limit = t - float(top_cover_mm) - top_dia_x - top_dia_y - side_dia / 2.0
+        else:
+            top_limit = t - c - side_dia / 2.0
+        levels = _spaced(bottom_limit, top_limit, float(side_spacing_mm))
+        for y in levels:
+            shapes.append(_bar([(-x_side, y), (x_side, y)], side_dia, 'link'))
+            for sign in (-1.0, 1.0):
+                shapes.append(_dot(sign * x_side, y, side_dia, 'link'))
+        labels.append(((bottom_limit + top_limit) / 2.0, u'Side bars H{:g} @ {:g} ({} levels)'.format(
+            side_dia, side_spacing_mm, len(levels))))
     if dowels and dowel_dia:
         mat_top = c + dia_x + dia_y
         lap_top = t + kicker_mm + dowel_splice_mm

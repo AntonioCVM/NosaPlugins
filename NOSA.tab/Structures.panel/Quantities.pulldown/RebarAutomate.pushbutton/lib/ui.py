@@ -786,11 +786,13 @@ class RebarAutomateWindow(NOSAWindow):
         if not getattr(self, '_is_loaded', False):
             return
         self.PanelSideRebar.IsEnabled = self.ChkIncludeSideRebar.IsChecked == True
+        self._update_preview()
 
     def IncludeDowels_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
         self.PanelDowels.IsEnabled = self.ChkIncludeDowels.IsChecked == True
+        self._update_preview()
 
     def IncludePerimeterUBars_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -996,7 +998,10 @@ class RebarAutomateWindow(NOSAWindow):
             dowel_splice_mm=self._preview_splice(
                 self.TxtDowelSplice, self._preview_number(self.TxtDowelDiameter, 16.0)),
             kicker_mm=self._kicker_mm(),
-            column_width_mm=self._preview_number(self.TxtDowelColWidth, 400.0))
+            column_width_mm=self._preview_number(self.TxtDowelColWidth, 400.0),
+            side=kind != u'slab' and self.ChkIncludeSideRebar.IsChecked == True,
+            side_dia=self._preview_number(self.TxtSideDiameter, 10.0),
+            side_spacing_mm=self._preview_number(self.TxtSideSpacing, 300.0))
 
     def _draw_shapes(self, canvas, shapes):
         """Draw rebar_preview_shapes output (real mm, y up) fitted to the canvas, labels on the right."""

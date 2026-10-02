@@ -25,6 +25,20 @@ for bar in dowels:
     assert abs(top_y - (500 + 75 + 600)) < 1e-6, 'lap measured above the kicker'
 print('mat_section_shapes: dowels are L bars, feet out, lap above the kicker: OK')
 
+# Footing side (skin) bars: a loop per level between the mats (never in a mat's plane),
+# end-on on both faces: 50 + 16 + 16 + 5 = 87 up to 600 - 50 - 12 - 12 - 5 = 521.
+side = shapes.mat_section_shapes(1500, 600, 50, 16, 16, 200, include_top=True, top_cover_mm=50,
+                                 top_dia_x=12, top_dia_y=12, top_spacing_mm=200,
+                                 side=True, side_dia=10, side_spacing_mm=250)
+side_dots = [s for s in side if s['kind'] == 'dot' and s['role'] == 'link']
+levels = sorted(set(round(d['y'], 3) for d in side_dots))
+assert len(levels) == 3 and abs(levels[0] - 87.0) < 1e-6 and abs(levels[-1] - 521.0) < 1e-6, levels
+assert all(abs(abs(d['x']) - (750 - 50 - 5)) < 1e-6 for d in side_dots)
+assert not [s for s in shapes.mat_section_shapes(3000, 300, 30, 12, 12, 200, is_floor=True, side=True,
+                                                 side_dia=10, side_spacing_mm=250)
+            if s['kind'] == 'dot' and s['role'] == 'link'], 'slabs have no side bars'
+print('mat_section_shapes: footing side bars drawn on both faces, one loop per level: OK')
+
 # Slab edge U-bars: legs of at least 2h.
 slab = shapes.mat_section_shapes(3000, 300, 30, 12, 12, 200, include_top=True, top_cover_mm=30,
                                  top_dia_x=10, top_dia_y=10, top_spacing_mm=200, ubars=True,

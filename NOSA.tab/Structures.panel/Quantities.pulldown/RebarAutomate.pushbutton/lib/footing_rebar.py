@@ -1257,7 +1257,8 @@ def build_perimeter_closure_ubar_sets(host,
     }
 
 
-def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_mm, spacing_mm):
+def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_mm, spacing_mm,
+                         bottom_clear_mm=None, top_clear_mm=None):
     """
     A closed rectangular perimeter ("skin"/anti-crack) reinforcement
     shape, with its X/Y vertices sized from the BOTTOM face's own plan
@@ -1345,8 +1346,10 @@ def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_
     if u1 <= u0 or v1 <= v0:
         raise ValueError(u'Footing is too small for side rebar at this cover/diameter.')
 
-    bottom_z_ft = global_bbox.Min.Z + (bottom_cover_mm / _MM_PER_FT)
-    top_z_ft = global_bbox.Max.Z - (top_cover_mm / _MM_PER_FT)
+    # bottom/top_clear_mm: loop centreline to the bottom/top face, so the first and last loops sit
+    # between the mats instead of in their plane (2026-10-02); default = the covers, as before
+    bottom_z_ft = global_bbox.Min.Z + ((bottom_clear_mm or bottom_cover_mm) / _MM_PER_FT)
+    top_z_ft = global_bbox.Max.Z - ((top_clear_mm or top_cover_mm) / _MM_PER_FT)
     array_length_ft = top_z_ft - bottom_z_ft
     if array_length_ft <= 0:
         raise ValueError(u'No vertical gap between the bottom and top cover '
@@ -1877,8 +1880,13 @@ def build_footing_reinforcement(doc, host,
             raise ValueError(u'include_side_rebar requires side_diameter_mm and '
                               u'side_spacing_mm to both be given.')
         effective_top_cover_mm = top_cover_mm if include_top_mat else bottom_cover_mm
+        half_side = side_diameter_mm / 2.0
+        bottom_clear = bottom_cover_mm + bottom_dia_x_mm + bottom_dia_y_mm + half_side
+        top_clear = (top_cover_mm + (top_dia_x_mm or 0.0) + (top_dia_y_mm or 0.0) + half_side
+                     if include_top_mat else bottom_cover_mm + half_side)
         result['side_rebar'] = build_side_rebar_set(
-            doc, host, bottom_cover_mm, effective_top_cover_mm, side_diameter_mm, side_spacing_mm)
+            doc, host, bottom_cover_mm, effective_top_cover_mm, side_diameter_mm, side_spacing_mm,
+            bottom_clear_mm=bottom_clear, top_clear_mm=top_clear)
 
     if include_perimeter_closure_ubars:
         if not include_top_mat:
