@@ -2107,6 +2107,7 @@ class RebarAutomateWindow(NOSAWindow):
                         tags, tag_errors = rebar_detailing.create_rebar_tags(
                             self.doc, view, created_rebars,
                             tag_type_id=rebar_detailing.tag_type_for_view(self.doc, view))
+                        rebar_detailing.resolve_tag_overlaps(self.doc, view, tags)
                     tags_created = len(tags)
                     errors.extend(tag_errors)
                 except Exception as e:
@@ -4209,11 +4210,13 @@ class RebarAutomateWindow(NOSAWindow):
                     use_param_offsets=True,
                     tag_type_id=tag_type_id,
                     add_leader=False)
+                moved = rebar_detailing.resolve_tag_overlaps(self.doc, view, tags)
         except Exception as e:
             forms.alert(u'Auto Tag failed:\n{}'.format(e), title=u'NOSA — Auto Tag')
             return
 
-        msg = u'Created {} tag(s) for {} selected rebar(s).'.format(len(tags), len(rebars))
+        msg = u'Created {} tag(s) for {} selected rebar(s); {} moved clear of other tags.'.format(
+            len(tags), len(rebars), moved)
         if errors:
             msg += u'\n\n{} warning(s):\n{}'.format(
                 len(errors), u'\n'.join(errors[:8]))

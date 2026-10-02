@@ -419,6 +419,86 @@ def create_rebar_tags_smart(doc, view, rebars, use_param_offsets=True,
     return tags, errors
 
 
+def _view_rect(element, view, right, up):
+    """(xmin, ymin, xmax, ymax) of an element's bounding box in the view plane, feet."""
+    bbox = element.get_BoundingBox(view)
+    if bbox is None:
+        return None
+    xs, ys = [], []
+    for x in (bbox.Min.X, bbox.Max.X):
+        for y in (bbox.Min.Y, bbox.Max.Y):
+            for z in (bbox.Min.Z, bbox.Max.Z):
+                p = DB.XYZ(x, y, z)
+                xs.append(p.DotProduct(right))
+                ys.append(p.DotProduct(up))
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _text_rect(tag, rect, char_width_ratio=0.75):
+    """
+    Widen a tag's view rectangle to its text: Revit returns the label box of the family, and
+    a longer text overflows it (a 43 mm box for an 85 mm '5H20-01-' measured live 2026-10-02).
+    Width ~ characters x 0.75 x box height, centred on the box.
+    """
+    if rect is None:
+        return None
+    try:
+        text = tag.TagText or u''
+    except Exception:
+        text = u''
+    height = rect[3] - rect[1]
+    width = max(rect[2] - rect[0], len(text) * char_width_ratio * height)
+    cx = (rect[0] + rect[2]) / 2.0
+    return (cx - width / 2.0, rect[1], cx + width / 2.0, rect[3])
+
+
+def resolve_tag_overlaps(doc, view, tags, gap_paper_mm=1.0, leader_after_steps=1.5):
+    """
+    Move the heads of `tags` so none overlaps another tag in `view` (new or already there):
+    each one goes to the nearest free spot (nosa_utils.label_layout.deoverlap: up/down a tag
+    height, then sideways). A tag moved further than leader_after_steps tag heights gets a
+    leader so it still points at its bar. Call inside a transaction. Returns tags moved.
+    """
+    from nosa_utils.label_layout import deoverlap
+    if not tags:
+        return 0
+    doc.Regenerate()
+    right, up = view.RightDirection, view.UpDirection
+    try:
+        scale = max(1, int(view.Scale))
+    except Exception:
+        scale = 50
+    gap = gap_paper_mm * scale / _MM_PER_FT
+    new_ids = set(t.Id.IntegerValue if hasattr(t.Id, 'IntegerValue') else t.Id.Value for t in tags)
+    obstacles = []
+    for other in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag).ToElements():
+        oid = other.Id.IntegerValue if hasattr(other.Id, 'IntegerValue') else other.Id.Value
+        if oid in new_ids:
+            continue
+        rect = _text_rect(other, _view_rect(other, view, right, up))
+        if rect is not None:
+            obstacles.append(rect)
+    order, rects = [], []
+    for tag in tags:
+        rect = _text_rect(tag, _view_rect(tag, view, right, up))
+        if rect is not None:
+            order.append(tag)
+            rects.append(rect)
+    moved = 0
+    for tag, rect, (dx, dy) in zip(order, rects, deoverlap(rects, obstacles, gap)):
+        if dx == 0.0 and dy == 0.0:
+            continue
+        tag.TagHeadPosition = tag.TagHeadPosition + right.Multiply(dx) + up.Multiply(dy)
+        height = max(rect[3] - rect[1], 1e-6)
+        if (abs(dx) + abs(dy)) > leader_after_steps * height:
+            try:
+                tag.HasLeader = True
+            except Exception:
+                log_swallowed(_LOG, u'resolve_tag_overlaps.leader')
+        moved += 1
+    return moved
+
+
 def list_mra_types(doc):
     """
     All MultiReferenceAnnotationType elements in the document
