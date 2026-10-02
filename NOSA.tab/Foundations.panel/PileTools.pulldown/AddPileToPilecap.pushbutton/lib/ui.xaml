@@ -121,7 +121,7 @@
                     <Border Style="{StaticResource Card}" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="Arrangement pattern" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                            <ComboBox Name="CboPattern" SelectionChanged="Preview_Changed" Margin="0,0,0,12"/>
+                            <ComboBox Name="CboPattern" Margin="0,0,0,12"/>
 
                             <TextBlock Text="Spacing (mm)" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
                             <TextBox Name="TxtSpacing" Style="{DynamicResource FieldBox}"

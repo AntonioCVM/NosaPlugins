@@ -56,6 +56,13 @@ class ViewOverridesWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'view_overrides')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.VF_CboSourceView.SelectionChanged += self.VF_SourceView_Changed
+        self.VF_LstFilters.SelectionChanged += self.VF_FilterList_SelectionChanged
+        self.VF_CboViewType.SelectionChanged += self.VF_ViewType_Changed
+        self.VF_GridViews.SelectionChanged += self.VF_ViewGrid_SelectionChanged
+        self.CP_CmbCategory.SelectionChanged += self.CP_Category_Changed
+        self.CP_CmbParam.SelectionChanged += self.CP_Param_Changed
         self.doc   = doc
         self.uidoc = revit.uidoc
 

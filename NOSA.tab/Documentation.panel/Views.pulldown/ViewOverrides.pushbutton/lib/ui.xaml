@@ -185,8 +185,7 @@
                                         <TextBlock Text="Source view" FontWeight="Bold" FontSize="12"
                                                    Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
                                         <ComboBox Name="VF_CboSourceView" Height="26" FontSize="11"
-                                                  DisplayMemberPath="Name"
-                                                  SelectionChanged="VF_SourceView_Changed"/>
+                                                  DisplayMemberPath="Name"/>
                                         <CheckBox Name="VF_ChkIncludeOverrides" Content="Copy graphic overrides"
                                                   IsChecked="True" Margin="0,8,0,0"/>
                                     </StackPanel>
@@ -206,8 +205,7 @@
                                                 CornerRadius="6" Margin="0,6,0,0" Height="180">
                                             <ListBox Name="VF_LstFilters" BorderThickness="0"
                                                      Background="{DynamicResource BgColor}"
-                                                     SelectionMode="Extended"
-                                                     SelectionChanged="VF_FilterList_SelectionChanged">
+                                                     SelectionMode="Extended">
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
                                                         <CheckBox Content="{Binding Name}"
@@ -298,8 +296,7 @@
                                      LostFocus="VF_ViewSearch_LostFocus"
                                      TextChanged="VF_ViewSearch_Changed"/>
                             <ComboBox Grid.Column="1" Name="VF_CboViewType" Width="140" Height="28"
-                                      Margin="8,0,0,0" FontSize="11"
-                                      SelectionChanged="VF_ViewType_Changed"/>
+                                      Margin="8,0,0,0" FontSize="11"/>
                         </Grid>
 
                         <!-- Views grid -->
@@ -308,8 +305,7 @@
                                       AutoGenerateColumns="False" IsReadOnly="False"
                                       AlternatingRowBackground="#06000000" Background="Transparent"
                                       BorderThickness="0" GridLinesVisibility="Horizontal"
-                                      SelectionMode="Extended"
-                                      SelectionChanged="VF_ViewGrid_SelectionChanged">
+                                      SelectionMode="Extended">
                                 <DataGrid.Columns>
                                     <DataGridTemplateColumn Header="" Width="36" CanUserResize="False">
                                         <DataGridTemplateColumn.CellTemplate>
@@ -362,12 +358,10 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Category:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <ComboBox  Grid.Column="1" Name="CP_CmbCategory" Height="26"
-                                       VerticalContentAlignment="Center"
-                                       SelectionChanged="CP_Category_Changed"/>
+                                       VerticalContentAlignment="Center"/>
                             <TextBlock Grid.Column="3" Text="Parameter:" VerticalAlignment="Center" Margin="0,0,8,0"/>
                             <ComboBox  Grid.Column="4" Name="CP_CmbParam" Height="26"
-                                       VerticalContentAlignment="Center"
-                                       SelectionChanged="CP_Param_Changed"/>
+                                       VerticalContentAlignment="Center"/>
                             <Button    Grid.Column="5" Name="CP_BtnRefresh" Content="Refresh"
                                        Click="CP_Refresh_Click" Height="26" Margin="12,0,0,0"
                                        Style="{StaticResource SecondaryButton}"/>

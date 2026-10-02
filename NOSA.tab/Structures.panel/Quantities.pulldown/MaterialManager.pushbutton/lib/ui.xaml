@@ -167,8 +167,7 @@
                                 <TextBlock Text="Filters" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
                                 <TextBlock Text="Material class:" FontSize="11"
                                            Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                                <ComboBox Name="CboClass" Height="26" FontSize="11"
-                                          SelectionChanged="Class_Changed"/>
+                                <ComboBox Name="CboClass" Height="26" FontSize="11"/>
                                 <CheckBox Name="ChkOnlyUnused" Content="Unused only (0 uses)"
                                           IsChecked="False" Click="Filter_Changed" Margin="0,10,0,0"/>
                                 <CheckBox Name="ChkNearDups"   Content="Near-duplicates only"
@@ -198,12 +197,10 @@
                                 <TextBlock Text="Filters" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
                                 <TextBlock Text="Category:" FontSize="11"
                                            Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                                <ComboBox Name="CboElCategory" Height="26" FontSize="11"
-                                          SelectionChanged="ElementFilter_Changed"/>
+                                <ComboBox Name="CboElCategory" Height="26" FontSize="11"/>
                                 <TextBlock Text="Level:" FontSize="11"
                                            Foreground="{DynamicResource TextColor}" Margin="0,10,0,4"/>
-                                <ComboBox Name="CboElLevel" Height="26" FontSize="11"
-                                          SelectionChanged="ElementFilter_Changed"/>
+                                <ComboBox Name="CboElLevel" Height="26" FontSize="11"/>
                                 <CheckBox Name="ChkMissingOnly" Content="Missing material only"
                                           IsChecked="False" Click="ElementFilter_Changed" Margin="0,10,0,0"/>
                                 <CheckBox Name="ChkUseSelection" Content="Use current selection (any category)"

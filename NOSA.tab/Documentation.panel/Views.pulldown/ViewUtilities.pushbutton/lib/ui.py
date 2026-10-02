@@ -102,6 +102,9 @@ class ViewUtilitiesWindow(NOSAWindow):
     def __init__(self, doc, uidoc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'view_utilities')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.AV_ComboMode.SelectedIndex = 0
+        self.LN_GridLevels.SelectionChanged += self.LN_Grid_SelectionChanged
         self.doc   = doc
         self.uidoc = uidoc
 

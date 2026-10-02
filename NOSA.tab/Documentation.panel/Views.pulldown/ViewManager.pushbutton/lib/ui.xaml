@@ -395,8 +395,7 @@
                             <TextBox Name="TxtRenSuffix" FontSize="11" Padding="6,4" Margin="0,2,0,6"
                                      BorderBrush="{DynamicResource BorderColor}" TextChanged="RenameRule_Changed"/>
                             <TextBlock Text="Case" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox Name="CmbRenCase" FontSize="11" Margin="0,2,0,10"
-                                      SelectionChanged="RenameRule_Changed"/>
+                            <ComboBox Name="CmbRenCase" FontSize="11" Margin="0,2,0,10"/>
                             <TextBlock Text="Tip: double-click any &quot;Name&quot; or &quot;No.&quot; cell to type directly — manual edits are kept even if you change the rule above."
                                        Style="{StaticResource FieldLabel}" TextWrapping="Wrap"
                                        Opacity="0.6" Margin="0,0,0,10"/>

@@ -44,6 +44,9 @@ class FootingDesignerWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'footing_designer')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.PF_CmbLevel.SelectionChanged += self.PF_Filter_Changed
+        self.WF_CmbLevel.SelectionChanged += self.WF_Filter_Changed
         self.doc = doc
 
         cfg = self.LoadConfig()

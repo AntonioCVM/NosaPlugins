@@ -24,6 +24,8 @@ class ColumnChooserDialog(NOSAWindow):
     def __init__(self, active_preset_name, available_columns):
         xaml_file = os.path.join(os.path.dirname(__file__), 'column_chooser_dialog.xaml')
         NOSAWindow.__init__(self, xaml_file, 'sheetexporthub_column_chooser')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.ComboPreset.SelectionChanged += self.Preset_Changed
         self.available_columns = list(available_columns)
         self.result_preset_name = None
         self._items = None

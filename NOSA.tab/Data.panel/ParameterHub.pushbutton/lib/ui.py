@@ -167,6 +167,13 @@ class ParameterHubWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'parameter_hub')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.PI_GridParams.SelectionChanged += self.PI_Grid_SelectionChanged
+        self.BE_ComboPresetPick.SelectionChanged += self.BE_PresetLoad_Changed
+        self.BE_ComboCategory.SelectionChanged += self.BE_Category_Changed
+        self.BE_ComboParamScope.SelectionChanged += self.BE_ParamScope_Changed
+        self.BE_ComboParam.SelectionChanged += self.BE_Param_SelectionChanged
+        self.BE_ComboParamAux.SelectionChanged += self.BE_AuxParam_SelectionChanged
         self.doc = doc
 
         cfg = self.LoadConfig()

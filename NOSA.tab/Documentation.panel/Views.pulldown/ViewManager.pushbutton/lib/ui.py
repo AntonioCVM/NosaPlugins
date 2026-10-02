@@ -61,6 +61,8 @@ class ViewManagerWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'view_manager')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CmbRenCase.SelectionChanged += self.RenameRule_Changed
         self.doc = doc
         self._tabs = {
             'BtnTabCreate':    self.TabCreate,

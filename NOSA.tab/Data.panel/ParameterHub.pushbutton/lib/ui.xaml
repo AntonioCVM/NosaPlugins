@@ -231,8 +231,7 @@
                                       AutoGenerateColumns="False" IsReadOnly="True"
                                       AlternatingRowBackground="#06000000" Background="Transparent"
                                       BorderThickness="0"
-                                      GridLinesVisibility="Horizontal" SelectionMode="Single"
-                                      SelectionChanged="PI_Grid_SelectionChanged">
+                                      GridLinesVisibility="Horizontal" SelectionMode="Single">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn Header="Group"     Binding="{Binding Group}"   Width="130"/>
                                     <DataGridTextColumn Header="Parameter" Binding="{Binding Name}"    Width="200"/>
@@ -285,8 +284,7 @@
                                     <StackPanel>
                                         <TextBlock Text="Presets" FontWeight="Bold" FontSize="12"
                                                    Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
-                                        <ComboBox Name="BE_ComboPresetPick" Height="26" Margin="0,0,0,8"
-                                                  SelectionChanged="BE_PresetLoad_Changed"/>
+                                        <ComboBox Name="BE_ComboPresetPick" Height="26" Margin="0,0,0,8"/>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBox Name="BE_TxtPresetSaveName" Width="150" Margin="0,0,8,0"
                                                      Style="{StaticResource FieldBox}"/>
@@ -300,8 +298,7 @@
                                     <StackPanel>
                                         <TextBlock Text="Category" FontWeight="Bold" FontSize="12"
                                                    Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
-                                        <ComboBox Name="BE_ComboCategory" Height="28" DisplayMemberPath="Title"
-                                                  SelectionChanged="BE_Category_Changed" Margin="0,0,0,10"/>
+                                        <ComboBox Name="BE_ComboCategory" Height="28" DisplayMemberPath="Title" Margin="0,0,0,10"/>
 
                                         <CheckBox Name="BE_ChkRestrictSelection"
                                                   Content="Limit to current Revit selection"/>
@@ -335,18 +332,16 @@
                                         <TextBox Name="BE_TxtParamFilter" Height="26" Margin="0,0,0,8"
                                                  Style="{StaticResource FieldBox}"
                                                  TextChanged="BE_ParamFilter_TextChanged"/>
-                                        <ComboBox Name="BE_ComboParamScope" Height="26" Margin="0,0,0,10"
-                                                  SelectionChanged="BE_ParamScope_Changed"/>
+                                        <ComboBox Name="BE_ComboParamScope" Height="26" Margin="0,0,0,10"/>
 
                                         <TextBlock Text="Primary parameter (editable)" FontWeight="SemiBold"
                                                    FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
                                         <ComboBox Name="BE_ComboParam" Height="26" Margin="0,0,0,8"
-                                                  IsEditable="True" SelectionChanged="BE_Param_SelectionChanged"/>
+                                                  IsEditable="True"/>
                                         <TextBlock Text="Secondary column (read-only reference)"
                                                    FontSize="10" Opacity="0.65"
                                                    Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
-                                        <ComboBox Name="BE_ComboParamAux" Height="26" Margin="0,0,0,8"
-                                                  SelectionChanged="BE_AuxParam_SelectionChanged"/>
+                                        <ComboBox Name="BE_ComboParamAux" Height="26" Margin="0,0,0,8"/>
 
                                         <CheckBox Name="BE_ChkWritableOnlyDiscover"
                                                   Content="Discover writable-only when scanning"/>

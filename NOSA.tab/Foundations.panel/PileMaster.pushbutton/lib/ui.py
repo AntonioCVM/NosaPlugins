@@ -70,6 +70,10 @@ class PileMasterWindow(NOSAWindow):
     def __init__(self):
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml_file, 'pile_master')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.cmbScope.SelectedIndex = 2
+        self.cmbCoordType.SelectedIndex = 0
+        self.GridReport.SelectionChanged += self.ReportGrid_SelectionChanged
         
         self.doc = revit.doc
         self.uidoc = revit.uidoc

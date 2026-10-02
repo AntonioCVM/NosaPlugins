@@ -338,6 +338,13 @@ class SheetHubWindow(NOSAWindow):
     def __init__(self, doc, uidoc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'sheet_hub')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CmbPackageFilter.SelectionChanged += self.PackageFilter_Changed
+        self.SnCmbF3.SelectionChanged += self.SnFieldChanged
+        self.SnCmbF4.SelectionChanged += self.SnFieldChanged
+        self.SnCmbF5.SelectionChanged += self.SnFieldChanged
+        self.SnCmbF6.SelectionChanged += self.SnFieldChanged
+        self.SnCmbF8.SelectionChanged += self.SnFieldChanged
         self.doc   = doc
         self.uidoc = uidoc
 

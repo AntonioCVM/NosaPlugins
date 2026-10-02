@@ -93,6 +93,8 @@ class AddPileToPilecapWindow(NOSAWindow):
     def __init__(self, doc, uidoc, output):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'addpiletopilecap')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CboPattern.SelectionChanged += self.Preview_Changed
         self.doc = doc
         self.uidoc = uidoc
         self.output = output

@@ -34,6 +34,8 @@ class CreatePilecapWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'create_pilecap')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CboShape.SelectionChanged += self.Shape_Changed
         self.doc    = doc
         self._mode  = 'regular'
         self._shape_keys = list(_logic.IRREGULAR_SHAPES.keys())

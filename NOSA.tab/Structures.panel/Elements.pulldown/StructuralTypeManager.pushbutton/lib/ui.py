@@ -128,6 +128,11 @@ class StructuralTypeManagerWindow(NOSAWindow):
     def __init__(self, doc, uidoc=None):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'structural_type_manager')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.ComboPresetPick.SelectionChanged += self.PresetLoad_Changed
+        self.ComboParamScope.SelectionChanged += self.ParamScope_Changed
+        self.ComboParam.SelectionChanged += self.Param_SelectionChanged
+        self.ComboParamAux.SelectionChanged += self.AuxParam_SelectionChanged
         self.doc = doc
         self._uidoc = uidoc
         self._rows = ObservableCollection[TypeParamRow]()

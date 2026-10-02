@@ -118,7 +118,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <ComboBox Name="ComboPreset" Grid.Column="0" SelectionChanged="Preset_Changed" Margin="0,0,10,0"/>
+            <ComboBox Name="ComboPreset" Grid.Column="0" Margin="0,0,10,0"/>
             <Button Content="Use this" Grid.Column="1" Click="UseThis_Click"/>
         </Grid>
 

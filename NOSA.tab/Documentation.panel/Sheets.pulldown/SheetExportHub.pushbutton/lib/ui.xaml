@@ -469,13 +469,13 @@
                         <RadioButton GroupName="Mode" Content="Views" Name="RbViews" Style="{DynamicResource PillToggle}" Checked="Mode_Changed"/>
                     </StackPanel>
                     <TextBox Grid.Column="1" Name="TxtSearch" Style="{StaticResource ModernTextBox}" Margin="16,0,10,0" Tag="Search number, name..." TextChanged="Search_Changed"/>
-                    <ComboBox Grid.Column="2" Name="ComboDiscipline" SelectionChanged="Discipline_Changed"/>
+                    <ComboBox Grid.Column="2" Name="ComboDiscipline"/>
                 </Grid>
 
                 <!-- Column preset row -->
                 <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,12">
                     <TextBlock Text="Columns:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource GroupLabel}"/>
-                    <ComboBox Name="ComboColumnPreset" Width="220" SelectionChanged="ColumnPreset_Changed"/>
+                    <ComboBox Name="ComboColumnPreset" Width="220"/>
                     <Button Content="Manage..." Style="{DynamicResource LinkButton}" Margin="10,0,0,0" Click="ManageColumns_Click"/>
                 </StackPanel>
 
@@ -587,7 +587,7 @@
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <ComboBox Name="ComboExportPreset" Grid.Column="0" Margin="0,0,10,0" SelectionChanged="ExportPreset_Selected" DisplayMemberPath="Name"/>
+                        <ComboBox Name="ComboExportPreset" Grid.Column="0" Margin="0,0,10,0" DisplayMemberPath="Name"/>
                         <Button Content="Save" Grid.Column="1" Margin="0,0,6,0" Click="SaveExportPreset_Click"/>
                         <Button Content="Delete" Grid.Column="2" Click="DeleteExportPreset_Click"/>
                     </Grid>
@@ -648,7 +648,7 @@
                             <TextBlock Text="Default — follows each sheet's title block. No manual override (Revit does not expose one for batch PDF export)."
                                        TextWrapping="Wrap" Style="{StaticResource HintText}"/>
                             <TextBlock Text="Quality preset" Style="{StaticResource GroupLabel}" Margin="0,20,0,8"/>
-                            <ComboBox Name="ComboQualityPreset" HorizontalAlignment="Left" MinWidth="180" SelectionChanged="QualityPreset_Changed"/>
+                            <ComboBox Name="ComboQualityPreset" HorizontalAlignment="Left" MinWidth="180"/>
                         </StackPanel>
 
                         <!-- Formats — PDF / DWG / DXF toggles all live here, tab is not DWG-specific -->
@@ -662,7 +662,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Export setup:" VerticalAlignment="Center" Margin="0,0,10,0" Style="{StaticResource HintText}"/>
-                                <ComboBox Grid.Column="1" Name="ComboDwgSetup" SelectionChanged="DwgSetup_Changed"/>
+                                <ComboBox Grid.Column="1" Name="ComboDwgSetup"/>
                             </Grid>
 
                             <CheckBox Name="ChkDXF" Content="DXF (Drawing Exchange Format)" Margin="0,8" Checked="Format_Changed" Unchecked="Format_Changed"/>

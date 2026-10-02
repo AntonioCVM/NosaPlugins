@@ -60,6 +60,10 @@ class MaterialManagerWindow(NOSAWindow):
     def __init__(self, doc):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
         NOSAWindow.__init__(self, xaml, 'material_manager')
+        # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
+        self.CboClass.SelectionChanged += self.Class_Changed
+        self.CboElCategory.SelectionChanged += self.ElementFilter_Changed
+        self.CboElLevel.SelectionChanged += self.ElementFilter_Changed
         self.doc = doc
 
         # ── Materials tab state ───────────────────────────────────────────────

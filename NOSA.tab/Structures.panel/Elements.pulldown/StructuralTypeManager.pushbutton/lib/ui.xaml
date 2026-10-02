@@ -150,7 +150,7 @@
                     <Border Style="{StaticResource Card}" Margin="0,0,0,14">
                         <StackPanel>
                             <TextBlock Text="Presets" Style="{StaticResource SectionTitle}"/>
-                            <ComboBox Name="ComboPresetPick" Height="26" Margin="0,0,0,8" SelectionChanged="PresetLoad_Changed"/>
+                            <ComboBox Name="ComboPresetPick" Height="26" Margin="0,0,0,8"/>
                             <StackPanel Orientation="Horizontal">
                                 <TextBox Name="TxtPresetSaveName" Width="150" Margin="0,0,8,0" Style="{DynamicResource FieldBox}"/>
                                 <Button Content="Save preset" Click="PresetSave_Click" Width="140" Style="{DynamicResource SecondaryButton}"/>
@@ -191,13 +191,13 @@
                             <TextBlock Text="Parameter Filter &amp; Scope" Style="{StaticResource SectionTitle}"/>
                             <TextBox Name="TxtParamFilter" Height="26" Style="{DynamicResource FieldBox}"
                                      TextChanged="ParamFilter_TextChanged" Margin="0,0,0,8"/>
-                            <ComboBox Name="ComboParamScope" Height="26" SelectionChanged="ParamScope_Changed" Margin="0,0,0,10"/>
+                            <ComboBox Name="ComboParamScope" Height="26" Margin="0,0,0,10"/>
 
                             <TextBlock Text="Primary (editable)" Style="{StaticResource FieldLabel}" FontWeight="SemiBold"/>
-                            <ComboBox Name="ComboParam" Height="26" IsEditable="True" SelectionChanged="Param_SelectionChanged" Margin="0,0,0,8"/>
+                            <ComboBox Name="ComboParam" Height="26" IsEditable="True" Margin="0,0,0,8"/>
 
                             <TextBlock Text="Secondary (read-only column)" Style="{StaticResource FieldLabel}"/>
-                            <ComboBox Name="ComboParamAux" Height="26" SelectionChanged="AuxParam_SelectionChanged" Margin="0,0,0,8"/>
+                            <ComboBox Name="ComboParamAux" Height="26" Margin="0,0,0,8"/>
 
                             <CheckBox Name="ChkWritableOnlyDiscover" Content="Discover writable-only"/>
                         </StackPanel>

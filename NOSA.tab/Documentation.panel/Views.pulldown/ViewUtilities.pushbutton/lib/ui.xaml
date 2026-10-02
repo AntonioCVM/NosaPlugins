@@ -243,7 +243,7 @@
                                     <StackPanel>
                                         <TextBlock Text="2. Alignment Mode" FontWeight="SemiBold" FontSize="12"
                                                    Foreground="{DynamicResource AccentColor}" Margin="0,0,0,8"/>
-                                        <ComboBox Name="AV_ComboMode" SelectedIndex="0" Margin="0,0,0,8">
+                                        <ComboBox Name="AV_ComboMode" Margin="0,0,0,8">
                                             <ComboBoxItem Content="Same as Reference"/>
                                             <ComboBoxItem Content="Left"/>
                                             <ComboBoxItem Content="Center"/>
@@ -453,7 +453,6 @@
                                   AlternatingRowBackground="#06000000" Background="Transparent"
                                   BorderThickness="0"
                                   GridLinesVisibility="Horizontal"
-                                  SelectionChanged="LN_Grid_SelectionChanged"
                                   MouseDoubleClick="LN_Grid_MouseDoubleClick">
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="✓" Binding="{Binding StatusIcon}" Width="30">
