@@ -18,6 +18,7 @@ Usage:
 Log file: %APPDATA%/pyRevit/Extensions/NOSA.extension/NOSA_Configs/logs/nosa_errors.log
 Rotation: 5 MB max per file, keeps last 3 files.
 """
+import io
 import os
 import sys
 import datetime
@@ -41,7 +42,7 @@ def _ensure_log_dir():
     try:
         if not os.path.isdir(_LOG_DIR):
             os.makedirs(_LOG_DIR)
-    except Exception:
+    except Exception:  # nosa-lint: disable=NOSA006 - logging helpers must never raise
         pass
 
 
@@ -60,30 +61,49 @@ def _rotate():
                     if os.path.isfile(dst):
                         os.remove(dst)
                     os.rename(src, dst)
-                except Exception:
+                except Exception:  # nosa-lint: disable=NOSA006 - logging helpers must never raise
                     pass
         try:
             if os.path.isfile('{}.{}'.format(_LOG_FILE, 1)):
                 os.remove('{}.{}'.format(_LOG_FILE, 1))
             os.rename(_LOG_FILE, '{}.{}'.format(_LOG_FILE, 1))
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - logging helpers must never raise
             pass
-    except Exception:
+    except Exception:  # nosa-lint: disable=NOSA006 - logging helpers must never raise
         pass
 
 
 def _revit_version():
+    # __revit__ (the UIApplication pyRevit injects), never `from pyrevit import HOST_APP`:
+    # that import reads pyRevit_config.ini and fails while another Revit holds the lock.
     try:
-        from pyrevit import HOST_APP
-        return str(HOST_APP.version)
-    except Exception:
-        pass
-    try:
-        import Autodesk.Revit.UI as _UI
-        app = _UI.UIApplication
-        return str(app.Application.VersionNumber)
+        try:
+            import __builtin__ as _builtins
+        except ImportError:
+            import builtins as _builtins
+        return str(getattr(_builtins, '__revit__').Application.VersionNumber)
     except Exception:
         return u'unknown'
+
+
+def _text(value):
+    try:
+        if isinstance(value, type(u'')):
+            return value
+        if isinstance(value, bytes):
+            return value.decode('utf-8', 'replace')
+        return u'{}'.format(value)
+    except Exception:
+        return u'<unprintable>'
+
+
+def _append(entry):
+    # UTF-8 explicitly: open(.., 'a') used the ANSI code page and dropped non-ASCII messages
+    try:
+        with io.open(_LOG_FILE, 'a', encoding='utf-8') as f:
+            f.write(entry)
+    except Exception:  # nosa-lint: disable=NOSA006 - the logger cannot log its own failure
+        pass
 
 
 def log_error(script_name, exception_msg, stack_trace=u'', revit_version=None):
@@ -109,20 +129,15 @@ def log_error(script_name, exception_msg, stack_trace=u'', revit_version=None):
 
     lines = [
         u'[{}] script={} revit={} user={}'.format(ts, script_name, rv, _USER),
-        u'  ERROR: {}'.format(exception_msg),
+        u'  ERROR: {}'.format(_text(exception_msg)),
     ]
-    if stack_trace and stack_trace.strip():
+    stack_trace = _text(stack_trace) if stack_trace else u''
+    if stack_trace.strip():
         for ln in stack_trace.strip().splitlines():
             lines.append(u'  | {}'.format(ln))
     lines.append(u'')
 
-    entry = u'\n'.join(lines) + u'\n'
-
-    try:
-        with open(_LOG_FILE, 'a') as f:
-            f.write(entry)
-    except Exception:
-        pass
+    _append(u'\n'.join(lines) + u'\n')
 
 
 _SWALLOWED_SEEN = set()
@@ -149,12 +164,7 @@ def log_info(script_name, message):
     """Write an INFO entry (non-error events, plugin launches, etc.)."""
     _ensure_log_dir()
     ts = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
-    entry = u'[{}] INFO script={} user={} — {}\n'.format(ts, script_name, _USER, message)
-    try:
-        with open(_LOG_FILE, 'a') as f:
-            f.write(entry)
-    except Exception:
-        pass
+    _append(u'[{}] INFO script={} user={} — {}\n'.format(ts, script_name, _USER, _text(message)))
 
 
 def get_log_path():
