@@ -2594,12 +2594,9 @@ class RebarAutomateWindow(NOSAWindow):
         run through a detected floor — Phase 3.4 item 2), the same
         create_rebar_set mechanism footing_rebar.build_side_rebar_set
         already proved live for a vertically-propagated closed
-        rectangle. Interior crossties (Phase 3.5 item 2), if
-        requested, are INDIVIDUAL bars (not Sets) created via
-        create_from_curves with start_hook/end_hook baked in at
-        creation — Rebar.SetHookTypeId post-creation on a Set was
-        confirmed to crash live ("hookTypeId is not valid") since a
-        Set-propagated line has no hook-aware RebarShape.
+        rectangle. Interior links and crossties, if requested, are Sets
+        too (column_rebar.interior_tie_layout), created after the
+        verticals are pinned to the faces.
         """
         # PHASE 3.5.3 item 4 — cover read from THIS host's own native
         # Rebar Cover ('Exterior' face — a column's cover is uniform
@@ -2607,6 +2604,10 @@ class RebarAutomateWindow(NOSAWindow):
         # text field.
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'column'))
+        try:
+            link_bend_mm = bar_types[values['link_dia']].StirrupTieBendDiameter * 304.8
+        except Exception:
+            link_bend_mm = None
         reinforcement = column_rebar.build_column_reinforcement(
             self.doc, host,
             cover_mm=cover_mm,
@@ -2619,7 +2620,7 @@ class RebarAutomateWindow(NOSAWindow):
             include_starter_bars=values['starter_bars'],
             use_cranked_laps=values['cranked_laps'],
             include_crossties=values['crossties'],
-            crosstie_layout=values['crosstie_layout'],
+            crosstie_layout=values['crosstie_layout'], link_bend_diameter_mm=link_bend_mm,
             std=self._host_std(host), kicker_mm=self._kicker_mm(),
             slab_top_mat_mm=self._preview_number(self.TxtTopDiaX, 12.0)
             + self._preview_number(self.TxtTopDiaY, 12.0))
@@ -2714,57 +2715,6 @@ class RebarAutomateWindow(NOSAWindow):
                         errors.append(u'Column {}: links (set) — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
 
-            # PHASE 3.5.8 item 2 — normative interior stirrup loops
-            # (collapsed crossties) use the SAME Set mechanism as the
-            # main stirrups above, not create_from_curves.
-            for iss in reinforcement.get('interior_stirrup_sets', []):
-                style = DBS.RebarStyle.StirrupTie if iss.get('style') == 'StirrupTie' else None
-                rebar = wrapper.create_rebar_set(
-                    host, iss['curves'], bar_type_link, iss['spacing_mm'], iss['array_length_mm'],
-                    normal=iss['normal'], style=style,
-                    transaction_name=u'NOSA — Create Column Interior Stirrup',
-                    link_hook=re_engine.get_link_hook_type(self.doc))
-                if rebar is None:
-                    errors.append(u'Column {}: interior stirrup (set) — {}'.format(
-                        get_id_value(host.Id), wrapper.last_error))
-                else:
-                    self._stamp_layer(rebar, u'interior_stirrup')
-                    created_rebars.append(rebar)
-                    if wrapper.last_error:
-                        errors.append(u'Column {}: interior stirrup (set) — {}'.format(
-                            get_id_value(host.Id), wrapper.last_error))
-
-            if reinforcement['crosstie_sets']:
-                # Crossties are ties: StirrupTie style with Stirrup/Tie hooks. A Standard
-                # bar with a Stirrup/Tie hook made every crosstie fail ("internal error").
-                tie_style = DBS.RebarStyle.StirrupTie
-                hook_135 = re_engine.get_hook_type_by_angle(self.doc, 135.0, style=tie_style)
-                hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0, style=tie_style)
-                if hook_135 is None and hook_90 is None:
-                    errors.append(u'Column {}: crossties — no 135°/90° Stirrup/Tie RebarHookType '
-                                  u'found in this project; crossties will be created '
-                                  u'WITHOUT hooks (not normative anchorage).'.format(
-                                      get_id_value(host.Id)))
-                # Hooks are baked in AT creation via create_from_curves
-                # (start_hook/end_hook) — NOT applied post-creation via
-                # Rebar.SetHookTypeId. That combination crashed live
-                # ("hookTypeId is not valid"): a Set-propagated bar has
-                # no hook-aware RebarShape for SetHookTypeId to target.
-                # Crossties are therefore individual bars, not Sets —
-                # see build_crosstie_sets's docstring.
-                for ct in reinforcement['crosstie_sets']:
-                    rebar = wrapper.create_from_curves(
-                        host, [ct['curve']], bar_type_link, style=tie_style,
-                        start_hook=hook_135, end_hook=hook_90,
-                        normal=ct['normal'],
-                        transaction_name=u'NOSA — Create Column Crossties')
-                    if rebar is None:
-                        errors.append(u'Column {}: crosstie — {}'.format(
-                            get_id_value(host.Id), wrapper.last_error))
-                        continue
-                    self._stamp_layer(rebar, u'crosstie')
-                    created_rebars.append(rebar)
-
         # PHASE F7.18 (2026-09-02, explicit request — "Starter bars con
         # forma de L en columnas y muros... unidas a la cimentación") —
         # a representative 4-corner starter cage (n_u=n_v=2, matching
@@ -2784,6 +2734,29 @@ class RebarAutomateWindow(NOSAWindow):
             except Exception as e:
                 errors.append(u'Column {}: vertical bars left where Revit snapped them '
                               u'(could not pin to the faces: {}).'.format(get_id_value(host.Id), e))
+
+        # Interior links and crossties (column_rebar.interior_tie_layout) are Sets laid out like
+        # the main links, created AFTER the verticals are pinned: pinning re-targets the handles
+        # Revit snapped to other bars, so ties present by then dragged verticals to a wrong face.
+        if bar_type_link is not None:
+            for iss in reinforcement.get('interior_stirrup_sets', []):
+                style = DBS.RebarStyle.StirrupTie if iss.get('style') == 'StirrupTie' else None
+                rebar = wrapper.create_rebar_set(
+                    host, iss['curves'], bar_type_link, iss['spacing_mm'], iss['array_length_mm'],
+                    normal=iss['normal'], style=style,
+                    transaction_name=u'NOSA — Create Column Interior Links',
+                    link_hook=re_engine.get_link_hook_type(self.doc))
+                layer = iss.get('layer', u'interior_stirrup')
+                label = u'crosstie' if layer == u'crosstie' else u'interior link'
+                if rebar is None:
+                    errors.append(u'Column {}: {} (set) — {}'.format(
+                        get_id_value(host.Id), label, wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, layer)
+                    created_rebars.append(rebar)
+                    if wrapper.last_error:
+                        errors.append(u'Column {}: {} (set) — {}'.format(
+                            get_id_value(host.Id), label, wrapper.last_error))
 
         if values.get('foundation_starters') and bar_type_vert is not None and \
                 re_engine.nosa_bars_in_footprint(self.doc, host, (u'dowel', u'foundation_starter')):

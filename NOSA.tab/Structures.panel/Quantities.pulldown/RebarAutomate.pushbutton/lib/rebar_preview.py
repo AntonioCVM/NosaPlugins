@@ -365,14 +365,13 @@ def _perimeter_positions_preview(half_w_mm, half_d_mm, n_u, n_v):
     return positions
 
 
-def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all'):
+def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all',
+                            bar_diameter_mm=20.0, link_diameter_mm=10.0):
     """
-    Pure-Python mirror of column_rebar.build_crosstie_sets's pairing
-    logic (plan-view projection: no Z/normal needed here) — see that
-    function's own docstring for the corner-exclusion and
-    layout='alternate' semantics this reproduces exactly, so the
-    preview draws the SAME intermediate-bar <-> direct-mirror pairs
-    the backend actually creates.
+    Plan segments of the interior links and crossties — pure-Python mirror of
+    column_rebar.interior_tie_layout (diamond for one interior bar per side,
+    otherwise links pairing interior bars outermost-inwards plus a crosstie for
+    an odd middle bar), every tie passing OUTSIDE the bars it restrains.
 
     Returns:
         list[(x1_mm, y1_mm, x2_mm, y2_mm)]
@@ -387,20 +386,36 @@ def _crosstie_lines_preview(half_w_mm, half_d_mm, n_u, n_v, layout='all'):
     vs = _edge(-half_d_mm, half_d_mm, n_v)
     us_interior = us[1:-1] if n_u > 2 else []
     vs_interior = vs[1:-1] if n_v > 2 else []
+    r = (bar_diameter_mm + link_diameter_mm) / 2.0
+    hook_r = (4.0 * link_diameter_mm + link_diameter_mm) / 2.0   # bend centre on the bar axis
+    hook_run = 2.0 * link_diameter_mm + link_diameter_mm
 
-    # one interior bar per side at most: the backend builds one closed diamond loop
+    def _ring(points):
+        return [points[i] + points[(i + 1) % len(points)] for i in range(len(points))]
+
     if len(us_interior) <= 1 and len(vs_interior) <= 1 and (us_interior or vs_interior):
-        u = us_interior[0] if us_interior else 0.0
-        v = vs_interior[0] if vs_interior else 0.0
-        top, right, bottom, left = (u, half_d_mm), (half_w_mm, v), (u, -half_d_mm), (-half_w_mm, v)
-        return [a + b for a, b in ((top, right), (right, bottom), (bottom, left), (left, top))]
+        u0 = us_interior[0] if us_interior else 0.0
+        v0 = vs_interior[0] if vs_interior else 0.0
+        k = r * math.sqrt(2.0)
+        return _ring([(u0, -half_d_mm - k), (-half_w_mm - k, v0), (u0, half_d_mm + k), (half_w_mm + k, v0)])
 
     if layout == 'alternate':
         us_interior = us_interior[0::2]
         vs_interior = vs_interior[0::2]
 
-    lines = [(u, half_d_mm, u, -half_d_mm) for u in us_interior]
-    lines += [(half_w_mm, v, -half_w_mm, v) for v in vs_interior]
+    lines = []
+    for i in range(len(us_interior) // 2):
+        a, b = us_interior[i] - r, us_interior[-1 - i] + r
+        lines += _ring([(a, half_d_mm + r), (b, half_d_mm + r), (b, -half_d_mm - r), (a, -half_d_mm - r)])
+    if len(us_interior) % 2:
+        m = us_interior[len(us_interior) // 2] - hook_r
+        lines.append((m, half_d_mm + hook_run, m, -half_d_mm - hook_run))
+    for i in range(len(vs_interior) // 2):
+        a, b = vs_interior[i] - r, vs_interior[-1 - i] + r
+        lines += _ring([(-half_w_mm - r, a), (half_w_mm + r, a), (half_w_mm + r, b), (-half_w_mm - r, b)])
+    if len(vs_interior) % 2:
+        m = vs_interior[len(vs_interior) // 2] - hook_r
+        lines.append((-half_w_mm - hook_run, m, half_w_mm + hook_run, m))
     return lines
 
 
@@ -513,7 +528,8 @@ def compute_column_section_preview(width_mm, depth_mm, cover_mm, bar_diameter_mm
         crossties = [
             {'x1_mm': x1, 'y1_mm': y1, 'x2_mm': x2, 'y2_mm': y2}
             for (x1, y1, x2, y2) in _crosstie_lines_preview(
-                bar_half_w, bar_half_d, n_u, n_v, crosstie_layout)
+                bar_half_w, bar_half_d, n_u, n_v, crosstie_layout,
+                bar_diameter_mm, stirrup_diameter_mm)
         ]
 
     return {

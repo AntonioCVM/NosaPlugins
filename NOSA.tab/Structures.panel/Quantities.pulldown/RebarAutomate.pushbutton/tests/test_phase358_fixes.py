@@ -232,9 +232,50 @@ print("build_crosstie_sets: the 'diamond' case (1 interior bar per axis) collaps
 # individual-crosstie behaviour, already covered by test_phase353/356
 # but re-asserted here against the NEW dict return shape.
 result2 = column_rebar.build_crosstie_sets(axis, u_dir, v_dir, 150.0, 100.0, 5, 2, zones, layout='all')
-assert result2['interior_stirrup_sets'] == [], "2+ interior positions on one axis must NOT collapse"
-assert len(result2['crosstie_bars']) > 0
-print("build_crosstie_sets: an axis with 2+ interior positions keeps individual "
-      "crossties unchanged (does not collapse): OK")
+assert result2['crosstie_bars'] == []
+assert sorted(s['layer'] for s in result2['interior_stirrup_sets']) == [
+    'crosstie', 'crosstie', 'interior_stirrup', 'interior_stirrup']
+print("build_crosstie_sets: 3 interior bars on one axis -> one interior link (outer pair) "
+      "+ one crosstie (middle bar) per zone: OK")
+
+# Every tie passes OUTSIDE the bars it restrains: tangent to the bar, (bar + link) / 2 from
+# its centre (user review 2026-10-02: ties were drawn through / inside the bars).
+import math as _m
+
+
+def _seg_dist(p, a, b):
+    ax, ay = b[0] - a[0], b[1] - a[1]
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * ax + (p[1] - a[1]) * ay) / float(ax * ax + ay * ay)))
+    return _m.hypot(p[0] - a[0] - t * ax, p[1] - a[1] - t * ay)
+
+
+for n_u, n_v in ((5, 2), (5, 3), (5, 5), (4, 6), (3, 3)):
+    hw = hd = 250.0
+    us = [-hw + i * 2 * hw / (n_u - 1) for i in range(n_u)]
+    vs = [-hd + i * 2 * hd / (n_v - 1) for i in range(n_v)]
+    interior = [(u, s * hd) for u in us[1:-1] for s in (1, -1)] + \
+               [(s * hw, v) for v in vs[1:-1] for s in (1, -1)]
+    shapes = column_rebar.interior_tie_layout(hw, hd, n_u, n_v, 'all', 20.0, 10.0)
+    for bar in interior:
+        best = {}
+        for sh in shapes:
+            pts = sh['points']
+            segs = len(pts) if sh['closed'] else len(pts) - 1
+            for i in range(segs):
+                d = _seg_dist(bar, pts[i], pts[(i + 1) % len(pts)])
+                best[sh['kind']] = min(best.get(sh['kind'], 1e9), d)
+        on_link = min(best.get('link', 1e9), best.get('diamond', 1e9))
+        # links/diamond tangent to the bar at (20 + 10) / 2; a crosstie runs at its hook's
+        # centreline bend radius (40 + 10) / 2 so the bend centre sits on the bar axis
+        assert abs(on_link - 15.0) < 0.5 or abs(best.get('crosstie', 1e9) - 25.0) < 0.5, (n_u, n_v, bar, best)
+print("interior_tie_layout: every interior bar is wrapped from outside — links 15 mm, crossties "
+      "25 mm (hook bend centre on the bar) from the tie centreline, for 5x2, 5x3, 5x5, 4x6 and 3x3: OK")
+
+# A crosstie runs D/2 + d past each bar so its hook's bend centre lands on the bar axis.
+ct = [s for s in column_rebar.interior_tie_layout(250.0, 250.0, 3, 4, 'all', 20.0, 10.0, 40.0)
+      if s['kind'] == 'crosstie'][0]
+(u0, v0), (u1, v1) = ct['points']
+assert abs(u0 - (0.0 - 25.0)) < 1e-6 and abs(v0 - (250.0 + 30.0)) < 1e-6 and abs(v1 + 280.0) < 1e-6, ct
+print("interior_tie_layout: crosstie offset by the bend radius and run past the bars: OK")
 
 print("\nALL PHASE 3.5.8 TARGETED CHECKS PASSED")
