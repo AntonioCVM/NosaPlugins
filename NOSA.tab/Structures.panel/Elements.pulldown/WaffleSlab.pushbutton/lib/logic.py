@@ -2,7 +2,6 @@
 import os
 import sys
 import json
-import imp
 import traceback
 
 from Autodesk.Revit import DB

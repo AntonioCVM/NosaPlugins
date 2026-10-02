@@ -248,7 +248,7 @@ class ViewUtilitiesWindow(NOSAWindow):
 
         count = 0
         errors = []
-        with revit.Transaction("Align Titles"):
+        with revit.Transaction(u"NOSA — Align Titles"):
             for item in self.av_matching_items:
                 try:
                     target_vp = item['viewport']

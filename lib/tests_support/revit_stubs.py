@@ -168,3 +168,115 @@ def load_module(name, path):
 def extension_lib_dir():
     """Absolute path of NOSA.extension/lib (the directory containing tests_support)."""
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+# ---------------------------------------------------------------------------
+# Permissive stubs: import plugin ui.py files (WPF, pyRevit, .NET) to test their pure helpers
+# ---------------------------------------------------------------------------
+
+class _AnyMeta(type):
+    """Class whose every attribute is another permissive class (enums, nested types, statics)."""
+
+    def __getattr__(cls, name):
+        if name.startswith('__'):
+            raise AttributeError(name)
+        return _AnyMeta(name, (_Any,), {})
+
+    def __getitem__(cls, key):        # List[int], Func[...]
+        return cls
+
+    def __iter__(cls):
+        return iter(())
+
+    def __or__(cls, other):           # flag enums
+        return cls
+
+    __ror__ = __or__
+
+
+class _Any(_AnyMeta('_AnyBase', (object,), {})):
+    """Instance that accepts any call, attribute, item, event += handler."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __getattr__(self, name):
+        if name.startswith('__'):
+            raise AttributeError(name)
+        return _Any()
+
+    def __call__(self, *args, **kwargs):
+        return _Any()
+
+    def __getitem__(self, key):
+        return _Any()
+
+    def __setitem__(self, key, value):
+        pass
+
+    def __iter__(self):
+        return iter(())
+
+    def __len__(self):
+        return 0
+
+    def __iadd__(self, other):
+        return self
+
+    __isub__ = __iadd__
+
+
+class _AnyModule(types.ModuleType):
+    __path__ = []
+
+    def __getattr__(self, name):
+        if name.startswith('__'):
+            raise AttributeError(name)
+        value = _AnyMeta(name, (_Any,), {})
+        setattr(self, name, value)
+        return value
+
+
+PERMISSIVE_ROOTS = ('Autodesk', 'System', 'clr', 'pyrevit', 'Microsoft', 'RevitServices', 'Xceed')
+
+
+class permissive_imports(object):
+    """Context manager: .NET / Revit / pyRevit imports resolve to permissive stub modules.
+
+    Every module under PERMISSIVE_ROOTS already in sys.modules is set aside and restored
+    on exit, so other tests keep their own stubs. CPython 3 only.
+    """
+
+    def __init__(self, roots=PERMISSIVE_ROOTS):
+        self.roots = tuple(roots)
+
+    def _ours(self, fullname):
+        return fullname.split('.')[0] in self.roots
+
+    def find_spec(self, fullname, path=None, target=None):
+        if not self._ours(fullname):
+            return None
+        import importlib.machinery
+        return importlib.machinery.ModuleSpec(fullname, self)
+
+    def create_module(self, spec):
+        return _AnyModule(spec.name)
+
+    def exec_module(self, module):
+        parent, _, child = module.__name__.rpartition('.')
+        if parent and parent in sys.modules:
+            setattr(sys.modules[parent], child, module)
+
+    def __enter__(self):
+        self.saved = dict((k, v) for k, v in sys.modules.items() if self._ours(k))
+        for key in self.saved:
+            del sys.modules[key]
+        sys.meta_path.insert(0, self)
+        return self
+
+    def __exit__(self, *exc):
+        sys.meta_path.remove(self)
+        for key in [k for k in sys.modules if self._ours(k)]:
+            del sys.modules[key]
+        sys.modules.update(self.saved)
+        return False

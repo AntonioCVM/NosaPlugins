@@ -58,7 +58,7 @@ def apply_halftone(doc, uidoc):
     updated = 0
     failed = 0
 
-    with revit.Transaction("Apply Halftone to Selection"):
+    with revit.Transaction(u"NOSA — Apply Halftone to Selection"):
         for element in selection:
             try:
                 view.SetElementOverrides(element.Id, overrides)

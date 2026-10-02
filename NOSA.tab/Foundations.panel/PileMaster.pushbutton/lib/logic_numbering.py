@@ -307,7 +307,7 @@ class NumberingLogic:
         # Piles: sequential per prefix
         # Caps: grouped by family + dimensions (simplified: same family = same number for all)
         
-        with revit.Transaction("Batch Numbering"):
+        with revit.Transaction(u"NOSA — Batch Numbering"):
 
             # Ungroup any Model Groups that contain target elements so their
             # instance parameters (Mark, Comments) become writable.

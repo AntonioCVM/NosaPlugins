@@ -241,7 +241,7 @@ class CoordinateLogic:
             if not grp:
                 grp = def_file.Groups.Create("NOSA_Coordinates")
                 
-            with revit.Transaction("Create Coordinate Parameters"):
+            with revit.Transaction(u"NOSA — Create Coordinate Parameters"):
                 cats = app.Create.NewCategorySet()
                 cat = self.doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_StructuralFoundation)
                 cats.Insert(cat)
@@ -351,7 +351,7 @@ class CoordinateLogic:
         fail    = 0
         inv     = self._get_inverse_total_transform()
 
-        with revit.Transaction("Update Pile Coordinates"):
+        with revit.Transaction(u"NOSA — Update Pile Coordinates"):
             restore = _ungroup_targets(self.doc, elements)
             for el in elements:
                 if self._write_coords_to_element(

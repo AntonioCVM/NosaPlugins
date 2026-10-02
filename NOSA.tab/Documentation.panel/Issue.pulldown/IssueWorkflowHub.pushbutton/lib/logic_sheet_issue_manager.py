@@ -84,14 +84,7 @@ def delete_records(records, indices):
 
 
 def export_csv(records, path):
-    import csv as _csv
-    headers = ['Date', 'Sheet', 'Revision', 'Recipient', 'Package', 'Notes', 'Issued By']
-    with open(path, 'wb') as f:
-        w = _csv.writer(f)
-        w.writerow(headers)
-        for r in records:
-            w.writerow([
-                r.get('date', ''), r.get('sheet', ''), r.get('revision', ''),
-                r.get('recipient', ''), r.get('package', ''),
-                r.get('notes', ''), r.get('issued_by', ''),
-            ])
+    from nosa_utils.export_io import write_csv
+    keys = ('date', 'sheet', 'revision', 'recipient', 'package', 'notes', 'issued_by')
+    write_csv(path, ['Date', 'Sheet', 'Revision', 'Recipient', 'Package', 'Notes', 'Issued By'],
+              [[r.get(k, '') for k in keys] for r in records])

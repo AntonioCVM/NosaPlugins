@@ -994,14 +994,10 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
                 title=u'Export rebar coverage report')
             if not path:
                 return
-            with open(path, 'wb') as f:
-                w = csv.writer(f)
-                w.writerow(['Host', 'Category', 'Cover (mm)', 'Min (mm)', 'Status'])
-                for r in self._cv_results:
-                    w.writerow([r['host'], r['category'],
-                                '{:.1f}'.format(r['cover_mm']),
-                                '{:.0f}'.format(r['min_mm']),
-                                r['status']])
+            from nosa_utils.export_io import write_csv
+            write_csv(path, ['Host', 'Category', 'Cover (mm)', 'Min (mm)', 'Status'],
+                      [[r['host'], r['category'], '{:.1f}'.format(r['cover_mm']),
+                        '{:.0f}'.format(r['min_mm']), r['status']] for r in self._cv_results])
             self.CV_TxtStatus.Text = u'Exported {} records to {}'.format(
                 len(self._cv_results), os.path.basename(path))
         except Exception as ex:
