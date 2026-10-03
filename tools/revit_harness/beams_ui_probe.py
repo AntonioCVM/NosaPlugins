@@ -3,7 +3,8 @@
 T7.2 end-to-end: 4 columns and 3 beams in a line, RebarAutomate's real Beams GENERATE with
 "Continuous beam" ticked (selection faked, alerts captured), report the bars by layer and their
 reach along the line, then roll EVERYTHING back. Revit errors roll their transaction back
-instead of opening a dialog (harness only). Scope: doc, EXT_ROOT, PYREVIT, CONTROLS. Result: RESULT.
+instead of opening a dialog (harness only). Scope: doc, EXT_ROOT, PYREVIT, CONTROLS, VIEWS (bool: also reinforce a column and run Create
+Views on the line and the column). Result: RESULT.
 """
 import sys
 import os
@@ -96,8 +97,8 @@ def build_line():
                     DB.JoinGeometryUtils.JoinGeometry(doc, c, bm)
                 if not DB.JoinGeometryUtils.IsCuttingElementInJoin(doc, c, bm):
                     DB.JoinGeometryUtils.SwitchJoinOrder(doc, c, bm)
-            except Exception:
-                pass  # nosa-lint: disable=NOSA006 - not touching: nothing to join
+            except Exception:  # nosa-lint: disable=NOSA006 - not touching: nothing to join
+                pass
     t.Commit()
     return columns, beams
 
@@ -151,6 +152,38 @@ try:
     win._reinforcement_handler.pending = {'mode': 'beams', 'values': values}
     win._reinforcement_handler.Execute(_UIApp())
     _log.append(u'RESULT:\n' + unicode(win.TxtBeamResult.Text or u''))
+
+    if VIEWS:
+        from System.Collections.Generic import List
+        col_values = win._read_column_inputs()
+        win._reinforcement_handler.pending = {'mode': 'columns', 'values': col_values}
+
+        class _ColSel(object):
+            def PickObjects(self, *args):
+                return [_Ref(columns[1].Id)]
+        _UIDoc.Selection = _ColSel()
+        win._reinforcement_handler.Execute(_UIApp())
+        _log.append(u'columns: ' + unicode(win.TxtColumnResult.Text or u'').replace(u'\n', u' | '))
+        win.uidoc.Selection.SetElementIds(List[DB.ElementId]([b.Id for b in beams] + [columns[1].Id]))
+        win._create_views()
+        _log.append(u'CREATE VIEWS: ' + unicode(win.TxtDetailingStatus.Text))
+        from nosa_utils.revit_helpers import element_name
+        for v in DB.FilteredElementCollector(doc).OfClass(DB.View):
+            if v.IsTemplate or not (element_name(v).startswith(u'Beam ') or element_name(v).startswith(u'Column ')):
+                continue
+            tpl = doc.GetElement(v.ViewTemplateId)
+            n_tags = DB.FilteredElementCollector(doc, v.Id).OfCategory(
+                DB.BuiltInCategory.OST_RebarTags).GetElementCount()  # nosa-lint: disable=NOSA002 - runs in Revit at call time
+            _log.append(u'  view "{}" | 1:{} | template {} | tags {}'.format(
+                element_name(v), v.Scale, element_name(tpl) if tpl else u'-', n_tags))
+        for sh in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+            if sh.SheetNumber in (u'4002', u'4003', u'4004'):
+                boxes = []
+                for vid in sh.GetAllViewports():
+                    o = doc.GetElement(vid).GetBoxOutline()
+                    boxes.append(u'({:.0f},{:.0f})-({:.0f},{:.0f})'.format(o.MinimumPoint.X * _FT, o.MinimumPoint.Y * _FT,
+                                                                          o.MaximumPoint.X * _FT, o.MaximumPoint.Y * _FT))
+                _log.append(u'  sheet {} "{}" viewports {}'.format(sh.SheetNumber, sh.Name, u' '.join(boxes)))
 
     from Autodesk.Revit.DB.Structure import MultiplanarOption
     rows = {}

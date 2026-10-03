@@ -53,6 +53,8 @@ floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
 wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
 stair_rebar = load_module('stair_rebar', os.path.join(_HERE, 'stair_rebar.py'))
 stair_host = load_module('stair_host', os.path.join(_HERE, 'stair_host.py'))
+view_plan = load_module('view_plan', os.path.join(_HERE, 'view_plan.py'))
+rebar_views = load_module('rebar_views', os.path.join(_HERE, 'rebar_views.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
 preview_shapes = load_module('rebar_preview_shapes', os.path.join(_HERE, 'rebar_preview_shapes.py'))
 # PHASE F1
@@ -4545,6 +4547,50 @@ class RebarAutomateWindow(NOSAWindow):
         except Exception:
             log_swallowed(_LOG, u'RebarAutomateWindow._selected_detail_hosts')
         return hosts
+
+    def CreateViews_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._create_views)
+
+    def _create_views(self):
+        """T7.3 — the views, tags and sheets of every selected reinforced element."""
+        hosts = []
+        for eid in self.uidoc.Selection.GetElementIds():
+            elem = self.doc.GetElement(eid)
+            if rebar_views.host_kind(elem) and rebar_views.host_rebars(elem):
+                hosts.append(elem)
+        if not hosts:
+            forms.alert(u'Select reinforced columns, beams, foundations, slabs, walls or stairs first.',
+                        title=u'NOSA — Create Views')
+            return
+        beams = [h for h in hosts if rebar_views.host_kind(h) == 'beam']
+        groups = [[h] for h in hosts if rebar_views.host_kind(h) != 'beam']
+        groups += beam_rebar.group_beam_lines(beams) if beams else []
+        existing = [s.SheetNumber for s in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewSheet)]
+        numbers = view_plan.next_sheet_numbers(existing, 10 * len(groups) + 5)
+        views = sheets = tags = 0
+        errors = []
+        self.SetLoading(True, u'Creating views…')
+        try:
+            for group in groups:
+                report = rebar_views.build_element_views(
+                    self.doc, group, re_engine, rebar_detailing, view_plan, numbers,
+                    beam_rebar=beam_rebar, stair_host=stair_host,
+                    place_on_sheets=self.ChkViewsSheets.IsChecked == True,
+                    tag=self.ChkViewsTags.IsChecked == True)
+                views += len(report['views'])
+                sheets += len(report['sheets'])
+                tags += report['tags']
+                errors.extend(report['errors'])
+        finally:
+            self.SetLoading(False)
+        msg = u'{} view(s), {} sheet(s) and {} tag(s) created for {} element(s).'.format(
+            views, sheets, tags, len(groups))
+        if errors:
+            msg += u'\n\n{} issue(s):\n{}'.format(len(errors), u'\n'.join(errors[:10]))
+        self.TxtDetailingStatus.Text = msg
+        forms.alert(msg, title=u'NOSA — Create Views')
 
     def AutoTag_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):

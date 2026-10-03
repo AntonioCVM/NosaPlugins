@@ -172,6 +172,25 @@ try:
     win._reinforcement_handler.Execute(_UIApp())
     _log.append(u'RESULT:\n' + unicode(win.TxtStairResult.Text or u''))
 
+    try:
+        views = VIEWS
+    except NameError:
+        views = False
+    if views:
+        from System.Collections.Generic import List
+        from nosa_utils.revit_helpers import element_name
+        ids = [stairs.Id] + ([support.Id] if support is not None else [])
+        win.uidoc.Selection.SetElementIds(List[DB.ElementId](ids))
+        win._create_views()
+        _log.append(u'CREATE VIEWS: ' + unicode(win.TxtDetailingStatus.Text))
+        for v in DB.FilteredElementCollector(doc).OfClass(DB.View):
+            name = element_name(v)
+            if v.IsTemplate or not (name.startswith(u'Stair ') or name.startswith(u'Foundation ')):
+                continue
+            tpl = doc.GetElement(v.ViewTemplateId)
+            _log.append(u'  view "{}" | {} | 1:{} | template {}'.format(
+                name, v.ViewType, v.Scale, element_name(tpl) if tpl else u'-'))
+
     from Autodesk.Revit.DB.Structure import RebarHostData, MultiplanarOption
     rows = {}
     solids = []
