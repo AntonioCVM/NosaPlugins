@@ -337,18 +337,42 @@ def typical_stair_flight():
 
 
 def stair_section_shapes(run, cover, main_dia, main_spacing, top_dia, top_spacing, dist_dia,
-                         dist_spacing, anchorage, slab_anchor=True):
+                         dist_spacing, anchorage, slab_anchor=True, ubar_dia=None, starter_dia=None,
+                         starter_mode='cast', starter_lap=600.0, support_depth=500.0):
     """Longitudinal section of one flight (stair_rebar geometry): bars in plane, distribution end-on."""
+    import copy
     import stair_rebar
+    run = copy.deepcopy(run)
     shapes = [{'kind': 'outline', 'points': stair_rebar.section_profile(run)}]
+    if ubar_dia and run['upper']['kind'] == 'landing':
+        run['upper']['u_dia'] = ubar_dia
+        up = run['upper']
+        landing = {'s_min': run['length'], 's_max': up['s_far'], 'v_min': run['v_min'],
+                   'v_max': run['v_max'], 'top': up['top'], 'bottom': up['bottom']}
+        for st in stair_rebar.build_landing(landing, cover, main_dia, dist_dia, dist_spacing,
+                                            main_spacing, [(run['v_min'], run['v_max'])], True,
+                                            u_dia=ubar_dia, u_edges=('s_max',)):
+            if st['layer'] == u'stair_landing_ubar':
+                shapes.append(_bar(st['points'], ubar_dia, 'ubar'))
+    starters = None
+    if starter_dia and run['lower']['kind'] == 'floor':
+        base = run['lower']['bottom']
+        if starter_mode == 'cast':
+            support = {'mode': 'cast', 'foot_z': base - support_depth + cover + 2.0 * main_dia + starter_dia / 2.0}
+            depth = support_depth
+        else:
+            support = {'mode': 'post', 'embed': max(anchorage, 10.0 * starter_dia)}
+            depth = support['embed'] + 150.0
+        starters = {'dia': starter_dia, 'lap': starter_lap, 'support': support}
+        shapes.append({'kind': 'ground', 'x0': -400.0, 'y0': base - depth, 'x1': 900.0, 'y1': base})
     sets = stair_rebar.build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing,
                                     anchorage, top_dia=top_dia, top_spacing=top_spacing,
-                                    slab_anchor=slab_anchor)
+                                    slab_anchor=slab_anchor, starters=starters)
     labels = []
     for st in sets:
         if st['axis'] == 'v':
             pts = st['points']
-            role = 'ubar' if st['layer'] == 'stair_knee' else 'main'
+            role = {'stair_knee': 'ubar', 'stair_starter': 'starter'}.get(st['layer'], 'main')
             shapes.append(_bar(pts, st['dia'], role))
         else:
             (s0, z0), = st['points']

@@ -1222,6 +1222,68 @@
 
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
+                            <CheckBox Name="ChkStairStarters" Content="Starter bars at the base (both faces)"
+                                      FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"
+                                      ToolTip="Flights that start on a foundation, slab or beam (no landing below) get starters lapped with their bottom and top bars."/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="200"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Support" Style="{StaticResource RA_FieldLabel}"/>
+                                <ComboBox Grid.Column="1" Name="CboStairStarterType"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Starter Diameter (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Usually the diameter of the flight bars it laps."/>
+                                <TextBox Grid.Column="1" Name="TxtStairStarterDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Lap Length (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Auto = EC2 lap l0 for the stair concrete (never below max(15 phi, 300 mm))."/>
+                                <TextBox Grid.Column="1" Name="TxtStairStarterLap" Text="Auto" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Drilled Embedment (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Post-installed only. Auto = the tension anchorage length lbd; confirm with the resin manufacturer (EAD 330087 / TR 069) and the support edge distance."/>
+                                <TextBox Grid.Column="1" Name="TxtStairStarterEmbed" Text="Auto" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource TextColor}"
+                                       Text="Cast-in: L bars with the foot on the support's bottom mat (foot max(12 phi, 450 mm); bottom-face feet point up the flight, top-face feet back), rising at each bar's knee and cranked to the slope, contact-lapped l0. Post-installed: pre-bent bars, straight part bonded with resin into a drilled hole. The flight bars then start at the knee."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <CheckBox Name="ChkStairLandingUBars" Content="U-bars on the landing free edges"
+                                      FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"
+                                      ToolTip="Every landing edge no flight reaches is closed like a slab free edge."/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="U-Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="One U per edge bar, contact-lapped with it."/>
+                                <TextBox Grid.Column="1" Name="TxtStairUBarDia" Text="10" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource TextColor}"
+                                       Text="EC2 9.3.1.4: legs max(40 phi, 2h). The landing and flight bars then stop straight inside the U instead of ending with a closing leg."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
                             <TextBlock Text="Ends" Style="{StaticResource RA_SectionTitle}"/>
                             <CheckBox Name="ChkStairSlabAnchor" Content="Lap into the floor slab where a flight ends without a landing" IsChecked="True"
                                       ToolTip="The flight bars run on into the slab by a tension anchorage length (they leave the stair). Untick when the slab is reinforced to receive the flight."/>

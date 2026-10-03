@@ -8,11 +8,18 @@ face that turns inwards (re-entrant) is not bent round the corner: those bars ru
 on and anchor in the opposite face (EC2 9.2 / IStructE detailing manual, knee joints). The
 convex face keeps continuous bars. Top and bottom flight bars are staggered half a spacing
 across the width so the layers that meet in a landing never sit on the same spot.
+
+Starters (user decision 2026-10-03, both faces): L bars cast into the support below with the
+foot on its bottom mat, or straight bars post-installed with resin into an existing support;
+each rises to the flight's knee and is cranked to the slope, contact-lapped l0 with its bar.
+Landing U-bars (same date): on the edges no flight reaches, one U per edge bar, contact-lapped,
+legs max(40 phi, 2h) like slab edges; with them the bars stop straight inside the U.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 import math
 
 _MIN_LEG_MM = 50.0
+MIN_STARTER_FOOT_MM = 450.0
 
 
 class Line(object):
@@ -51,7 +58,15 @@ def _dedupe(points):
     return out
 
 
-def bottom_bar(run, cover, dia, anchorage, slab_anchor=True):
+def _edge_inset(end, cover, dia):
+    """(inset of the bar axis from a landing's free edge, closing leg wanted)."""
+    u_dia = end.get('u_dia')
+    if u_dia:
+        return cover + u_dia + dia / 2.0, False         # stops straight inside the edge U-bar
+    return cover + dia / 2.0, True
+
+
+def bottom_bar(run, cover, dia, anchorage, slab_anchor=True, starter=False):
     """Flight bottom bar as (s, z) points from the lower end to the upper end."""
     line, _top = flight_lines(run, cover, dia, dia)
     half = cover + dia / 2.0
@@ -60,20 +75,25 @@ def bottom_bar(run, cover, dia, anchorage, slab_anchor=True):
     level = lower['bottom'] + half
     s_knee = line.s_at(level)
     if lower['kind'] == 'landing':
-        s_end = lower['s_far'] + half
-        pts += [(s_end, lower['top'] - half), (s_end, level)]       # closing leg at the free edge
-    else:
-        s_end = max(half, s_knee - anchorage)
+        inset, leg = _edge_inset(lower, cover, dia)
+        s_end = lower['s_far'] + inset
+        if leg:
+            pts.append((s_end, lower['top'] - half))                  # closing leg at the free edge
         pts.append((s_end, level))
+    elif not starter:
+        pts.append((max(half, s_knee - anchorage), level))
     pts.append((s_knee, level))                                    # convex knee: bent round it
     top_level = upper['top'] - half
     s_up = line.s_at(top_level)                                    # re-entrant knee: straight on
     if upper['kind'] == 'landing':
-        s_far = upper['s_far'] - half
+        inset, leg = _edge_inset(upper, cover, dia)
+        s_far = upper['s_far'] - inset
         if s_up >= s_far - dia:
             pts.append((s_far, line.z(s_far)))
         else:
-            pts += [(s_up, top_level), (s_far, top_level), (s_far, upper['bottom'] + half)]
+            pts += [(s_up, top_level), (s_far, top_level)]
+            if leg:
+                pts.append((s_far, upper['bottom'] + half))
     elif slab_anchor:
         pts += [(s_up, top_level), (s_up + anchorage, top_level)]       # lapped into the floor slab
     else:
@@ -82,7 +102,7 @@ def bottom_bar(run, cover, dia, anchorage, slab_anchor=True):
     return _dedupe(pts)
 
 
-def top_bar(run, cover, dia, anchorage, slab_anchor=True):
+def top_bar(run, cover, dia, anchorage, slab_anchor=True, starter=False):
     """Flight top bar: anchored in the bottom face below the lower knee, continuous over the upper one."""
     _bottom, line = flight_lines(run, cover, dia, dia)
     half = cover + dia / 2.0
@@ -90,15 +110,20 @@ def top_bar(run, cover, dia, anchorage, slab_anchor=True):
     level = lower['bottom'] + half
     s_down = line.s_at(level)
     if lower['kind'] == 'landing':
-        s_stop = max(lower['s_far'] + half + dia, s_down - anchorage)
+        inset, _leg = _edge_inset(lower, cover, dia)
+        pts = [(max(lower['s_far'] + inset + dia, s_down - anchorage), level), (s_down, level)]
+    elif starter:
+        pts = [(s_down, level)]                                    # the top starter laps from here
     else:
-        s_stop = max(half, s_down - anchorage)
-    pts = [(s_stop, level), (s_down, level)]
+        pts = [(max(half, s_down - anchorage), level), (s_down, level)]
     top_level = upper['top'] - half
     s_up = line.s_at(top_level)
     if upper['kind'] == 'landing':
-        s_far = upper['s_far'] - half
-        pts += [(s_up, top_level), (s_far, top_level), (s_far, upper['bottom'] + half)]
+        inset, leg = _edge_inset(upper, cover, dia)
+        s_far = upper['s_far'] - inset
+        pts += [(s_up, top_level), (s_far, top_level)]
+        if leg:
+            pts.append((s_far, upper['bottom'] + half))
     elif slab_anchor:
         pts += [(s_up, top_level), (s_up + anchorage, top_level)]
     else:
@@ -116,7 +141,8 @@ def upper_knee_bar(run, cover, dia, dia_t, anchorage):
     half = cover + dia / 2.0
     level = upper['bottom'] + half
     s_in = top.s_at(level)
-    s_far = upper['s_far'] - cover - dia_t - dia / 2.0      # inside the top bars' closing legs
+    # inside the top bars' closing legs, or inside the edge U-bar
+    s_far = upper['s_far'] - cover - max(dia_t, upper.get('u_dia') or 0.0) - dia / 2.0
     if s_far - s_in < _MIN_LEG_MM:
         return None
     return [(s_in, level), (s_far, level)]
@@ -131,10 +157,40 @@ def lower_knee_bar(run, cover, dia, dia_b, anchorage):
     half = cover + dia / 2.0
     level = lower['top'] - half
     s_in = bottom.s_at(level)
-    s_far = lower['s_far'] + cover + dia_b + dia / 2.0     # inside the bottom bars' closing legs
+    s_far = lower['s_far'] + cover + max(dia_b, lower.get('u_dia') or 0.0) + dia / 2.0
     if s_in - s_far < _MIN_LEG_MM:
         return None
     return [(s_far, level), (s_in, level)]
+
+
+def starter_bars(run, cover, dia_b, dia_t, starter_dia, lap, support):
+    """
+    Starters at a flight that starts on a support (no lower landing), both faces:
+    [(label, layer, points, lapped face 'bottom'|'top')]. Each rises at its bar's knee on the
+    base, is cranked to the slope and laps l0 along that bar.
+    support: {'mode': 'cast', 'foot_z': level of the foot axis} (foot on the support's bottom
+             mat; bottom-face feet point up the flight, top-face feet back, like an open U), or
+             {'mode': 'post', 'embed': drilled embedment below the base}.
+    """
+    if run['lower']['kind'] != 'floor':
+        return []
+    bottom, top = flight_lines(run, cover, dia_b, dia_t)
+    base = run['lower']['bottom']
+    ds, dz = _cos(run['slope']), _cos(run['slope']) * run['slope']
+    foot = max(MIN_STARTER_FOOT_MM, 12.0 * starter_dia)
+    out = []
+    for label, line, dia, sign, face in ((u'Stair Starter Bottom', bottom, dia_b, 1.0, 'bottom'),
+                                         (u'Stair Starter Top', top, dia_t, -1.0, 'top')):
+        z_knee = base + cover + dia / 2.0
+        s_knee = line.s_at(z_knee)
+        lap_end = (s_knee + lap * ds, z_knee + lap * dz)
+        if support['mode'] == 'cast':
+            z_foot = support['foot_z']
+            pts = [(s_knee + sign * foot, z_foot), (s_knee, z_foot), (s_knee, z_knee), lap_end]
+        else:
+            pts = [(s_knee, base - support['embed']), (s_knee, z_knee), lap_end]
+        out.append((label, u'stair_starter', _dedupe(pts), face))
+    return out
 
 
 def flight_distribution(run, cover, dia_b, dia_t, dia_d):
@@ -176,6 +232,14 @@ def width_layout(v_min, v_max, cover, dia, spacing, stagger=False):
     return first + pitch / 2.0, pitch * (count - 2), count - 1
 
 
+def spaced_count(length, spacing):
+    """(count, pitch) of a fixed-number set filling length at no more than spacing."""
+    if length <= 0:
+        return 1, 0.0
+    count = int(math.ceil(length / spacing - 1e-9)) + 1
+    return count, length / (count - 1)
+
+
 def uncovered(interval, strips, min_width):
     """Parts of interval (lo, hi) not covered by any strip, wider than min_width."""
     parts = [interval]
@@ -194,35 +258,47 @@ def uncovered(interval, strips, min_width):
 
 
 def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anchorage,
-                 top_dia=None, top_spacing=None, slab_anchor=True):
+                 top_dia=None, top_spacing=None, slab_anchor=True, starters=None):
     """
     Every set of one flight in its local frame.
     run: length, slope, soffit_z0, pitch_z0, v_min, v_max and lower/upper ends
-         {'kind': 'landing'|'floor', 'top', 'bottom', 's_far'}.
+         {'kind': 'landing'|'floor', 'top', 'bottom', 's_far'[, 'u_dia']}.
     slab_anchor: with no landing at the top, lap the bars into the floor slab beyond (else stop
                  at the end face).
+    starters: None, or {'dia', 'lap', 'support'} (see starter_bars) for a flight on a support.
     Returns a list of {'label','layer','dia','points':[(s,z)],'axis':'v'|'slope',
-                       'first','array','spacing'} (for axis 'v' points are in the s-z plane at v=first;
-                       for axis 'slope' the bar runs across the width and is spaced along the slope).
+                       'first','array','count','spacing'} (for axis 'v' points are in the s-z plane
+                       at v=first; for axis 'slope' the bar runs across the width and is spaced
+                       along the slope).
     """
     top_dia = top_dia or main_dia
     top_spacing = top_spacing or main_spacing
+    with_starters = bool(starters) and run['lower']['kind'] == 'floor'
     sets = []
 
-    def along(label, layer, dia, spacing, pts, stagger):
+    def along(label, layer, dia, spacing, pts, stagger, shift=0.0, grid_dia=None):
         if pts and len(pts) >= 2:
-            first, array, count = width_layout(run['v_min'], run['v_max'], cover, dia, spacing, stagger)
+            first, array, count = width_layout(run['v_min'], run['v_max'], cover, grid_dia or dia,
+                                               spacing, stagger)
             sets.append({'label': label, 'layer': layer, 'dia': dia, 'points': pts, 'axis': 'v',
-                         'first': first, 'array': array, 'count': count, 'spacing': spacing})
+                         'first': first + shift, 'array': array, 'count': count, 'spacing': spacing})
 
     along(u'Stair Flight Bottom', u'stair_bottom', main_dia, main_spacing,
-          bottom_bar(run, cover, main_dia, anchorage, slab_anchor), True)
+          bottom_bar(run, cover, main_dia, anchorage, slab_anchor, with_starters), True)
     along(u'Stair Flight Top', u'stair_top', top_dia, top_spacing,
-          top_bar(run, cover, top_dia, anchorage, slab_anchor), False)
+          top_bar(run, cover, top_dia, anchorage, slab_anchor, with_starters), False)
     along(u'Stair Upper Knee', u'stair_knee', main_dia, main_spacing,
           upper_knee_bar(run, cover, main_dia, top_dia, anchorage), False)
     along(u'Stair Lower Knee', u'stair_knee', top_dia, top_spacing,
           lower_knee_bar(run, cover, top_dia, main_dia, anchorage), True)
+    if with_starters:
+        sd = starters['dia']
+        for label, layer, pts, face in starter_bars(run, cover, main_dia, top_dia, sd,
+                                                    starters['lap'], starters['support']):
+            if face == 'bottom':       # beside each bottom bar, towards +v: a contact lap
+                along(label, layer, sd, main_spacing, pts, True, (main_dia + sd) / 2.0, main_dia)
+            else:
+                along(label, layer, sd, top_spacing, pts, False, (top_dia + sd) / 2.0, top_dia)
 
     bottom_line, top_line = flight_distribution(run, cover, main_dia, top_dia, dist_dia)
     v0 = run['v_min'] + cover + dist_dia / 2.0
@@ -240,40 +316,125 @@ def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anc
     return sets
 
 
+def mandrel_mm(dia):
+    """Minimum mandrel diameter of a bend (EC2 Table 8.1N, BS 8666): 4 phi up to 16 mm, 7 phi above."""
+    return (4.0 if dia <= 16.0 else 7.0) * dia
+
+
+def ubar_fits(leg_axis_gap, u_dia):
+    """A U whose leg axes are leg_axis_gap apart can be bent round the minimum mandrel."""
+    return leg_axis_gap - u_dia >= mandrel_mm(u_dia) - 1e-6
+
+
+def feasible_u_edges(thickness, cover, main_dia, u_dia, edges):
+    """
+    (edges whose U-bars can be bent, notes). The far-edge U laps the outer bars, so its legs sit
+    at cover; the side-edge U laps the transverse bars of the inner layer, one main bar further in.
+    """
+    edges = set(edges)
+    notes = []
+    if 's_max' in edges and not ubar_fits(thickness - 2.0 * cover - u_dia, u_dia):
+        notes.append(u'landing {:.0f} mm thick: an H{:g} U-bar cannot be bent inside the cover '
+                     u'(mandrel {:.0f} mm) — far edge left with closing legs.'.format(
+                         thickness, u_dia, mandrel_mm(u_dia)))
+        edges.discard('s_max')
+    side_gap = thickness - 2.0 * (cover + main_dia) - u_dia
+    if edges & {'v_min', 'v_max'} and not ubar_fits(side_gap, u_dia):
+        notes.append(u'landing {:.0f} mm thick: side-edge U-bars lap the transverse bars in the inner '
+                     u'layer, where an H{:g} U only has {:.0f} mm between legs (mandrel {:.0f} mm) — side '
+                     u'edges skipped. A smaller U, less cover or a thicker landing fits.'.format(
+                         thickness, u_dia, side_gap - u_dia, mandrel_mm(u_dia)))
+        edges -= {'v_min', 'v_max'}
+    return edges, notes
+
+
+def ubar_leg(u_dia, thickness, available):
+    """Slab free-edge U-bar leg: max(40 phi, 2h), never longer than the room behind the edge."""
+    return min(max(40.0 * u_dia, 2.0 * thickness), available)
+
+
 def build_landing(landing, cover, main_dia, dist_dia, dist_spacing, infill_spacing, strips,
-                  parallel_runs):
+                  parallel_runs, u_dia=None, u_edges=(), top_dia=None, top_spacing=None, warnings=None):
     """
     Landing slab in the frame of its first flight: transverse bars (along v) top and bottom over
     the whole landing, plus bars along s where no flight continues through (stairwell gap of a
     dog-leg). Without parallel flights (quarter landing) the bars along s cover the full width.
+    With u_dia, U-bars close the free edges named in u_edges ('s_max', 'v_min', 'v_max').
     landing: s_min, s_max, v_min, v_max, top, bottom.
     """
+    top_dia = top_dia or main_dia
+    top_spacing = top_spacing or infill_spacing
+    u_edges = set(u_edges) if u_dia else set()
+    thickness = landing['top'] - landing['bottom']
+    if warnings is None:
+        warnings = []
+    if u_dia:
+        u_edges, notes = feasible_u_edges(thickness, cover, main_dia, u_dia, u_edges)
+        warnings.extend(notes)
     sets = []
+    far_u = 's_max' in u_edges
     s0 = landing['s_min'] + cover + main_dia + dist_dia / 2.0
-    s1 = landing['s_max'] - cover - main_dia - dist_dia / 2.0
-    v0 = landing['v_min'] + cover + dist_dia / 2.0
-    v1 = landing['v_max'] - cover - dist_dia / 2.0
-    for label, z in ((u'Stair Landing Transverse Top', landing['top'] - cover - main_dia - dist_dia / 2.0),
-                     (u'Stair Landing Transverse Bottom', landing['bottom'] + cover + main_dia + dist_dia / 2.0)):
+    s1 = landing['s_max'] - cover - max(main_dia, u_dia if far_u else 0.0) - dist_dia / 2.0
+    v0 = landing['v_min'] + cover + (u_dia if 'v_min' in u_edges else 0.0) + dist_dia / 2.0
+    v1 = landing['v_max'] - cover - (u_dia if 'v_max' in u_edges else 0.0) - dist_dia / 2.0
+    count, pitch = spaced_count(s1 - s0, dist_spacing)
+    z_t = landing['top'] - cover - main_dia - dist_dia / 2.0
+    z_b = landing['bottom'] + cover + main_dia + dist_dia / 2.0
+    for label, z in ((u'Stair Landing Transverse Top', z_t), (u'Stair Landing Transverse Bottom', z_b)):
         if s1 - s0 > _MIN_LEG_MM and v1 - v0 > _MIN_LEG_MM:
             sets.append({'label': label, 'layer': u'stair_landing', 'dia': dist_dia,
                          'points': [(s0, z)], 'v_range': (v0, v1), 'axis': 'slope',
-                         'direction': (1.0, 0.0), 'array': s1 - s0, 'spacing': dist_spacing})
+                         'direction': (1.0, 0.0), 'array': s1 - s0, 'count': count,
+                         'spacing': dist_spacing})
     width = (landing['v_min'] + cover, landing['v_max'] - cover)
     gaps = uncovered(width, strips if parallel_runs else [], main_dia * 2.0)
     half = cover + main_dia / 2.0
-    sa, sb = landing['s_min'] + half, landing['s_max'] - half
+    sa = landing['s_min'] + half
+    sb = landing['s_max'] - (cover + u_dia + main_dia / 2.0 if far_u else half)
+    infill_grids = []
     for lo, hi in gaps:
         for label, top_face in ((u'Stair Landing Top', True), (u'Stair Landing Bottom', False)):
             if top_face:
-                pts = [(sa, landing['bottom'] + half), (sa, landing['top'] - half),
-                       (sb, landing['top'] - half), (sb, landing['bottom'] + half)]
+                pts = [(sa, landing['bottom'] + half), (sa, landing['top'] - half), (sb, landing['top'] - half)]
+                if not far_u:
+                    pts.append((sb, landing['bottom'] + half))
             else:
-                pts = [(sa + main_dia, landing['bottom'] + half), (sb - main_dia, landing['bottom'] + half)]
-            first, array, count = width_layout(lo, hi, 0.0, main_dia, infill_spacing, not top_face)
+                pts = [(sa + main_dia, landing['bottom'] + half),
+                       (sb - (0.0 if far_u else main_dia), landing['bottom'] + half)]
+            first, array, n = width_layout(lo, hi, 0.0, main_dia, infill_spacing, not top_face)
+            if top_face:
+                infill_grids.append((first, array, n))
             sets.append({'label': label, 'layer': u'stair_landing', 'dia': main_dia, 'points': pts,
-                         'axis': 'v', 'first': first, 'array': array, 'count': count,
+                         'axis': 'v', 'first': first, 'array': array, 'count': n,
                          'spacing': infill_spacing})
+
+    if not u_edges:
+        return sets
+    zu_top, zu_bot = landing['top'] - cover - u_dia / 2.0, landing['bottom'] + cover + u_dia / 2.0
+    if far_u:
+        back = landing['s_max'] - cover - u_dia / 2.0
+        leg = ubar_leg(u_dia, thickness, landing['s_max'] - landing['s_min'] - 2.0 * cover)
+        pts = [(back - leg, zu_top), (back, zu_top), (back, zu_bot), (back - leg, zu_bot)]
+        grids = [(width_layout(lo, hi, cover, top_dia, top_spacing), top_dia) for lo, hi in
+                 (strips if parallel_runs else [])]
+        grids += [(g, main_dia) for g in infill_grids]
+        for (first, array, n), bar_dia in grids:
+            sets.append({'label': u'Stair Landing Edge U-Bar', 'layer': u'stair_landing_ubar',
+                         'dia': u_dia, 'points': pts, 'axis': 'v',
+                         'first': first + (bar_dia + u_dia) / 2.0, 'array': array, 'count': n,
+                         'spacing': top_spacing})
+    zs_top = landing['top'] - cover - main_dia - u_dia / 2.0      # beside the transverse bars
+    zs_bot = landing['bottom'] + cover + main_dia + u_dia / 2.0
+    leg = ubar_leg(u_dia, thickness, (landing['v_max'] - landing['v_min']) / 2.0 - cover)
+    for edge, back, sign in (('v_min', landing['v_min'] + cover + u_dia / 2.0, 1.0),
+                             ('v_max', landing['v_max'] - cover - u_dia / 2.0, -1.0)):
+        if edge not in u_edges or s1 - s0 <= _MIN_LEG_MM:
+            continue
+        pts = [(back + sign * leg, zs_top), (back, zs_top), (back, zs_bot), (back + sign * leg, zs_bot)]
+        sets.append({'label': u'Stair Landing Edge U-Bar', 'layer': u'stair_landing_ubar',
+                     'dia': u_dia, 'points_vz': pts, 'axis': 's',
+                     'first': s0 + (dist_dia + u_dia) / 2.0, 'array': s1 - s0, 'count': count,
+                     'spacing': dist_spacing})
     return sets
 
 

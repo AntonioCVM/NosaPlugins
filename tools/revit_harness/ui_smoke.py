@@ -85,7 +85,7 @@ _forms.alert = lambda msg, *a, **k: _out.append(u'     alert: ' + unicode(msg)[:
 _uidoc = _uiapp.ActiveUIDocument
 for parts, cls_name in (
         (('Data.panel', 'ParameterHub.pushbutton'), 'ParameterHubWindow'),
-        (('Documentation.panel', 'Sheets.pulldown', 'SheetExportHub.pushbutton'), 'SheetExportHubWindow'),
+        (('Documentation.panel', 'SheetExportHub.pushbutton'), 'SheetExportHubWindow'),
         (('Documentation.panel', 'Sheets.pulldown', 'SheetHub.pushbutton'), 'SheetHubWindow'),
         (('Documentation.panel', 'Views.pulldown', 'ViewManager.pushbutton'), 'ViewManagerWindow'),
         (('Documentation.panel', 'Views.pulldown', 'ViewOverrides.pushbutton'), 'ViewOverridesWindow'),
@@ -113,7 +113,7 @@ for parts, cls_name in (
 
 # SheetExportHub dialogs (NOSAWindow since 2026-10-02)
 try:
-    sx = _lib('Documentation.panel', 'Sheets.pulldown', 'SheetExportHub.pushbutton')
+    sx = _lib('Documentation.panel', 'SheetExportHub.pushbutton')
     naming = load_module('smoke_sx_naming', os.path.join(sx, 'naming.py'))
     for key, cls, args in (
             ('column_chooser_dialog', 'ColumnChooserDialog', (None, [u'Sheet Number', u'Sheet Name'])),

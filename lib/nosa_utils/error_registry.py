@@ -142,7 +142,7 @@ _BUILTIN_KNOWN_ERRORS = [
         "match": "ExportManager",
         "severity": "ERROR",
         "cause": "ExportManager or SheetExportHub lib modules not importable — path issue or missing lib folder.",
-        "fix": "Ensure NOSA.extension/NOSA.tab/Documentation.panel/Sheets.pulldown/SheetExportHub.pushbutton/lib exists.",
+        "fix": "Ensure NOSA.extension/NOSA.tab/Documentation.panel/SheetExportHub.pushbutton/lib exists.",
         "docs": "SheetExportHub ui.py — Export_Click"
     },
     {

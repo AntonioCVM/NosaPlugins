@@ -2,7 +2,8 @@
 """
 T7.8 end-to-end: build a dog-leg cast-in-place stair, run RebarAutomate's real Stairs GENERATE
 (selection faked, alerts captured), report what was stamped, then roll EVERYTHING back (the
-shared-parameter binding included). Scope: doc, EXT_ROOT, PYREVIT, CONTROLS (JSON). Result: RESULT.
+shared-parameter binding included). Scope: doc, EXT_ROOT, PYREVIT, CONTROLS (JSON), SUPPORT (floor type name under the start, or '').
+Result: RESULT.
 """
 import sys
 import os
@@ -68,6 +69,60 @@ def build_stairs():
     return doc.GetElement(sid)
 
 
+def build_support(type_name):
+    """A foundation slab / floor of that type under the stair start, top at the base level."""
+    from nosa_utils.revit_helpers import element_name
+    from System.Collections.Generic import List
+    level = sorted(DB.FilteredElementCollector(doc).OfClass(DB.Level), key=lambda l: l.Elevation)[0]
+    ftype = [t for t in DB.FilteredElementCollector(doc).OfClass(DB.FloorType) if element_name(t) == type_name][0]
+    pts = [DB.XYZ(-1500 / _FT, -1000 / _FT, 0), DB.XYZ(1500 / _FT, -1000 / _FT, 0),
+           DB.XYZ(1500 / _FT, 1000 / _FT, 0), DB.XYZ(-1500 / _FT, 1000 / _FT, 0)]
+    loop = DB.CurveLoop()
+    for a, b in zip(pts, pts[1:] + pts[:1]):
+        loop.Append(DB.Line.CreateBound(a, b))
+    t = DB.Transaction(doc, 'NOSA test - support')
+    t.Start()
+    floor = DB.Floor.Create(doc, List[DB.CurveLoop]([loop]), ftype.Id, level.Id)
+    param = floor.get_Parameter(DB.BuiltInParameter.FLOOR_PARAM_IS_STRUCTURAL)
+    if param is not None and not param.IsReadOnly:
+        param.Set(1)
+    t.Commit()
+    return floor
+
+
+def solids_of(element):
+    out = []
+    for g in element.get_Geometry(DB.Options()):
+        if isinstance(g, DB.Solid) and g.Volume > 0:
+            out.append(g)
+        elif isinstance(g, DB.GeometryInstance):
+            out.extend(x for x in g.GetInstanceGeometry() if isinstance(x, DB.Solid) and x.Volume > 0)
+    return out
+
+
+def inside(solids, p):
+    line = DB.Line.CreateBound(p - DB.XYZ(0, 0, 1.0 / _FT), p + DB.XYZ(0, 0, 1.0 / _FT))
+    opts = DB.SolidCurveIntersectionOptions()
+    opts.ResultType = DB.SolidCurveIntersectionMode.CurveSegmentsInside
+    return any(s.IntersectWithCurve(line, opts).SegmentCount > 0 for s in solids)
+
+
+_FT = 304.8
+_failures = []
+
+
+def _on_failures(sender, args):
+    """Never let a Revit error dialog block the session: roll that transaction back and log it."""
+    accessor = args.GetFailuresAccessor()
+    errors = [f for f in accessor.GetFailureMessages() if f.GetSeverity() != DB.FailureSeverity.Warning]
+    accessor.DeleteAllWarnings()
+    if errors:
+        _failures.append(u'{}: {}'.format(accessor.GetTransactionName(),
+                                         u'; '.join(f.GetDescriptionText() for f in errors)))
+        args.SetProcessingResult(DB.FailureProcessingResult.ProceedWithRollBack)
+
+
+doc.Application.FailuresProcessing += _on_failures
 group = None
 try:
     if u'template' not in doc.Title and u'Project1' not in doc.Title and u'Rebar test' not in doc.Title:
@@ -82,6 +137,7 @@ try:
     group = DB.TransactionGroup(doc, u'NOSA test - stairs end to end')
     group.Start()
     stairs = build_stairs()
+    support = build_support(SUPPORT) if SUPPORT else None
 
     win = ui.RebarAutomateWindow(doc)
     win.Show = lambda: None
@@ -116,9 +172,28 @@ try:
     win._reinforcement_handler.Execute(_UIApp())
     _log.append(u'RESULT:\n' + unicode(win.TxtStairResult.Text or u''))
 
-    from Autodesk.Revit.DB.Structure import RebarHostData
+    from Autodesk.Revit.DB.Structure import RebarHostData, MultiplanarOption
     rows = {}
-    for rebar in RebarHostData.GetRebarHostData(stairs).GetRebarsInHost():
+    solids = []
+    for eid in list(stairs.GetStairsRuns()) + list(stairs.GetStairsLandings()):
+        solids.extend(solids_of(doc.GetElement(eid)))
+    rebars = list(RebarHostData.GetRebarHostData(stairs).GetRebarsInHost())
+    if support is not None:
+        solids.extend(solids_of(support))
+        rebars += list(RebarHostData.GetRebarHostData(support).GetRebarsInHost())
+    for rebar in rebars:
+        accessor = rebar.GetShapeDrivenAccessor()
+        bad = 0
+        for i in range(rebar.NumberOfBarPositions):
+            xf = accessor.GetBarPositionTransform(i)
+            for c in rebar.GetCenterlineCurves(False, False, False, MultiplanarOption.IncludeOnlyPlanarCurves, i):
+                c = c.CreateTransformed(xf)
+                for p in (c.GetEndPoint(0), c.GetEndPoint(1), c.Evaluate(0.5, True)):
+                    if not inside(solids, p):
+                        bad += 1
+        if bad:
+            _log.append(u'OUTSIDE {} ({}): {} point(s)'.format(
+                shared_params.read(rebar, u'NOSA_Rebar_Layer', u'?'), comments(rebar), bad))
         key = (shared_params.read(rebar, u'NOSA_Rebar_Layer', u'?'),
                comments(rebar),
                shared_params.read(rebar, u'NOSA_Rebar_Shape_Code', u'?'))
@@ -140,5 +215,7 @@ finally:
         group.RollBack()
         _log.append(u'rolled back (after error)')
     sys.stdout = _old_stdout
+    doc.Application.FailuresProcessing -= _on_failures
+    _log.extend(u'FAILURE ' + f for f in _failures)
 
 RESULT = u'\n'.join(_log) + u'\n--- console ---\n' + _console.getvalue()[-3000:]

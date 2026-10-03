@@ -196,6 +196,10 @@ def set_curves(frame, bar_set):
         pts = [frame.xyz(s, v, z) for s, z in bar_set['points']]
         curves = [DB.Line.CreateBound(a, b) for a, b in zip(pts[:-1], pts[1:])]
         return curves, frame.v
+    if bar_set['axis'] == 's':
+        s = bar_set['first']
+        pts = [frame.xyz(s, v, z) for v, z in bar_set['points_vz']]
+        return [DB.Line.CreateBound(a, b) for a, b in zip(pts[:-1], pts[1:])], frame.u
     (s, z), = bar_set['points']
     v0, v1 = bar_set['v_range']
     curves = [DB.Line.CreateBound(frame.xyz(s, v0, z), frame.xyz(s, v1, z))]
@@ -204,18 +208,61 @@ def set_curves(frame, bar_set):
 
 
 
+def _rollback_on_error():
+    """A failures preprocessor that rolls the transaction back on any error (never a dialog)."""
+    from Autodesk.Revit import DB  # Lazy import
+
+    class RollbackOnError(DB.IFailuresPreprocessor):
+        def __init__(self):
+            self.errors = []
+
+        def PreprocessFailures(self, accessor):
+            accessor.DeleteAllWarnings()
+            errors = [f for f in accessor.GetFailureMessages()
+                      if f.GetSeverity() != DB.FailureSeverity.Warning]
+            if not errors:
+                return DB.FailureProcessingResult.Continue
+            self.errors.extend(f.GetDescriptionText() for f in errors)
+            return DB.FailureProcessingResult.ProceedWithRollBack
+    return RollbackOnError()
+
+
 def create_set(wrapper, host, frame, bar_set, bar_type):
-    """One stair_rebar set as one Revit Rebar (a set when it holds several bars); None on failure."""
+    """
+    One stair_rebar set as one Revit Rebar (a set when it holds several bars); None on failure.
+    Runs in its own transaction that rolls back on a Revit error ("Can't solve Rebar Shape"),
+    so a bad shape is reported in wrapper.last_error instead of stopping Revit with a dialog.
+    """
+    from Autodesk.Revit import DB  # Lazy import
     curves, normal = set_curves(frame, bar_set)
     name = u'NOSA — Create {}'.format(bar_set['label'])
     count = bar_set.get('count')
-    if count is not None and count >= 2:
-        return wrapper.create_rebar_set_fixed_number(host, curves, bar_type, count, bar_set['array'],
-                                                     normal=normal, transaction_name=name)
-    if count is None and bar_set['array'] >= bar_set['spacing']:
-        return wrapper.create_rebar_set(host, curves, bar_type, bar_set['spacing'], bar_set['array'],
-                                        normal=normal, transaction_name=name)
-    return wrapper.create_from_curves(host, curves, bar_type, normal=normal, transaction_name=name)
+    doc = host.Document
+    guard = _rollback_on_error()
+    t = DB.Transaction(doc, name)
+    options = t.GetFailureHandlingOptions()
+    options.SetFailuresPreprocessor(guard)
+    options.SetClearAfterRollback(True)
+    options.SetForcedModalHandling(False)
+    t.SetFailureHandlingOptions(options)
+    t.Start()
+    try:
+        if count is not None and count >= 2:
+            rebar = wrapper.create_rebar_set_fixed_number(host, curves, bar_type, count, bar_set['array'],
+                                                          normal=normal, transaction_name=name)
+        elif count is None and bar_set['array'] >= bar_set['spacing']:
+            rebar = wrapper.create_rebar_set(host, curves, bar_type, bar_set['spacing'], bar_set['array'],
+                                             normal=normal, transaction_name=name)
+        else:
+            rebar = wrapper.create_from_curves(host, curves, bar_type, normal=normal, transaction_name=name)
+    except Exception as e:
+        t.RollBack()
+        wrapper.last_error = u'{}'.format(e)
+        return None
+    if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
+        wrapper.last_error = u'; '.join(guard.errors) or u'rolled back by Revit'
+        return None
+    return rebar
 
 
 def host_cover_mm(stairs, default_mm):
@@ -228,3 +275,94 @@ def host_cover_mm(stairs, default_mm):
     except Exception:  # nosa-lint: disable=NOSA006 - no cover type: the normative default applies
         pass
     return default_mm
+
+
+_EDGES = ('s_min', 's_max', 'v_min', 'v_max')
+
+
+def _nearest_edge(landing, s, v):
+    gaps = {'s_min': abs(s - landing['s_min']), 's_max': abs(s - landing['s_max']),
+            'v_min': abs(v - landing['v_min']), 'v_max': abs(v - landing['v_max'])}
+    return min(gaps, key=gaps.get)
+
+
+def apply_landing_ubars(data, u_dia, cover, main_dia):
+    """
+    Mark every landing edge no flight arrives at, and whose U-bar can be bent, for U-bars
+    (landing['u_edges']) and tell each flight whose bars stop at such an edge to stop straight
+    inside the U (end['u_dia']). Returns the notes on edges left without U-bars.
+    """
+    import stair_rebar
+    notes = []
+    for landing in data['landings']:
+        frame = landing['frame']
+        occupied = set()
+        for run in data['runs']:
+            for end_name, joint_s in (('upper', run['length']), ('lower', 0.0)):
+                end = run[end_name]
+                if end.get('element') is not landing['element']:
+                    continue
+                mid_v = (run['v_min'] + run['v_max']) / 2.0
+                s, v = frame.local(run['frame'].xyz(joint_s, mid_v, 0.0))
+                occupied.add(_nearest_edge(landing, s, v))
+        free = [e for e in _EDGES if e not in occupied]
+        fits, why = stair_rebar.feasible_u_edges(landing['top'] - landing['bottom'], cover, main_dia,
+                                                 u_dia, free)
+        notes.extend(why)
+        landing['u_edges'] = tuple(e for e in _EDGES if e in fits)
+        for run in data['runs']:
+            for end_name in ('upper', 'lower'):
+                end = run[end_name]
+                if end.get('element') is not landing['element']:
+                    continue
+                mid_v = (run['v_min'] + run['v_max']) / 2.0
+                s, v = frame.local(run['frame'].xyz(end['s_far'], mid_v, 0.0))
+                if _nearest_edge(landing, s, v) in landing['u_edges']:
+                    end['u_dia'] = u_dia
+    return notes
+
+
+def find_support_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft=10.0, tol_ft=0.01):
+    """Foundation, floor or beam right under a point whose top is at or just below base_z_ft."""
+    from Autodesk.Revit import DB  # Lazy import
+    best, best_top = None, None
+    for cat in (DB.BuiltInCategory.OST_StructuralFoundation, DB.BuiltInCategory.OST_Floors,
+                DB.BuiltInCategory.OST_StructuralFraming):
+        for elem in DB.FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType():
+            box = elem.get_BoundingBox(None)
+            if box is None:
+                continue
+            if not (box.Min.X - tol_ft <= x_ft <= box.Max.X + tol_ft and
+                    box.Min.Y - tol_ft <= y_ft <= box.Max.Y + tol_ft):
+                continue
+            top = box.Max.Z
+            if top > base_z_ft + tol_ft or top < base_z_ft - search_depth_ft:
+                continue
+            if best is None or top > best_top:
+                best, best_top = elem, top
+    return best
+
+
+def starter_support(doc, re_engine, run, cover_mm, starter_dia_mm, mode, embed_mm=None,
+                    support_cover_mm=None):
+    """
+    {'support': {...} for stair_rebar.starter_bars, 'host': element or None, 'embedded_mm',
+     'source'} for a flight that starts on a support, or None when a cast-in starter finds
+    nothing below. Post-installed starters stay hosted on the stair.
+    """
+    if mode != 'cast':
+        return {'support': {'mode': 'post', 'embed': embed_mm}, 'host': None,
+                'embedded_mm': embed_mm, 'source': 'post'}
+    base = run['lower']['bottom']
+    mid_v = (run['v_min'] + run['v_max']) / 2.0
+    s_knee = (base + cover_mm - run['soffit_z0']) / run['slope']
+    point = run['frame'].xyz(s_knee, mid_v, base)
+    support = find_support_below(doc, point.X, point.Y, base / _FT)
+    if support is None:
+        return None
+    box = re_engine.get_isolated_solid_bbox(support) or support.get_BoundingBox(None)
+    cover = support_cover_mm if support_cover_mm is not None else         re_engine.get_native_cover_mm(doc, support, u'Bottom', cover_mm)
+    mat_top_ft, source = re_engine.starter_foot_z(doc, support, box, cover, starter_dia_mm)
+    foot_z = mat_top_ft * _FT + starter_dia_mm / 2.0          # the foot lies ON the mat
+    return {'support': {'mode': 'cast', 'foot_z': foot_z}, 'host': support,
+            'embedded_mm': base - foot_z, 'source': source}

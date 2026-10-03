@@ -24,7 +24,7 @@ win.ShowDialog()
 # exporter, SheetExportHub (the retired ExportSheets.nobutton is no longer used).
 if getattr(win, 'proceed_to_export', False):
     _exp_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
-                                            'Sheets.pulldown', 'SheetExportHub.pushbutton', 'lib'))
+                                            'SheetExportHub.pushbutton', 'lib'))
     if os.path.isfile(os.path.join(_exp_lib, 'ui.py')):
         if _exp_lib not in sys.path:
             sys.path.insert(0, _exp_lib)

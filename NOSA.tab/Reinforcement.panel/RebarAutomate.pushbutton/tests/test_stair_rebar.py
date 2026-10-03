@@ -11,6 +11,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
+import math  # noqa: E402
 import stair_rebar as sr  # noqa: E402
 
 COVER = 40.0
@@ -151,3 +152,86 @@ def test_preview_section_is_closed_and_holds_the_bars():
     assert shapes[0]['kind'] == 'outline' and len(outline) > 20
     assert len([s for s in shapes if s['kind'] == 'bar']) == 3
     assert len([s for s in shapes if s['kind'] == 'dot']) > 20
+
+
+def _starters(mode='cast'):
+    support = {'mode': 'cast', 'foot_z': -500.0 + 50.0 + 16.0} if mode == 'cast' else \
+        {'mode': 'post', 'embed': 300.0}
+    return {'dia': 12.0, 'lap': 600.0, 'support': support}
+
+
+def test_cast_starters_are_l_bars_cranked_to_the_slope_and_lapped_l0():
+    run = first_flight()
+    sets = sr.build_flight(run, COVER, 12.0, 200.0, 8.0, 200.0, 480.0, starters=_starters())
+    bottom = _by_label(sets, u'Stair Starter Bottom')[0]
+    top = _by_label(sets, u'Stair Starter Top')[0]
+    for st, sign in ((bottom, 1.0), (top, -1.0)):
+        (fx, fz), (kx, kz), (bx, bz), (ex, ez) = st['points']
+        assert fz == kz == -434.0 and abs((fx - kx) - sign * 450.0) < 1e-6       # foot on the bottom mat
+        assert kx == bx and abs(bz - 46.0) < 1e-6                                # vertical up to the knee
+        assert abs(math.hypot(ex - bx, ez - bz) - 600.0) < 1e-6                  # l0 along the slope
+        assert abs((ez - bz) / (ex - bx) - SLOPE) < 1e-9
+    flight_bottom = _by_label(sets, u'Stair Flight Bottom')[0]
+    assert abs(bottom['first'] - flight_bottom['first'] - 12.0) < 1e-6           # contact lap beside it
+    assert flight_bottom['points'][0][0] > 200.0                                  # no base leg any more
+    assert abs(flight_bottom['points'][0][0] - bottom['points'][2][0]) < 1e-6    # starts where they lap
+
+
+def test_post_installed_starters_are_straight_into_the_support():
+    sets = sr.build_flight(first_flight(), COVER, 12.0, 200.0, 8.0, 200.0, 480.0,
+                           starters=_starters('post'))
+    pts = _by_label(sets, u'Stair Starter Bottom')[0]['points']
+    assert len(pts) == 3 and pts[0][1] == -300.0 and pts[0][0] == pts[1][0]
+
+
+def test_no_starters_on_a_flight_that_starts_from_a_landing():
+    sets = sr.build_flight(second_flight(), COVER, 12.0, 200.0, 8.0, 200.0, 480.0, starters=_starters())
+    assert not [s for s in sets if s['layer'] == u'stair_starter']
+
+
+def test_landing_u_bars_replace_the_closing_legs():
+    run = first_flight()
+    run['upper']['u_dia'] = 10.0
+    top = sr.top_bar(run, COVER, 12.0, 480.0)
+    assert top[-1] == (3520.0 - 40.0 - 10.0 - 6.0, 1719.0)                      # straight, inside the U
+    landing = {'s_min': 2520.0, 's_max': 3520.0, 'v_min': -500.0, 'v_max': 2024.0,
+               'top': 1765.0, 'bottom': 1615.0}
+    sets = sr.build_landing(landing, COVER, 12.0, 8.0, 200.0, 200.0,
+                            strips=[(-500.0, 500.0), (1024.0, 2024.0)], parallel_runs=True,
+                            u_dia=10.0, u_edges=('s_max', 'v_min', 'v_max'), top_dia=12.0, top_spacing=200.0)
+    far = [s for s in sets if s['layer'] == u'stair_landing_ubar' and s['axis'] == 'v']
+    side = [s for s in sets if s['layer'] == u'stair_landing_ubar' and s['axis'] == 's']
+    assert len(far) == 3                                      # two flight strips + the gap
+    assert not side                                           # 150 mm, 40 cover: no room to bend them
+    (a, _za), (b, zt), (_c, zb), (_d, _zd) = far[0]['points']
+    assert b == 3520.0 - 45.0 and b - a == 400.0              # leg max(40 phi, 2h) = 400
+    assert zt == 1765.0 - 45.0 and zb == 1615.0 + 45.0
+    for st in sets:                                           # nothing reaches past the U back
+        if st['axis'] == 'v' and st['layer'] == u'stair_landing':
+            assert max(p[0] for p in st['points']) <= 3520.0 - 40.0 - 10.0 - 6.0 + 1e-6
+
+
+def test_side_u_bars_need_room_for_the_mandrel():
+    landing = {'s_min': 2520.0, 's_max': 3520.0, 'v_min': -500.0, 'v_max': 2024.0,
+               'top': 1765.0, 'bottom': 1615.0}
+    notes = []
+    sets = sr.build_landing(landing, COVER, 12.0, 8.0, 200.0, 200.0, [(-500.0, 500.0)], True,
+                            u_dia=10.0, u_edges=('v_min', 'v_max'), warnings=notes)
+    assert not [s for s in sets if s['layer'] == u'stair_landing_ubar'] and len(notes) == 1
+    sets = sr.build_landing(landing, 25.0, 12.0, 8.0, 200.0, 200.0, [(-500.0, 500.0)], True,
+                            u_dia=10.0, u_edges=('v_min', 'v_max'))
+    side = [s for s in sets if s['layer'] == u'stair_landing_ubar']
+    assert len(side) == 2
+    (_v0, zt), (_v1, _), (_v2, zb), _ = side[0]['points_vz']
+    assert zt - zb - 10.0 >= sr.mandrel_mm(10.0)
+    transverse = [s for s in sets if s['axis'] == 'slope']
+    assert all(s['v_range'] == (-500.0 + 39.0, 2024.0 - 39.0) for s in transverse)
+
+
+def test_preview_draws_starters_and_landing_ubars():
+    import rebar_preview_shapes as ps
+    shapes = ps.stair_section_shapes(ps.typical_stair_flight(), COVER, 12, 200, 12, 200, 8, 200, 480,
+                                     ubar_dia=10.0, starter_dia=12.0)
+    roles = [s['role'] for s in shapes if s['kind'] == 'bar']
+    assert roles.count('starter') == 2 and roles.count('ubar') >= 2
+    assert [s for s in shapes if s['kind'] == 'ground']
