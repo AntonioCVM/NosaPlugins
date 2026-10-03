@@ -2915,6 +2915,18 @@ class RebarAutomateWindow(NOSAWindow):
             values['confine_length'] = conf if (conf and conf > 0) else None
         if values.get('n_top') == 0 and values.get('n_bottom') == 0:
             errors.append(u'At least one top or bottom bar is required.')
+        values['continuous'] = self.ChkBeamContinuous.IsChecked == True
+        if values['continuous']:
+            values['support_dia'] = self._read_number(
+                self.TxtBeamSupportDia.Text, u'Support bar diameter', errors)
+            try:
+                values['n_support'] = int(float(self.TxtBeamSupportCount.Text))
+            except (TypeError, ValueError):
+                errors.append(u'"Support bars" must be a number.')
+            values['support_fraction'] = self._read_number(
+                self.TxtBeamSupportFraction.Text, u'Support bar reach', errors)
+            if values.get('n_top', 0) < 2:
+                errors.append(u'A continuous beam needs at least 2 top (hanger) bars.')
         if errors:
             forms.alert(u'\n'.join(errors))
             return None
@@ -3371,7 +3383,70 @@ class RebarAutomateWindow(NOSAWindow):
             lines.extend(summary['errors'])
         self.TxtBeamResult.Text = u'\n'.join(lines)
 
-    def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars):
+    def _beam_lap_anchorage(self, host, bar_dia):
+        """(lap, anchorage) mm for this beam's bars; top bars of beams over 250 mm are in poor bond."""
+        bbox = host.get_BoundingBox(None)
+        good = ((bbox.Max.Z - bbox.Min.Z) * 304.8 if bbox is not None else 0.0) <= 250.0
+        try:
+            lap = standards.lap_length_mm(self._host_std(host), bar_dia, False, 100.0, good)
+        except Exception:
+            lap = max(40.0 * bar_dia, 300.0)
+        try:
+            anchorage = standards.anchorage_length_mm(self._host_std(host), bar_dia, good)
+        except Exception:
+            anchorage = 40.0 * bar_dia
+        return lap, anchorage
+
+    def _create_long_group(self, wrapper, host, group, bar_type, label, layer, errors, created_rebars):
+        """One grouped set of longitudinal bars (one Rebar Set, else bar by bar)."""
+        hid = get_id_value(host.Id)
+        if group.get('count', 1) > 1 and group.get('array_length_mm', 0) > 0:
+            rebar = wrapper.create_rebar_set(
+                host, group['curves'], bar_type, group['spacing_mm'], group['array_length_mm'],
+                normal=group['normal'], transaction_name=u'NOSA — Create {}'.format(group['label']))
+            if rebar is not None:
+                self._stamp_layer(rebar, layer)
+                created_rebars.append(rebar)
+                return
+        for chain in group.get('all_curves', [group['curves']]):
+            rebar = wrapper.create_from_curves(host, chain, bar_type, normal=group['normal'],
+                                               transaction_name=u'NOSA — Create {}'.format(label))
+            if rebar is None:
+                errors.append(u'Beam {}: {} — {}'.format(hid, label, wrapper.last_error))
+            else:
+                self._stamp_layer(rebar, layer)
+                created_rebars.append(rebar)
+
+    def _process_beam_line(self, line, values, wrapper, bar_types, errors, created_rebars):
+        """T7.2 — one line of spans: hanger and support bars, then every span's own bars."""
+        first = line[0]
+        cover_mm = re_engine.get_native_cover_mm(
+            self.doc, first, u'Other', self._standard_default_cover_mm(u'beam'))
+        lap_mm, anchorage_mm = self._beam_lap_anchorage(first, values['bar_dia'])
+        data = beam_rebar.build_continuous_line(
+            self.doc, line, cover_mm, values['bar_dia'], values['n_top'], values['stirrup_dia'],
+            values['support_dia'], values['n_support'], values['stock_length'], lap_mm,
+            anchorage_mm, values['support_fraction'])
+        name = u'Beams {}'.format(u', '.join(str(get_id_value(h.Id)) for h in line))
+        errors.extend(u'{}: {}'.format(name, w) for w in data['warnings'])
+        bar_type = bar_types.get(values['bar_dia'])
+        support_type = bar_types.get(values['support_dia'])
+        if bar_type is not None:
+            for host, group in data['hanger_sets']:
+                self._create_long_group(wrapper, host, group, bar_type, u'Beam Hanger Bar', u'top',
+                                        errors, created_rebars)
+        if support_type is not None:
+            for host, group in data['support_sets']:
+                self._create_long_group(wrapper, host, group, support_type, u'Beam Support Bar',
+                                        u'top_support', errors, created_rebars)
+        for host in line:      # the line's bars exist now: a failing span must not redo them
+            ends = data['spans'].get(get_id_value(host.Id), {})
+            try:
+                self._process_beam(host, values, wrapper, bar_types, errors, created_rebars, span=ends)
+            except Exception as e:
+                errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
+
+    def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars, span=None):
         # A floor that cuts the beam leaves it only the depth below the slab: the bars,
         # links and anchorage legs then lose that depth (found in the 2026-10-01 smoke test).
         try:
@@ -3421,7 +3496,10 @@ class RebarAutomateWindow(NOSAWindow):
             confine_length_mm=values.get('confine_length'),
             anchorage_mm=anchorage_mm,
             include_interior_ties=values.get('interior_ties', False),
-            link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])))
+            link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])),
+            continuous_ends=(span or {}).get('continuous_ends', (False, False)),
+            internal_bottom_ext_mm=(span or {}).get('internal_bottom_ext_mm', (0.0, 0.0)),
+            include_top=span is None)
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -3639,6 +3717,8 @@ class RebarAutomateWindow(NOSAWindow):
     def _run_beam_reinforcement(self, beams, values):
         errors = []
         diameters = {values['bar_dia'], values['stirrup_dia']}
+        if values.get('continuous'):
+            diameters.add(values['support_dia'])
         bar_types = {}
         for dia_mm in diameters:
             bt = re_engine.get_bar_type_by_diameter(self.doc, dia_mm)
@@ -3649,11 +3729,21 @@ class RebarAutomateWindow(NOSAWindow):
 
         wrapper = re_engine.RebarWrapper(self.doc)
         created_rebars = []
-        for host in beams:
-            try:
-                self._process_beam(host, values, wrapper, bar_types, errors, created_rebars)
-            except Exception as e:
-                errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
+        lines = beam_rebar.group_beam_lines(beams) if values.get('continuous') else [[b] for b in beams]
+        for line in lines:
+            if len(line) > 1:
+                try:
+                    self._process_beam_line(line, values, wrapper, bar_types, errors, created_rebars)
+                    continue
+                except Exception as e:
+                    errors.append(u'Beams {}: not reinforced as one continuous line — {}. Each span '
+                                  u'is reinforced on its own.'.format(
+                                      u', '.join(str(get_id_value(h.Id)) for h in line), e))
+            for host in line:
+                try:
+                    self._process_beam(host, values, wrapper, bar_types, errors, created_rebars)
+                except Exception as e:
+                    errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
 
     # ── Walls (Phase F7) ─────────────────────────────────────────────────

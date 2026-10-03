@@ -784,6 +784,41 @@
 
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
+                            <CheckBox Name="ChkBeamContinuous" Content="Continuous beam over several spans"
+                                      FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"
+                                      ToolTip="Select every span of the line: beams on one straight line, end to end across their supports."/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Support Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Extra top bars over each intermediate support."/>
+                                <TextBox Grid.Column="1" Name="TxtBeamSupportDia" Text="16" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Support Bars (number)" Style="{StaticResource RA_FieldLabel}" ToolTip="Placed between the hanger bars, then in a second layer if they do not fit."/>
+                                <TextBox Grid.Column="1" Name="TxtBeamSupportCount" Text="2" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Support Bar Reach (x L)" Style="{StaticResource RA_FieldLabel}" ToolTip="Past each support face, as a fraction of the longer adjacent clear span (IStructE simplified rules: 0.25)."/>
+                                <TextBox Grid.Column="1" Name="TxtBeamSupportFraction" Text="0.25" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource TextColor}"
+                                       Text="The top bars become continuous hanger bars along the whole line, lapped in the central third of a span; extra bars over every intermediate support; each span's bottom bars run straight 10 phi into the intermediate supports (EC2 9.2.1.5) and keep their legs at the end columns. Links and densified zones stay per span."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
                             <TextBlock Text="Stock / Laps" Style="{StaticResource RA_SectionTitle}"/>
                             <Grid Style="{StaticResource RA_FieldRow}">
                                 <Grid.ColumnDefinitions>
