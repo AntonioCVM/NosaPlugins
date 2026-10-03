@@ -90,9 +90,9 @@ def mat_section_shapes(width_mm, thickness_mm, cover_mm, dia_x, dia_y, spacing_m
                 leg = max(leg, 2.0 * t)
             leg = min(leg, w / 2.0 - c)
             back = half - c - ubar_dia / 2.0
-            for side in (-1.0, 1.0):
-                xb = side * back
-                xl = xb - side * leg
+            for edge in (-1.0, 1.0):   # not 'side': that name is the side-bar flag
+                xb = edge * back
+                xl = xb - edge * leg
                 # legs drawn just inside their mat bar: in reality they lie beside it
                 lap = (dia_x + ubar_dia) / 2.0
                 shapes.append(_bar([(xl, t1 - lap), (xb, t1 - lap), (xb, b1 + lap), (xl, b1 + lap)],

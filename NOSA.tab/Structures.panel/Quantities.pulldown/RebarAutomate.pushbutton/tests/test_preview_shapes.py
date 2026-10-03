@@ -48,6 +48,14 @@ for bar in _bars(slab, 'ubar'):
     assert abs(leg - 600.0) < 1e-6, 'slab U-bar leg must be 2h = 600 mm, got {}'.format(leg)
 print('mat_section_shapes: slab edge U-bars have 2h legs: OK')
 
+# Perimeter U-bars alone must not switch the side bars on (the U loop once reused the name 'side').
+ubars_only = shapes.mat_section_shapes(1500, 600, 50, 16, 16, 200, include_top=True, top_cover_mm=50,
+                                       top_dia_x=12, top_dia_y=12, top_spacing_mm=200, ubars=True,
+                                       ubar_dia=10, side=False, side_dia=10, side_spacing_mm=300)
+assert _bars(ubars_only, 'ubar'), 'U-bars drawn'
+assert not [s for s in ubars_only if s.get('role') == 'link'], 'no side bars without the side option'
+print('mat_section_shapes: U-bars do not draw side bars: OK')
+
 # Column elevation: foundation starters with feet outwards.
 elev = shapes.column_elevation_shapes(450, 3000, 40, 20, 10, 200, foundation_starters=True,
                                       starter_dia=20, starter_splice_mm=600, kicker_mm=75)
