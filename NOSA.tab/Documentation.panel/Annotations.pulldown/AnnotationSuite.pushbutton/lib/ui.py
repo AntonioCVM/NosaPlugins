@@ -16,6 +16,7 @@ if _lib not in sys.path:
 
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils import tag_rules, tag_engine
 
 _VIS = System.Windows.Visibility.Visible
 _COL = System.Windows.Visibility.Collapsed
@@ -101,22 +102,54 @@ class AnnotationSuiteWindow(NOSAWindow):
             self._view_items.Add(vi)
 
     def _load_tag_families(self):
-        for bic, combo_name in [
-            (DB.BuiltInCategory.OST_StructuralColumns,    u'CmbTagColumns'),
-            (DB.BuiltInCategory.OST_StructuralFraming,    u'CmbTagFraming'),
-            (DB.BuiltInCategory.OST_StructuralFoundation, u'CmbTagFound'),
-        ]:
+        """One row per Tag All category: a tick box and its tag type ('(NOSA default)' first)."""
+        import System.Windows.Controls as SWC
+        self._tag_rows = {}
+        panel = self.PanelTagCategories
+        panel.Children.Clear()
+        for key, label, _bic, _geometry in tag_rules.CATEGORIES:
+            row = SWC.Grid()
+            row.Margin = System.Windows.Thickness(0, 3, 0, 3)
+            for width in (180.0, 1.0):
+                col = SWC.ColumnDefinition()
+                col.Width = System.Windows.GridLength(width, System.Windows.GridUnitType.Pixel if width > 1 else
+                                                      System.Windows.GridUnitType.Star)
+                row.ColumnDefinitions.Add(col)
+            check = SWC.CheckBox()
+            check.Content = label
+            check.IsChecked = True
+            check.VerticalAlignment = System.Windows.VerticalAlignment.Center
+            combo = SWC.ComboBox()
+            combo.Height = 24
+            combo.FontSize = 11
+            combo.Items.Add(u'(NOSA default)')
+            types = []
             try:
-                combo = getattr(self, combo_name)
-                tags  = _anno.get_tag_families(self.doc, bic)
-                combo.Items.Clear()
-                combo.Items.Add(u'(first available)')
-                for t in tags:
-                    combo.Items.Add(t['name'])
-                combo.SelectedIndex = 0
-                self._tag_lists[combo_name] = tags
+                types = tag_engine.tag_types(self.doc, key)
             except Exception:
                 log_swallowed(_LOG, u'AnnotationSuiteWindow._load_tag_families')
+            for name, _type_id in types:
+                combo.Items.Add(name)
+            combo.SelectedIndex = 0
+            if not types:
+                check.IsChecked = False
+                check.IsEnabled = False
+                check.ToolTip = u'No tag family of this category is loaded in the project.'
+            SWC.Grid.SetColumn(combo, 1)
+            row.Children.Add(check)
+            row.Children.Add(combo)
+            panel.Children.Add(row)
+            self._tag_rows[key] = (check, combo, types)
+
+    def _tag_choice(self):
+        """({key: type id or None}, [ticked keys])."""
+        type_ids, keys = {}, []
+        for key, (check, combo, types) in self._tag_rows.items():
+            if check.IsChecked == True:
+                keys.append(key)
+            idx = combo.SelectedIndex
+            type_ids[key] = types[idx - 1][1] if 0 < idx <= len(types) else None
+        return type_ids, keys
 
     def _load_spot_types(self):
         try:
@@ -128,17 +161,6 @@ class AnnotationSuiteWindow(NOSAWindow):
             self.CboSpotType.SelectedIndex = 0
         except Exception:
             self._spot_types = []
-
-    def _get_tag_id(self, combo_name):
-        try:
-            combo = getattr(self, combo_name)
-            idx   = combo.SelectedIndex
-            tags  = self._tag_lists.get(combo_name, [])
-            if tags and idx > 0 and idx <= len(tags):
-                return tags[idx - 1]['id']
-        except Exception:
-            log_swallowed(_LOG, u'AnnotationSuiteWindow._get_tag_id')
-        return DB.ElementId.InvalidElementId
 
     def _selected_views(self):
         return [vi.View for vi in self._view_items if vi.IsChecked]
@@ -163,28 +185,37 @@ class AnnotationSuiteWindow(NOSAWindow):
         if not views:
             forms.alert(u'Select at least one view.')
             return
-        use_leader = self.ChkLeader.IsChecked == True
-        total = {'created': 0, 'skipped': 0, 'failed': 0}
-        self.SetLoading(True, u'Applying tags...')
+        type_ids, ticked = self._tag_choice()
+        recommended = self.ChkTagRecommended.IsChecked == True
+        total = {'created': 0, 'rearranged': 0, 'leaders': 0, 'failed': 0}
+        lines, errors = [], []
+        self.SetLoading(True, u'Tagging...')
         try:
-            for bic, chk, combo_name in [
-                (DB.BuiltInCategory.OST_StructuralColumns,    self.ChkTagColumns, u'CmbTagColumns'),
-                (DB.BuiltInCategory.OST_StructuralFraming,    self.ChkTagFraming, u'CmbTagFraming'),
-                (DB.BuiltInCategory.OST_StructuralFoundation, self.ChkTagFound,   u'CmbTagFound'),
-            ]:
-                if chk.IsChecked != True:
+            for view in views:
+                keys = ticked
+                if recommended:
+                    template = self.doc.GetElement(view.ViewTemplateId)
+                    wanted = tag_rules.recommend(view.ViewType, element_name(template) if template else u'',
+                                                 view.Name, rebar_visible=bool(tag_engine.elements(self.doc, view, 'rebar')))
+                    keys = [k for k in ticked if k in wanted]
+                if not keys:
+                    lines.append(u'{}: nothing to tag for this view type.'.format(view.Name))
                     continue
-                tag_id = self._get_tag_id(combo_name)
-                r = _anno.batch_tag_elements(self.doc, views, bic, tag_id, use_leader)
+                r = tag_engine.tag_view(self.doc, view, keys, type_ids,
+                                        rearrange=self.ChkTagRearrange.IsChecked == True)
                 for k in total:
                     total[k] += r[k]
+                errors.extend(r['errors'])
+                lines.append(u'{}: {} new, {} moved, {} leaders'.format(
+                    view.Name, r['created'], r['rearranged'], r['leaders']))
         except Exception as e:
-            forms.alert(u'Tag failed: {}'.format(e))
+            forms.alert(u'Tag All failed: {}'.format(e))
             return
         finally:
             self.SetLoading(False)
-        self.SuiteTxtResult.Text = (
-            u'Tags — Created: {created}  |  Skipped: {skipped}  |  Failed: {failed}'.format(**total))
+        text = (u'Tags — New: {created}  |  Moved: {rearranged}  |  Leaders: {leaders}  |  '
+                u'Failed: {failed}'.format(**total))
+        self.SuiteTxtResult.Text = text + u'\n' + u'\n'.join(lines + errors[:6])
 
     # ── tab 1: grid bubbles ───────────────────────────────────────────────────
 

@@ -103,6 +103,57 @@ def build_line():
     return columns, beams
 
 
+def _tag_all_check(columns, beams):
+    """T7.4: Tag All on the created views and an RC plan; count overlapping tags and crossing leaders."""
+    from nosa_utils import tag_rules, tag_engine
+    from nosa_utils.label_layout import segments_cross
+    from nosa_utils.revit_helpers import element_name
+    out = []
+    levels = sorted(DB.FilteredElementCollector(doc).OfClass(DB.Level), key=lambda l: l.Elevation)
+    plan_vft = [v for v in DB.FilteredElementCollector(doc).OfClass(DB.ViewFamilyType)
+                if v.ViewFamily == DB.ViewFamily.StructuralPlan][0]
+    t = DB.Transaction(doc, 'NOSA test - plan')
+    t.Start()
+    plan = DB.ViewPlan.Create(doc, plan_vft.Id, levels[1].Id)
+    plan.Name = u'Tag All test plan'
+    for tpl in DB.FilteredElementCollector(doc).OfClass(DB.View):
+        if tpl.IsTemplate and element_name(tpl) == u'NOSA RC PLAN':
+            plan.ViewTemplateId = tpl.Id
+    t.Commit()
+    views = [plan] + [v for v in DB.FilteredElementCollector(doc).OfClass(DB.View)
+                      if not v.IsTemplate and (element_name(v).startswith(u'Beam ') or
+                                               element_name(v).startswith(u'Column ')) and
+                      tag_rules.view_kind(v.ViewType)]
+    for view in views:
+        template = doc.GetElement(view.ViewTemplateId)
+        keys = tag_rules.recommend(view.ViewType, element_name(template) if template else u'', view.Name,
+                                   rebar_visible=bool(tag_engine.elements(doc, view, 'rebar')))
+        r = tag_engine.tag_view(doc, view, keys)
+        tags = list(DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag))
+        measure = DB.Transaction(doc, 'NOSA test - measure')
+        measure.Start()
+        rects = tag_engine.head_rects(doc, view, tags)
+        measure.RollBack()
+        overlaps = sum(1 for i in range(len(rects)) for j in range(i + 1, len(rects))
+                       if rects[i] and rects[j] and rects[i][0] < rects[j][2] and rects[j][0] < rects[i][2]
+                       and rects[i][1] < rects[j][3] and rects[j][1] < rects[i][3])
+        segs = []
+        for x in tags:
+            if not x.HasLeader:
+                continue
+            el = doc.GetElement(list(x.GetTaggedLocalElementIds())[0])
+            geometry = 'line' if isinstance(getattr(el, 'Location', None), DB.LocationCurve) else 'area'
+            anchor, _r = tag_engine._anchor(el, view, geometry)
+            head = x.TagHeadPosition
+            segs.append((anchor, (head.DotProduct(view.RightDirection), head.DotProduct(view.UpDirection))))
+        crossings = sum(1 for i in range(len(segs)) for j in range(i + 1, len(segs))
+                        if segs[i][0] and segs[j][0] and segments_cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1]))
+        out.append(u'  TAG ALL "{}" keys {} -> new {} moved {} leaders {} failed {} | tags {} overlaps {} '
+                   u'crossings {} {}'.format(element_name(view), keys, r['created'], r['rearranged'], r['leaders'],
+                                             r['failed'], len(tags), overlaps, crossings, r['errors'][:2]))
+    return out
+
+
 group = None
 revit_mod, original_tx = None, None
 try:
@@ -184,6 +235,13 @@ try:
                     boxes.append(u'({:.0f},{:.0f})-({:.0f},{:.0f})'.format(o.MinimumPoint.X * _FT, o.MinimumPoint.Y * _FT,
                                                                           o.MaximumPoint.X * _FT, o.MaximumPoint.Y * _FT))
                 _log.append(u'  sheet {} "{}" viewports {}'.format(sh.SheetNumber, sh.Name, u' '.join(boxes)))
+
+        try:
+            tag_all = TAGALL
+        except NameError:
+            tag_all = False
+        if tag_all:
+            _log.extend(_tag_all_check(columns, beams))
 
     from Autodesk.Revit.DB.Structure import MultiplanarOption
     rows = {}

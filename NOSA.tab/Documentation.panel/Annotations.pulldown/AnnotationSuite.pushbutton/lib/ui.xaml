@@ -158,47 +158,30 @@
 
                 <!-- ─── TAB 0: STRUCTURAL TAGS ─── -->
                 <TabItem FontSize="12" FontWeight="SemiBold">
-                    <TabItem.Header><TextBlock Text="  Structural Tags  " Padding="4,2"/></TabItem.Header>
+                    <TabItem.Header><TextBlock Text="  Tag All  " Padding="4,2"/></TabItem.Header>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="24">
-                        <TextBlock Text="Tag structural elements in selected views"
+                        <TextBlock Text="Tag every element and the reinforcement in the selected views"
                                    FontSize="14" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,16"/>
+                                   Foreground="{DynamicResource TextColor}" Margin="0,0,0,6"/>
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.65" Margin="0,0,0,12"
+                                   Foreground="{DynamicResource TextColor}"
+                                   Text="Each tag starts beside its element (column corner, over a beam, on a slab), moves to the nearest free spot when it would overlap another tag or a column, gets a leader only when it ended away from its element, and crossing leaders are untangled. Plans: structure and stairs (piles on foundation plans, bars on RC plans); sections and details: the structure they cut and its bars. 3D views, sheets and schedules are skipped. Type '(NOSA default)' picks the NOSA tag by material and view."/>
 
                         <Border Style="{DynamicResource Card}" Margin="0,0,0,14">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <CheckBox Grid.Row="0" Grid.Column="0" Name="ChkTagColumns"
-                                          Content="Structural Columns"     IsChecked="True"
-                                          Margin="0,6,12,6"/>
-                                <ComboBox Grid.Row="0" Grid.Column="1" Name="CmbTagColumns"
-                                          Height="24" VerticalContentAlignment="Center" FontSize="11"/>
-                                <CheckBox Grid.Row="1" Grid.Column="0" Name="ChkTagFraming"
-                                          Content="Structural Framing"     IsChecked="True"
-                                          Margin="0,6,12,6"/>
-                                <ComboBox Grid.Row="1" Grid.Column="1" Name="CmbTagFraming"
-                                          Height="24" VerticalContentAlignment="Center" FontSize="11"/>
-                                <CheckBox Grid.Row="2" Grid.Column="0" Name="ChkTagFound"
-                                          Content="Structural Foundations"  IsChecked="False"
-                                          Margin="0,6,12,6"/>
-                                <ComboBox Grid.Row="2" Grid.Column="1" Name="CmbTagFound"
-                                          Height="24" VerticalContentAlignment="Center" FontSize="11"/>
-                            </Grid>
+                            <StackPanel Name="PanelTagCategories"/>
                         </Border>
 
-                        <CheckBox Name="ChkLeader" Content="Add leader line" IsChecked="False"/>
+                        <CheckBox Name="ChkTagRecommended" Content="Only the categories recommended for each view"
+                                  IsChecked="True" Margin="0,0,0,6"/>
+                        <CheckBox Name="ChkTagRearrange" Content="Re-arrange the existing tags of these categories too"
+                                  IsChecked="True"/>
 
-                        <Button Content="APPLY TAGS TO SELECTED VIEWS" Style="{StaticResource ActionBtn}"
+                        <Button Content="TAG SELECTED VIEWS" Style="{StaticResource ActionBtn}"
                                 Click="RunTags_Click" Margin="0,20,0,0"
                                 HorizontalAlignment="Left"/>
                     </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- ─── TAB 1: GRID BUBBLES ─── -->

@@ -20,11 +20,12 @@ def _collect(doc, bic, view=None):
 
 
 def get_structural_views(doc):
-    """Return all taggable views (FloorPlan, Section, Elevation, CeilingPlan)."""
+    """Return all taggable views (plans, sections, details, elevations)."""
     # Use int comparison to avoid IronPython enum equality issues
     _VALID = {
         int(DB.ViewType.FloorPlan),
         int(DB.ViewType.Section),
+        int(DB.ViewType.Detail),
         int(DB.ViewType.Elevation),
         int(DB.ViewType.CeilingPlan),
         int(DB.ViewType.AreaPlan),

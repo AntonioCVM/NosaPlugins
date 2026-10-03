@@ -29,6 +29,7 @@ HUBS = (
     (('Structures.panel', 'StructuralQA.pushbutton'), 'StructuralQAWindow', False),
     (('Foundations.panel', 'SurveyExport.pushbutton'), 'SurveyExportWindow', False),
     (('Data.panel', 'ElementCommentsHub.pushbutton'), 'ElementCommentsHubWindow', True),
+    (('Documentation.panel', 'Annotations.pulldown', 'AnnotationSuite.pushbutton'), 'AnnotationSuiteWindow', False),
 )
 for parts, cls, needs_uidoc in HUBS:
     try:
@@ -39,7 +40,11 @@ for parts, cls, needs_uidoc in HUBS:
         mod = load_module('smoke_' + parts[-1].split('.')[0].lower(), os.path.join(lib, 'ui.py'))
         args = (doc, _uiapp.ActiveUIDocument) if needs_uidoc else (doc,)
         win = getattr(mod, cls)(*args)
-        _out.append(u'OK   {} built'.format(cls))
+        rows = getattr(win, '_tag_rows', None)
+        extra = u''
+        if rows:
+            extra = u' — Tag All rows: ' + u', '.join(u'{}({})'.format(k, len(v[2])) for k, v in sorted(rows.items()))
+        _out.append(u'OK   {} built{}'.format(cls, extra))
         win.Close()
     except Exception:
         _out.append(u'FAIL {}\n{}'.format(cls, traceback.format_exc()))
