@@ -282,6 +282,25 @@ def uniform_runs_mm(positions_mm, tol_mm=0.5):
     return runs
 
 
+STAGGERED_PCT_LAPPED = 50.0
+STAGGER_FACTOR = 1.3   # lap centres 1.3 l0 apart: never "in the same section" (EC2 8.7.2(3))
+
+
+def stagger_first_mm(stock_length_mm, lap_length_mm):
+    """First bar length of the staggered bars, a whole 25 mm under stock − 1.3·l0 (T7.6)."""
+    return 25.0 * math.floor((stock_length_mm - STAGGER_FACTOR * lap_length_mm) / 25.0)
+
+
+def parity_layouts(count, spacing_mm):
+    """Split a set of `count` bars into alternate bars: [(offset mm, count, array length mm)]."""
+    out = []
+    for parity in (0, 1):
+        n = (count - parity + 1) // 2
+        if n > 0:
+            out.append((parity * spacing_mm, n, (n - 1) * 2.0 * spacing_mm))
+    return out
+
+
 def get_wall_elevation_mm(host):
     """Return (length_mm, height_mm) for preview from a straight wall."""
     axis = get_wall_axis(host)
@@ -727,7 +746,11 @@ def build_wall_reinforcement(doc, host, cover_mm,
             horiz_lap_length_mm if horiz_lap_length_mm is not None else lap_length_mm)
 
         def _split_mesh_sets(mesh_sets, axis_label, own_lap_mm):
-            """Split each mesh set by stock length; output remains Rebar Sets."""
+            """Split each mesh set by stock length; output remains Rebar Sets.
+
+            T7.6 — laps staggered as on slabs: alternate bars form their own Set whose first
+            bar is shorter (stock − 1.3 l0), so only half the bars are lapped in any section.
+            """
             out = []
             for ms in mesh_sets:
                 c0 = ms['curves'][0] if ms.get('curves') else None
@@ -737,23 +760,37 @@ def build_wall_reinforcement(doc, host, cover_mm,
                 if bar_len <= stock_length_mm + 1.0 or own_lap_mm is None:
                     out.append(ms)
                     continue
+                count = ms.get('count', 1)
+                layouts = (parity_layouts(count, ms['spacing_mm']) if count > 1
+                           else [(0.0, count, ms['array_length_mm'])])
+                staggered = len(layouts) > 1
+                rows = []
                 try:
-                    seg_list = engine.split_rebar_by_stock_length(c0, stock_length_mm, own_lap_mm)
+                    for parity, (offset_mm, n, array_mm) in enumerate(layouts):
+                        shift = DB.Transform.CreateTranslation(ms['normal'].Multiply(offset_mm / _MM_PER_FT))
+                        curves = ([c.CreateTransformed(shift) for c in ms['curves']] if offset_mm
+                                  else ms['curves'])
+                        first = stagger_first_mm(stock_length_mm, own_lap_mm) if parity else None
+                        rows.append((parity, n, array_mm, curves, engine.split_rebar_by_stock_length(
+                            curves[0], stock_length_mm, own_lap_mm, first_length_mm=first)))
                 except Exception as ex:
                     warnings.append(u'{} mesh stock split skipped: {}'.format(axis_label, ex))
                     out.append(ms)
                     continue
-                for i, seg in enumerate(seg_list):
-                    tail = ms['curves'][1:] if i == len(seg_list) - 1 else []
-                    out.append({
-                        'curves': [seg.curve] + tail,
-                        'spacing_mm': ms['spacing_mm'],
-                        'array_length_mm': ms['array_length_mm'],
-                        'normal': ms['normal'],
-                        'count': ms['count'],
-                        'label': u'{} (segment {})'.format(ms.get('label', axis_label), i + 1),
-                        'location': ms.get('location'),
-                    })
+                for parity, n, array_mm, curves, seg_list in rows:
+                    for i, seg in enumerate(seg_list):
+                        tail = curves[1:] if i == len(seg_list) - 1 else []
+                        label = ms.get('label', axis_label)
+                        out.append({
+                            'curves': [seg.curve] + tail,
+                            'spacing_mm': 2.0 * ms['spacing_mm'] if staggered else ms['spacing_mm'],
+                            'array_length_mm': array_mm,
+                            'normal': ms['normal'],
+                            'count': n,
+                            'label': (u'{} (row {}, segment {})'.format(label, 'AB'[parity], i + 1)
+                                      if staggered else u'{} (segment {})'.format(label, i + 1)),
+                            'location': ms.get('location'),
+                        })
             return out
 
         vertical_sets = _split_mesh_sets(vertical_sets, u'Wall Vertical', lap_mm)

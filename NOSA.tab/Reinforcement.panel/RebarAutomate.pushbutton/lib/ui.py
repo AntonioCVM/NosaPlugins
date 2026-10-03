@@ -3903,7 +3903,7 @@ class RebarAutomateWindow(NOSAWindow):
         lap_mm = None
         try:
             lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['vert_dia'], False, 100.0, True)
+                self._host_std(host), values['vert_dia'], False, wall_rebar.STAGGERED_PCT_LAPPED, True)
         except Exception:
             lap_mm = max(40.0 * values['vert_dia'], 15.0 * values['vert_dia'], 300.0)
         # BUG FIX (2026-09-01) — horiz_dia's own lap, not vert_dia's
@@ -3912,7 +3912,7 @@ class RebarAutomateWindow(NOSAWindow):
         horiz_lap_mm = None
         try:
             horiz_lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['horiz_dia'], False, 100.0, True)
+                self._host_std(host), values['horiz_dia'], False, wall_rebar.STAGGERED_PCT_LAPPED, True)
         except Exception:
             horiz_lap_mm = max(40.0 * values['horiz_dia'], 15.0 * values['horiz_dia'], 300.0)
 
