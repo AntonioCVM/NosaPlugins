@@ -82,6 +82,7 @@ class SchedulePosition(object):
         self.host_mark = u''
         self.member = u''
         self.members = 1
+        self.revision = u''
         self.legs = None
         self.mandrel_mm = None
         self.variants = {}
@@ -239,6 +240,7 @@ def group_by_position(doc, rebar_ids):
             pos.shape_code = _read(doc, rid, "NOSA_Rebar_Shape_Code") or u"99"
             pos.shape_params = _read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
             pos.layer = _read(doc, rid, "NOSA_Rebar_Layer") or u""
+            pos.revision = _read(doc, rid, "NOSA_Rebar_Revision") or u""
             pos.unit_length_mm = _unit_length_mm(rebar)
             
             # Host mark
@@ -290,6 +292,7 @@ def _variant_rows(pos):
             'shape_params': pos.shape_params,
             'count': var['count'],
             'members': pos.members,
+            'revision': pos.revision,
             'unit_length_mm': var['unit_length_mm'],
             'total_length_mm': total_mm,
             'total_weight_kg': (total_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
@@ -331,6 +334,7 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
             'shape_params': pos.shape_params,
             'count': pos.count,
             'members': pos.members,
+            'revision': pos.revision,
             'unit_length_mm': pos.unit_length_mm,
             'total_length_mm': total_mm,
             'total_weight_kg': weight_kg,
@@ -342,9 +346,9 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
     return schedule
 
 
-BBS_COLUMNS = (u'Member', u'Bar mark', u'Type and size', u'No. of mbrs', u'No. of bars in each',
-               u'Total no.', u'Length of each bar (mm)', u'Shape code', u'A', u'B', u'C', u'D',
-               u'E', u'r', u'Weight (kg)')
+BBS_COLUMNS = (u'Member', u'Bar mark', u'Type and size', u'No. of Mbrs', u'No. of bars in each',
+               u'Total No.', u'Length of each bar [mm]', u'Shape code', u'A [mm]', u'B [mm]',
+               u'C [mm]', u'D [mm]', u'E [mm]', u'F [mm]', u'R [mm]', u'Weight [kg]', u'Rev.')
 
 
 def _shape_dims(shape_params):
@@ -371,11 +375,23 @@ def bbs_rows(schedule_data):
             text_type(members), text_type(count), text_type(members * count),
             text_type(int(round(row.get('unit_length_mm') or 0))),
             row.get('shape_code') or u'',
-            dims.get(u'A', u''), dims.get(u'B', u''), dims.get(u'C', u''),
-            dims.get(u'D', u''), dims.get(u'E', u''), dims.get(u'R', u''),
+        ] + [dims.get(letter, u'') for letter in u'ABCDEFR'] + [
             u'{:.1f}'.format(row.get('total_weight_kg') or 0.0),
+            row.get('revision') or u'',
         ])
     return rows
+
+
+# Member, Bar mark, Type and size, Shape code, Rev.: '01' and '00' must stay text
+_BBS_TEXT_COLUMNS = (0, 1, 2, 7, 16)
+
+
+def _number_or_text(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    return int(number) if number == int(number) and u'.' not in text_type(value) else number
 
 
 def _csv_cell(value):
@@ -422,29 +438,10 @@ def export_xlsx(schedule_data, output_path):
         ws = wb.active
         ws.title = "Bar Bending Schedule"
         
-        # Cabeceras (en inglés británico)
-        headers = [
-            'Mark', 'Host', 'Layer', 'Diameter (mm)', 'Shape Code',
-            'Shape Parameters', 'Quantity', 'Unit Length (mm)', 'Total Length (mm)',
-            'Total Weight (kg)'
-        ]
-        ws.append(headers)
+        ws.append(list(BBS_COLUMNS))
+        for cells in bbs_rows(schedule_data):
+            ws.append([c if i in _BBS_TEXT_COLUMNS else _number_or_text(c) for i, c in enumerate(cells)])
 
-        # Datos
-        for row in schedule_data:
-            ws.append([
-                row['mark'],
-                row['host_mark'],
-                row['layer'],
-                row['diameter_mm'],
-                row['shape_code'],
-                row['shape_params'],
-                row['count'],
-                round(row['unit_length_mm'], 1),
-                round(row['total_length_mm'], 1),
-                round(row.get('total_weight_kg', 0.0), 2)
-            ])
-        
         # Formato: bold headers, auto-width
         for cell in ws[1]:
             cell.font = cell.font.copy(bold=True)

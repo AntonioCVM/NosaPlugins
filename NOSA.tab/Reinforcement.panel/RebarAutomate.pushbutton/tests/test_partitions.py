@@ -96,3 +96,15 @@ def test_bvbs_piece_count_includes_members():
     record = bvbs_record({'mark': u'01', 'diameter_mm': 20, 'count': 4, 'members': 3,
                           'unit_length_mm': 3000.0})
     assert u'@n12@' in record
+
+
+def test_bbs_columns_follow_the_bs8666_sheet():
+    from rebar_schedule import BBS_COLUMNS
+    assert BBS_COLUMNS[1] == u'Bar mark' and BBS_COLUMNS[-2] == u'Weight [kg]' and BBS_COLUMNS[-1] == u'Rev.'
+    assert u'F [mm]' in BBS_COLUMNS
+    row = bbs_rows([{'member': u'C1', 'mark': u'01', 'diameter_mm': 12, 'count': 2, 'members': 1,
+                     'unit_length_mm': 3500.0, 'shape_code': u'11', 'shape_params': u'A=2500;B=1000;R=24',
+                     'total_weight_kg': 6.2, 'revision': u'A'}])[0]
+    assert len(row) == len(BBS_COLUMNS)
+    assert row[8:10] == [u'2500', u'1000'] and row[14] == u'24'
+    assert row[-2:] == [u'6.2', u'A']
