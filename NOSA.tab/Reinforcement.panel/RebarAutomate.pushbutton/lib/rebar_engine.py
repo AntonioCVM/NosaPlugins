@@ -1981,7 +1981,10 @@ class RebarWrapper(object):
                     rebar, validation = result[0], result[1]
                 else:
                     rebar, validation = result, None
-                if rebar is not None and all(len(chain) > 1 for chain in curve_groups):
+                # no Bent for arc chains: Revit finds no shape for them and stops on an error
+                # dialog (curved-wall end U-bars, 2026-10-03)
+                if rebar is not None and all(len(chain) > 1 for chain in curve_groups) and not any(
+                        isinstance(c, DB.Arc) for chain in curve_groups for c in chain):
                     set_workshop_bent(rebar)
             if rebar is None:
                 self.last_error = u'Rebar.CreateFreeForm returned None (validation: {}).'.format(validation)

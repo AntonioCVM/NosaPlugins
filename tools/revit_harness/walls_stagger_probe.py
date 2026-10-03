@@ -71,7 +71,17 @@ def build_wall():
                   if w.Kind == DB.WallKind.Basic and 200.0 <= w.Width * _FT <= 400.0]
     t = DB.Transaction(doc, 'NOSA test - wall')
     t.Start()
-    line = DB.Line.CreateBound(DB.XYZ(0, 0, 0), DB.XYZ(9000.0 / _FT, 0, 0))
+    try:
+        curved = CURVED
+    except NameError:
+        curved = False
+    if curved:
+        import math
+        r = 6000.0 / _FT
+        line = DB.Arc.Create(DB.XYZ(r, 0, 0), DB.XYZ(r * math.cos(2.0944), r * math.sin(2.0944), 0),
+                             DB.XYZ(r * math.cos(1.0472), r * math.sin(1.0472), 0))
+    else:
+        line = DB.Line.CreateBound(DB.XYZ(0, 0, 0), DB.XYZ(9000.0 / _FT, 0, 0))
     wall = DB.Wall.Create(doc, line, wall_types[0].Id, levels[0].Id, 3000.0 / _FT, 0.0, False, True)
     t.Commit()
     return wall
@@ -136,6 +146,12 @@ try:
             firsts.append(pts[0])
             lasts.append(pts[-1])
         p0, p1 = firsts[0], lasts[0]
+        if rebar.IsRebarFreeForm():
+            radii = sorted(set(round((p.X * p.X + p.Y * p.Y) ** 0.5 * _FT) for p in firsts))
+            _log.append(u'{}: FREEFORM n{} radii {} z {:.0f}..{:.0f}'.format(
+                layer, rebar.NumberOfBarPositions, radii, min(p.Z for p in firsts) * _FT,
+                max(p.Z for p in lasts) * _FT))
+            continue
         q = firsts[-1]
         _log.append(u'{}: n{} bar0 ({:.0f},{:.0f},{:.0f})->({:.0f},{:.0f},{:.0f}) len {:.0f} | last bar at '
                     u'({:.0f},{:.0f},{:.0f})'.format(layer, rebar.NumberOfBarPositions, p0.X * _FT, p0.Y * _FT,

@@ -16,6 +16,7 @@ _LOG = u'rebarautomate'
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 re_engine = None
+curved_wall = None
 
 _MM_PER_FT = 304.8
 
@@ -28,14 +29,24 @@ def _ensure_engine():
     return re_engine
 
 
-def get_wall_axis(host):
-    """Straight wall centreline as DB.Line."""
+def _ensure_curved():
+    global curved_wall
+    if curved_wall is None:
+        from nosa_utils.bootstrap import load_module
+        curved_wall = load_module('curved_wall', os.path.join(_HERE, 'curved_wall.py'))
+    return curved_wall
+
+
+def get_wall_axis(host, allow_arc=False):
+    """Wall location line: a DB.Line, or a DB.Arc for a curved wall when allow_arc."""
     loc = getattr(host, 'Location', None)
     curve = getattr(loc, 'Curve', None) if loc is not None else None
     if curve is None:
         raise ValueError(u'Wall has no LocationCurve.')
+    if allow_arc and isinstance(curve, DB.Arc):
+        return curve
     if not isinstance(curve, DB.Line):
-        raise ValueError(u'Curved walls are not supported yet.')
+        raise ValueError(u'Only straight and circular-arc walls are supported.')
     return curve
 
 
@@ -303,7 +314,7 @@ def parity_layouts(count, spacing_mm):
 
 def get_wall_elevation_mm(host):
     """Return (length_mm, height_mm) for preview from a straight wall."""
-    axis = get_wall_axis(host)
+    axis = get_wall_axis(host, allow_arc=True)
     length_mm = axis.Length * _MM_PER_FT
     height_mm = _wall_height_ft(host) * _MM_PER_FT
     return length_mm, height_mm
@@ -322,15 +333,20 @@ def build_wall_foundation_starters(doc, host, bar_points, main_dia_mm, starter_d
     2026-09-29). See rebar_engine.build_contact_starters for the return value.
     """
     engine = _ensure_engine()
-    axis = get_wall_axis(host)
-    axis_dir = axis.Direction.Normalize()
+    axis = get_wall_axis(host, allow_arc=True)
     origin = axis.GetEndPoint(0)
-    across = DB.XYZ.BasisZ.CrossProduct(axis_dir)
-
     inward_dirs = []
-    for p in bar_points:
-        side = DB.XYZ(p.X - origin.X, p.Y - origin.Y, 0.0).DotProduct(across)
-        inward_dirs.append(across.Multiply(-1.0 if side > 0 else 1.0))
+    if isinstance(axis, DB.Arc):
+        # towards the wall's mid-plane: radially in from the outer face, out from the inner one
+        c, r = axis.Center, axis.Radius
+        for p in bar_points:
+            radial = DB.XYZ(p.X - c.X, p.Y - c.Y, 0.0)
+            inward_dirs.append(radial.Normalize().Multiply(-1.0 if radial.GetLength() > r else 1.0))
+    else:
+        across = DB.XYZ.BasisZ.CrossProduct(axis.Direction.Normalize())
+        for p in bar_points:
+            side = DB.XYZ(p.X - origin.X, p.Y - origin.Y, 0.0).DotProduct(across)
+            inward_dirs.append(across.Multiply(-1.0 if side > 0 else 1.0))
 
     base_z_ft = min(p.Z for p in bar_points) if bar_points else origin.Z
     return engine.build_contact_starters(
@@ -389,6 +405,16 @@ def build_wall_reinforcement(doc, host, cover_mm,
     fallback, individual bars as the last resort) applies unchanged;
     every other key here is still a flat list.
     """
+    if isinstance(get_wall_axis(host, allow_arc=True), DB.Arc):
+        return build_curved_wall_reinforcement(
+            doc, host, cover_mm, vert_dia_mm, vert_spacing_mm, horiz_dia_mm, horiz_spacing_mm,
+            both_faces=both_faces, end_clear_mm=end_clear_mm, include_ties=include_ties,
+            tie_dia_mm=tie_dia_mm, tie_spacing_mm=tie_spacing_mm, include_end_ubars=include_end_ubars,
+            ubar_dia_mm=ubar_dia_mm, include_top_ubars=include_top_ubars,
+            include_starter_bars=include_starter_bars, starter_length_mm=starter_length_mm,
+            stock_length_mm=stock_length_mm, lap_length_mm=lap_length_mm,
+            horiz_lap_length_mm=horiz_lap_length_mm, vert_is_outer=vert_is_outer,
+            ubar_lap_length_mm=ubar_lap_length_mm)
     engine = _ensure_engine()
     axis = get_wall_axis(host)
     axis_dir = axis.Direction.Normalize()
@@ -808,6 +834,246 @@ def build_wall_reinforcement(doc, host, cover_mm,
         'end_ubars': end_ubars,
         'top_ubars': top_ubars,
         'starter_bars': starter_bars,
+        'starter_length_mm': starter_mm,
+        'warnings': warnings,
+    }
+
+
+def _arc_face_radii_ft(host, arc):
+    """(inner, outer) radius of the wall's cylindrical side faces, ft."""
+    radii = []
+    for g in host.get_Geometry(DB.Options()):
+        if not isinstance(g, DB.Solid) or g.Volume <= 0:
+            continue
+        for f in g.Faces:
+            if isinstance(f, DB.CylindricalFace) and abs(f.Axis.Normalize().Z) > 0.99:
+                r = f.get_Radius(0).GetLength()
+                if abs(r - arc.Radius) <= host.Width + 1e-6:
+                    radii.append(r)
+    if len(radii) >= 2 and max(radii) - min(radii) > 1e-3:
+        return min(radii), max(radii)
+    return arc.Radius - host.Width / 2.0, arc.Radius + host.Width / 2.0
+
+
+def _xy_angle(center, p):
+    return math.atan2(p.Y - center.Y, p.X - center.X)
+
+
+def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spacing_mm,
+                                    horiz_dia_mm, horiz_spacing_mm, both_faces=True, end_clear_mm=50.0,
+                                    include_ties=False, tie_dia_mm=None, tie_spacing_mm=400.0,
+                                    include_end_ubars=False, ubar_dia_mm=None, include_top_ubars=False,
+                                    include_starter_bars=False, starter_length_mm=None,
+                                    stock_length_mm=12000.0, lap_length_mm=None, horiz_lap_length_mm=None,
+                                    vert_is_outer=True, ubar_lap_length_mm=None):
+    """
+    T7.9 — mesh of a circular-arc wall, same keys as build_wall_reinforcement: horizontals are arcs
+    (one Rebar Set per face, spread up the wall, laps staggered as on straight walls), verticals are
+    radial (one FreeForm Rebar per face: a Set cannot rotate), end U-bars (arc legs) and coronation
+    U-bars are FreeForm bundles.
+    """
+    engine = _ensure_engine()
+    cw = _ensure_curved()
+    arc = get_wall_axis(host, allow_arc=True)
+    c = arc.Center
+    center = (c.X * _MM_PER_FT, c.Y * _MM_PER_FT)
+    a_start = _xy_angle(c, arc.GetEndPoint(0))
+    sweep = arc.Length / arc.Radius * (1.0 if arc.Normal.Z > 0 else -1.0)
+    sign = 1.0 if sweep >= 0 else -1.0
+    r_in_ft, r_out_ft = _arc_face_radii_ft(host, arc)
+    r_in, r_out = r_in_ft * _MM_PER_FT, r_out_ft * _MM_PER_FT
+    height_ft = _wall_height_ft(host)
+    height_mm = height_ft * _MM_PER_FT
+    warnings = []
+
+    z0 = c.Z
+    bbox = host.get_BoundingBox(None)
+    if bbox is not None:
+        z0 = bbox.Min.Z
+
+    vert_bottom_z = z0 + cover_mm / _MM_PER_FT
+    starter_mm = 0.0
+    if include_starter_bars:
+        mid = arc.Evaluate(0.5, True)
+        foundation = engine.find_foundation_below(doc, mid.X, mid.Y, z0)
+        if foundation is not None:
+            own = engine.get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
+            vert_bottom_z = own.Min.Z + cover_mm / _MM_PER_FT
+            starter_mm = (z0 - vert_bottom_z) * _MM_PER_FT
+        else:
+            starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \
+                else max(40.0 * vert_dia_mm, 500.0)
+            vert_bottom_z = z0 - starter_mm / _MM_PER_FT
+            warnings.append(u'No foundation detected below the wall — straight starter '
+                            u'extension uses the typed length ({:.0f} mm).'.format(starter_mm))
+    vert_top_z = z0 + height_ft - cover_mm / _MM_PER_FT
+    vert_top_z = vert_bottom_z + whole_step_length_mm((vert_top_z - vert_bottom_z) * _MM_PER_FT) / _MM_PER_FT
+    if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
+        raise ValueError(u'Wall is too short for the given cover and bar diameter.')
+
+    if vert_is_outer:
+        vert_inset = cover_mm + vert_dia_mm / 2.0
+        horiz_inset = cover_mm + vert_dia_mm + horiz_dia_mm / 2.0
+    else:
+        horiz_inset = cover_mm + horiz_dia_mm / 2.0
+        vert_inset = cover_mm + horiz_dia_mm + vert_dia_mm / 2.0
+
+    # (face, face radius, inward sign): outer-face bars sit at r_out - inset, inner-face ones at r_in + inset
+    faces = [(u'outer', r_out, -1.0)]
+    if both_faces:
+        faces.append((u'inner', r_in, 1.0))
+    try:
+        mid_dir = DB.XYZ(math.cos(a_start + sweep / 2.0), math.sin(a_start + sweep / 2.0), 0.0)
+        outer_is_exterior = host.Orientation.DotProduct(mid_dir) > 0
+        locations = dict(zip((u'outer', u'inner'), face_codes(
+            [False, False], [outer_is_exterior, not outer_is_exterior])))
+    except Exception:
+        locations = {}
+
+    # verticals on common radial lines, at the vertical spacing on the outermost layer
+    r_v_out = r_out - vert_inset
+    vert_angles = cw.bar_angles(a_start, sweep, r_v_out, vert_spacing_mm, end_clear_mm)
+    u_dia = ubar_dia_mm if ubar_dia_mm else vert_dia_mm
+    top_clear_mm = (cover_mm + u_dia + horiz_dia_mm / 2.0) if include_top_ubars else end_clear_mm
+    horiz_positions = _evenly_spaced_mm(height_mm, horiz_spacing_mm, end_clear_mm,
+                                        max(end_clear_mm, top_clear_mm))
+
+    def _xyz(r_mm, angle, z_ft):
+        x, y = cw.point(center, r_mm, angle)
+        return DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, z_ft)
+
+    def _arc(r_mm, b0, b1, z_ft):
+        return DB.Arc.Create(_xyz(r_mm, b0, z_ft), _xyz(r_mm, b1, z_ft), _xyz(r_mm, (b0 + b1) / 2.0, z_ft))
+
+    def _resolve_lap(raw):
+        lap = raw if raw and raw > 0 else None
+        if lap is not None and stock_length_mm and lap >= stock_length_mm:
+            lap = max(stock_length_mm * 0.25, 200.0)
+        return lap
+
+    vert_lap = _resolve_lap(lap_length_mm)
+    horiz_lap = _resolve_lap(horiz_lap_length_mm if horiz_lap_length_mm is not None else lap_length_mm)
+    stock = stock_length_mm if stock_length_mm and stock_length_mm >= 500.0 else 12000.0
+
+    vertical_sets, horizontal_sets = [], []
+    for name, r_face, inward in faces:
+        r_v = r_face + inward * vert_inset
+        lines = [DB.Line.CreateBound(_xyz(r_v, a, vert_bottom_z), _xyz(r_v, a, vert_top_z)) for a in vert_angles]
+        groups = {}
+        for i, line in enumerate(lines):
+            if line.Length * _MM_PER_FT > stock + 1.0 and vert_lap:
+                first = stagger_first_mm(stock, vert_lap) if i % 2 else None
+                segs = engine.split_rebar_by_stock_length(line, stock, vert_lap, first_length_mm=first)
+                for k, seg in enumerate(segs):
+                    groups.setdefault((i % 2, k), []).append([seg.curve])
+            else:
+                groups.setdefault((0, 0), []).append([line])
+        for key in sorted(groups):
+            vertical_sets.append({'freeform_bars': groups[key], 'count': len(groups[key]),
+                                  'label': u'Wall Vertical Mesh (curved)', 'location': locations.get(name)})
+
+        r_h = r_face + inward * horiz_inset
+        if not horiz_positions:
+            continue
+        clear_angle = end_clear_mm / r_h
+        h_a0, h_a1 = a_start + sign * clear_angle, a_start + sweep - sign * clear_angle
+        if sign * (h_a1 - h_a0) <= 0:
+            continue
+        count = len(horiz_positions)
+        spacing = ((horiz_positions[-1] - horiz_positions[0]) / float(count - 1)) if count > 1 else 0.0
+        long_bar = bool(horiz_lap) and cw.arc_length_mm(r_h, h_a0, h_a1) > stock + 1.0
+        layouts = (parity_layouts(count, spacing) if long_bar and count > 1
+                   else [(0.0, count, spacing * (count - 1))])
+        staggered = len(layouts) > 1
+        for parity, (offset_mm, n, array_mm) in enumerate(layouts):
+            z = z0 + (horiz_positions[0] + offset_mm) / _MM_PER_FT
+            first = stagger_first_mm(stock, horiz_lap) if (long_bar and parity) else None
+            pieces = (cw.split_arc(h_a0, h_a1, r_h, stock, horiz_lap, first) if long_bar
+                      else [(h_a0, h_a1)])
+            for k, (b0, b1) in enumerate(pieces):
+                horizontal_sets.append({
+                    'curves': [_arc(r_h, b0, b1, z)],
+                    'spacing_mm': (2.0 * spacing if staggered else spacing) + 0.01,
+                    'array_length_mm': array_mm,
+                    'normal': DB.XYZ.BasisZ,
+                    'count': n,
+                    'label': u'Wall Horizontal Mesh (curved, row {}, segment {})'.format(u'AB'[parity], k + 1),
+                    'location': locations.get(name),
+                })
+
+    ties = []
+    if include_ties and len(faces) == 2:
+        t_dia = tie_dia_mm if tie_dia_mm else horiz_dia_mm
+        r_mid = (r_in + r_out) / 2.0
+        for a in cw.bar_angles(a_start, sweep, r_mid, tie_spacing_mm or 400.0, end_clear_mm):
+            for frac in (0.25, 0.5, 0.75):
+                z = z0 + height_ft * frac
+                ties.append({'curves': [DB.Line.CreateBound(_xyz(r_out - cover_mm - t_dia / 2.0, a, z),
+                                                            _xyz(r_in + cover_mm + t_dia / 2.0, a, z))],
+                             'normal': DB.XYZ(-math.sin(a), math.cos(a), 0.0), 'label': u'Wall Tie'})
+    elif include_ties:
+        warnings.append(u'Ties require both wall faces — skipped.')
+
+    end_ubars = {'sets': [], 'bars': []}
+    if include_end_ubars and len(faces) == 2:
+        leg_mm = ubar_lap_length_mm if ubar_lap_length_mm else max(40.0 * u_dia, 300.0)
+        back_mm = cover_mm + u_dia / 2.0
+        r_uo, r_ui = r_out - horiz_inset, r_in + horiz_inset
+        max_leg = cw.arc_length_mm(r_ui, 0.0, sweep) - 2.0 * back_mm
+        if leg_mm > max_leg:
+            warnings.append(u'End U-bar legs cut to {:.0f} mm by the wall length (lap {:.0f} mm).'.format(
+                max_leg, leg_mm))
+            leg_mm = max_leg
+        top_limit_mm = height_mm - max(end_clear_mm, top_clear_mm)
+        u_heights = top_ubar_positions_mm(horiz_positions, top_limit_mm + end_clear_mm,
+                                          horiz_dia_mm, u_dia, end_clear_mm)
+        for a_end, into in ((a_start, sign), (a_start + sweep, -sign)):
+            ao, ai = a_end + into * back_mm / r_uo, a_end + into * back_mm / r_ui
+
+            def _u(h_mm, ao=ao, ai=ai, into=into):
+                z = z0 + h_mm / _MM_PER_FT
+                return [_arc(r_uo, ao + into * leg_mm / r_uo, ao, z),
+                        DB.Line.CreateBound(_xyz(r_uo, ao, z), _xyz(r_ui, ai, z)),
+                        _arc(r_ui, ai, ai + into * leg_mm / r_ui, z)]
+            # Revit's CreateFromCurves fails ("internal error") on an arc-leg U, while a FreeForm
+            # bar takes it (tested 2026-10-03): these go as loose bars, bundled into a FreeForm
+            end_ubars['bars'].extend({'curves': _u(h), 'normal': DB.XYZ.BasisZ, 'label': u'Wall End U-Bar'}
+                                     for h in u_heights)
+    elif include_end_ubars:
+        warnings.append(u'End U-bars require both wall faces — skipped.')
+
+    top_ubars = {'sets': [], 'bars': []}
+    if include_top_ubars and len(faces) == 2:
+        r_to, r_ti = r_out - vert_inset, r_in + vert_inset
+        leg_mm = ubar_lap_length_mm if ubar_lap_length_mm else max(40.0 * u_dia, 300.0)
+        max_leg = height_mm - 2.0 * cover_mm - u_dia
+        if leg_mm > max_leg:
+            warnings.append(u'Top U-bar legs cut to {:.0f} mm by the wall height (lap {:.0f} mm).'.format(
+                max_leg, leg_mm))
+            leg_mm = max_leg
+        z_top = z0 + height_ft - (cover_mm + u_dia / 2.0) / _MM_PER_FT
+        z_leg = z_top - leg_mm / _MM_PER_FT
+        length_v = cw.arc_length_mm(r_v_out, 0.0, sweep)
+        along = [abs(a - a_start) * r_v_out for a in vert_angles]
+        for d in top_ubar_positions_mm(along, length_v, vert_dia_mm, u_dia, end_clear_mm):
+            a = a_start + sign * d / r_v_out
+            pa, pb = _xyz(r_to, a, z_top), _xyz(r_ti, a, z_top)
+            top_ubars['bars'].append({
+                'curves': [DB.Line.CreateBound(_xyz(r_to, a, z_leg), pa), DB.Line.CreateBound(pa, pb),
+                           DB.Line.CreateBound(pb, _xyz(r_ti, a, z_leg))],
+                'normal': DB.XYZ(-math.sin(a), math.cos(a), 0.0), 'label': u'Wall Top U-Bar'})
+    elif include_top_ubars:
+        warnings.append(u'Top U-bars require both wall faces — skipped.')
+
+    if not vertical_sets and not horizontal_sets:
+        raise ValueError(u'No wall reinforcement curves could be generated.')
+    return {
+        'vertical_sets': vertical_sets,
+        'horizontal_sets': horizontal_sets,
+        'ties': ties,
+        'end_ubars': end_ubars,
+        'top_ubars': top_ubars,
+        'starter_bars': [],
         'starter_length_mm': starter_mm,
         'warnings': warnings,
     }

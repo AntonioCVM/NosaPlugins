@@ -129,12 +129,21 @@ def image_types(doc, shapes, paths):
     return out
 
 
+def _shape_id(rebar):
+    """The bar's RebarShape id, or None for a FreeForm bundle of several shapes (no single sketch)."""
+    try:
+        return rebar.GetShapeId()
+    except Exception:  # nosa-lint: disable=NOSA006 - "matched with multiple shapes": no sketch
+        return None
+
+
 def stamp_bars(doc, rebars, image_ids):
     """Point every bar's NOSA_Rebar_Shape_Image at the sketch of its shape. In a transaction."""
     from nosa_utils.revit_helpers import get_id_value
     done = 0
     for rebar in rebars:
-        image_id = image_ids.get(get_id_value(rebar.GetShapeId()))
+        shape_id = _shape_id(rebar)
+        image_id = image_ids.get(get_id_value(shape_id)) if shape_id is not None else None
         param = rebar.LookupParameter(SHAPE_IMAGE_FIELD)
         if image_id is None or param is None or param.IsReadOnly:
             continue
@@ -153,7 +162,8 @@ def nosa_rebars(doc):
 def shapes_of(doc, rebars):
     seen, out = set(), []
     for rebar in rebars:
-        shape = doc.GetElement(rebar.GetShapeId())
+        shape_id = _shape_id(rebar)
+        shape = doc.GetElement(shape_id) if shape_id is not None else None
         if shape is not None and shape.Id not in seen:
             seen.add(shape.Id)
             out.append(shape)

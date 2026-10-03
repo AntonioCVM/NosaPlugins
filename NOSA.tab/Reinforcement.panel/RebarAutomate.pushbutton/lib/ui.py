@@ -3966,7 +3966,19 @@ class RebarAutomateWindow(NOSAWindow):
         first_vertical = len(created_rebars)
         if bar_type_v is not None:
             for vs in reinforcement.get('vertical_sets', []):
-                if vs.get('count', 1) > 1 and vs.get('array_length_mm', 0) > 0:
+                if vs.get('freeform_bars'):
+                    # curved wall (T7.9): radial bars a Set cannot rotate into — one FreeForm per face
+                    rebar = wrapper.create_freeform_group(
+                        host, vs['freeform_bars'], bar_type_v,
+                        transaction_name=u'NOSA — Create Wall Vertical Mesh')
+                    if rebar is None:
+                        errors.append(u'Wall {}: vertical — {}'.format(
+                            get_id_value(host.Id), wrapper.last_error))
+                    else:
+                        self._stamp_layer(rebar, u'vertical')
+                        self._stamp_location(rebar, vs.get('location'))
+                        created_rebars.append(rebar)
+                elif vs.get('count', 1) > 1 and vs.get('array_length_mm', 0) > 0:
                     rebar = wrapper.create_rebar_set(
                         host, vs['curves'], bar_type_v, vs['spacing_mm'],
                         vs['array_length_mm'], normal=vs['normal'],
