@@ -1,4 +1,6 @@
+title: Piles
 layout:
+  - PileMaster
   - AddPileToPilecap
   - CreatePilecapType
   - PilecapLoadChecker

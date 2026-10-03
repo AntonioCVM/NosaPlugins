@@ -71,11 +71,11 @@ def _swallow_warnings(sender, args):
         args.SetProcessingResult(DB.FailureProcessingResult.ProceedWithRollBack)
 
 
-_window('ModelHealthHub', ('Structures.panel', 'Coordination.pulldown', 'ModelHealthHub.pushbutton'),
+_window('ModelHealthHub', ('Structures.panel', 'ModelHealthHub.pushbutton'),
         'ModelHealthHubWindow', doc)
-_window('DataToolsHub', ('Data.panel', 'DataTools.pulldown', 'DataToolsHub.pushbutton'),
+_window('DataToolsHub', ('Data.panel', 'DataToolsHub.pushbutton'),
         'DataToolsHubWindow', doc)
-_window('IssueWorkflowHub', ('Documentation.panel', 'Issue.pulldown', 'IssueWorkflowHub.pushbutton'),
+_window('IssueWorkflowHub', ('Documentation.panel', 'IssueWorkflowHub.pushbutton'),
         'IssueWorkflowHubWindow', doc)
 
 # Windows whose SelectionChanged/SelectedIndex moved from XAML to code (NOSA106, 2026-10-02)
@@ -91,7 +91,7 @@ for parts, cls_name in (
         (('Documentation.panel', 'Views.pulldown', 'ViewOverrides.pushbutton'), 'ViewOverridesWindow'),
         (('Documentation.panel', 'Views.pulldown', 'ViewUtilities.pushbutton'), 'ViewUtilitiesWindow'),
         (('Foundations.panel', 'FootingDesigner.pushbutton'), 'FootingDesignerWindow'),
-        (('Foundations.panel', 'PileMaster.pushbutton'), 'PileMasterWindow'),
+        (('Foundations.panel', 'PileTools.pulldown', 'PileMaster.pushbutton'), 'PileMasterWindow'),
         (('Foundations.panel', 'PileTools.pulldown', 'AddPileToPilecap.pushbutton'), 'AddPileToPilecapWindow'),
         (('Foundations.panel', 'PileTools.pulldown', 'CreatePilecapType.pushbutton'), 'CreatePilecapWindow'),
         (('Structures.panel', 'Elements.pulldown', 'StructuralTypeManager.pushbutton'), 'StructuralTypeManagerWindow'),

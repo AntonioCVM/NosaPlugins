@@ -1,9 +1,0 @@
-layout:
-  - ModelHealthHub
-  - LevelGridSync
-  - LinkChangeMonitor
-  - FoundationLoadExtractor
-  - AnalyticalHealthCheck
-  - ConnectionChecker
-  - ParameterDriftMonitor
-  - CoverCompliance

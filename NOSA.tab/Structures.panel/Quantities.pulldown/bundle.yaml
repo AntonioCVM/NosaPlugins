@@ -1,6 +1,3 @@
 layout:
-  - RebarHub
   - StructuralSchedulePro
   - MaterialManager
-  - QuantificationQA
-  - StructuralBOM

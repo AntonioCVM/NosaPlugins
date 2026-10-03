@@ -58,7 +58,7 @@ def _plugin(*parts):
 
 cap = _plugin('Foundations.panel', 'PileTools.pulldown', 'CreatePilecapType.pushbutton', 'lib', 'logic.py')
 mat = _plugin('Structures.panel', 'Quantities.pulldown', 'MaterialManager.pushbutton', 'lib', 'logic.py')
-coords = _plugin('Foundations.panel', 'PileMaster.pushbutton', 'lib', 'logic_coords.py')
+coords = _plugin('Foundations.panel', 'PileTools.pulldown', 'PileMaster.pushbutton', 'lib', 'logic_coords.py')
 qr = _plugin('Documentation.panel', 'QRCode.pushbutton', 'lib', 'qr_generator.py')
 naming = _plugin('Documentation.panel', 'Sheets.pulldown', 'SheetExportHub.pushbutton', 'lib', 'naming.py')
 

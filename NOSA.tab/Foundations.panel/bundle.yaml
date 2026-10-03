@@ -1,7 +1,5 @@
 layout:
-  - PileMaster
+  - FootingDesigner
   - PileTools
-  - WallFootings
-  - PadFootings
-  - Survey
+  - SurveyExport
   - SiteToolkit

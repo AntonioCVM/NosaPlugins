@@ -21,7 +21,7 @@ _out = []
 try:
     from nosa_utils.bootstrap import load_module
     from nosa_utils.revit_helpers import element_id_from_int
-    lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown', 'RebarAutomate.pushbutton', 'lib')
+    lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel', 'RebarAutomate.pushbutton', 'lib')
     det = load_module('probe_rebar_detailing', os.path.join(lib, 'rebar_detailing.py'))
     view = doc.GetElement(element_id_from_int(VIEW_ID))
     host = doc.GetElement(element_id_from_int(HOST))

@@ -1,5 +1,0 @@
-layout:
-  - DrawingChecker
-  - IFCStructuralExportQA
-  - FamilyAudit
-  - ScheduleImpact

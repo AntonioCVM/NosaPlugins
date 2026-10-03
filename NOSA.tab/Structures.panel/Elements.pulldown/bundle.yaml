@@ -3,5 +3,4 @@ layout:
   - PourSequencePlanner
   - ElementJoin
   - CenterBeamToColumn
-  - RebarCoverage
   - StructuralTypeManager

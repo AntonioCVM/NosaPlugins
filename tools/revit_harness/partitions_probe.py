@@ -26,7 +26,7 @@ try:
     from nosa_utils.bootstrap import load_module
     from nosa_utils.revit_helpers import element_id_from_int, get_id_value
     from Autodesk.Revit.DB.Structure import RebarHostData
-    lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown',
+    lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel',
                        'RebarAutomate.pushbutton', 'lib')
     if lib not in sys.path:
         sys.path.insert(0, lib)

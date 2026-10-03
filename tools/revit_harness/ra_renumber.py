@@ -5,7 +5,7 @@ import sys
 import clr
 clr.AddReference('RevitAPI')
 from Autodesk.Revit import DB
-_rb = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown',
+_rb = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel',
                    'RebarAutomate.pushbutton', 'lib')
 for p in (os.path.join(EXT_ROOT, 'lib'), _rb):
     if p not in sys.path:

@@ -40,7 +40,7 @@ _log = []
 
 try:
     from nosa_utils.bootstrap import load_module
-    ra_lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown',
+    ra_lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel',
                           'RebarAutomate.pushbutton', 'lib')
     ui = load_module('rebarautomate_ui', os.path.join(ra_lib, 'ui.py'))
 

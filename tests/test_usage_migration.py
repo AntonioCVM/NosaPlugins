@@ -80,7 +80,7 @@ class KeyDerivationTests(unittest.TestCase):
         p = os.path.join('x', 'NOSA.tab', 'Documentation.panel', 'Sheets.pulldown',
                          'SheetExportHub.pushbutton', 'lib', 'ui.py')
         self.assertEqual(usage.bundle_key_from_path(p), 'sheet_export_hub')
-        p = os.path.join('x', 'Issue.pulldown', 'ExportSheets.nobutton', 'lib', 'ui.py')
+        p = os.path.join('x', 'Issue.modules', 'ExportSheets.nobutton', 'lib', 'ui.py')
         self.assertEqual(usage.bundle_key_from_path(p), 'sheet_export_hub')
         self.assertIsNone(usage.bundle_key_from_path(os.path.join('x', 'lib', 'a.py')))
 

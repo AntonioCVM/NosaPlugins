@@ -2,7 +2,7 @@
 """
 Site Toolkit — Logic
 
-Three read-only inventories that Survey.pulldown doesn't cover (which is
+Three read-only inventories that Survey.modules doesn't cover (which is
 setting-out tables and pile coordinate export, not site-scale data):
   - Topography: every TopographySurface / Toposolid in the model.
   - Property lines: every PropertyLine, with perimeter length.

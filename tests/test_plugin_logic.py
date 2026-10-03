@@ -155,10 +155,10 @@ class StructuralScheduleProTests(unittest.TestCase):
 
 
 class StructuralQATests(unittest.TestCase):
-    """'Structures.panel/QA.pulldown/StructuralQA.pushbutton'"""
+    """'Structures.panel/StructuralQA.pushbutton'"""
 
     def setUp(self):
-        self.m = _plugin('Structures.panel', 'QA.pulldown', 'StructuralQA.pushbutton', 'lib',
+        self.m = _plugin('Structures.panel', 'StructuralQA.pushbutton', 'lib',
                          'logic_quantification_qa.py')
 
     def test_concrete_aggregated_by_category_material_level(self):
@@ -189,10 +189,10 @@ class StructuralQATests(unittest.TestCase):
 
 
 class StructuralQADrawingCheckerTests(unittest.TestCase):
-    """'Structures.panel/QA.pulldown/StructuralQA.pushbutton' — drawing checker reuses Template Guard rules."""
+    """'Structures.panel/StructuralQA.pushbutton' — drawing checker reuses Template Guard rules."""
 
     def test_template_guard_rules_come_from_view_template_manager(self):
-        m = _plugin('Structures.panel', 'QA.pulldown', 'StructuralQA.pushbutton', 'lib', 'logic_drawing_checker.py')
+        m = _plugin('Structures.panel', 'StructuralQA.pushbutton', 'lib', 'logic_drawing_checker.py')
         with permissive_imports():
             tg = m._templateguard_logic()
         self.assertIsNotNone(tg)
@@ -230,10 +230,10 @@ class ElementJoinTests(unittest.TestCase):
 
 
 class ElementCommentsHubTests(unittest.TestCase):
-    """'Structures.panel/ElementCommentsHub.pushbutton'"""
+    """'Data.panel/ElementCommentsHub.pushbutton'"""
 
     def test_category_key_from_builtin_category_value(self):
-        m = _plugin('Structures.panel', 'ElementCommentsHub.pushbutton', 'lib', 'logic.py')
+        m = _plugin('Data.panel', 'ElementCommentsHub.pushbutton', 'lib', 'logic.py')
         values = dict((c[2], -2000000 - i) for i, c in enumerate(m.CATEGORY_CHOICES))
         original = m.DB
         m.DB = Namespace(BuiltInCategory=Namespace(**values))
@@ -330,10 +330,10 @@ class SiteToolkitTests(unittest.TestCase):
 
 
 class SurveyExportTests(unittest.TestCase):
-    """'Foundations.panel/Survey.pulldown/SurveyExport.pushbutton'"""
+    """'Foundations.panel/SurveyExport.pushbutton'"""
 
     def setUp(self):
-        self.m = _plugin('Foundations.panel', 'Survey.pulldown', 'SurveyExport.pushbutton', 'lib',
+        self.m = _plugin('Foundations.panel', 'SurveyExport.pushbutton', 'lib',
                          'logic_cuadro_replanteo.py')
 
     def test_survey_csv_aliases_and_metres_to_mm(self):
@@ -397,10 +397,10 @@ class SheetHubTests(unittest.TestCase):
 
 
 class IssueWorkflowHubTests(unittest.TestCase):
-    """'Documentation.panel/Issue.pulldown/IssueWorkflowHub.pushbutton'"""
+    """'Documentation.panel/IssueWorkflowHub.pushbutton'"""
 
     def _m(self, name):
-        return _plugin('Documentation.panel', 'Issue.pulldown', 'IssueWorkflowHub.pushbutton', 'lib', name)
+        return _plugin('Documentation.panel', 'IssueWorkflowHub.pushbutton', 'lib', name)
 
     def test_snapshot_diff(self):
         m = self._m('logic_revision_package_diff.py')
@@ -559,10 +559,10 @@ class TextToolsTests(unittest.TestCase):
 # --------------------------------------------------------------------------- Data / coordination
 
 class DataToolsHubTests(unittest.TestCase):
-    """'Data.panel/DataTools.pulldown/DataToolsHub.pushbutton'"""
+    """'Data.panel/DataToolsHub.pushbutton'"""
 
     def _m(self, name):
-        return _plugin('Data.panel', 'DataTools.pulldown', 'DataToolsHub.pushbutton', 'lib', name)
+        return _plugin('Data.panel', 'DataToolsHub.pushbutton', 'lib', name)
 
     def test_csv_load_and_preview(self):
         m = self._m('logic_excel_sync.py')
@@ -635,10 +635,10 @@ class WorksharingAuditTests(unittest.TestCase):
 
 
 class ModelHealthHubTests(unittest.TestCase):
-    """'Structures.panel/Coordination.pulldown/ModelHealthHub.pushbutton'"""
+    """'Structures.panel/ModelHealthHub.pushbutton'"""
 
     def _m(self, name):
-        return _plugin('Structures.panel', 'Coordination.pulldown', 'ModelHealthHub.pushbutton', 'lib', name)
+        return _plugin('Structures.panel', 'ModelHealthHub.pushbutton', 'lib', name)
 
     def test_health_score(self):
         m = self._m('logic_health_score.py')
@@ -689,15 +689,15 @@ class ModelHealthHubTests(unittest.TestCase):
 # --------------------------------------------------------------------------- Hubs / dashboard
 
 class RebarHubTests(unittest.TestCase):
-    """'Structures.panel/Quantities.pulldown/RebarHub.pushbutton'"""
+    """'Reinforcement.panel/RebarHub.pushbutton'"""
 
     def test_hub_finds_its_three_tool_logics(self):
-        ui = _plugin('Structures.panel', 'Quantities.pulldown', 'RebarHub.pushbutton', 'lib', 'ui.py')
+        ui = _plugin('Reinforcement.panel', 'RebarHub.pushbutton', 'lib', 'ui.py')
         for name in ('_bs_logic', '_sched_logic', '_aud_logic'):
             self.assertTrue(os.path.isfile(getattr(ui, name).__file__), name)
 
     def test_bs8666_groups_by_partition_and_mark(self):
-        ui = _plugin('Structures.panel', 'Quantities.pulldown', 'RebarHub.pushbutton', 'lib', 'ui.py')
+        ui = _plugin('Reinforcement.panel', 'RebarHub.pushbutton', 'lib', 'ui.py')
         bar = dict(diameter=16, diameter_label=u'H16', shape=u'00', shape_desc=u'Straight',
                    length_mm=3000.0, total_len_m=6.0, mass_kg=9.47, level=u'L1', host=u'Floor')
         bars = [dict(bar, mark=u'01', partition=u'F1', quantity=2),

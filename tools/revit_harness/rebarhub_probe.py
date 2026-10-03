@@ -23,7 +23,7 @@ __builtin__.__revit__ = UIApplication(doc.Application)
 _out = []
 try:
     from nosa_utils.bootstrap import load_module
-    lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown', 'RebarHub.pushbutton', 'lib')
+    lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel', 'RebarHub.pushbutton', 'lib')
     if lib not in sys.path:
         sys.path.insert(0, lib)
     ui = load_module('probe_rebarhub_ui', os.path.join(lib, 'ui.py'))

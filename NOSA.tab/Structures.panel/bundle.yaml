@@ -1,5 +1,5 @@
 layout:
   - Elements
-  - Coordination
-  - QA
+  - ModelHealthHub
+  - StructuralQA
   - Quantities

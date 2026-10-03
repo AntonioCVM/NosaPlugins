@@ -1,6 +1,0 @@
-layout:
-  - IssueGate
-  - DrawingProtocolChecker
-  - RevisionTracker
-  - RevisionPackageDiff
-  - SheetIssueManager

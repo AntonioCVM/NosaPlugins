@@ -4,7 +4,7 @@ import os
 import sys
 import clr
 clr.AddReference('RevitAPI')
-_rb = os.path.join(EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'Quantities.pulldown',
+_rb = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel',
                    'RebarAutomate.pushbutton', 'lib')
 for p in (os.path.join(EXT_ROOT, 'lib'), _rb):
     if p not in sys.path:

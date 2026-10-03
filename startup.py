@@ -13,10 +13,10 @@ import imp
 _EXT_ROOT = os.path.dirname(__file__)
 _EXT_LIB = os.path.join(_EXT_ROOT, 'lib')
 _PILE_LIB = os.path.join(
-    _EXT_ROOT, 'NOSA.tab', 'Foundations.panel', 'PileMaster.pushbutton', 'lib'
+    _EXT_ROOT, 'NOSA.tab', 'Foundations.panel', 'PileTools.pulldown', 'PileMaster.pushbutton', 'lib'
 )
 _ELC_LIB = os.path.join(
-    _EXT_ROOT, 'NOSA.tab', 'Structures.panel', 'ElementCommentsHub.pushbutton', 'lib'
+    _EXT_ROOT, 'NOSA.tab', 'Data.panel', 'ElementCommentsHub.pushbutton', 'lib'
 )
 
 for _p in (_EXT_LIB, _PILE_LIB, _ELC_LIB):
