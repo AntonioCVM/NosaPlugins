@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """
 NOSA.RebarAutomate — BS 8666 shape images (T7.5): the sketch of every RebarShape (Revit's own
-shape-browser geometry, its dimension letters beside each segment) drawn to a PNG, set as the
-shape's image so the BBS schedule's 'Shape Image' column shows it, and reused by the Excel export.
+shape-browser geometry, its dimension letters beside each segment) drawn to a PNG, stored on each
+bar's NOSA_Rebar_Shape_Image (an Image parameter the BBS schedule shows) and reused by the Excel
+export. Revit keeps a RebarShape's own 'Shape Image' read-only for the API (system shapes have no
+family to edit), hence the bar parameter (2026-10-03).
 Drawn in pure Python: System.Drawing from IronPython crashed Revit 2024 (2026-10-03).
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -18,7 +20,7 @@ import shape_sketch
 
 _FT = 304.8
 IMAGE_PREFIX = u'NOSA_BS8666_'
-SHAPE_IMAGE_FIELD = u'Shape Image'
+SHAPE_IMAGE_FIELD = u'NOSA_Rebar_Shape_Image'
 
 
 def image_folder():
@@ -65,13 +67,10 @@ def sketch_of(doc, shape):
             straight = [i for i, k in enumerate(kinds) if k == 'line']
             for i, name in zip(straight, names):
                 labels[i] = name
-    else:
-        try:
-            names = [_param_name(doc, pid) for pid in definition.GetParameters()]
-            if polylines and names:
-                labels[0] = u', '.join(n for n in names if n)
-        except Exception:  # nosa-lint: disable=NOSA006 - an arc shape without parameters: no letters
-            pass
+    elif polylines:
+        # arc shapes (BS 8666 67, 75, 77): the definition lists every shape parameter of the
+        # family, so only the arc's own dimension letter is written
+        labels[0] = u'A'
     return polylines, labels
 
 
@@ -109,12 +108,12 @@ def all_shapes(doc):
     return list(DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape))
 
 
-def assign_images(doc, shapes, paths):
-    """Set each shape's image (one ImageType per PNG, reloaded when it exists). Call in a transaction."""
+def image_types(doc, shapes, paths):
+    """{shape id value: ImageType id}, one ImageType per PNG (reloaded when it exists). In a transaction."""
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import element_name, get_id_value
     images = dict((element_name(i), i) for i in DB.FilteredElementCollector(doc).OfClass(DB.ImageType))
-    done = 0
+    out = {}
     for shape in shapes:
         path = paths.get(get_id_value(shape.Id))
         if not path:
@@ -126,11 +125,39 @@ def assign_images(doc, shapes, paths):
             images[os.path.basename(path)] = image
         else:
             image.ReloadFrom(options)
-        param = shape.get_Parameter(DB.BuiltInParameter.ALL_MODEL_TYPE_IMAGE)
-        if param is not None and not param.IsReadOnly:
-            param.Set(image.Id)
+        out[get_id_value(shape.Id)] = image.Id
+    return out
+
+
+def stamp_bars(doc, rebars, image_ids):
+    """Point every bar's NOSA_Rebar_Shape_Image at the sketch of its shape. In a transaction."""
+    from nosa_utils.revit_helpers import get_id_value
+    done = 0
+    for rebar in rebars:
+        image_id = image_ids.get(get_id_value(rebar.GetShapeId()))
+        param = rebar.LookupParameter(SHAPE_IMAGE_FIELD)
+        if image_id is None or param is None or param.IsReadOnly:
+            continue
+        if param.Set(image_id):
             done += 1
     return done
+
+
+def nosa_rebars(doc):
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils import shared_params
+    return [r for r in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Rebar)
+            .WhereElementIsNotElementType() if shared_params.read(r, u'NOSA_Rebar_Batch_Id')]
+
+
+def shapes_of(doc, rebars):
+    seen, out = set(), []
+    for rebar in rebars:
+        shape = doc.GetElement(rebar.GetShapeId())
+        if shape is not None and shape.Id not in seen:
+            seen.add(shape.Id)
+            out.append(shape)
+    return out
 
 
 def add_shape_image_column(doc, schedule, after=u'Shape'):

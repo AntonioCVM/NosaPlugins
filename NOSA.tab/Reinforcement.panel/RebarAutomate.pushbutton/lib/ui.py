@@ -788,23 +788,26 @@ class RebarAutomateWindow(NOSAWindow):
         self._in_revit(self._assign_shape_images)
 
     def _assign_shape_images(self):
-        """T7.5 — every RebarShape gets its BS 8666 sketch; BBS schedules get the Shape Image column."""
-        shapes = shape_images.all_shapes(self.doc)
+        """T7.5 — every NOSA bar shows its shape's BS 8666 sketch; BBS schedules get the Shape column."""
+        if not self._ensure_shared_params():
+            return
+        rebars = shape_images.nosa_rebars(self.doc)
+        shapes = shape_images.shapes_of(self.doc, rebars)
         paths = shape_images.render_shapes(self.doc, shapes)
         schedules = [v for v in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewSchedule)
                      if not v.IsTemplate and u'BBS' in (v.Name or u'').upper()]
         done = added = 0
         try:
             with revit.Transaction(u'NOSA — BS 8666 Shape Images'):
-                done = shape_images.assign_images(self.doc, shapes, paths)
+                done = shape_images.stamp_bars(self.doc, rebars, shape_images.image_types(self.doc, shapes, paths))
                 for schedule in schedules:
                     if shape_images.add_shape_image_column(self.doc, schedule):
                         added += 1
         except Exception as e:
             forms.alert(u'Shape images failed:\n{}'.format(e), title=u'NOSA — Shape Images')
             return
-        msg = (u'{} of {} rebar shapes now show their BS 8666 sketch; Shape Image column added to {} '
-               u'BBS schedule(s).'.format(done, len(shapes), added))
+        msg = (u'{} of {} RebarAutomate bar(s) now carry their BS 8666 sketch ({} shapes); Shape column '
+               u'added to {} BBS schedule(s).'.format(done, len(rebars), len(shapes), added))
         self.TxtDetailingStatus.Text = msg
         forms.alert(msg, title=u'NOSA — Shape Images')
 

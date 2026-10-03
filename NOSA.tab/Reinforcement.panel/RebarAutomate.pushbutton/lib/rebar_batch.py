@@ -262,6 +262,18 @@ class RebarBatch(object):
                     except Exception as mark_err:
                         stamp_errors.append(u'Marking failed: {}'.format(mark_err))
 
+                # T7.5: BS 8666 sketch of each bar's shape for the BBS 'Shape' column
+                try:
+                    shape_images = load_module('shape_images',
+                        os.path.join(os.path.dirname(__file__), 'shape_images.py'))
+                    shapes = shape_images.shapes_of(doc, created_rebars)
+                    paths = shape_images.render_shapes(doc, shapes)
+                    with revit.Transaction(u'NOSA RebarAutomate — BS 8666 Sketches'):
+                        shape_images.stamp_bars(doc, created_rebars,
+                                                shape_images.image_types(doc, shapes, paths))
+                except Exception as sketch_err:
+                    stamp_errors.append(u'BS 8666 sketches not stamped: {}'.format(sketch_err))
+
             transaction_group.Assimilate()
         except Exception as e:
             try:

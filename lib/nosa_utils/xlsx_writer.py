@@ -155,10 +155,15 @@ def write_xlsx(path, sheet_name, rows, widths=None, heights=None, header_rows=(0
             z.writestr('xl/drawings/drawing1.xml', _drawing_xml(images).encode('utf-8'))
             rels = [u'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                     u'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">']
+            media = {}                      # one file per distinct picture, however many rows show it
             for n, image in enumerate(images, start=1):
+                key = image['png']
+                if key not in media:
+                    media[key] = len(media) + 1
+                    z.writestr('xl/media/image{}.png'.format(media[key]), key)
                 rels.append(u'<Relationship Id="rId{0}" Type="http://schemas.openxmlformats.org/'
-                            u'officeDocument/2006/relationships/image" Target="../media/image{0}.png"/>'.format(n))
-                z.writestr('xl/media/image{}.png'.format(n), image['png'])
+                            u'officeDocument/2006/relationships/image" Target="../media/image{1}.png"/>'.format(
+                                n, media[key]))
             rels.append(u'</Relationships>')
             z.writestr('xl/drawings/_rels/drawing1.xml.rels', u''.join(rels).encode('utf-8'))
     finally:

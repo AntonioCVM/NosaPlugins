@@ -9,7 +9,7 @@ own shape-browser sketch; this module fits it in an image and places the letters
 from __future__ import absolute_import, division, print_function, unicode_literals
 import math
 
-WIDTH, HEIGHT, MARGIN = 360, 180, 34        # pixels (300 dpi: 30 x 15 mm on paper)
+WIDTH, HEIGHT, MARGIN = 360, 180, 42        # pixels (300 dpi: 30 x 15 mm on paper)
 LABEL_OFFSET = 6           # clear gap between the bar and its letter
 
 
@@ -55,16 +55,32 @@ def _midpoint(line):
     return line[-1], (1.0, 0.0)
 
 
-def label_positions(pixel_lines, labels, offset=LABEL_OFFSET, char_w=24.0, char_h=28.0, line_w=5.0):
+def _box_hits_line(box, pixel_lines, clearance):
+    """True when a polyline passes within `clearance` of the text box."""
+    x0, y0, x1, y1 = box[0] - clearance, box[1] - clearance, box[2] + clearance, box[3] + clearance
+    for line in pixel_lines:
+        for a, b in zip(line[:-1], line[1:]):
+            steps = int(max(abs(b[0] - a[0]), abs(b[1] - a[1])) / 2.0) + 1
+            for i in range(steps + 1):
+                t = i / float(steps)
+                x, y = a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+                if x0 <= x <= x1 and y0 <= y <= y1:
+                    return True
+    return False
+
+
+def label_positions(pixel_lines, labels, offset=LABEL_OFFSET, char_w=24.0, char_h=28.0, line_w=5.0,
+                    width=WIDTH, height=HEIGHT):
     """
-    Where each segment's letter goes: beside the middle of its segment, on the side away from
-    the sketch's centre, clear of the bar by `offset` whatever the segment's slope (the text box's
-    reach along the normal is added). labels: one text (or '') per polyline. Returns [(text, x, y)].
+    Where each segment's letter goes: beside the middle of its segment, clear of the bar by
+    `offset` whatever the segment's slope. The side away from the sketch's centre is tried first,
+    then the inner side; a spot over another bar, another letter or off the image is skipped.
+    labels: one text (or '') per polyline. Returns [(text, x, y)].
     """
     pts = [p for line in pixel_lines for p in line]
     cx = sum(p[0] for p in pts) / float(len(pts))
     cy = sum(p[1] for p in pts) / float(len(pts))
-    out = []
+    out, boxes = [], []
     for line, text in zip(pixel_lines, labels):
         if not text:
             continue
@@ -75,9 +91,22 @@ def label_positions(pixel_lines, labels, offset=LABEL_OFFSET, char_w=24.0, char_
         if abs(nx) < 1e-9 and abs(ny) < 1e-9:
             nx, ny = 0.0, -1.0
         half_w = (len(text) * char_w - char_w / 6.0) / 2.0
-        reach = abs(nx) * half_w + abs(ny) * char_h / 2.0
-        distance = offset + reach + line_w / 2.0
-        out.append((text, mx + nx * distance, my + ny * distance))
+        half_h = char_h / 2.0
+        distance = offset + abs(nx) * half_w + abs(ny) * half_h + line_w / 2.0
+        chosen = None
+        for sign in (1.0, -1.0):
+            x, y = mx + sign * nx * distance, my + sign * ny * distance
+            box = (x - half_w, y - half_h, x + half_w, y + half_h)
+            inside = box[0] >= 0 and box[1] >= 0 and box[2] <= width and box[3] <= height
+            free = not any(box[0] < b[2] and b[0] < box[2] and box[1] < b[3] and b[1] < box[3] for b in boxes)
+            if inside and free and not _box_hits_line(box, pixel_lines, line_w / 2.0):
+                chosen = (x, y, box)
+                break
+        if chosen is None:
+            x, y = mx + nx * distance, my + ny * distance
+            chosen = (x, y, (x - half_w, y - half_h, x + half_w, y + half_h))
+        boxes.append(chosen[2])
+        out.append((text, chosen[0], chosen[1]))
     return out
 
 

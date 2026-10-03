@@ -173,6 +173,42 @@ try:
     _log.append(u'RESULT:\n' + unicode(win.TxtStairResult.Text or u''))
 
     try:
+        shapes_check = SHAPES
+    except NameError:
+        shapes_check = False
+    if shapes_check:
+        if shapes_check != 'auto':          # 'auto': only report what GENERATE stamped by itself
+            win._assign_shape_images()
+            _log.append(u'SHAPE IMAGES: ' + unicode(win.TxtDetailingStatus.Text))
+        from Autodesk.Revit.DB.Structure import RebarHostData as _RHD
+        with_image = 0
+        bars = list(_RHD.GetRebarHostData(stairs).GetRebarsInHost())
+        for bar in bars:
+            p = bar.LookupParameter(u'NOSA_Rebar_Shape_Image')
+            if p is not None and p.HasValue and p.AsElementId() != DB.ElementId.InvalidElementId:
+                with_image += 1
+        _log.append(u'  bars with image {}/{}'.format(with_image, len(bars)))
+        from nosa_utils.revit_helpers import element_name as _en
+        for v in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
+            if _en(v) == u'BBS':
+                d = v.Definition
+                _log.append(u'  BBS fields: ' + u' | '.join(d.GetField(i).ColumnHeading.replace(u'\r\n', u' ')
+                                                          for i in range(d.GetFieldCount())
+                                                          if not d.GetField(i).IsHidden))
+                body = v.GetTableData().GetSectionData(DB.SectionType.Body)
+                _log.append(u'  BBS rows {} cols {}'.format(body.NumberOfRows, body.NumberOfColumns))
+
+    try:
+        xlsx_path = XLSX
+    except NameError:
+        xlsx_path = None
+    if xlsx_path:
+        schedule_mod = load_module('rebar_schedule', os.path.join(ra_lib, 'rebar_schedule.py'))
+        data = schedule_mod.generate_schedule_data(doc)
+        ok = schedule_mod.export_xlsx(data, xlsx_path, win._bbs_sketches(data))
+        _log.append(u'XLSX {} rows {} -> {}'.format(len(data), ok, xlsx_path))
+
+    try:
         views = VIEWS
     except NameError:
         views = False
