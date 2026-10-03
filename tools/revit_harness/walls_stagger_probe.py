@@ -142,6 +142,46 @@ try:
                                                      p0.Z * _FT, p1.X * _FT, p1.Y * _FT, p1.Z * _FT,
                                                      p0.DistanceTo(p1) * _FT, q.X * _FT, q.Y * _FT, q.Z * _FT))
     try:
+        modify = MODIFY
+    except NameError:
+        modify = False
+    if modify:
+        # T7.7: split the horizontal sets to a shorter stock, show as solids, delete the host's bars
+        from System.Collections.Generic import List
+        from nosa_utils.revit_helpers import get_id_value
+        horizontal = [r for r in RebarHostData.GetRebarHostData(wall).GetRebarsInHost()
+                      if shared_params.read(r, u'NOSA_Rebar_Layer', u'') == u'horizontal']
+        win.uidoc.Selection.SetElementIds(List[DB.ElementId]([r.Id for r in horizontal]))
+        win.TxtModifyStockLength.Text = u'4000'
+        win._split_selected()
+        _log.append(u'SPLIT: ' + unicode(win.TxtDetailingStatus.Text))
+        for rebar in RebarHostData.GetRebarHostData(wall).GetRebarsInHost():
+            if shared_params.read(rebar, u'NOSA_Rebar_Layer', u'') != u'horizontal':
+                continue
+            pts = []
+            for c in rebar.GetTransformedCenterlineCurves(False, False, False,
+                                                          MultiplanarOption.IncludeOnlyPlanarCurves, 0):
+                pts.extend([c.GetEndPoint(0), c.GetEndPoint(1)])
+            last = list(rebar.GetTransformedCenterlineCurves(
+                False, False, False, MultiplanarOption.IncludeOnlyPlanarCurves, rebar.NumberOfBarPositions - 1))
+            _log.append(u'  split {} n{} x {:.0f}..{:.0f} y {:.0f} z {:.0f}..{:.0f} mark {}'.format(
+                get_id_value(rebar.Id), rebar.NumberOfBarPositions, pts[0].X * _FT, pts[-1].X * _FT,
+                pts[0].Y * _FT, pts[0].Z * _FT, last[0].GetEndPoint(0).Z * _FT,
+                shared_params.read(rebar, u'NOSA_Rebar_Mark', u'?')))
+        view3d = [v for v in DB.FilteredElementCollector(doc).OfClass(DB.View3D) if not v.IsTemplate][0]
+        rebar_modify = ui.rebar_modify
+        bars = rebar_modify.host_rebars(doc, [wall])
+        t = DB.Transaction(doc, 'NOSA test - solids')
+        t.Start()
+        state = [rebar_modify.toggle_solids(view3d, bars), rebar_modify.toggle_solids(view3d, bars)]
+        t.Commit()
+        _log.append(u'SOLIDS toggled in "{}": {}'.format(view3d.Name, state))
+        win.uidoc.Selection.SetElementIds(List[DB.ElementId]([wall.Id]))
+        win._delete_host_rebars()
+        _log.append(u'DELETE: {} | left in host {}'.format(
+            win.TxtDetailingStatus.Text, len(list(RebarHostData.GetRebarHostData(wall).GetRebarsInHost()))))
+
+    try:
         win.Close()
     except Exception as e:
         _log.append(u'close: {}'.format(e))

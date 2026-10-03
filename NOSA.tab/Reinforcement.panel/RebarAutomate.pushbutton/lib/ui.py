@@ -51,6 +51,8 @@ column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'
 beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
 wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
+rebar_modify = load_module('rebar_modify', os.path.join(_HERE, 'rebar_modify.py'))
+rebar_partitions = load_module('rebar_partitions', os.path.join(_HERE, 'rebar_partitions.py'))
 stair_rebar = load_module('stair_rebar', os.path.join(_HERE, 'stair_rebar.py'))
 stair_host = load_module('stair_host', os.path.join(_HERE, 'stair_host.py'))
 view_plan = load_module('view_plan', os.path.join(_HERE, 'view_plan.py'))
@@ -4446,37 +4448,153 @@ class RebarAutomateWindow(NOSAWindow):
             return
         forms.alert(u'Rebar schedule generation is not implemented yet — planned for Phase 5.')
 
-    def Lap_Click(self, sender, args):
-        if not getattr(self, '_is_loaded', False):
-            return
-        forms.alert(u'Lap (join collinear bars) is not implemented yet — planned for Phase 5.')
-
     def Split_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
-        forms.alert(u'Split (to commercial stock length) is not implemented yet — planned for '
-                    u'Phase 5. Note: the underlying math (rebar_engine.split_rebar_by_stock_length) '
-                    u'already exists from Phase 1 — this tool would expose it for already-placed bars.')
+        self._in_revit(self._split_selected)
 
-    def Extend_Click(self, sender, args):
-        if not getattr(self, '_is_loaded', False):
+    def _split_selected(self):
+        """T7.7 — cut the selected straight bars to the stock length, laps staggered (T7.6)."""
+        errors = []
+        stock_mm = self._read_number(self.TxtModifyStockLength.Text, u'Stock length', errors)
+        if errors or stock_mm is None or stock_mm < 1000.0:
+            forms.alert(u'Enter a stock length of at least 1000 mm.', title=u'RebarAutomate — Split')
             return
-        forms.alert(u'Extend (lengthen hooks/legs) is not implemented yet — planned for Phase 5.')
+        rebars = self._selected_rebars()
+        if not rebars:
+            forms.alert(u'Select the bars to split in the model first.', title=u'RebarAutomate — Split')
+            return
+        if not self._ensure_shared_params():
+            return
+        skipped = []
+        jobs = []
+        for rebar in rebars:
+            rid = get_id_value(rebar.Id)
+            if rebar_partitions.is_finalized(rebar):
+                skipped.append(u'{}: Finalized'.format(rid))
+                continue
+            geometry = rebar_modify.straight_set_geometry(rebar)
+            if geometry is None:
+                skipped.append(u'{}: not a set of straight bars'.format(rid))
+                continue
+            if geometry['line'].Length * 304.8 <= stock_mm + 1.0:
+                skipped.append(u'{}: already within the stock length'.format(rid))
+                continue
+            host = self.doc.GetElement(rebar.GetHostId())
+            dia = rebar_modify.bar_diameter_mm(self.doc, rebar)
+            try:
+                lap = standards.lap_length_mm(self._host_std(host), dia, False,
+                                              wall_rebar.STAGGERED_PCT_LAPPED, True)
+            except Exception:
+                lap = max(40.0 * dia, 300.0)
+            if lap >= stock_mm:
+                skipped.append(u'{}: lap {:.0f} mm is not shorter than the stock length'.format(rid, lap))
+                continue
+            jobs.append((rebar, host, geometry, lap))
+        if not jobs:
+            forms.alert(u'Nothing to split.\n' + u'\n'.join(skipped[:15]), title=u'RebarAutomate — Split')
+            return
 
-    def CopyToSimilar_Click(self, sender, args):
-        if not getattr(self, '_is_loaded', False):
-            return
-        forms.alert(u'Copy to similar hosts is not implemented yet — planned for Phase 5.')
+        def _generate():
+            wrapper = re_engine.RebarWrapper(self.doc)
+            created, errs = [], []
+            for rebar, host, geometry, lap in jobs:
+                bar_type = self.doc.GetElement(rebar.GetTypeId())
+                layer = shared_params.read(rebar, u'NOSA_Rebar_Layer', u'') or None
+                comment = rebar.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+                location = (comment.AsString() if comment else None) or None
+                new = []
+                for spec in rebar_modify.split_specs(geometry, stock_mm, lap):
+                    if spec['count'] > 1:
+                        bar = wrapper.create_rebar_set(
+                            host, spec['curves'], bar_type, spec['spacing_mm'], spec['array_length_mm'],
+                            normal=spec['normal'], transaction_name=u'NOSA — Split Rebar')
+                    else:
+                        bar = wrapper.create_from_curves(host, spec['curves'], bar_type, normal=spec['normal'],
+                                                         transaction_name=u'NOSA — Split Rebar')
+                    if bar is None:
+                        errs.append(u'{}: {}'.format(get_id_value(rebar.Id), wrapper.last_error))
+                        break
+                    self._stamp_layer(bar, layer)
+                    self._stamp_location(bar, location)
+                    new.append(bar)
+                else:
+                    with revit.Transaction(u'NOSA — Split Rebar (remove original)'):
+                        self.doc.Delete(rebar.Id)
+                    created.extend(new)
+                    continue
+                if new:
+                    with revit.Transaction(u'NOSA — Split Rebar (undo partial)'):
+                        for bar in new:
+                            self.doc.Delete(bar.Id)
+            return created, {'created': len(created), 'errors': errs, 'split': len(jobs) - len(errs)}
+
+        batch = rebar_batch.RebarBatch(
+            self.doc, standard=self.ra_standard, generator_version=self.ra_generator_version,
+            standard_code=self.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
+            layers=self._pending_layers, locations=self._pending_locations, mark_prefix=self._partition())
+        result = batch.run(_generate)
+        lines = [u'{} bar set(s) split into {} set(s).'.format(result.summary.get('split', 0), len(result.created))]
+        if skipped:
+            lines.append(u'Skipped: ' + u'; '.join(skipped[:10]))
+        lines.extend(result.errors[:10])
+        self.TxtDetailingStatus.Text = u'\n'.join(lines)
+        forms.alert(u'\n'.join(lines), title=u'RebarAutomate — Split')
 
     def DeleteHostRebars_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
-        forms.alert(u'Delete Host Rebars is not implemented yet — planned for Phase 5.')
+        self._in_revit(self._delete_host_rebars)
+
+    def _delete_host_rebars(self):
+        """T7.7 — delete the free bars of the selected hosts; Finalized bars stay."""
+        hosts = []
+        for eid in self.uidoc.Selection.GetElementIds():
+            elem = self.doc.GetElement(eid)
+            if elem is not None and _is_valid_rebar_host(elem) and not isinstance(elem, DBS.Rebar):
+                hosts.append(elem)
+        if not hosts:
+            forms.alert(u'Select the hosts (columns, beams, walls, floors, foundations, stairs) first.',
+                        title=u'RebarAutomate — Delete Host Rebars')
+            return
+        rebars = rebar_modify.host_rebars(self.doc, hosts)
+        kept = [r for r in rebars if rebar_partitions.is_finalized(r)]
+        doomed = [r for r in rebars if r not in kept]
+        if not doomed:
+            forms.alert(u'The selected hosts have no bars to delete ({} Finalized kept).'.format(len(kept)),
+                        title=u'RebarAutomate — Delete Host Rebars')
+            return
+        if not forms.alert(u'Delete {} bar element(s) from {} host(s)? {} Finalized bar(s) are kept.'.format(
+                len(doomed), len(hosts), len(kept)), title=u'RebarAutomate — Delete Host Rebars',
+                yes=True, no=True):
+            return
+        with revit.Transaction(u'NOSA — Delete Host Rebars'):
+            self.doc.Delete(List[DB.ElementId]([r.Id for r in doomed]))
+        msg = u'{} bar element(s) deleted from {} host(s); {} Finalized kept.'.format(len(doomed), len(hosts),
+                                                                                     len(kept))
+        self.TxtDetailingStatus.Text = msg
+        self._refresh_batch_list()
 
     def ToggleSolids_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
-        forms.alert(u'Show/Hide Rebar as Solids is not implemented yet — planned for Phase 5.')
+        self._in_revit(self._toggle_solids)
+
+    def _toggle_solids(self):
+        """T7.7 — selected bars (or every bar in the active 3D view) as solids, or back to wires."""
+        view = self.doc.ActiveView
+        if not isinstance(view, DB.View3D):
+            forms.alert(u'Open a 3D view first: Revit only shows bars as solids in 3D views.',
+                        title=u'RebarAutomate — Rebar as Solids')
+            return
+        rebars = self._selected_rebars() or rebar_modify.view_rebars(self.doc, view)
+        if not rebars:
+            forms.alert(u'No bars in this view.', title=u'RebarAutomate — Rebar as Solids')
+            return
+        with revit.Transaction(u'NOSA — Rebar as Solids'):
+            shown = rebar_modify.toggle_solids(view, rebars)
+        self.TxtDetailingStatus.Text = u'{} bar element(s) shown as {} in "{}".'.format(
+            len(rebars), u'solids' if shown else u'wires', element_name(view))
 
     # ── Detailing (Phase F6) ─────────────────────────────────────────────
 

@@ -1481,22 +1481,31 @@
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Modification Tools" Style="{StaticResource RA_SectionTitle}"/>
-                            <UniformGrid Columns="2" Margin="0,0,0,8">
-                                <Button Name="BtnLap" Visibility="Collapsed" Content="Lap (Join Collinear Bars)" Click="Lap_Click" Margin="0,0,4,8"/>
-                                <Button Name="BtnSplit" Visibility="Collapsed" Content="Split (To Commercial Length)" Click="Split_Click" Margin="4,0,0,8"/>
-                                <Button Name="BtnExtend" Visibility="Collapsed" Content="Extend (Hooks/Legs)" Click="Extend_Click" Margin="0,4,4,0"/>
-                                <Button Name="BtnCopyToSimilar" Visibility="Collapsed" Content="Copy to Similar Hosts" Click="CopyToSimilar_Click" Margin="4,4,0,0"/>
+                            <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.65" Margin="0,0,0,8"
+                                       Foreground="{DynamicResource TextColor}"
+                                       Text="Split cuts the selected straight bars that exceed the stock length, with laps staggered as in the generators (alternate bars, 50 % lapped). Delete Host Rebars removes the bars of the selected hosts; Finalized bars are kept."/>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="90"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Stock length (mm):" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextColor}"/>
+                                <TextBox Grid.Column="1" Name="TxtModifyStockLength" Text="12000" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <UniformGrid Columns="2">
+                                <Button Name="BtnSplit" Content="Split to Stock Length" Click="Split_Click" Margin="0,0,4,0"/>
+                                <Button Name="BtnDeleteHostRebars" Content="Delete Host Rebars" Click="DeleteHostRebars_Click" Margin="4,0,0,0"/>
                             </UniformGrid>
-                            <Button Name="BtnDeleteHostRebars" Visibility="Collapsed" Content="Delete Host Rebars"
-                                    Click="DeleteHostRebars_Click" HorizontalAlignment="Stretch"/>
                         </StackPanel>
                     </Border>
 
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Visibility" Style="{StaticResource RA_SectionTitle}"/>
-                            <Button Name="BtnToggleSolids" Visibility="Collapsed" Content="Show/Hide Rebar as Solids"
-                                    Click="ToggleSolids_Click" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnToggleSolids" Content="Show / Hide Rebar as Solids (3D view)"
+                                    Click="ToggleSolids_Click" HorizontalAlignment="Stretch"
+                                    ToolTip="In the active 3D view: show the selected bars (or all bars in the view) as unobscured solids, or back to wires."/>
                         </StackPanel>
                     </Border>
 
