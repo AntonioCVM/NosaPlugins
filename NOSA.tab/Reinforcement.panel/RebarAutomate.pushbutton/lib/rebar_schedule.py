@@ -83,6 +83,7 @@ class SchedulePosition(object):
         self.member = u''
         self.members = 1
         self.revision = u''
+        self.shape_id = None
         self.legs = None
         self.mandrel_mm = None
         self.variants = {}
@@ -241,6 +242,11 @@ def group_by_position(doc, rebar_ids):
             pos.shape_params = _read(doc, rid, "NOSA_Rebar_Shape_Params") or u""
             pos.layer = _read(doc, rid, "NOSA_Rebar_Layer") or u""
             pos.revision = _read(doc, rid, "NOSA_Rebar_Revision") or u""
+            try:
+                from nosa_utils.revit_helpers import get_id_value
+                pos.shape_id = get_id_value(rebar.GetShapeId())
+            except Exception:
+                pos.shape_id = None
             pos.unit_length_mm = _unit_length_mm(rebar)
             
             # Host mark
@@ -293,6 +299,7 @@ def _variant_rows(pos):
             'count': var['count'],
             'members': pos.members,
             'revision': pos.revision,
+            'shape_id': pos.shape_id,
             'unit_length_mm': var['unit_length_mm'],
             'total_length_mm': total_mm,
             'total_weight_kg': (total_mm / 1000.0) * mass_per_length_kg_m(pos.diameter_mm),
@@ -335,6 +342,7 @@ def generate_schedule_data(doc, batch_id=None, include_finalized=False):
             'count': pos.count,
             'members': pos.members,
             'revision': pos.revision,
+            'shape_id': pos.shape_id,
             'unit_length_mm': pos.unit_length_mm,
             'total_length_mm': total_mm,
             'total_weight_kg': weight_kg,
@@ -415,70 +423,49 @@ def export_csv(schedule_data, output_path):
         return False
 
 
-def export_xlsx(schedule_data, output_path):
+_XLSX_WIDTHS = (16, 7, 8, 7, 8, 7, 10, 7, 18, 7, 7, 7, 7, 7, 7, 7, 9, 5)
+_SKETCH_MM = (30.0, 15.0)
+
+
+def export_xlsx(schedule_data, output_path, sketches=None):
     """
-    Exporta schedule_data a XLSX (Excel).
-    Requiere openpyxl (pip install openpyxl) — si no está disponible, retorna False.
-    
-    Args:
-        schedule_data: list[dict] de generate_schedule_data()
-        output_path: path completo del archivo XLSX a crear
-    
-    Returns:
-        True si éxito, False si error o librería no disponible
+    The BBS as an Excel workbook in the BS 8666 sheet layout, with the bending sketch of each
+    mark's shape beside its shape code (T7.5). Written without openpyxl (absent in pyRevit's
+    IronPython). sketches: {shape element id: PNG path} (shape_images.render_shapes).
+    Returns True on success.
     """
+    from nosa_utils.xlsx_writer import write_xlsx
+    sketches = sketches or {}
+    columns = list(BBS_COLUMNS)
+    columns.insert(8, u'Shape')
+    rows, heights, images, pngs = [columns], {}, [], {}
+    for data, cells in zip(schedule_data, bbs_rows(schedule_data)):
+        row = [c if i in _BBS_TEXT_COLUMNS else _number_or_text(c) for i, c in enumerate(cells)]
+        row.insert(8, u'')
+        index = len(rows)
+        rows.append(row)
+        path = sketches.get(data.get('shape_id'))
+        if path:
+            if path not in pngs:
+                with open(path, 'rb') as f:
+                    pngs[path] = f.read()
+            images.append({'row': index, 'col': 8, 'png': pngs[path], 'size_mm': _SKETCH_MM,
+                           'offset_mm': (1.0, 0.6)})
+            heights[index] = 46
+    stats = get_summary_stats(schedule_data)
+    rows.append([])
+    summary_header = len(rows)
+    rows.append([u'Diameter (mm)', u'Number of bars', u'Total length (m)', u'Total weight (kg)'])
+    for dia in sorted(stats['by_diameter'].keys()):
+        d = stats['by_diameter'][dia]
+        rows.append([dia, d['count'], round(d['length_m'], 2), round(d['weight_kg'], 2)])
+    rows.append([u'TOTALS', stats['total_bars'], round(stats['total_length_m'], 2),
+                 round(stats['total_weight_kg'], 2)])
+    heights[0] = 40
     try:
-        from openpyxl import Workbook
-    except ImportError:
-        print(u'[rebar_schedule] openpyxl not available, XLSX export skipped')
-        return False
-    
-    try:
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Bar Bending Schedule"
-        
-        ws.append(list(BBS_COLUMNS))
-        for cells in bbs_rows(schedule_data):
-            ws.append([c if i in _BBS_TEXT_COLUMNS else _number_or_text(c) for i, c in enumerate(cells)])
-
-        # Formato: bold headers, auto-width
-        for cell in ws[1]:
-            cell.font = cell.font.copy(bold=True)
-        
-        for col in ws.columns:
-            max_length = 0
-            col_letter = col[0].column_letter
-            for cell in col:
-                try:
-                    if cell.value:
-                        max_length = max(max_length, len(str(cell.value)))
-                except:
-                    log_swallowed(_LOG, u'export_xlsx')
-            ws.column_dimensions[col_letter].width = min(max_length + 2, 50)
-
-        # Second sheet — "Rebar Weight Schedule" summary by diameter,
-        # matching SOFiSTiK Reinforcement's own summary sheet layout
-        # (Sizes used / Number of Bars / Total Length / Total Weight,
-        # plus a TOTALS row).
-        stats = get_summary_stats(schedule_data)
-        ws2 = wb.create_sheet(title=u'Weight Summary')
-        ws2.append([u'Diameter (mm)', u'Number of Bars', u'Total Length (m)', u'Total Weight (kg)'])
-        for dia in sorted(stats['by_diameter'].keys()):
-            d = stats['by_diameter'][dia]
-            ws2.append([dia, d['count'], round(d['length_m'], 2), round(d['weight_kg'], 2)])
-        ws2.append([u'TOTALS', stats['total_bars'], stats['total_length_m'], stats['total_weight_kg']])
-        for cell in ws2[1]:
-            cell.font = cell.font.copy(bold=True)
-        for cell in ws2[ws2.max_row]:
-            cell.font = cell.font.copy(bold=True)
-        for col in ws2.columns:
-            max_length = max((len(str(c.value)) for c in col if c.value), default=0)
-            ws2.column_dimensions[col[0].column_letter].width = min(max_length + 2, 30)
-
-        wb.save(output_path)
+        write_xlsx(output_path, u'Bar Bending Schedule', rows, widths=_XLSX_WIDTHS, heights=heights,
+                   header_rows=(0, summary_header, len(rows) - 1), images=images)
         return True
-    
     except Exception as e:
         print(u'[rebar_schedule] XLSX export failed: {}'.format(e))
         return False

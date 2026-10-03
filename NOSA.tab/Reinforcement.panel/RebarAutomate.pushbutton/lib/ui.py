@@ -55,6 +55,7 @@ stair_rebar = load_module('stair_rebar', os.path.join(_HERE, 'stair_rebar.py'))
 stair_host = load_module('stair_host', os.path.join(_HERE, 'stair_host.py'))
 view_plan = load_module('view_plan', os.path.join(_HERE, 'view_plan.py'))
 rebar_views = load_module('rebar_views', os.path.join(_HERE, 'rebar_views.py'))
+shape_images = load_module('shape_images', os.path.join(_HERE, 'shape_images.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
 preview_shapes = load_module('rebar_preview_shapes', os.path.join(_HERE, 'rebar_preview_shapes.py'))
 # PHASE F1
@@ -713,8 +714,7 @@ class RebarAutomateWindow(NOSAWindow):
             
             # Preguntar formato de export
             result = forms.CommandSwitchWindow.show(
-                # CSV opens in Excel; openpyxl is not available in pyRevit's IronPython.
-                [u'Export to CSV', u'Cancel'],
+                [u'Export to Excel (with bending sketches)', u'Export to CSV', u'Cancel'],
                 message=summary_msg,
                 title=u'Bar Bending Schedule'
             )
@@ -751,7 +751,8 @@ class RebarAutomateWindow(NOSAWindow):
             if result == u'Export to CSV':
                 success = rebar_schedule.export_csv(schedule_data, output_path)
             else:
-                success = rebar_schedule.export_xlsx(schedule_data, output_path)
+                sketches = self._bbs_sketches(schedule_data)
+                success = rebar_schedule.export_xlsx(schedule_data, output_path, sketches)
             
             if success:
                 forms.alert(u'Schedule exported successfully to:\n{}'.format(output_path),
@@ -766,6 +767,46 @@ class RebarAutomateWindow(NOSAWindow):
         except Exception as e:
             forms.alert(u'Schedule generation failed:\n{}'.format(e),
                        title=u'Error', warn_icon=True)
+
+    def _bbs_sketches(self, schedule_data):
+        """{shape id: PNG} of the shapes the schedule uses (T7.5)."""
+        from nosa_utils.revit_helpers import element_id_from_int
+        shapes = []
+        for shape_id in set(row.get('shape_id') for row in schedule_data if row.get('shape_id')):
+            shape = self.doc.GetElement(element_id_from_int(shape_id))
+            if shape is not None:
+                shapes.append(shape)
+        try:
+            return shape_images.render_shapes(self.doc, shapes)
+        except Exception as e:
+            print(u'[rebar_schedule] bending sketches skipped: {}'.format(e))
+            return {}
+
+    def ShapeImages_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._assign_shape_images)
+
+    def _assign_shape_images(self):
+        """T7.5 — every RebarShape gets its BS 8666 sketch; BBS schedules get the Shape Image column."""
+        shapes = shape_images.all_shapes(self.doc)
+        paths = shape_images.render_shapes(self.doc, shapes)
+        schedules = [v for v in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewSchedule)
+                     if not v.IsTemplate and u'BBS' in (v.Name or u'').upper()]
+        done = added = 0
+        try:
+            with revit.Transaction(u'NOSA — BS 8666 Shape Images'):
+                done = shape_images.assign_images(self.doc, shapes, paths)
+                for schedule in schedules:
+                    if shape_images.add_shape_image_column(self.doc, schedule):
+                        added += 1
+        except Exception as e:
+            forms.alert(u'Shape images failed:\n{}'.format(e), title=u'NOSA — Shape Images')
+            return
+        msg = (u'{} of {} rebar shapes now show their BS 8666 sketch; Shape Image column added to {} '
+               u'BBS schedule(s).'.format(done, len(shapes), added))
+        self.TxtDetailingStatus.Text = msg
+        forms.alert(msg, title=u'NOSA — Shape Images')
 
     def BtnExportBvbs_Click(self, sender, args):
         """Export BVBS (.abs) BF2D records for the CNC bending machine (BVBS Guideline 3.1, T4.1)."""

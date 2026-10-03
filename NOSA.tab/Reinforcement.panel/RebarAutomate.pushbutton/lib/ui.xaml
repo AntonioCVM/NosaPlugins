@@ -1537,6 +1537,9 @@
                             </UniformGrid>
                             <Button Name="BtnAutoSections" Content="Auto Detail Sections (X + Y)..."
                                     Click="AutoSections_Click" HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnShapeImages" Content="BS 8666 Shape Images for the BBS"
+                                    Click="ShapeImages_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                    ToolTip="Draw the BS 8666 sketch (dimension letters A, B, C…) of every rebar shape, set it as the shape's image and add the Shape Image column to the BBS schedules."/>
                             <Button Name="BtnLoadContent" Content="Load NOSA Families"
                                     Click="LoadContent_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"
                                     ToolTip="Load the packaged NOSA annotation families (data/content_manifest.json), replacing missing or out-of-date copies."/>
