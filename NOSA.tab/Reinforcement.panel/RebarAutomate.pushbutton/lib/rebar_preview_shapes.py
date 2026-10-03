@@ -6,6 +6,7 @@ Revit, no WPF — so it runs under the plain test runner.
 
 Each shape is a dict with a 'kind':
     'concrete'  x0, y0, x1, y1                 element outline (orange)
+    'outline'   points [(x, y), ...]           element outline as a polygon (orange)
     'ground'    x0, y0, x1, y1                 foundation / supporting concrete (grey)
     'bar'       points [(x, y), ...], dia_mm, role    reinforcement centreline
     'dot'       x, y, dia_mm, role, hollow     bar seen end-on
@@ -324,4 +325,43 @@ def wall_section_shapes(thickness_mm, height_mm, cover_mm, vert_dia, vert_spacin
     shapes.append(_text(fw / 2.0 + 40.0, h * 0.8 - 300.0, u'cover {:g}'.format(c)))
     if straight_extension:
         shapes.append(_text(fw / 2.0 + 40.0, -fd / 2.0, u'Verticals down to foundation bottom'))
+    return shapes
+
+
+def typical_stair_flight():
+    """A 10-riser 176.5 / 280 flight on a floor, 150 mm landing at the top (Revit 'Concrete Stair')."""
+    return {'length': 2520.0, 'slope': 176.5 / 280.0, 'soffit_z0': -193.0, 'pitch_z0': 0.0,
+            'v_min': -500.0, 'v_max': 500.0, 'risers': 10, 'riser': 176.5, 'tread': 280.0,
+            'lower': {'kind': 'floor', 'top': 0.0, 'bottom': 0.0, 's_far': 0.0},
+            'upper': {'kind': 'landing', 'top': 1765.0, 'bottom': 1615.0, 's_far': 3520.0}}
+
+
+def stair_section_shapes(run, cover, main_dia, main_spacing, top_dia, top_spacing, dist_dia,
+                         dist_spacing, anchorage, slab_anchor=True):
+    """Longitudinal section of one flight (stair_rebar geometry): bars in plane, distribution end-on."""
+    import stair_rebar
+    shapes = [{'kind': 'outline', 'points': stair_rebar.section_profile(run)}]
+    sets = stair_rebar.build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing,
+                                    anchorage, top_dia=top_dia, top_spacing=top_spacing,
+                                    slab_anchor=slab_anchor)
+    labels = []
+    for st in sets:
+        if st['axis'] == 'v':
+            pts = st['points']
+            role = 'ubar' if st['layer'] == 'stair_knee' else 'main'
+            shapes.append(_bar(pts, st['dia'], role))
+        else:
+            (s0, z0), = st['points']
+            ds, dz = st['direction']
+            for d in _spaced(0.0, st['array'], st['spacing']):
+                shapes.append(_dot(s0 + ds * d, z0 + dz * d, st['dia'], 'link'))
+    top_z = run['upper']['top']
+    labels.append((top_z, u'T  H{:g} @ {:g} (top, over the upper knee)'.format(top_dia, top_spacing)))
+    labels.append((top_z - 400.0, u'B  H{:g} @ {:g} (bottom, crossed at the upper knee)'.format(
+        main_dia, main_spacing)))
+    labels.append((top_z - 800.0, u'Knee bars (brown) anchored across re-entrant corners'))
+    labels.append((top_z - 1200.0, u'Distribution H{:g} @ {:g}, both faces'.format(dist_dia, dist_spacing)))
+    x_max = max(p[0] for p in shapes[0]['points'])
+    for y, text in labels:
+        shapes.append(_text(x_max, y, text))
     return shapes

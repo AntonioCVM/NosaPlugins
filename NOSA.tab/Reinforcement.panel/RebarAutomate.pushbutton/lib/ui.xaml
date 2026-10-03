@@ -1138,6 +1138,138 @@
         </Grid>
         </TabItem>
 
+        <!-- ═══ STAIRS (T7.8) — cast-in-place stairs, bars hosted on the Stairs element ═══ -->
+        <TabItem Header="Stairs">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="380"/>
+            </Grid.ColumnDefinitions>
+
+        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20,16,20">
+
+                    <TextBlock Text="Select one or more cast-in-place (monolithic) Stairs in the model, then run. Straight flights with their landings are reinforced; winders and curved runs are skipped. Cover is the stair's own Rebar Cover."
+                               FontSize="11" TextWrapping="Wrap"
+                               Foreground="{DynamicResource TextColor}" Opacity="0.65"
+                               Margin="0,0,0,16"/>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Main Bars — Bottom (soffit)" Style="{StaticResource RA_SectionTitle}"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtStairMainDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtStairMainSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Main Bars — Top" Style="{StaticResource RA_SectionTitle}"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtStairTopDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtStairTopSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Distribution Bars (both faces, landings across)" Style="{StaticResource RA_SectionTitle}"/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtStairDistDia" Text="8" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Spacing (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                                <TextBox Grid.Column="1" Name="TxtStairDistSpacing" Text="200" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Ends" Style="{StaticResource RA_SectionTitle}"/>
+                            <CheckBox Name="ChkStairSlabAnchor" Content="Lap into the floor slab where a flight ends without a landing" IsChecked="True"
+                                      ToolTip="The flight bars run on into the slab by a tension anchorage length (they leave the stair). Untick when the slab is reinforced to receive the flight."/>
+                            <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource TextColor}"
+                                       Text="Knees (EC2 / IStructE): bars on the re-entrant face are never bent round the corner — they run straight on and anchor in the opposite face (bottom bars into the upper landing top, landing bottom bars into the flight). Bars on the convex face are continuous. Top and bottom flight bars are staggered half a spacing so they never meet in a landing. Landings get transverse bars on both faces and their own bars where no flight continues through (stairwell gap)."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Button Name="BtnRunStairReinforcement" Content="GENERATE REINFORCEMENT"
+                            Click="RunStairReinforcement_Click" Style="{DynamicResource ActionButton}"
+                            HorizontalAlignment="Stretch" Height="52" FontSize="14" FontWeight="Bold"
+                            Margin="0,4,0,16"/>
+
+                    <Border Style="{DynamicResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Result" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBox Name="TxtStairResult" Text="No run yet."
+                                     FontSize="11" FontFamily="Consolas" TextWrapping="Wrap"
+                                     IsReadOnly="True" BorderThickness="0" Background="Transparent"
+                                     Foreground="{DynamicResource TextColor}" Opacity="0.75"/>
+                        </StackPanel>
+                    </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Column="1" Background="{DynamicResource PanelColor}"
+                BorderBrush="{DynamicResource BorderColor}" BorderThickness="1,0,0,0">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="16,20,20,20">
+                <TextBlock Text="Section Preview" Style="{StaticResource RA_SectionTitle}"/>
+                <Border BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"
+                        Background="{DynamicResource BgColor}" Height="420">
+                    <Viewbox Stretch="Uniform">
+                        <Canvas Name="StairSectionCanvas" Width="340" Height="560"
+                                Background="Transparent" ClipToBounds="True"/>
+                    </Viewbox>
+                </Border>
+                <TextBlock Name="TxtStairPreviewNote" FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"
+                           Text="Longitudinal section along the first flight of the selected stair (or a typical flight)."/>
+            </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        </Grid>
+        </TabItem>
+
         <!-- ═══ DETAILING & TOOLS (Dashboard — placeholders, Phase 5) ═══ -->
         <TabItem Header="Detailing &amp; Tools">
             <ScrollViewer VerticalScrollBarVisibility="Auto">

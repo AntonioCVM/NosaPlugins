@@ -51,6 +51,8 @@ column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'
 beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
 wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
+stair_rebar = load_module('stair_rebar', os.path.join(_HERE, 'stair_rebar.py'))
+stair_host = load_module('stair_host', os.path.join(_HERE, 'stair_host.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
 preview_shapes = load_module('rebar_preview_shapes', os.path.join(_HERE, 'rebar_preview_shapes.py'))
 # PHASE F1
@@ -159,6 +161,9 @@ class _ReinforcementEventHandler(IExternalEventHandler):
             elif mode == 'walls':
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_Walls')])
                 prompt = u'Select Walls to reinforce, then click Finish.'
+            elif mode == 'stairs':
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_Stairs')])
+                prompt = u'Select cast-in-place Stairs to reinforce, then click Finish.'
             else:
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFoundation'), _cat_id('OST_Floors')])
                 prompt = (u'Select Structural Foundations and/or Floors to reinforce, '
@@ -251,6 +256,30 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 finally:
                     window.SetLoading(False)
                 window._show_wall_result(elements, summary)
+                window._refresh_batch_list()
+            elif mode == 'stairs':
+                if not elements:
+                    forms.alert(u'No cast-in-place Stairs selected. Assembled and precast stairs '
+                                u'cannot host rebar.')
+                    return
+                window.SetLoading(True, u'Generating stair reinforcement…')
+                try:
+                    batch = rebar_batch.RebarBatch(
+                        window.doc, standard=window.ra_standard,
+                        generator_version=window.ra_generator_version,
+                        standard_code=window.ra_project.get('standard_code', rebar_project.DEFAULT_STANDARD_CODE),
+                        layers=window._pending_layers, locations=window._pending_locations,
+                        mark_prefix=window._partition())
+                    batch_result = batch.run(
+                        lambda: window._run_stair_reinforcement(elements, values))
+                    summary = dict(batch_result.summary)
+                    summary['errors'] = batch_result.errors
+                except Exception as e:
+                    forms.alert(u'Stair reinforcement generation failed:\n{}'.format(e))
+                    return
+                finally:
+                    window.SetLoading(False)
+                window._show_stair_result(elements, summary)
                 window._refresh_batch_list()
             else:
                 footings = [e for e in elements if e.Category is not None and
@@ -393,6 +422,7 @@ class RebarAutomateWindow(NOSAWindow):
         self._update_column_preview()
         self._update_beam_preview()
         self._update_wall_preview()
+        self._update_stair_preview()
         # PHASE 3.5 item 3 — re-read the CURRENT Revit selection once
         # the window is fully shown (Canvas layout/measurement hasn't
         # necessarily settled at construction time) and again every
@@ -437,6 +467,7 @@ class RebarAutomateWindow(NOSAWindow):
         self._update_column_preview()
         self._update_beam_preview()
         self._update_wall_preview()
+        self._update_stair_preview()
 
     # ── normativa (rebar standard) — PHASE F2 ───────────────────────────
 
@@ -817,7 +848,7 @@ class RebarAutomateWindow(NOSAWindow):
         """Every check box, text box and combo box of a tab refreshes that tab's preview at once."""
         from System.Windows import LogicalTreeHelper, DependencyObject
         handlers = (self.Preview_Changed, self.ColumnPreview_Changed,
-                    self.BeamPreview_Changed, self.WallPreview_Changed)
+                    self.BeamPreview_Changed, self.WallPreview_Changed, self.StairPreview_Changed)
 
         def descendants(node):
             for child in LogicalTreeHelper.GetChildren(node):
@@ -845,6 +876,7 @@ class RebarAutomateWindow(NOSAWindow):
         self._update_column_preview()
         self._update_beam_preview()
         self._update_wall_preview()
+        self._update_stair_preview()
 
     def Preview_Changed(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -1024,6 +1056,9 @@ class RebarAutomateWindow(NOSAWindow):
             elif sh['kind'] == 'level':
                 xs += [sh['x0'], sh['x1']]
                 ys.append(sh['y'])
+            elif sh['kind'] == 'outline':
+                xs += [p[0] for p in sh['points']]
+                ys += [p[1] for p in sh['points']]
         if not xs:
             return
         texts = [sh for sh in shapes if sh['kind'] == 'text']
@@ -1067,6 +1102,13 @@ class RebarAutomateWindow(NOSAWindow):
                 SWC.Canvas.SetLeft(rect, sx(sh['x0']))
                 SWC.Canvas.SetTop(rect, sy(sh['y1']))
                 canvas.Children.Add(rect)
+            elif kind == 'outline':
+                poly = SWS.Polygon()
+                for x, y in sh['points']:
+                    poly.Points.Add(System.Windows.Point(sx(x), sy(y)))
+                poly.Stroke, poly.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                poly.StrokeThickness = 1.2
+                canvas.Children.Add(poly)
             elif kind == 'circle':
                 ell = SWS.Ellipse()
                 ell.Width = ell.Height = 2 * sh['r'] * scale
@@ -3891,6 +3933,147 @@ class RebarAutomateWindow(NOSAWindow):
             except Exception as e:
                 errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), e))
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
+
+    # ── Stairs (T7.8) ──────────────────────────────────────────────────────
+
+    _STAIR_LOCATIONS = {u'Stair Flight Bottom': u'B1', u'Stair Flight Top': u'T1',
+                        u'Stair Upper Knee': u'B1', u'Stair Lower Knee': u'T1',
+                        u'Stair Flight Distribution Bottom': u'B2',
+                        u'Stair Flight Distribution Top': u'T2',
+                        u'Stair Landing Transverse Top': u'T2', u'Stair Landing Transverse Bottom': u'B2',
+                        u'Stair Landing Top': u'T1', u'Stair Landing Bottom': u'B1'}
+
+    def _read_stair_inputs(self):
+        errors = []
+        values = {
+            'main_dia': self._read_number(self.TxtStairMainDia.Text, u'Bottom bar diameter', errors),
+            'main_spacing': self._read_number(self.TxtStairMainSpacing.Text, u'Bottom bar spacing', errors),
+            'top_dia': self._read_number(self.TxtStairTopDia.Text, u'Top bar diameter', errors),
+            'top_spacing': self._read_number(self.TxtStairTopSpacing.Text, u'Top bar spacing', errors),
+            'dist_dia': self._read_number(self.TxtStairDistDia.Text, u'Distribution bar diameter', errors),
+            'dist_spacing': self._read_number(self.TxtStairDistSpacing.Text, u'Distribution bar spacing', errors),
+            'slab_anchor': self.ChkStairSlabAnchor.IsChecked == True,
+        }
+        if errors:
+            forms.alert(u'\n'.join(errors))
+            return None
+        return values
+
+    def RunStairReinforcement_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        values = self._read_stair_inputs()
+        if values is None:
+            return
+        self._reinforcement_handler.pending = {'mode': 'stairs', 'values': values}
+        self.Hide()
+        self._reinforcement_event.Raise()
+
+    def StairPreview_Changed(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._update_stair_preview()
+
+    def _selected_stairs(self):
+        stairs = []
+        for eid in self.uidoc.Selection.GetElementIds():
+            elem = self.doc.GetElement(eid)
+            if elem is not None and elem.Category is not None and \
+                    get_id_value(elem.Category.Id) == _cat_id('OST_Stairs') and \
+                    stair_host.is_cast_in_place(elem):
+                stairs.append(elem)
+        return stairs
+
+    def _update_stair_preview(self):
+        """Longitudinal section of the selected stair's first flight, else a typical flight."""
+        try:
+            main_dia = float(self.TxtStairMainDia.Text)
+            main_spacing = float(self.TxtStairMainSpacing.Text)
+            top_dia = float(self.TxtStairTopDia.Text)
+            top_spacing = float(self.TxtStairTopSpacing.Text)
+            dist_dia = float(self.TxtStairDistDia.Text)
+            dist_spacing = float(self.TxtStairDistSpacing.Text)
+        except (TypeError, ValueError, AttributeError):
+            return
+        if min(main_dia, main_spacing, top_dia, top_spacing, dist_dia, dist_spacing) <= 0:
+            return
+        run, cover, note = None, 40.0, u'Typical flight — select a cast-in-place stair to see its own.'
+        try:
+            selected = self._selected_stairs()
+            if selected:
+                data = stair_host.read_stairs(self.doc, selected[0])
+                if data['runs']:
+                    run = data['runs'][0]
+                    cover = stair_host.host_cover_mm(selected[0], cover)
+                    note = u'First flight of stair {}.'.format(get_id_value(selected[0].Id))
+        except Exception:
+            log_swallowed(_LOG, u'_update_stair_preview')
+        if run is None:
+            run = preview_shapes.typical_stair_flight()
+        try:
+            shapes = preview_shapes.stair_section_shapes(
+                run, cover, main_dia, main_spacing, top_dia, top_spacing, dist_dia, dist_spacing,
+                self._anchorage_mm(None, main_dia),
+                slab_anchor=self.ChkStairSlabAnchor.IsChecked == True)
+        except Exception:
+            log_swallowed(_LOG, u'_update_stair_preview shapes')
+            return
+        self._draw_shapes(self.StairSectionCanvas, shapes)
+        self.TxtStairPreviewNote.Text = note
+
+    def _show_stair_result(self, stairs, summary):
+        lines = [u'{} stair(s) processed.'.format(len(stairs)),
+                 u'{} Rebar element(s) created (sets count as one each).'.format(summary.get('created', 0))]
+        if summary.get('errors'):
+            lines += [u'', u'{} issue(s):'.format(len(summary['errors']))] + list(summary['errors'])
+        self.TxtStairResult.Text = u'\n'.join(lines)
+
+    def _run_stair_reinforcement(self, stairs, values):
+        errors = []
+        bar_types = {}
+        for dia in {values['main_dia'], values['top_dia'], values['dist_dia']}:
+            bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+            if bar_types[dia] is None:
+                errors.append(u'No RebarBarType found for {:g} mm — those bars are skipped.'.format(dia))
+        wrapper = re_engine.RebarWrapper(self.doc)
+        created = []
+        for host in stairs:
+            hid = get_id_value(host.Id)
+            try:
+                data = stair_host.read_stairs(self.doc, host)
+            except Exception as e:
+                errors.append(u'Stair {}: could not read its geometry — {}'.format(hid, e))
+                continue
+            errors.extend(u'Stair {}: {}'.format(hid, w) for w in data['warnings'])
+            cover = stair_host.host_cover_mm(host, self._standard_default_cover_mm(u'slab'))
+            anchorage = self._anchorage_mm(host, values['main_dia'])
+            jobs = []
+            for run in data['runs']:
+                for bar_set in stair_rebar.build_flight(
+                        run, cover, values['main_dia'], values['main_spacing'], values['dist_dia'],
+                        values['dist_spacing'], anchorage, top_dia=values['top_dia'],
+                        top_spacing=values['top_spacing'], slab_anchor=values['slab_anchor']):
+                    jobs.append((run['frame'], bar_set))
+                if run['upper']['kind'] == 'floor' and values['slab_anchor']:
+                    errors.append(u'Stair {}: a flight ends without a landing — its bars are lapped '
+                                  u'{:.0f} mm into the floor slab beyond.'.format(hid, anchorage))
+            for landing in data['landings']:
+                for bar_set in stair_rebar.build_landing(
+                        landing, cover, values['main_dia'], values['dist_dia'], values['dist_spacing'],
+                        values['main_spacing'], landing['strips'], landing['parallel']):
+                    jobs.append((landing['frame'], bar_set))
+            for frame, bar_set in jobs:
+                bar_type = bar_types.get(bar_set['dia'])
+                if bar_type is None:
+                    continue
+                rebar = stair_host.create_set(wrapper, host, frame, bar_set, bar_type)
+                if rebar is None:
+                    errors.append(u'Stair {}: {} — {}'.format(hid, bar_set['label'], wrapper.last_error))
+                    continue
+                self._stamp_layer(rebar, bar_set['layer'])
+                self._stamp_location(rebar, self._STAIR_LOCATIONS.get(bar_set['label']))
+                created.append(rebar)
+        return created, {'created': len(created), 'errors': errors}
 
     # ── Detailing & Tools — dashboard (Phase 1 placeholders) ────────────────
     # Every handler below is wired (not disabled) so the button gives real
