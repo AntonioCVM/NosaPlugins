@@ -1475,6 +1475,9 @@
                                        Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
                             <Button Name="BtnExportBvbs" Content="Export BVBS (.abs)..."
                                     HorizontalAlignment="Stretch"/>
+                            <Button Name="BtnExportPackage" Content="Export Fabrication Package (BBS + BVBS)..."
+                                    HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                    ToolTip="One folder for the fabricator: the BBS as Excel (with BS 8666 sketches) and CSV, plus the BVBS file for the bending machine. No model is shared."/>
                         </StackPanel>
                     </Border>
 

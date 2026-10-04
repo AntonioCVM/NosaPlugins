@@ -158,6 +158,18 @@ try:
                                                      p0.Z * _FT, p1.X * _FT, p1.Y * _FT, p1.Z * _FT,
                                                      p0.DistanceTo(p1) * _FT, q.X * _FT, q.Y * _FT, q.Z * _FT))
     try:
+        package = PACKAGE
+    except NameError:
+        package = None
+    if package:
+        # T7.10: BBS xlsx + csv + BVBS into a folder
+        data = ui.rebar_schedule.generate_schedule_data(doc, batch_id=None, include_finalized=False)
+        files, notes = win._write_fabrication_package(data, package, u'1')
+        _log.append(u'PACKAGE: {} positions | {}'.format(len(data), notes))
+        for f in files:
+            _log.append(u'  {} {} bytes'.format(os.path.basename(f), os.path.getsize(f)))
+
+    try:
         views = VIEWS
     except NameError:
         views = False

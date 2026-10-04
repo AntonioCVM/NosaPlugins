@@ -43,8 +43,16 @@ def build_stairs():
     r1 = DBA.StairsRun.CreateStraightRun(doc, sid, DB.Line.CreateBound(DB.XYZ(0, 0, 0), DB.XYZ(8, 0, 0)),
                                          DBA.StairsRunJustification.Center)
     z = r1.TopElevation
-    r2 = DBA.StairsRun.CreateStraightRun(doc, sid, DB.Line.CreateBound(DB.XYZ(8, 5, z), DB.XYZ(0, 5, z)),
-                                         DBA.StairsRunJustification.Center)
+    try:
+        shape = SHAPE
+    except NameError:
+        shape = 'U'
+    if shape == 'L':
+        r2 = DBA.StairsRun.CreateStraightRun(doc, sid, DB.Line.CreateBound(DB.XYZ(10, 2, z), DB.XYZ(10, 10, z)),
+                                             DBA.StairsRunJustification.Center)
+    else:
+        r2 = DBA.StairsRun.CreateStraightRun(doc, sid, DB.Line.CreateBound(DB.XYZ(8, 5, z), DB.XYZ(0, 5, z)),
+                                             DBA.StairsRunJustification.Center)
     DBA.StairsLanding.CreateAutomaticLanding(doc, r1.Id, r2.Id)
     t.Commit()
     scope.Commit(_Quiet())

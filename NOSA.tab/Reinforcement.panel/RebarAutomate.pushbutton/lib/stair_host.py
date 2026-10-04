@@ -167,6 +167,8 @@ def read_stairs(doc, stairs):
         frame_run = attached[0]
         upper_side = frame_run['upper'].get('element') is data['element']
         for r in attached:
+            if abs(abs(r['frame'].u.DotProduct(frame.u)) - 1.0) > 1e-3:
+                continue        # a perpendicular flight (L / quarter landing) joins along a side
             path = list(r['element'].GetStairsPath())[0]
             joint = path.GetEndPoint(1) if r['upper'].get('element') is data['element'] else path.GetEndPoint(0)
             s_joint, _v = frame.local(joint)

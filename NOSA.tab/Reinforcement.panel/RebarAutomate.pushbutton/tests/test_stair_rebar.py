@@ -235,3 +235,17 @@ def test_preview_draws_starters_and_landing_ubars():
     roles = [s['role'] for s in shapes if s['kind'] == 'bar']
     assert roles.count('starter') == 2 and roles.count('ubar') >= 2
     assert [s for s in shapes if s['kind'] == 'ground']
+
+
+def test_quarter_landing_of_an_l_stair_covers_its_whole_area():
+    landing = {'s_min': 2520.0, 's_max': 3548.0, 'v_min': -500.0, 'v_max': 610.0,
+               'top': 1765.0, 'bottom': 1515.0}
+    sets = sr.build_landing(landing, COVER, 12.0, 8.0, 200.0, 200.0, [(-500.0, 500.0)], False,
+                            u_dia=10.0, u_edges=('s_max', 'v_min'))
+    labels = [s['label'] for s in sets]
+    assert labels.count(u'Stair Landing Top') == 1 and labels.count(u'Stair Landing Bottom') == 1
+    top = [s for s in sets if s['label'] == u'Stair Landing Top'][0]
+    # without parallel flights the bars along s fill the full landing width
+    assert top['first'] < -400.0 and top['first'] + top['array'] > 500.0
+    assert any(s.get('points_vz') for s in sets if s['layer'] == u'stair_landing_ubar')
+    assert any(s.get('points') for s in sets if s['layer'] == u'stair_landing_ubar')

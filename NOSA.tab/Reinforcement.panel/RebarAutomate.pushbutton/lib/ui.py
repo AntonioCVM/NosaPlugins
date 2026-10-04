@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os, sys
+import re
 
 from pyrevit import forms, revit
 from Autodesk.Revit import DB
@@ -622,6 +623,7 @@ class RebarAutomateWindow(NOSAWindow):
         # Cablear botón Generate Schedule (F5)
         self.BtnGenerateSchedule.Click += self.BtnGenerateSchedule_Click
         self.BtnExportBvbs.Click += self.BtnExportBvbs_Click
+        self.BtnExportPackage.Click += self.BtnExportPackage_Click
 
     def _kicker_mm(self):
         """Kicker height (mm): the value in the box, else the project setting; laps are measured above it."""
@@ -858,6 +860,58 @@ class RebarAutomateWindow(NOSAWindow):
             subprocess.Popen(['explorer', '/select,', output_path])
         except Exception as e:
             forms.alert(u'BVBS export failed:\n{}'.format(e), title=u'Error', warn_icon=True)
+
+    def BtnExportPackage_Click(self, sender, args):
+        """T7.10 — one folder for the fabricator: BBS (Excel with sketches + CSV) and the BVBS file."""
+        if not getattr(self, '_is_loaded', False):
+            return
+        try:
+            schedule_data = rebar_schedule.generate_schedule_data(
+                self.doc, batch_id=None, include_finalized=False)
+            if not schedule_data:
+                forms.alert(u'No NOSA rebars found in the project.', title=u'Fabrication Package')
+                return
+            schedule_no = forms.ask_for_string(
+                default=u'1', prompt=u'Bar bending schedule / drawing number:', title=u'Fabrication Package')
+            if schedule_no is None:
+                return
+            from System.Windows.Forms import FolderBrowserDialog, DialogResult
+            dlg = FolderBrowserDialog()
+            dlg.Description = u'Folder for the BBS and BVBS files'
+            if dlg.ShowDialog() != DialogResult.OK:
+                return
+            files, notes = self._write_fabrication_package(schedule_data, dlg.SelectedPath, schedule_no)
+            forms.alert(u'\n'.join([u'Fabrication package written:'] + files + notes), title=u'Export Complete')
+            import subprocess
+            subprocess.Popen(['explorer', dlg.SelectedPath])
+        except Exception as e:
+            forms.alert(u'Fabrication package failed:\n{}'.format(e), title=u'Error', warn_icon=True)
+
+    def _write_fabrication_package(self, schedule_data, folder, schedule_no):
+        """Write <title>_BBS.xlsx, <title>_BBS.csv and <title>.abs to folder -> (paths, notes)."""
+        base = re.sub(r'[\\/:*?"<>|]', u'_', self.doc.Title or u'Rebar')
+        files, notes = [], []
+        xlsx = os.path.join(folder, u'{}_BBS.xlsx'.format(base))
+        if rebar_schedule.export_xlsx(schedule_data, xlsx, self._bbs_sketches(schedule_data)):
+            files.append(xlsx)
+        csv_path = os.path.join(folder, u'{}_BBS.csv'.format(base))
+        if rebar_schedule.export_csv(schedule_data, csv_path):
+            files.append(csv_path)
+        try:
+            project_no = self.doc.ProjectInformation.Number or u''
+        except Exception:
+            project_no = u''
+        steel_grade = ((self.ra_standard or {}).get('steel') or {}).get('default_grade', u'B500B')
+        abs_path = os.path.join(folder, u'{}.abs'.format(base))
+        written, without_geometry = rebar_export_bvbs.export_bvbs_file(
+            schedule_data, abs_path, project_no=project_no, schedule_no=schedule_no,
+            revision=self.ra_project.get('revision', u''), steel_grade=steel_grade)
+        files.append(abs_path)
+        notes.append(u'{} BVBS record(s) ({}).'.format(written, rebar_export_bvbs.BVBS_GUIDELINE))
+        if without_geometry:
+            notes.append(u'{} position(s) without bending geometry: the fabricator bends these from '
+                         u'the schedule.'.format(without_geometry))
+        return files, notes
 
     # ── section enable/disable ───────────────────────────────────────────
 
