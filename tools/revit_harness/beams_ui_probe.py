@@ -74,6 +74,10 @@ def build_line():
     col = [s for s in symbols if s.FamilyName == 'Concrete Rectangular' and element_name(s) == '450x600mm'][0]
     beam = [s for s in symbols if s.FamilyName == 'RC Beam' and element_name(s) == '300x600mm'][0]
     t = DB.Transaction(doc, 'NOSA test - beam line')
+    ops = t.GetFailureHandlingOptions()
+    ops.SetFailuresPreprocessor(_RollbackOnError())
+    ops.SetForcedModalHandling(False)
+    t.SetFailureHandlingOptions(ops)
     t.Start()
     for s in (col, beam):
         if not s.IsActive:
@@ -92,6 +96,10 @@ def build_line():
     doc.Regenerate()
     for c in columns:
         for bm in beams:
+            cb, bb = c.get_BoundingBox(None), bm.get_BoundingBox(None)
+            if (cb.Max.X < bb.Min.X - 1e-3 or bb.Max.X < cb.Min.X - 1e-3 or
+                    cb.Max.Y < bb.Min.Y - 1e-3 or bb.Max.Y < cb.Min.Y - 1e-3):
+                continue  # only touching pairs: joining apart elements warns in a dialog
             try:
                 if not DB.JoinGeometryUtils.AreElementsJoined(doc, c, bm):
                     DB.JoinGeometryUtils.JoinGeometry(doc, c, bm)
@@ -146,8 +154,23 @@ def _tag_all_check(columns, beams):
             anchor, _r = tag_engine._anchor(el, view, geometry)
             head = x.TagHeadPosition
             segs.append((anchor, (head.DotProduct(view.RightDirection), head.DotProduct(view.UpDirection))))
-        crossings = sum(1 for i in range(len(segs)) for j in range(i + 1, len(segs))
-                        if segs[i][0] and segs[j][0] and segments_cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1]))
+        crossings = 0
+        lead_tags = [x for x in tags if x.HasLeader]
+        for i in range(len(segs)):
+            for j in range(i + 1, len(segs)):
+                if segs[i][0] and segs[j][0] and segments_cross(segs[i][0], segs[i][1], segs[j][0], segs[j][1]):
+                    crossings += 1
+                    measure = DB.Transaction(doc, 'NOSA test - measure pair')
+                    measure.Start()
+                    pair_rects = tag_engine.head_rects(doc, view, [lead_tags[i], lead_tags[j]])
+                    measure.RollBack()
+                    out.append(u'    rects: {}'.format([tuple(round(v, 2) for v in pr) if pr else None for pr in pair_rects]))
+                    for k in (i, j):
+                        x = lead_tags[k]
+                        el = doc.GetElement(list(x.GetTaggedLocalElementIds())[0])
+                        out.append(u'    cross: tag {} on {} {} anchor ({:.2f},{:.2f}) head ({:.2f},{:.2f})'.format(
+                            x.Id.IntegerValue, el.Category.Name, el.Id.IntegerValue, segs[k][0][0], segs[k][0][1],
+                            segs[k][1][0], segs[k][1][1]))
         out.append(u'  TAG ALL "{}" keys {} -> new {} moved {} leaders {} failed {} | tags {} overlaps {} '
                    u'crossings {} {}'.format(element_name(view), keys, r['created'], r['rearranged'], r['leaders'],
                                              r['failed'], len(tags), overlaps, crossings, r['errors'][:2]))

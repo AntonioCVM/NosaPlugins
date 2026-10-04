@@ -59,3 +59,10 @@ def test_overflow_opens_a_second_sheet():
 
 def test_next_sheet_numbers_skip_the_taken_ones():
     assert vp.next_sheet_numbers(['4000', '4001', '4003'], 3) == ['4002', '4004', '4005']
+
+
+def test_coarser_scale_steps_through_the_candidates():
+    assert vp.coarser_scale('elevation', 20) == 25
+    assert vp.coarser_scale('elevation', 25) == 50
+    assert vp.coarser_scale('elevation', 100) is None
+    assert vp.coarser_scale('member_section', 10) == 20

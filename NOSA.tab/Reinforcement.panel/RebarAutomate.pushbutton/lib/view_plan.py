@@ -35,6 +35,12 @@ def choose_scale(kind, width_mm, height_mm):
     return scales[-1]
 
 
+def coarser_scale(kind, scale):
+    """The next candidate scale of this kind after `scale`, or None at the last one."""
+    later = [s for s in SCALES[kind][0] if s > scale]
+    return later[0] if later else None
+
+
 def paper_size(width_mm, height_mm, scale):
     return width_mm / float(scale), height_mm / float(scale) + LABEL_MM
 

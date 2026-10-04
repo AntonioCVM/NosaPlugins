@@ -331,21 +331,45 @@ def _new_sheet(doc, titleblock, number, name):
     return sheet
 
 
-def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name):
+def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None):
     """
     Two passes: drop every view on the first sheet, read its real viewport size (tags and the
-    view title included), then pack them; a view that needs another sheet is moved there.
+    view title included), then pack them. One sheet per element (user brief): while the views
+    need a second sheet, the largest one that can goes to its next coarser scale (tags re-laid
+    out by `retag`); only then does a view move to another sheet.
     """
     from Autodesk.Revit import DB  # Lazy import
     sheets = [_new_sheet(doc, titleblock, sheet_numbers.pop(0), name)]
     ports = [DB.Viewport.Create(doc, sheets[0].Id, view.Id, DB.XYZ(_ft(400.0), _ft(300.0), 0.0))
              for view, _spec, _scale in created]
     doc.Regenerate()
-    sizes = []
-    for port in ports:
+
+    def _size(port):
         box = port.GetBoxOutline()
-        sizes.append((_mm(box.MaximumPoint.X - box.MinimumPoint.X), _mm(box.MaximumPoint.Y - box.MinimumPoint.Y)))
-    for i, (sheet_index, cx, cy) in enumerate(view_plan.layout(sizes)):
+        return _mm(box.MaximumPoint.X - box.MinimumPoint.X), _mm(box.MaximumPoint.Y - box.MinimumPoint.Y)
+    sizes = [_size(port) for port in ports]
+    placement = view_plan.layout(sizes)
+    stuck = set()
+    for _attempt in range(12):
+        if max(p[0] for p in placement) == 0:
+            break
+        candidates = [i for i, (view, spec, _s) in enumerate(created)
+                      if i not in stuck and view_plan.coarser_scale(spec['kind'], view.Scale)]
+        if not candidates:
+            break
+        i = max(candidates, key=lambda k: sizes[k][0] * sizes[k][1])
+        view, spec = created[i][0], created[i][1]
+        try:
+            view.Scale = view_plan.coarser_scale(spec['kind'], view.Scale)
+        except Exception:  # nosa-lint: disable=NOSA006 - its template fixes the scale: leave it
+            stuck.add(i)
+            continue
+        if retag is not None:
+            retag(view)
+        doc.Regenerate()
+        sizes[i] = _size(ports[i])
+        placement = view_plan.layout(sizes)
+    for i, (sheet_index, cx, cy) in enumerate(placement):
         while sheet_index >= len(sheets):
             sheets.append(_new_sheet(doc, titleblock, sheet_numbers.pop(0),
                                      u'{} ({})'.format(name, len(sheets) + 1)))
@@ -433,8 +457,13 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 rebar_detailing.resolve_tag_overlaps(doc, view, tags)
                 report['tags'] += len(tags)
         if place_on_sheets and created and titleblock is not None:
+            def _retag(view):
+                tags = [x for x in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag)]
+                if tags:
+                    rebar_detailing.resolve_tag_overlaps(doc, view, tags)
             report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
-                                                u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label))
+                                                u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
+                                                retag=_retag if tag else None)
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))

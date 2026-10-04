@@ -101,11 +101,11 @@ def layout_tags(anchors, rects, obstacles=(), gap=0.0, leader_after=1.5, rings=8
                 return True
         return False
 
-    def relocate(k):
+    def relocate(k, reach=rings):
         """Another free spot for tag k, near its natural place, whose leader crosses no other."""
         others = [p for m, p in enumerate(placed) if m != k] + list(obstacles)
         w, h = rects[k][2] - rects[k][0], rects[k][3] - rects[k][1]
-        for dx, dy in candidate_offsets(w, h, gap, rings):
+        for dx, dy in candidate_offsets(w, h, gap, reach):
             rect = _shift(rects[k], dx, dy)
             if any(_overlaps(rect, o, gap) for o in others):
                 continue
@@ -140,6 +140,16 @@ def layout_tags(anchors, rects, obstacles=(), gap=0.0, leader_after=1.5, rings=8
             swaps += 1
             changed = True
             break
+    # last resort for a pair still crossing: look further out for one of the two
+    for i, j in list(crossing_pair()):
+        if not segments_cross(anchors[i], _centre(placed[i]), anchors[j], _centre(placed[j])):
+            continue
+        for k in (j, i):
+            rect = relocate(k, 3 * rings)
+            if rect is not None:
+                placed[k] = rect
+                leaders[k] = needs_leader(anchors[k], rect)
+                break
     out = []
     for r, p, lead in zip(rects, placed, leaders):
         out.append((p[0] - r[0], p[1] - r[1], lead))

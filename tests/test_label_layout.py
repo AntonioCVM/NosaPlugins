@@ -89,3 +89,4 @@ class RelocateTests(unittest.TestCase):
             for j in range(i + 1, 3):
                 if lead[i] and lead[j]:
                     self.assertFalse(segments_cross(anchors[i], heads[i], anchors[j], heads[j]))
+

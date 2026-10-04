@@ -158,6 +158,37 @@ try:
                                                      p0.Z * _FT, p1.X * _FT, p1.Y * _FT, p1.Z * _FT,
                                                      p0.DistanceTo(p1) * _FT, q.X * _FT, q.Y * _FT, q.Z * _FT))
     try:
+        views = VIEWS
+    except NameError:
+        views = False
+    if views:
+        # T7.3 on a wall: elevation + section, tags, an A1 sheet
+        from System.Collections.Generic import List
+        from nosa_utils.revit_helpers import element_name
+        before = set(v.Id.IntegerValue for v in DB.FilteredElementCollector(doc).OfClass(DB.View))
+        win.uidoc.Selection.SetElementIds(List[DB.ElementId]([wall.Id]))
+        win._create_views()
+        _log.append(u'CREATE VIEWS: ' + unicode(win.TxtDetailingStatus.Text))
+        for v in DB.FilteredElementCollector(doc).OfClass(DB.View):
+            if v.Id.IntegerValue in before or v.IsTemplate:
+                continue
+            tpl = doc.GetElement(v.ViewTemplateId)
+            extra = u''
+            if isinstance(v, DB.ViewSheet):
+                boxes = []
+                for vid in v.GetAllViewports():
+                    o = doc.GetElement(vid).GetBoxOutline()
+                    boxes.append(u'({:.0f},{:.0f})-({:.0f},{:.0f})'.format(
+                        o.MinimumPoint.X * _FT, o.MinimumPoint.Y * _FT, o.MaximumPoint.X * _FT, o.MaximumPoint.Y * _FT))
+                extra = u' sheet {} viewports {}'.format(v.SheetNumber, u' '.join(boxes))
+            else:
+                n_tags = DB.FilteredElementCollector(doc, v.Id).OfClass(DB.IndependentTag).GetElementCount()
+                rebar_tags = DB.FilteredElementCollector(doc, v.Id).OfClass(DB.MultiReferenceAnnotation).GetElementCount()
+                extra = u' 1:{} template {} tags {} MRA {}'.format(v.Scale, element_name(tpl) if tpl else u'-',
+                                                                  n_tags, rebar_tags)
+            _log.append(u'  {} "{}"{}'.format(v.ViewType, element_name(v), extra))
+
+    try:
         modify = MODIFY
     except NameError:
         modify = False
