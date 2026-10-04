@@ -27,6 +27,7 @@ F4_CODES = {
     u'RF1': u'Roof level 01', u'FND': u'Foundation level', u'A01': u'Block A level 01',
     u'AEL': u'Block A elevation', u'ASC': u'Block A section', u'BZZ': u'Block B multiple',
     u'CB2': u'Block C basement 02', u'CZZ': u'Block C multiple', u'ADD': u'Additional structure',
+    u'PTL': u'Project title', u'FNP': u'File naming protocols', u'STA': u'NOSA standards',
 }
 F5_CODES = {u'D': u'Drawing', u'G': u'Graph', u'I': u'Image', u'L': u'List', u'M': u'Model',
             u'T': u'Textual', u'V': u'Video or audio'}
@@ -37,7 +38,10 @@ F6_CODES = {u'B': u'Building surveying', u'C': u'Civil', u'D': u'Demolition', u'
 # (first, last, description, expected F3 codes or None, expected F5 codes or None) — NOSA template series
 SERIES = [
     (0, 0, u'Issue sheet', (u'IS', u'RP'), (u'L',)),
-    (1, 899, u'Text documents', None, None),
+    (1, 1, u'Project title', None, None),
+    (2, 2, u'File naming protocols', None, None),
+    (3, 3, u'NOSA standards', None, None),
+    (4, 899, u'Text documents', None, None),
     (900, 999, u'Specifications and general notes', None, None),
     (1000, 1499, u'Existing structure', None, (u'D',)),
     (1500, 1799, u'Demolition', None, (u'D',)),
@@ -60,7 +64,35 @@ SERIES = [
     (9999, 9999, u'Superseded', None, None),
 ]
 
+# (first, last, package) — the sheet packages of the NOSA template (Package parameter)
+PACKAGES = [
+    (0, 999, u"0000's - Documentation"),
+    (1000, 1999, u"1000's - Existing and demolition drawings"),
+    (2000, 2999, u"2000's - Plan views"),
+    (3000, 3999, u"3000's - Sections and elevations"),
+    (4000, 4499, u"4000's - Details"),
+    (4500, 4999, u"4500's - RC details"),
+    (5000, 5499, u"5000's - Schedules"),
+    (5500, 5999, u"5500's - RC schedules"),
+    (6000, 6999, u"6000's - Structural analysis models"),
+    (7000, 7999, u"7000's - General drawings"),
+    (8000, 8999, u"8000's - Health and safety"),
+    (9999, 9999, u'SS - Superseded'),
+]
+
 _REVISION = re.compile(r'^(P|I|C|PC)(\d{2})(\.\d{2})?$')
+
+
+def package(f7):
+    """The template package name of a 4-digit document number, or None."""
+    try:
+        n = int(f7)
+    except (TypeError, ValueError):
+        return None
+    for first, last, name in PACKAGES:
+        if first <= n <= last:
+            return name
+    return None
 
 
 def series(f7):

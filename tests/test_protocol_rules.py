@@ -58,6 +58,15 @@ def test_series_against_function_and_form():
 def test_template_numbering_is_the_reference():
     assert pr.series(u'5000')[2] == u'Quantity schedules'
     assert pr.series(u'0900')[2].startswith(u'Specifications')
+    assert pr.series(u'0002')[2] == u'File naming protocols'
+    assert pr.series(u'0004')[2] == u'Text documents'
+
+
+def test_packages_cover_every_series():
+    for first, last, _label, _f3, _f5 in pr.SERIES:
+        assert pr.package(u'{:04d}'.format(first)) == pr.package(u'{:04d}'.format(last)) is not None
+    assert pr.package(u'2500') == u"2000's - Plan views"
+    assert pr.package(u'9999') == u'SS - Superseded'
 
 
 def test_file_names():

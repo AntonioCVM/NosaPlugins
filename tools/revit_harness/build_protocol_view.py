@@ -94,8 +94,15 @@ def run():
             y -= HEAD_GAP
             rule(x, x + code_w + desc_w, y + 2.0)
             for code, desc in rows:
-                text(x, y, code, body, code_w)
-                text(x + code_w, y, desc, body, desc_w)
+                if code is None:            # package sub-heading
+                    y -= 1.0
+                    note = text(x, y, desc, body, code_w + desc_w)
+                    ft = note.GetFormattedText()
+                    ft.SetBoldStatus(True)
+                    note.SetFormattedText(ft)
+                else:
+                    text(x + 3.0, y, code, body, code_w)
+                    text(x + 3.0 + code_w, y, desc, body, desc_w - 3.0)
                 y -= ROW
             return y - 4.0
 
@@ -120,9 +127,14 @@ def run():
 
         y = start
         rows = []
-        for first, last, label, _f3, _f5 in pr.SERIES:
-            rows.append((u'{:04d}'.format(first) if first == last else u'{:04d}–{:04d}'.format(first, last), label))
-        y = table(x3, y, u'F7 Document number (4 digits) — NOSA template series', rows, code_w=24.0, desc_w=118.0)
+        for p_first, p_last, p_name in pr.PACKAGES:
+            rows.append((None, u'Package {}'.format(p_name)))
+            for first, last, label, _f3, _f5 in pr.SERIES:
+                if p_first <= first <= p_last:
+                    rows.append((u'{:04d}'.format(first) if first == last else
+                                 u'{:04d}–{:04d}'.format(first, last), label))
+        y = table(x3, y, u'F7 Document number (4 digits) — NOSA template packages and series', rows,
+                  code_w=24.0, desc_w=118.0)
         y = table(x3, y, u'F8 Revision', REVISIONS, code_w=24.0, desc_w=118.0)
         text(x3, y, u'Codes not listed here are allowed when they keep the length of their field; record them in the '
                     u'project BEP. The Sheet Export Hub checks every drawing against these tables before export.',
