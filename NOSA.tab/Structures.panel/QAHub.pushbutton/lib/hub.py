@@ -22,4 +22,5 @@ def tools(doc, uidoc):
     return [
         (u'Structural QA', _tool('structural_qa', 'structuralqa_ui', 'StructuralQAWindow', doc)),
         (u'Model Health', _tool('model_health', 'modelhealthhub_ui', 'ModelHealthHubWindow', doc)),
+        (u'Standards', _tool('standards', 'standardsaudit_ui', 'StandardsAuditWindow', doc)),
     ]
