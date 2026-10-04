@@ -13,6 +13,7 @@ if _HERE not in sys.path:
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils.bootstrap import load_module
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'rebarautomate'
 
 rebar_partitions = load_module('rebar_partitions', os.path.join(_HERE, 'rebar_partitions.py'))
@@ -113,7 +114,7 @@ class PartitionsWindow(NOSAWindow):
                 return
             assignment[row.HostId] = {'partition': row.Partition, 'group': row.Group,
                                       'members': row.Members, 'representative': row.representative}
-        with revit.Transaction(u'NOSA — Partitions'):
+        with nosa_tx.revit_transaction(u'NOSA — Partitions'):
             self.summary = rebar_partitions.apply(self.doc, self.hosts, assignment, self.ctx)
         self.Close()
 

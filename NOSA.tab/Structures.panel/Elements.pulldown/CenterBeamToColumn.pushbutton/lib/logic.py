@@ -11,6 +11,7 @@ if _lib not in sys.path:
 from nosa_utils import geometry
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 MAX_CHANGE_WARNING_THRESHOLD = 0.3
 MIN_BEAM_LENGTH_FT = 0.328
@@ -266,7 +267,7 @@ def execute_alignments(doc, beam_alignments, pilecap_alignments):
     res = {'beams': 0, 'ground_beams': 0, 'pilecaps': 0, 'failed': 0,
            'warnings': [], 'log': []}
 
-    with DB.Transaction(doc, u"NOSA — Align Elements to Columns") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Align Elements to Columns")) as t:
         t.Start()
         for a in beam_alignments:
             beam = a['beam']

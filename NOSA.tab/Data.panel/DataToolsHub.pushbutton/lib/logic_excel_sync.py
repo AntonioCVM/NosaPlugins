@@ -8,6 +8,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'DataToolsHub'
 
 
@@ -159,7 +160,7 @@ def apply_mapping(doc, matched_rows, mapping):
     if not active_mapping:
         return 0, 0, len(matched_rows)
 
-    with DB.Transaction(doc, u"NOSA — Excel Sync — Apply Parameters") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Excel Sync — Apply Parameters")) as t:
         t.Start()
         for item in matched_rows:
             if not item['matched']:

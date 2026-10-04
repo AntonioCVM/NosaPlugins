@@ -7,6 +7,7 @@ from Autodesk.Revit import DB
 from System.Collections.Generic import List
 from Autodesk.Revit.DB import JoinGeometryUtils
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'pilecap_utils.creation'
 
 try:
@@ -149,7 +150,7 @@ def create_pilecap_elements(num_horizontal, num_vertical, pile_spacing,
     """Crea los elementos (losa y pilotes) en una transaccion."""
     t = None
     try:
-        t = DB.Transaction(_doc(), u"NOSA — Create Pilecap Elements")
+        t = nosa_tx.guard(DB.Transaction(_doc(), u"NOSA — Create Pilecap Elements"))
         t.Start()
         
         foundation_slab = create_foundation_slab(width, length, level, center_point, slab_type)
@@ -200,7 +201,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
     
     t = None
     try:
-        t = DB.Transaction(_doc(), u"NOSA — Create and Rename Group")
+        t = nosa_tx.guard(DB.Transaction(_doc(), u"NOSA — Create and Rename Group"))
         t.Start()
         
         # Unjoin check
@@ -235,7 +236,7 @@ def create_and_rename_group(foundation_slab, piles, num_horizontal, num_vertical
         
         # Post-commit rename
         rename_success = False
-        t2 = DB.Transaction(_doc(), u"NOSA — Rename Group")
+        t2 = nosa_tx.guard(DB.Transaction(_doc(), u"NOSA — Rename Group"))
         t2.Start()
         try:
             gt = group.GroupType
@@ -275,7 +276,7 @@ def create_independent_elements(num_horizontal, num_vertical, pile_spacing, clea
     try:
         if _doc().IsModifiable: _doc().Regenerate()
         
-        t = DB.Transaction(_doc(), u"NOSA — Create Standalone Pilecap")
+        t = nosa_tx.guard(DB.Transaction(_doc(), u"NOSA — Create Standalone Pilecap"))
         t.Start()
         
         slab = create_foundation_slab(width, length, level, center_point, slab_type)

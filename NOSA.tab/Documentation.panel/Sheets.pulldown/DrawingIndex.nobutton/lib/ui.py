@@ -13,6 +13,7 @@ from nosa_utils.bootstrap import load_module
 _logic = load_module('drawingidx_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _CONFIGS_ROOT = os.path.join(
     os.getenv('APPDATA', ''), 'pyRevit', 'Extensions',
@@ -292,7 +293,7 @@ class DrawingIndexWindow(NOSAWindow):
             return
         ok = fail = 0
         try:
-            with revit.Transaction('NOSA — Apply drawing index edits'):
+            with nosa_tx.revit_transaction('NOSA — Apply drawing index edits'):
                 for row in self._rows:
                     sheet_num = row.Number
                     if sheet_num not in self._pending_changes or row._element is None:

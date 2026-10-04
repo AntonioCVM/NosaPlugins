@@ -8,6 +8,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.collectors import collect_views
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 def _skip_view_types():
@@ -76,7 +77,7 @@ def copy_filters_from_view(doc, source_view, target_views, include_overrides=Tru
     copied_total = skipped_total = 0
     results = []
 
-    with DB.Transaction(doc, u"NOSA — ViewFilter Batch — Copy Filters") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ViewFilter Batch — Copy Filters")) as t:
         t.Start()
         for view in target_views:
             copied = skipped = 0
@@ -112,7 +113,7 @@ def apply_filters_to_views(doc, filter_infos, target_views, source_view=None):
     applied_total = skipped_total = 0
     results = []
 
-    with DB.Transaction(doc, u"NOSA — ViewFilter Batch — Apply Filters") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ViewFilter Batch — Apply Filters")) as t:
         t.Start()
         for view in target_views:
             applied = skipped = 0
@@ -148,7 +149,7 @@ def toggle_filters_in_views(doc, filter_infos, target_views, enable):
     Returns (toggled_total, skipped_total).
     """
     toggled = skipped = 0
-    with DB.Transaction(doc, u"NOSA — ViewFilter Batch — Toggle Filters") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ViewFilter Batch — Toggle Filters")) as t:
         t.Start()
         for view in target_views:
             for fi in filter_infos:
@@ -171,7 +172,7 @@ def remove_filters_from_views(doc, filter_infos, target_views):
     Returns (removed_total, skipped_total).
     """
     removed = skipped = 0
-    with DB.Transaction(doc, u"NOSA — ViewFilter Batch — Remove Filters") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ViewFilter Batch — Remove Filters")) as t:
         t.Start()
         for view in target_views:
             for fi in filter_infos:

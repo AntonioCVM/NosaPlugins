@@ -19,6 +19,7 @@ if _ext_lib not in sys.path:
 
 from nosa_utils import geometry
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 MM_TO_FEET = _uc10.MM_TO_FT
 FEET_TO_MM = _uc10.FT_TO_MM
@@ -560,7 +561,7 @@ class WaffleSlabBuilder:
             self.output.print_md("Found {} void positions (inside boundary, excluding column zones)".format(len(void_positions)))
 
             self.output.print_md("Creating waffle slab floor with voids...")
-            t1 = DB.Transaction(self.doc, "NOSA — Waffle main slab")
+            t1 = nosa_tx.guard(DB.Transaction(self.doc, "NOSA — Waffle main slab"))
             t1.Start()
             try:
                 self.main_slab = self.create_slab_with_recesses(
@@ -579,7 +580,7 @@ class WaffleSlabBuilder:
                 return False
 
             self.output.print_md("Creating compression slab ({} mm)...".format(self.topping_thickness))
-            t2 = DB.Transaction(self.doc, "NOSA — Compression slab")
+            t2 = nosa_tx.guard(DB.Transaction(self.doc, "NOSA — Compression slab"))
             t2.Start()
             try:
                 self.topping_slab = self.create_topping_slab(boundary_curves, level, elev_base)

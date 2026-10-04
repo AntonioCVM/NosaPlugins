@@ -19,6 +19,7 @@ from nosa_utils.revit_helpers import element_id_from_int
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _tg_logic = load_module('vtm_tg_logic', os.path.join(_here, 'logic_template_guard.py'))
 _ct_logic_mod = load_module('vtm_ct_logic', os.path.join(_here, 'logic_copy_templates.py'))
 
@@ -246,7 +247,7 @@ class ViewTemplateManagerWindow(NOSAWindow):
             return
         self.CT_Overlay.Visibility = System.Windows.Visibility.Visible
         count = 0
-        with revit.Transaction(u'NOSA — Apply View Template'):
+        with nosa_tx.revit_transaction(u'NOSA — Apply View Template'):
             for vi in targets:
                 ok, _ = self._ct_logic.copy_template_to_view(tmpl, vi.Element)
                 if ok: count += 1
@@ -294,7 +295,7 @@ class ViewTemplateManagerWindow(NOSAWindow):
             return
         self.CO_Overlay.Visibility = System.Windows.Visibility.Visible
         count = 0
-        with revit.Transaction(u'NOSA — Copy View Overrides'):
+        with nosa_tx.revit_transaction(u'NOSA — Copy View Overrides'):
             for vi in targets:
                 ok, _ = self._ct_logic.copy_overrides_to_view(src, vi.Element)
                 if ok: count += 1

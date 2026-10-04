@@ -12,6 +12,7 @@ from nosa_utils.collectors import (collect_views, collect_view_templates,
                                    placed_view_ids, used_view_template_ids)
 import math
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'DataToolsHub'
 
 
@@ -41,7 +42,7 @@ def find_orphan_views(doc):
 def purge_orphan_views(doc, view_ids):
     """Delete orphan views by ElementId integers. Returns (deleted, failed)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Orphan Views") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Orphan Views")) as t:
         t.Start()
         for vid in view_ids:
             try:
@@ -89,7 +90,7 @@ def find_unused_families(doc):
 def purge_unused_families(doc, symbol_ids):
     """Delete family symbol (type) elements. Returns (deleted, failed)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Unused Family Types") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Unused Family Types")) as t:
         t.Start()
         for sid in symbol_ids:
             try:
@@ -114,7 +115,7 @@ def find_unused_view_templates(doc):
 def purge_unused_templates(doc, template_ids):
     """Delete unused view templates. Returns (deleted, failed)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Unused Templates") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Unused Templates")) as t:
         t.Start()
         for tid in template_ids:
             try:
@@ -158,7 +159,7 @@ def find_cad_imports(doc):
 def purge_cad_imports(doc, import_ids):
     """Delete CAD import instances. Returns (deleted, failed)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u"NOSA — ModelCleanup — Delete CAD Imports") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ModelCleanup — Delete CAD Imports")) as t:
         t.Start()
         for iid in import_ids:
             try:
@@ -208,7 +209,7 @@ def find_unplaced_rooms(doc):
 def purge_unplaced_rooms(doc, room_ids):
     """Delete unplaced room elements. Returns (deleted, failed)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Unplaced Rooms") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — ModelCleanup — Delete Unplaced Rooms")) as t:
         t.Start()
         for rid in room_ids:
             try:

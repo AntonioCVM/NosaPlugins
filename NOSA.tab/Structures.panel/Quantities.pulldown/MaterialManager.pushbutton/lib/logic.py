@@ -10,6 +10,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..',
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value, get_element_type_name
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 # ── material asset helpers ────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ def _lev(a, b):
 def delete_materials(doc, material_ids):
     """Delete materials by ElementId. Returns (deleted_count, failed_count)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u"NOSA — Material Manager — Delete Materials") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Material Manager — Delete Materials")) as t:
         t.Start()
         for mid in material_ids:
             try:
@@ -433,7 +434,7 @@ def assign_material_to_elements(doc, element_ids, material_id, diagnostics=None)
     """
     ok = failed = 0
     readonly_type_eids = []
-    with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Material Manager — Assign Material")) as t:
         t.Start()
         for eid in element_ids:
             try:
@@ -503,7 +504,7 @@ def assign_material_to_types(doc, element_ids, material_id, diagnostics=None):
     """
     ok = failed = 0
     seen_type_ids = set()
-    with DB.Transaction(doc, u"NOSA — Material Manager — Assign Material (Type)") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Material Manager — Assign Material (Type)")) as t:
         t.Start()
         for eid in element_ids:
             try:

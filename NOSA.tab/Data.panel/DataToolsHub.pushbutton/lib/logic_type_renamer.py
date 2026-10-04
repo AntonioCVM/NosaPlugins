@@ -9,6 +9,7 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'DataToolsHub'
 
 _CATEGORIES = [
@@ -83,7 +84,7 @@ def apply_renames(doc, pairs):
     renamed = 0
     failed = 0
     errors = []
-    with DB.Transaction(doc, u'NOSA — Rename types') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Rename types')) as t:
         t.Start()
         for el, new_name in pairs:
             try:

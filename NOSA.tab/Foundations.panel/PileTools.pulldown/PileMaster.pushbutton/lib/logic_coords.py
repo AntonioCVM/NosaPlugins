@@ -7,6 +7,7 @@ from nosa_utils import unit_conversion as _uc10
 from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
 from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'pilemaster'
 
 
@@ -243,7 +244,7 @@ class CoordinateLogic:
             if not grp:
                 grp = def_file.Groups.Create("NOSA_Coordinates")
                 
-            with revit.Transaction(u"NOSA — Create Coordinate Parameters"):
+            with nosa_tx.revit_transaction(u"NOSA — Create Coordinate Parameters"):
                 cats = app.Create.NewCategorySet()
                 cat = self.doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_StructuralFoundation)
                 cats.Insert(cat)
@@ -353,7 +354,7 @@ class CoordinateLogic:
         fail    = 0
         inv     = self._get_inverse_total_transform()
 
-        with revit.Transaction(u"NOSA — Update Pile Coordinates"):
+        with nosa_tx.revit_transaction(u"NOSA — Update Pile Coordinates"):
             restore = _ungroup_targets(self.doc, elements)
             for el in elements:
                 if self._write_coords_to_element(

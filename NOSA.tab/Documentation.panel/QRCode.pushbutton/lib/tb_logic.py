@@ -23,6 +23,7 @@ _loop_debug = []
 
 
 from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 def _eid(element_id):
@@ -68,7 +69,7 @@ def _reload_via_file(fam_doc, doc):
         save_opts.OverwriteExistingFile = True
         fam_doc.SaveAs(tmp, save_opts)
         fam_doc.Close(False)
-        with DB.Transaction(doc, u'NOSA – Reload Family') as t:
+        with nosa_tx.guard(DB.Transaction(doc, u'NOSA – Reload Family')) as t:
             t.Start()
             result = doc.LoadFamily(tmp, _LoadOptions())
             t.Commit()
@@ -369,7 +370,7 @@ def _update_family(doc, family, png_path):
             return 'skip', u'No image placeholder (skipped)'
 
         step = 'Transaction'
-        with DB.Transaction(fam_doc, u'NOSA – Replace QR Image') as t:
+        with nosa_tx.guard(DB.Transaction(fam_doc, u'NOSA – Replace QR Image')) as t:
             t.Start()
             for img in qr_imgs:
                 try:

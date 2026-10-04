@@ -9,6 +9,7 @@ from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.telemetry import log_swallowed
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'ModelHealthHub/warnings_triage'
 _RULES_FILE = os.path.join(os.path.dirname(__file__), 'warning_rules.json')
 
@@ -168,7 +169,7 @@ def _fix_unjoin(doc, element_ids):
         if len(elements) < 2:
             return False, "Need at least 2 valid elements to unjoin."
 
-        with DB.Transaction(doc, u"NOSA — Auto-Fix: Unjoin Elements") as t:
+        with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Auto-Fix: Unjoin Elements")) as t:
             t.Start()
             for i in range(len(elements)):
                 for j in range(i + 1, len(elements)):
@@ -196,7 +197,7 @@ def _fix_delete_room_separation(doc, element_ids):
     """Delete room-separation lines referenced in the warning."""
     deleted = 0
     try:
-        with DB.Transaction(doc, u"NOSA — Auto-Fix: Delete Room Separation") as t:
+        with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Auto-Fix: Delete Room Separation")) as t:
             t.Start()
             for eid in element_ids:
                 try:

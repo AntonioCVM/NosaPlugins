@@ -5,6 +5,7 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _INCLUDE_VIEW_TYPES = None
 
@@ -115,7 +116,7 @@ def rename_views(doc, renames):
     Returns (ok, failed).
     """
     ok = failed = 0
-    with DB.Transaction(doc, "NOSA — Rename Views") as t:
+    with nosa_tx.guard(DB.Transaction(doc, "NOSA — Rename Views")) as t:
         t.Start()
         for eid, new_name in renames:
             try:
@@ -138,7 +139,7 @@ def apply_view_template(doc, view_ids, template_id):
     Returns (ok, failed).
     """
     ok = failed = 0
-    with DB.Transaction(doc, "NOSA — Apply View Template") as t:
+    with nosa_tx.guard(DB.Transaction(doc, "NOSA — Apply View Template")) as t:
         t.Start()
         for eid in view_ids:
             try:

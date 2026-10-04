@@ -5,6 +5,7 @@ Logic for Sheet/Scope Box visibility.
 from Autodesk.Revit import DB
 from pyrevit import revit
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'pilemaster'
 class SheetLogic:
     def __init__(self, doc):
@@ -82,7 +83,7 @@ class SheetLogic:
                 grp = def_file.Groups.Create("NOSA_Visibility")
             
             # 3. Create Definitions and Bindings
-            with revit.Transaction(u"NOSA — Create Visibility Parameters"):
+            with nosa_tx.revit_transaction(u"NOSA — Create Visibility Parameters"):
                 # Prepare Category Set
                 cats = app.Create.NewCategorySet()
                 cat = self.doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_StructuralFoundation)
@@ -173,7 +174,7 @@ class SheetLogic:
              # Ideally one element has them all, but let's be safe.
              sample_el = elements[0]
              
-             with revit.Transaction(u"NOSA — Enable Group Variance"):
+             with nosa_tx.revit_transaction(u"NOSA — Enable Group Variance"):
                  for pname in param_names:
                      # Check if we need to enable it
                      p = sample_el.LookupParameter(pname)
@@ -201,7 +202,7 @@ class SheetLogic:
         # Track which elements are "covered" by at least one zone
         covered_ids = set()
         
-        with revit.Transaction(u"NOSA — Update Sheet Visibility"):
+        with nosa_tx.revit_transaction(u"NOSA — Update Sheet Visibility"):
             for z_name, sb in zone_mapping.items():
                 param_name = "Show_in_{}".format(z_name)
                 

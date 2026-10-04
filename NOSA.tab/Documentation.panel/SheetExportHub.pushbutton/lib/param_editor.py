@@ -15,6 +15,7 @@ from pyrevit import revit
 
 from nosa_utils import sheet_protocol as _sp
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'SheetExportHub/param_editor'
 
 # Parameters this plugin will never write, even if present in a column
@@ -81,7 +82,7 @@ def apply_changes(doc, elements_by_number, changes_by_number,
     if not changes_by_number:
         return ok, fail
 
-    with revit.Transaction(transaction_name):
+    with nosa_tx.revit_transaction(transaction_name):
         for number, changes in changes_by_number.items():
             element = elements_by_number.get(number)
             if element is None:

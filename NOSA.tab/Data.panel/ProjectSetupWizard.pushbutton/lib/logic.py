@@ -8,6 +8,7 @@ from Autodesk.Revit import DB
 from pyrevit import revit
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'projectsetupwizard'
 _NOSA_WORKSETS = [
     'NOSA_Structure',
@@ -36,7 +37,7 @@ def set_project_info(doc, info):
     info: dict with keys 'name', 'number', 'client', 'address', 'status', 'code'
     """
     pi = doc.ProjectInformation
-    with revit.Transaction('NOSA Setup — Project Information'):
+    with nosa_tx.revit_transaction('NOSA Setup — Project Information'):
         if 'name' in info and info['name']:
             try: pi.Name = info['name']
             except Exception: log_swallowed(_LOG, u'set_project_info')
@@ -73,7 +74,7 @@ def create_worksets(doc):
         log_swallowed(_LOG, u'create_worksets')
 
     created = 0
-    with revit.Transaction('NOSA Setup — Create Worksets'):
+    with nosa_tx.revit_transaction('NOSA Setup — Create Worksets'):
         for name in _NOSA_WORKSETS:
             if name not in existing:
                 try:
@@ -95,7 +96,7 @@ def create_standard_levels(doc):
         return 0, 'Levels already exist ({} found) — skipped.'.format(len(existing))
 
     created = 0
-    with revit.Transaction('NOSA Setup — Create Levels'):
+    with nosa_tx.revit_transaction('NOSA Setup — Create Levels'):
         for name, elev_mm in _DEFAULT_LEVELS:
             already = any(getattr(lv, 'Name', None) == name for lv in existing)
             if already:
@@ -112,7 +113,7 @@ def create_standard_levels(doc):
 def create_cover_sheet(doc, sheet_number='00-00', sheet_name='Cover Sheet'):
     """Create a cover sheet using the first available title block."""
     tb = _get_title_block(doc)
-    with revit.Transaction('NOSA Setup — Cover Sheet'):
+    with nosa_tx.revit_transaction('NOSA Setup — Cover Sheet'):
         sheet = DB.ViewSheet.Create(doc, tb)
         sheet.SheetNumber = sheet_number
         sheet.Name = sheet_name
@@ -122,7 +123,7 @@ def create_cover_sheet(doc, sheet_number='00-00', sheet_name='Cover Sheet'):
 def create_drawing_index(doc, sheet_number='00-01', sheet_name='Drawing Index'):
     """Create a drawing index sheet."""
     tb = _get_title_block(doc)
-    with revit.Transaction('NOSA Setup — Drawing Index Sheet'):
+    with nosa_tx.revit_transaction('NOSA Setup — Drawing Index Sheet'):
         sheet = DB.ViewSheet.Create(doc, tb)
         sheet.SheetNumber = sheet_number
         sheet.Name = sheet_name

@@ -8,6 +8,7 @@
 # into it instead of running a standalone script.
 from Autodesk.Revit import DB
 from pyrevit import revit, forms
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 def apply_halftone(doc, uidoc):
@@ -58,7 +59,7 @@ def apply_halftone(doc, uidoc):
     updated = 0
     failed = 0
 
-    with revit.Transaction(u"NOSA — Apply Halftone to Selection"):
+    with nosa_tx.revit_transaction(u"NOSA — Apply Halftone to Selection"):
         for element in selection:
             try:
                 view.SetElementOverrides(element.Id, overrides)

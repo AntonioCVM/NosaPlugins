@@ -28,6 +28,7 @@ from nosa_utils.logging import Logger
 _logger = Logger(level='DEBUG')
 
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _logic = load_module('addpiletopilecap_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 _PATTERNS = [
@@ -48,7 +49,7 @@ class _CreatePilesEventHandler(IExternalEventHandler):
     mechanism instead of directly inside the WPF button-click callback.
 
     Root cause (confirmed via the persistent NOSA log, not guessed): even
-    with doc=self.doc passed explicitly, revit.Transaction(...).Start()
+    with doc=self.doc passed explicitly, nosa_tx.revit_transaction(...).Start()
     itself kept raising "Starting a transaction from an external
     application running outside of API context is not allowed" —
     regardless of which Document was targeted. That means the call was
@@ -636,7 +637,7 @@ class AddPileToPilecapWindow(NOSAWindow):
         creation_error = None
         try:
             _logger.debug(u'_do_create_piles_and_group: opening "Create Piles" transaction')
-            with revit.Transaction(u'NOSA — Create Piles', doc=self.doc):
+            with nosa_tx.revit_transaction(u'NOSA — Create Piles', doc=self.doc):
                 if not pile_symbol.IsActive:
                     pile_symbol.Activate()
                 with nosa_progress(len(grid_points), u'Creating piles',
@@ -672,14 +673,14 @@ class AddPileToPilecapWindow(NOSAWindow):
         self.LogLine(u'{} piles created.'.format(len(pile_ids)))
 
         _logger.debug(u'_do_create_piles_and_group: opening "Unjoin Piles from Slab" transaction')
-        with revit.Transaction(u'NOSA — Unjoin Piles from Slab', doc=self.doc):
+        with nosa_tx.revit_transaction(u'NOSA — Unjoin Piles from Slab', doc=self.doc):
             n_unjoin = _logic.unjoin_piles_from_slab(self.doc, pile_ids, slab)
         self.LogLine(u'{} piles unjoined from slab.'.format(n_unjoin))
 
         next_num = _logic.find_next_core_number(self.doc)
         group_name = u'Core {}'.format(next_num)
         _logger.debug(u'_do_create_piles_and_group: opening "Create Group" transaction')
-        with revit.Transaction(u"NOSA — Create Group '{}'".format(group_name), doc=self.doc):
+        with nosa_tx.revit_transaction(u"NOSA — Create Group '{}'".format(group_name), doc=self.doc):
             try:
                 _logic.create_core_group(self.doc, slab.Id, pile_ids, group_name)
                 self.LogLine(u'Created group: {}'.format(group_name))

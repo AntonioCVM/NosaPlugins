@@ -8,6 +8,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'StructuralQA/family_audit'
 
 # StorageType.None is a reserved Python keyword — use getattr to access it
@@ -143,7 +144,7 @@ def purge_families(doc, family_ids):
     deleted = 0
     failed  = []
     id_set  = List[DB.ElementId](list(family_ids))
-    with DB.Transaction(doc, u"NOSA — Family Audit — Purge Families") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Family Audit — Purge Families")) as t:
         t.Start()
         try:
             doc.Delete(id_set)

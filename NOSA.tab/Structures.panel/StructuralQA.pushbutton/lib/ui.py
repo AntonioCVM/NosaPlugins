@@ -20,6 +20,7 @@ _LOG = u'StructuralQA/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _cr_logic = load_module('sqa_cr_logic', os.path.join(_here, 'logic_clash_report.py'))
 _dc_logic = load_module('sqa_dc_logic', os.path.join(_here, 'logic_drawing_checker.py'))
 _fa_logic = load_module('sqa_fa_logic', os.path.join(_here, 'logic_family_audit.py'))
@@ -358,7 +359,7 @@ class StructuralQAWindow(NOSAWindow):
         try:
             ids = List[DB.ElementId]([element_id_from_int(item.Id1),
                                       element_id_from_int(item.Id2)])
-            with revit.Transaction(u"NOSA — Isolate Clash"):
+            with nosa_tx.revit_transaction(u"NOSA — Isolate Clash"):
                 revit.active_view.IsolateElementsTemporary(ids)
             revit.uidoc.ShowElements(ids)
         except Exception as e:
@@ -1160,7 +1161,7 @@ class StructuralQAWindow(NOSAWindow):
             if not mat:
                 return
             ok = fail = 0
-            with revit.Transaction("NOSA — Assign Material"):
+            with nosa_tx.revit_transaction("NOSA — Assign Material"):
                 for row in rows:
                     assigned = False
                     try:

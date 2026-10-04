@@ -11,6 +11,7 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _FT_TO_M = _uc10.FT_TO_M
 
@@ -144,7 +145,7 @@ def create_footings(doc, walls, footing_type_id):
     errors = []
     existing = walls_with_footing(doc)
 
-    t = DB.Transaction(doc, u'NOSA — Create Wall Footings')
+    t = nosa_tx.guard(DB.Transaction(doc, u'NOSA — Create Wall Footings'))
     t.Start()
     try:
         for rec in walls:

@@ -20,6 +20,7 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.logging import Logger
 from nosa_utils.revit_helpers import get_id_value, element_name
 from Autodesk.Revit import DB
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 logger = Logger()
 
 
@@ -156,7 +157,7 @@ class AnnotationBatchWindow(NOSAWindow):
 
         result_text = ""
         try:
-            with revit.Transaction("NOSA — Annotation Batch"):
+            with nosa_tx.revit_transaction("NOSA — Annotation Batch"):
                 if active_tab == 'BtnTabTags':
                     total = {'created': 0, 'skipped': 0, 'failed': 0}
                     use_leader = self.ChkLeader.IsChecked == True

@@ -17,6 +17,7 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.revit_helpers import element_id_from_int
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _logic = load_module('pilechk_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -195,7 +196,7 @@ class PilecapLoadCheckerWindow(NOSAWindow):
                 forms.alert("Element not found.")
                 return
             ok = fail = 0
-            with revit.Transaction("NOSA — Edit pilecap parameters"):
+            with nosa_tx.revit_transaction("NOSA — Edit pilecap parameters"):
                 for erow in self._edit_rows:
                     try:
                         val_mm = float(erow.Value)

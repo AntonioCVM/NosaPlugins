@@ -9,6 +9,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 _STORAGE_LABELS = {
@@ -129,7 +130,7 @@ def set_param_value(doc, params, new_value_str):
     Returns (success_count, fail_count).
     """
     ok = fail = 0
-    with DB.Transaction(doc, u"NOSA — Parameter Inspector — Bulk Edit") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Parameter Inspector — Bulk Edit")) as t:
         t.Start()
         for param in params:
             if param is None or param.IsReadOnly:
@@ -158,7 +159,7 @@ def copy_params_from_source(doc, source_elem, target_elems):
     Returns (copied, skipped).
     """
     copied = skipped = 0
-    with DB.Transaction(doc, u"NOSA — Parameter Inspector — Copy From Source") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Parameter Inspector — Copy From Source")) as t:
         t.Start()
         for param in source_elem.Parameters:
             try:

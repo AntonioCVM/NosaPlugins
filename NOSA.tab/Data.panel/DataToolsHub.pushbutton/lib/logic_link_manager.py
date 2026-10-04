@@ -8,6 +8,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value, element_id_from_int, element_name
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 def _link_status_label(status):
@@ -91,7 +92,7 @@ def collect_all(doc):
 
 
 def reload_link(doc, link_type_el):
-    with DB.Transaction(doc, u'NOSA — Reload link') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Reload link')) as t:
         t.Start()
         try:
             link_type_el.Load()
@@ -101,14 +102,14 @@ def reload_link(doc, link_type_el):
 
 
 def unload_link(doc, link_type_el):
-    with DB.Transaction(doc, u'NOSA — Unload link') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Unload link')) as t:
         t.Start()
         link_type_el.Unload(None)
         t.Commit()
 
 
 def remove_link(doc, element_id_int):
-    with DB.Transaction(doc, u'NOSA — Remove link') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Remove link')) as t:
         t.Start()
         doc.Delete(element_id_from_int(element_id_int))
         t.Commit()

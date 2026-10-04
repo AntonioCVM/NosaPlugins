@@ -23,6 +23,7 @@ from logic_report    import collect_report, get_levels, export_xlsx as _report_x
 from logic_schedule  import list_pile_schedules, create_or_open_schedule
 from System          import Int64
 from System.Collections.Generic import List
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 class PrefixItem(object):
     """Simple data class for WPF DataGrid binding.
@@ -582,7 +583,7 @@ class PileMasterWindow(NOSAWindow):
 
     def ScheduleCreate_Click(self, sender, args):
         try:
-            with DB.Transaction(self.doc, u'NOSA — Pile Schedule') as t:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pile Schedule')) as t:
                 t.Start()
                 _sched, _created, msg = create_or_open_schedule(self.doc, self.uidoc)
                 t.Commit()

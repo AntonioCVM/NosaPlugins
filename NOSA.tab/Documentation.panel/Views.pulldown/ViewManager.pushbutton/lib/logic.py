@@ -13,6 +13,7 @@ from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.collectors import (apply_view_template, collect_view_templates,
                                    collect_views, placed_view_ids)
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 # ── Create plan views from levels ──────────────────────────────────────────────
@@ -87,7 +88,7 @@ def create_plan_views(doc, level_ids, vft_id, name_pattern,
     errors = []
     taken = _existing_view_names(doc)
 
-    with DB.Transaction(doc, u'NOSA — Create Plan Views') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Create Plan Views')) as t:
         t.Start()
         for lid in level_ids:
             try:
@@ -135,7 +136,7 @@ def duplicate_views(doc, view_ids, mode='duplicate', copies=1, name_pattern=u'{n
     option = _dup_option(mode)
     taken = _existing_view_names(doc)
 
-    with DB.Transaction(doc, u'NOSA — Duplicate Views') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Duplicate Views')) as t:
         t.Start()
         for vid in view_ids:
             try:
@@ -204,7 +205,7 @@ def unplaced_views(doc):
 def delete_views(doc, id_objs):
     """Delete views by ElementId. Returns (deleted, failed)."""
     deleted = failed = 0
-    with DB.Transaction(doc, u'NOSA — Delete Unplaced Views') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Delete Unplaced Views')) as t:
         t.Start()
         for eid in id_objs:
             try:
@@ -256,7 +257,7 @@ def set_detail_numbers(doc, updates):
 
     ok = failed = 0
     errors = []
-    with DB.Transaction(doc, u'NOSA — Set Detail Numbers') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Set Detail Numbers')) as t:
         t.Start()
         for vid, new_detail in updates:
             vp = vp_by_view.get(get_id_value(vid))
@@ -306,7 +307,7 @@ def set_view_properties(doc, view_ids, scale=None, detail_level=None,
     """
     ok = failed = 0
     errors = []
-    with DB.Transaction(doc, u'NOSA — Set View Properties') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Set View Properties')) as t:
         t.Start()
         for vid in view_ids:
             try:
@@ -380,7 +381,7 @@ def create_3d_per_level(doc, name_pattern=u'{level} - 3D'):
     taken = _existing_view_names(doc)
     big = 500.0  # ft half-extent for the section box in plan
 
-    with DB.Transaction(doc, u'NOSA — 3D Views per Level') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — 3D Views per Level')) as t:
         t.Start()
         for i, (lid, lname, elev) in enumerate(levels):
             try:
@@ -412,7 +413,7 @@ def create_drafting_views(doc, count, name_pattern=u'DRAFTING {n}', scale=None):
     errors = []
     taken = _existing_view_names(doc)
 
-    with DB.Transaction(doc, u'NOSA — Create Drafting Views') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Create Drafting Views')) as t:
         t.Start()
         for n in range(1, int(count) + 1):
             try:

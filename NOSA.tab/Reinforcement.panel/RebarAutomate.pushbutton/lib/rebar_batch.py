@@ -43,6 +43,7 @@ if _LIB not in sys.path:
 
 from nosa_utils import shared_params  # noqa: E402
 from nosa_utils.revit_compat import get_id_value  # noqa: E402 -- lazy-safe, not revit_helpers
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _OST_REBAR_LIKE_CATEGORY_NAMES = (
     u'OST_Rebar',
@@ -210,7 +211,7 @@ class RebarBatch(object):
             created_rebars, summary = generate_fn()
 
             if created_rebars:
-                with revit.Transaction(u'NOSA RebarAutomate — Stamp Provenance'):
+                with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Stamp Provenance'):
                     for elem in created_rebars:
                         results = shared_params.stamp_provenance(elem, self.ctx)
                         layer = self.layers.get(get_id_value(elem.Id))
@@ -228,7 +229,7 @@ class RebarBatch(object):
                                     get_id_value(elem.Id), u', '.join(sorted(failed_fields))))
 
                 # F4: Clasificación de formas
-                with revit.Transaction(u'NOSA RebarAutomate — Shape Classification'):
+                with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Shape Classification'):
                     try:
                         from nosa_utils.bootstrap import load_module
                         rebar_shape_classifier = load_module('rebar_shape_classifier',
@@ -250,7 +251,7 @@ class RebarBatch(object):
                         stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))
 
                 # F3: Numeración y marcado
-                with revit.Transaction(u'NOSA RebarAutomate — Marking {}'.format(self.ctx['batch_id'])):
+                with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Marking {}'.format(self.ctx['batch_id'])):
                     try:
                         rebar_marking = load_module('rebar_marking',
                             os.path.join(os.path.dirname(__file__), 'rebar_marking.py'))
@@ -268,7 +269,7 @@ class RebarBatch(object):
                         os.path.join(os.path.dirname(__file__), 'shape_images.py'))
                     shapes = shape_images.shapes_of(doc, created_rebars)
                     paths = shape_images.render_shapes(doc, shapes)
-                    with revit.Transaction(u'NOSA RebarAutomate — BS 8666 Sketches'):
+                    with nosa_tx.revit_transaction(u'NOSA RebarAutomate — BS 8666 Sketches'):
                         shape_images.stamp_bars(doc, created_rebars,
                                                 shape_images.image_types(doc, shapes, paths))
                 except Exception as sketch_err:
@@ -350,7 +351,7 @@ class RebarBatch(object):
         deleted_ids = []
         errors = []
         if to_delete_ids:
-            with revit.Transaction(u'NOSA RebarAutomate — Delete Batch {}'.format(batch_id)):
+            with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Delete Batch {}'.format(batch_id)):
                 for element_id in to_delete_ids:
                     try:
                         doc.Delete(element_id)

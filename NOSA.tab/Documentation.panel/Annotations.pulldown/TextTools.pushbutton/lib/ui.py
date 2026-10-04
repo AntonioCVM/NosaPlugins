@@ -14,6 +14,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.base_window import NOSAWindow
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 try:
     from nosa_utils import text_utils
@@ -239,7 +240,7 @@ class TextToolsWindow(NOSAWindow):
         ):
             return
         ok = fail = 0
-        with DB.Transaction(self.doc, u'NOSA — Batch Rename') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Batch Rename')) as t:
             t.Start()
             for elem, _, new_val in actual:
                 try:
@@ -361,7 +362,7 @@ class TextToolsWindow(NOSAWindow):
             ):
                 return
         changed = 0
-        with DB.Transaction(self.doc, u'NOSA — Case Converter') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Case Converter')) as t:
             t.Start()
             for elem, param, _, new_val in actual:
                 try:

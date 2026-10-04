@@ -14,6 +14,7 @@ from Autodesk.Revit import DB
 from pyrevit import forms
 from System.Collections.ObjectModel import ObservableCollection
 import System.Windows
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 class ScheduleRow(object):
@@ -185,7 +186,7 @@ class RebarManagerWindow(NOSAWindow):
             start = 1
         # Filter bars for selected marks only
         bars_sel = [b for b in self._bars if b['mark'] in selected_marks]
-        with DB.Transaction(self.doc, u'NOSA — Rebar Renumber') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Rebar Renumber')) as t:
             t.Start()
             changed, mapping = _logic.renumber_marks(self.doc, bars_sel, prefix, start)
             t.Commit()

@@ -14,6 +14,7 @@ if _lib not in sys.path:
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import geometry as _geometry
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _FT_TO_MM = _uc10.FT_TO_MM
 
 # Default priority: index 0 = highest (cuts everyone below it).
@@ -216,7 +217,7 @@ def batch_join_by_proximity(doc, elements, operation='join', tolerance_mm=50):
     op_func = _op_funcs.get(operation, join_elements)
 
     try:
-        with DB.Transaction(doc, u"NOSA — Element Join — {}".format(operation.capitalize())) as t:
+        with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Element Join — {}".format(operation.capitalize()))) as t:
             t.Start()
             for i in range(n):
                 for j in range(i + 1, n):
@@ -274,7 +275,7 @@ def batch_join_ordered(doc, elements, priority_list, tolerance_mm=50, fix_existi
     n = len(elements)
 
     try:
-        with DB.Transaction(doc, u"NOSA — Element Join — Priority Join") as t:
+        with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Element Join — Priority Join")) as t:
             t.Start()
             for i in range(n):
                 for j in range(i + 1, n):

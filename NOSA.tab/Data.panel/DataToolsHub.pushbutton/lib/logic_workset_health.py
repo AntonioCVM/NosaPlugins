@@ -9,6 +9,7 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'DataToolsHub'
 
 
@@ -93,7 +94,7 @@ def get_elements_on_worksets(doc, workset_id_ints):
 def move_elements_to_workset(doc, element_ids, target_workset_id):
     moved = 0
     failed = 0
-    with DB.Transaction(doc, u'NOSA — Move to workset') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Move to workset')) as t:
         t.Start()
         for eid in element_ids:
             try:

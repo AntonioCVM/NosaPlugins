@@ -6,6 +6,7 @@ from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 try:
     unicode
@@ -248,7 +249,7 @@ def apply_param_batch(doc, tuples, txn_name=u'NOSA — Parameter edit'):
     """tuples = [(Parameter, unicode value), …]."""
     ok = skipped = failed = 0
     try:
-        with DB.Transaction(doc, txn_name) as t:
+        with nosa_tx.guard(DB.Transaction(doc, txn_name)) as t:
             t.Start()
             for p, val in tuples:
                 if val is None or p is None or p.IsReadOnly:

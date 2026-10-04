@@ -19,6 +19,7 @@ from pyrevit import revit
 
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'elementcommentshub'
 
 # ---------------------------------------------------------------------------
@@ -247,7 +248,7 @@ class TypeCommentsLogic(object):
         values = compute_group_values(groups, config_map, only_empty=only_empty)
         written = 0
         groups_written = 0
-        with revit.Transaction(u'NOSA — Element Comments'):
+        with nosa_tx.revit_transaction(u'NOSA — Element Comments'):
             for key, grp in groups.items():
                 if only_empty and grp.current_comment:
                     continue

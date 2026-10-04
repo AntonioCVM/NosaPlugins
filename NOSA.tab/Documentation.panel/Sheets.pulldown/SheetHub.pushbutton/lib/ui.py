@@ -19,6 +19,7 @@ from System.Windows import FontWeights
 from nosa_utils.base_window import NOSAWindow
 from nosa_utils import sheet_protocol as _sp
 from nosa_utils.revit_helpers import coerce_element_id, get_id_value
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _HERE      = os.path.dirname(__file__)
 _SHEETS_DL = os.path.abspath(os.path.join(_HERE, '..', '..'))
@@ -776,7 +777,7 @@ class SheetHubWindow(NOSAWindow):
         ok = fail = warn_sheets = 0
         self.SetLoading(True, u'Applying changes to Revit…')
         try:
-            with DB.Transaction(self.doc, u'NOSA — Sheet Hub Apply') as t:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Sheet Hub Apply')) as t:
                 t.Start()
                 for row in rows:
                     sheet = row._element or self._get_sheet_element(row._sheet_id)
@@ -983,7 +984,7 @@ class SheetHubWindow(NOSAWindow):
             self.LogLine(u'[Quick] Active view is not a sheet.')
             return
         fail = 0
-        with DB.Transaction(self.doc, u'NOSA — Sheet Hub Quick Apply') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Sheet Hub Quick Apply')) as t:
             t.Start()
             try:
                 if mode in ('number', 'both'):

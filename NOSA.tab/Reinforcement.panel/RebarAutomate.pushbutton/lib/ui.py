@@ -27,6 +27,7 @@ from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.bootstrap import load_module
 from nosa_utils import shared_params
 from nosa_utils import standards
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _HERE = os.path.dirname(__file__)
 # PHASE F0 — migrated from imp.load_source to nosa_utils.bootstrap's
@@ -802,7 +803,7 @@ class RebarAutomateWindow(NOSAWindow):
                      if not v.IsTemplate and u'BBS' in (v.Name or u'').upper()]
         done = added = 0
         try:
-            with revit.Transaction(u'NOSA — BS 8666 Shape Images'):
+            with nosa_tx.revit_transaction(u'NOSA — BS 8666 Shape Images'):
                 done = shape_images.stamp_bars(self.doc, rebars, shape_images.image_types(self.doc, shapes, paths))
                 for schedule in schedules:
                     if shape_images.add_shape_image_column(self.doc, schedule):
@@ -1848,7 +1849,7 @@ class RebarAutomateWindow(NOSAWindow):
                 # FreeForm, so the two paths never both leave geometry
                 # behind for the same run.
                 try:
-                    with revit.Transaction(u'NOSA — Remove Unpropagated Bar'):
+                    with nosa_tx.revit_transaction(u'NOSA — Remove Unpropagated Bar'):
                         self.doc.Delete(rebar.Id)
                 except Exception:
                     log_swallowed(_LOG, u'RebarAutomateWindow._create_grouped_bars')
@@ -1961,7 +1962,7 @@ class RebarAutomateWindow(NOSAWindow):
             return 0
 
         created = 0
-        with revit.Transaction(u'NOSA — Footing Detail Sections'):
+        with nosa_tx.revit_transaction(u'NOSA — Footing Detail Sections'):
             for host in footings:
                 for axis in ('X', 'Y'):
                     section = rebar_detailing.create_rebar_detail_section(
@@ -2253,7 +2254,7 @@ class RebarAutomateWindow(NOSAWindow):
                     len(created_rebars), skip_reason))
             else:
                 try:
-                    with revit.Transaction(u'NOSA — Tag Rebar'):
+                    with nosa_tx.revit_transaction(u'NOSA — Tag Rebar'):
                         tags, tag_errors = rebar_detailing.create_rebar_tags(
                             self.doc, view, created_rebars,
                             tag_type_id=rebar_detailing.tag_type_for_view(self.doc, view))
@@ -2881,7 +2882,7 @@ class RebarAutomateWindow(NOSAWindow):
         if vertical_rebars and reinforcement.get('bar_inset_mm'):
             # T2.10b: links re-snap the verticals; pin them back to the design inset.
             try:
-                with DB.Transaction(self.doc, u'NOSA — Pin Column Vertical Bars') as t:
+                with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pin Column Vertical Bars')) as t:
                     t.Start()
                     for rebar in vertical_rebars:
                         re_engine.pin_rebar_to_host_faces(
@@ -3762,7 +3763,7 @@ class RebarAutomateWindow(NOSAWindow):
         if long_rebars and curves.get('bar_inset_mm'):
             # T2.10b: stirrups re-snap the longitudinals; pin them back to the design inset.
             try:
-                with DB.Transaction(self.doc, u'NOSA — Pin Beam Longitudinal Bars') as t:
+                with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pin Beam Longitudinal Bars')) as t:
                     t.Start()
                     for rebar in long_rebars:
                         re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, curves['bar_inset_mm'])
@@ -3808,7 +3809,7 @@ class RebarAutomateWindow(NOSAWindow):
             if layer == u'crosstie':
                 # BS 8666 has no standard crosstie shape: code 99 (Revit had named it "Rebar Shape N")
                 try:
-                    with DB.Transaction(self.doc, u'NOSA — Name Crosstie Shape') as t:
+                    with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Name Crosstie Shape')) as t:
                         t.Start()
                         re_engine.name_auto_shape(self.doc, rebar, u'99')
                         t.Commit()
@@ -4420,7 +4421,7 @@ class RebarAutomateWindow(NOSAWindow):
         if not confirmed:
             return
         ctx = {'standard': self.ra_standard, 'mark_prefix': partition}
-        with revit.Transaction(u'NOSA — Renumber Partition'):
+        with nosa_tx.revit_transaction(u'NOSA — Renumber Partition'):
             summary = rebar_marking.renumber_partition(self.doc, ctx)
         forms.alert(u'{} bar mark(s) given to {} Rebar element(s); {} varying set(s).'.format(
             summary.get('total_positions', 0), summary.get('total_bars', 0),
@@ -4585,12 +4586,12 @@ class RebarAutomateWindow(NOSAWindow):
                     self._stamp_location(bar, location)
                     new.append(bar)
                 else:
-                    with revit.Transaction(u'NOSA — Split Rebar (remove original)'):
+                    with nosa_tx.revit_transaction(u'NOSA — Split Rebar (remove original)'):
                         self.doc.Delete(rebar.Id)
                     created.extend(new)
                     continue
                 if new:
-                    with revit.Transaction(u'NOSA — Split Rebar (undo partial)'):
+                    with nosa_tx.revit_transaction(u'NOSA — Split Rebar (undo partial)'):
                         for bar in new:
                             self.doc.Delete(bar.Id)
             return created, {'created': len(created), 'errors': errs, 'split': len(jobs) - len(errs)}
@@ -4634,7 +4635,7 @@ class RebarAutomateWindow(NOSAWindow):
                 len(doomed), len(hosts), len(kept)), title=u'RebarAutomate — Delete Host Rebars',
                 yes=True, no=True):
             return
-        with revit.Transaction(u'NOSA — Delete Host Rebars'):
+        with nosa_tx.revit_transaction(u'NOSA — Delete Host Rebars'):
             self.doc.Delete(List[DB.ElementId]([r.Id for r in doomed]))
         msg = u'{} bar element(s) deleted from {} host(s); {} Finalized kept.'.format(len(doomed), len(hosts),
                                                                                      len(kept))
@@ -4657,7 +4658,7 @@ class RebarAutomateWindow(NOSAWindow):
         if not rebars:
             forms.alert(u'No bars in this view.', title=u'RebarAutomate — Rebar as Solids')
             return
-        with revit.Transaction(u'NOSA — Rebar as Solids'):
+        with nosa_tx.revit_transaction(u'NOSA — Rebar as Solids'):
             shown = rebar_modify.toggle_solids(view, rebars)
         self.TxtDetailingStatus.Text = u'{} bar element(s) shown as {} in "{}".'.format(
             len(rebars), u'solids' if shown else u'wires', element_name(view))
@@ -4725,7 +4726,7 @@ class RebarAutomateWindow(NOSAWindow):
 
     def _load_content(self):
         report = rebar_content.check(self.doc)
-        with revit.Transaction(u'NOSA — Load NOSA Families'):
+        with nosa_tx.revit_transaction(u'NOSA — Load NOSA Families'):
             loaded, skipped = rebar_content.load_packaged(self.doc, report)
         self._populate_detailing_combos()
         self._refresh_content_status()
@@ -4841,7 +4842,7 @@ class RebarAutomateWindow(NOSAWindow):
         tag_type_id = rebar_detailing.tag_type_for_view(
             self.doc, view, self._combo_selected_element_id(self.CmbRebarTagType))
         try:
-            with revit.Transaction(u'NOSA — Auto Tag Rebar'):
+            with nosa_tx.revit_transaction(u'NOSA — Auto Tag Rebar'):
                 tags, errors = rebar_detailing.create_rebar_tags_smart(
                     self.doc, view, rebars,
                     use_param_offsets=True,
@@ -4891,7 +4892,7 @@ class RebarAutomateWindow(NOSAWindow):
             return
 
         try:
-            with revit.Transaction(u'NOSA — Auto Multi-Rebar Annotation'):
+            with nosa_tx.revit_transaction(u'NOSA — Auto Multi-Rebar Annotation'):
                 mra = rebar_detailing.create_multi_rebar_annotation(
                     self.doc, view, rebars, mra_type=mra_type, dim_offset_mm=300.0)
         except Exception as e:
@@ -4926,7 +4927,7 @@ class RebarAutomateWindow(NOSAWindow):
         created = 0
         errors = []
         try:
-            with revit.Transaction(u'NOSA — Auto Detail Sections'):
+            with nosa_tx.revit_transaction(u'NOSA — Auto Detail Sections'):
                 for host in hosts:
                     sections, host_errors = rebar_detailing.create_orthogonal_detail_sections(
                         self.doc, host)

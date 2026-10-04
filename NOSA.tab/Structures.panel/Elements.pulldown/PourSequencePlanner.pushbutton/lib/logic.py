@@ -11,6 +11,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _POUR_PARAM_NAMES = ('Pour Phase', 'NOSA_POUR_PHASE', 'Comments')
 _DEFAULT_PHASES = [u'Phase 1', u'Phase 2', u'Phase 3', u'Phase 4']
@@ -71,7 +72,7 @@ def assign_pour_phase(doc, level_id, phase_name, zone_filter=None):
     assigned = skipped = 0
     zone_filter = (zone_filter or u'').strip().lower()
 
-    with DB.Transaction(doc, u'NOSA — Pour Sequence') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Pour Sequence')) as t:
         t.Start()
         for el in collect_elements_on_level(doc, level_id):
             if zone_filter:
@@ -116,7 +117,7 @@ def apply_phase_colours(doc, view, phase_names):
         colour_map[name] = _PHASE_COLOURS[i % len(_PHASE_COLOURS)]
 
     updated = 0
-    with DB.Transaction(doc, u'NOSA — Pour Sequence Colours') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Pour Sequence Colours')) as t:
         t.Start()
         for cat in _concrete_categories():
             try:

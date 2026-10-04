@@ -13,6 +13,7 @@ _logic = load_module('sheetnamer_logic', os.path.join(os.path.dirname(__file__),
 from nosa_utils.base_window import NOSAWindow
 from Autodesk.Revit import DB
 from System.Collections.ObjectModel import ObservableCollection
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 class BulkSheetRow(object):
@@ -220,7 +221,7 @@ class SheetNamerWindow(NOSAWindow):
             return
 
         ok = fail = 0
-        with DB.Transaction(self.doc, u'NOSA — Sheet Namer') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Sheet Namer')) as t:
             t.Start()
             for s in targets:
                 sid = s['id'] if isinstance(s, dict) else s
@@ -370,7 +371,7 @@ class SheetNamerWindow(NOSAWindow):
         self.SetLoading(True, u'Applying sheet numbers…')
         ok = fail = 0
         try:
-            with DB.Transaction(self.doc, u'NOSA — Sheet Namer Bulk') as t:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Sheet Namer Bulk')) as t:
                 t.Start()
                 for row in rows:
                     sheet = self.doc.GetElement(row._sheet_id)
@@ -420,7 +421,7 @@ class SheetNamerWindow(NOSAWindow):
             self.TxtParseStatus.Text = u'No rows selected.'
             return
         ok = fail = 0
-        with DB.Transaction(self.doc, u'NOSA — Sheet Namer Parse') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Sheet Namer Parse')) as t:
             t.Start()
             for row in rows:
                 sheet = self.doc.GetElement(row._sheet_id)

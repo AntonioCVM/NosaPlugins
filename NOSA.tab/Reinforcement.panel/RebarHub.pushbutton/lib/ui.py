@@ -23,6 +23,7 @@ _HERE    = os.path.dirname(__file__)
 _QTY_DIR = os.path.abspath(os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'Quantities.pulldown'))
 
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _bs_logic    = load_module('rebarhub_bslogic',
     os.path.join(_QTY_DIR, 'RebarManager.nobutton',  'lib', 'logic.py'))
 _sched_logic = load_module('rebarhub_schedlogic',
@@ -272,7 +273,7 @@ class RebarHubWindow(NOSAWindow):
         except Exception:
             start = 1
         bars_sel = [b for b in self._bs_bars if b['mark'] in selected]
-        with DB.Transaction(self.doc, u'NOSA — Rebar Renumber') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Rebar Renumber')) as t:
             t.Start()
             changed, mapping = _bs_logic.renumber_marks(self.doc, bars_sel, prefix, start)
             t.Commit()

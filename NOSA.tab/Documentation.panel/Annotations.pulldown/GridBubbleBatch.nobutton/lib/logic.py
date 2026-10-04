@@ -7,6 +7,7 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 def _grid_cat():
@@ -58,7 +59,7 @@ def apply_bubble_action(doc, views, action, both_ends=True):
     updated = failed = skipped = 0
     ends = [DB.DatumEnds.End0, DB.DatumEnds.End1] if both_ends else [DB.DatumEnds.End0]
 
-    with DB.Transaction(doc, u'NOSA — Grid Bubble Batch') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Grid Bubble Batch')) as t:
         t.Start()
         for view in views:
             for grid in grids:

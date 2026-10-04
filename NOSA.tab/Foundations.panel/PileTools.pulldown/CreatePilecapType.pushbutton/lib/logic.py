@@ -4,6 +4,7 @@ from Autodesk.Revit import DB
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.pilecap_utils import point_in_polygon, distance_to_polygon_edge
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'createpilecaptype'
 
 _MM_TO_FT = _uc10.MM_TO_FT
@@ -200,7 +201,7 @@ def create_pilecap(doc, config, center_pt):
     width_mm, height_mm = calc_dimensions(n_h, n_v, spacing_mm, clearance_mm)
     cx, cy, cz = center_pt.X, center_pt.Y, center_pt.Z
 
-    with DB.Transaction(doc, "NOSA — Create Pile Cap") as t:
+    with nosa_tx.guard(DB.Transaction(doc, "NOSA — Create Pile Cap")) as t:
         t.Start()
         new_ids = []
         try:
@@ -556,7 +557,7 @@ def create_pilecap_irregular(doc, config, center_pt):
     errors  = []
     created = 0
 
-    with DB.Transaction(doc, u"NOSA — Create {} Pile Cap".format(shape_key)) as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Create {} Pile Cap".format(shape_key))) as t:
         t.Start()
         new_ids = []
         try:

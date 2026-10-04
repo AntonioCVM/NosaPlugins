@@ -9,6 +9,7 @@ from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils.pilecap_utils import ungroup_targets as _ungroup_targets
 from nosa_utils.pilecap_utils import regroup_restore as _regroup_restore
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'pilemaster'
 
 
@@ -309,7 +310,7 @@ class NumberingLogic:
         # Piles: sequential per prefix
         # Caps: grouped by family + dimensions (simplified: same family = same number for all)
         
-        with revit.Transaction(u"NOSA — Batch Numbering"):
+        with nosa_tx.revit_transaction(u"NOSA — Batch Numbering"):
 
             # Ungroup any Model Groups that contain target elements so their
             # instance parameters (Mark, Comments) become writable.

@@ -12,6 +12,7 @@ Usage:
 """
 
 import re
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 # =============================================================================
 # TEXT TRANSFORMATION FUNCTIONS
@@ -153,7 +154,7 @@ def transform_textnotes(textnotes, transform_func, transaction_name, revit, outp
     """
     count_changed = 0
     
-    with revit.Transaction(transaction_name):
+    with nosa_tx.revit_transaction(transaction_name):
         for tn in textnotes:
             try:
                 old_text = tn.Text

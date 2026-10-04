@@ -10,6 +10,7 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import coerce_element_id, get_id_value
 from nosa_utils import sheet_protocol as _sp
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ def duplicate_sheets_with_viewports(doc, source_elements, titleblock_id,
     lowered = _existing_sheet_numbers_lower(doc)
     created = 0
     errors  = []
-    with DB.Transaction(doc, u'NOSA — Sheet Composer — Duplicate sheets (full clone)') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Sheet Composer — Duplicate sheets (full clone)')) as t:
         t.Start()
         for src in sorted(source_elements, key=lambda x: (x.SheetNumber or u'')):
             stem = (src.SheetNumber or u'SHEET').strip() or u'SHEET'
@@ -175,7 +176,7 @@ def duplicate_sheets_nosa_incremental(doc, source_sheets, count, titleblock_id,
         except Exception:
             log_swallowed(_LOG, u'duplicate_sheets_nosa_incremental')
 
-    with DB.Transaction(doc, u'NOSA — Duplicate Sheets') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Duplicate Sheets')) as t:
         t.Start()
         for src in sorted(source_sheets, key=lambda x: (x.SheetNumber or u'')):
             fields = sp.read_nosa_fields_from_sheet(doc, src)
@@ -234,7 +235,7 @@ def clone_sheets_batch(doc, source_sheet, count, start_number, name_template, ti
     created = 0
     errors  = []
     source_num_prefix = ''.join(c for c in source_sheet.SheetNumber if not c.isdigit())
-    with DB.Transaction(doc, u"NOSA — Sheet Composer — Clone Sheets") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Sheet Composer — Clone Sheets")) as t:
         t.Start()
         for i in range(count):
             num = "{}{}".format(source_num_prefix, start_number + i)
@@ -253,7 +254,7 @@ def clone_sheets_batch(doc, source_sheet, count, start_number, name_template, ti
 def renumber_sheets(doc, sheet_ids, prefix, start, step, suffix, pad):
     ok = failed = 0
     temp_prefix = '__NOSA_TEMP_{}__'.format(id(sheet_ids))
-    with DB.Transaction(doc, u"NOSA — Sheet Composer — Renumber Sheets") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Sheet Composer — Renumber Sheets")) as t:
         t.Start()
         for i, sid in enumerate(sheet_ids):
             try:
@@ -388,7 +389,7 @@ def update_sheets_batch(doc, changes):
     Returns (ok, failed).
     """
     ok = failed = 0
-    with DB.Transaction(doc, u"NOSA — Sheet Composer — Update Sheet Params") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Sheet Composer — Update Sheet Params")) as t:
         t.Start()
         for snum, change_dict in changes.items():
             el = change_dict.get('_element')
@@ -415,7 +416,7 @@ def create_sheets_from_data(doc, rows, titleblock_id):
     """rows: list of dicts with 'number', 'name', and optional NOSA param keys."""
     created = 0
     errors  = []
-    with DB.Transaction(doc, u"NOSA — Sheet Composer — Create Sheets") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Sheet Composer — Create Sheets")) as t:
         t.Start()
         for row in rows:
             num  = (row.get('number') or row.get('Number') or '').strip()
@@ -469,7 +470,7 @@ def import_sheets_from_csv(doc, rows, titleblock_id, mode='create'):
         existing[(s.SheetNumber or '').strip()] = s
 
     created = updated = skipped = 0
-    with DB.Transaction(doc, u"NOSA — Sheet Composer — Import CSV") as t:
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Sheet Composer — Import CSV")) as t:
         t.Start()
         for row in rows:
             num  = (row.get('Number') or row.get('Sheet Number') or row.get('number') or '').strip()

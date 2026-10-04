@@ -10,6 +10,7 @@ from Autodesk.Revit import DB
 from pyrevit import revit
 from nosa_utils import unit_conversion as _uc10
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'annotationhub'
 # ── constants ──────────────────────────────────────────────────────────────────
 FT2MM      = _uc10.FT_TO_MM  # feet → mm
@@ -778,7 +779,7 @@ def run(doc, view, options):
             c, s, e = _wrap(run_module1, doc, view, grids, tolerance, True,
                             offset_ft=offset_ft)
         else:
-            with revit.Transaction(u'NOSA — GA Auto-Dim: Off-grid elements'):
+            with nosa_tx.revit_transaction(u'NOSA — GA Auto-Dim: Off-grid elements'):
                 c, s, e = _wrap(run_module1, doc, view, grids, tolerance, False,
                                 offset_ft=offset_ft)
         results['mod1'] = {'created': c, 'skipped': s, 'errors': e}
@@ -788,7 +789,7 @@ def run(doc, view, options):
             c, s, e = _wrap(run_module2, doc, view, grids, True,
                             offset_ft=offset_ft)
         else:
-            with revit.Transaction(u'NOSA — GA Auto-Dim: Walls'):
+            with nosa_tx.revit_transaction(u'NOSA — GA Auto-Dim: Walls'):
                 c, s, e = _wrap(run_module2, doc, view, grids, False,
                                 offset_ft=offset_ft)
         results['mod2'] = {'created': c, 'skipped': s, 'errors': e}
@@ -798,7 +799,7 @@ def run(doc, view, options):
             c, s, e = _wrap(run_module3, doc, view, grids, True,
                             offset_ft=offset_ft)
         else:
-            with revit.Transaction(u'NOSA — GA Auto-Dim: Slab corners'):
+            with nosa_tx.revit_transaction(u'NOSA — GA Auto-Dim: Slab corners'):
                 c, s, e = _wrap(run_module3, doc, view, grids, False,
                                 offset_ft=offset_ft)
         results['mod3'] = {'created': c, 'skipped': s, 'errors': e}
@@ -808,7 +809,7 @@ def run(doc, view, options):
             c, s, e = _wrap(run_module4, doc, view, grids, True,
                             offset_ft=offset_ft)
         else:
-            with revit.Transaction(u'NOSA — GA Auto-Dim: Grid spacing chains'):
+            with nosa_tx.revit_transaction(u'NOSA — GA Auto-Dim: Grid spacing chains'):
                 c, s, e = _wrap(run_module4, doc, view, grids, False,
                                 offset_ft=offset_ft)
         results['mod4'] = {'created': c, 'skipped': s, 'errors': e}

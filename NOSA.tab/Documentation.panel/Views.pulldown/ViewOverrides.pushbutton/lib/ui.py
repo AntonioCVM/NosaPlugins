@@ -18,6 +18,7 @@ from nosa_utils.base_window import NOSAWindow
 
 _here      = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _vf_logic  = load_module('vo_vf_logic', os.path.join(_here, 'logic_view_filter_batch.py'))
 _cbp_logic = load_module('vo_cbp_logic', os.path.join(_here, 'logic_colour_by_param.py'))
 
@@ -433,7 +434,7 @@ class ViewOverridesWindow(NOSAWindow):
             g = int(row.SwatchHex[3:5], 16)
             b = int(row.SwatchHex[5:7], 16)
             ca[row.Value] = (r, g, b)
-        with DB.Transaction(self.doc, u'NOSA — Colour by Parameter') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Colour by Parameter')) as t:
             t.Start()
             n = _cbp_logic.apply_overrides(self.doc, view, self._cp_value_map, ca)
             t.Commit()
@@ -443,7 +444,7 @@ class ViewOverridesWindow(NOSAWindow):
         view = self._cp_active_view()
         if view is None or not self._cp_value_map:
             return
-        with DB.Transaction(self.doc, u'NOSA — Clear Colour Overrides') as t:
+        with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Clear Colour Overrides')) as t:
             t.Start()
             _cbp_logic.clear_overrides(self.doc, view, self._cp_value_map)
             t.Commit()

@@ -21,6 +21,7 @@ try:
 except NameError:
     unicode = str  # CPython 3 compat
 from nosa_utils import param_element_ops as pe
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _TYPE_CAP = 8000
 
@@ -155,7 +156,7 @@ def duplicate_type(doc, el_type, new_name):
     if not nn:
         return None, u'Empty name.'
     try:
-        with DB.Transaction(doc, u'NOSA — Duplicate type') as tx:
+        with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Duplicate type')) as tx:
             tx.Start()
             dup = el_type.Duplicate(nn)
             tx.Commit()

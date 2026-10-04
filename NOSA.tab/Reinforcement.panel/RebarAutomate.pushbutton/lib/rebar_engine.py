@@ -143,6 +143,7 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.DB import Structure as DBS
 from System.Collections.Generic import List
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'rebarautomate'
 
 _MM_PER_FT = 304.8
@@ -1553,7 +1554,7 @@ class RebarWrapper(object):
         self.shape_warning = None
 
         try:
-            with revit.Transaction(transaction_name):
+            with nosa_tx.revit_transaction(transaction_name):
                 if shape_name and start_hook is None and end_hook is None:
                     rebar = _create_rebar(self, style, bar_type, host, normal, curve_list,
                                           shape_name)
@@ -1603,7 +1604,7 @@ class RebarWrapper(object):
             self.last_error = u'No lapped circular link RebarShape (75) is loaded in this project.'
             return None
         try:
-            with revit.Transaction(transaction_name):
+            with nosa_tx.revit_transaction(transaction_name):
                 rebar = DBS.Rebar.CreateFromRebarShape(
                     self.doc, shape, bar_type, host, centre, DB.XYZ.BasisX, DB.XYZ.BasisY)
                 if rebar is None:
@@ -1751,7 +1752,7 @@ class RebarWrapper(object):
         array_length_ft = array_length_mm / _MM_PER_FT
 
         try:
-            with revit.Transaction(transaction_name):
+            with nosa_tx.revit_transaction(transaction_name):
                 rebar = None
                 if link_hook is not None:
                     # Links anchored with both hooks at one corner, turned inwards
@@ -1852,7 +1853,7 @@ class RebarWrapper(object):
         self.shape_warning = None
 
         try:
-            with revit.Transaction(transaction_name):
+            with nosa_tx.revit_transaction(transaction_name):
                 rebar = _create_rebar(self, style, bar_type, host, normal, curve_list, shape_name)
                 if rebar is None:
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
@@ -1975,7 +1976,7 @@ class RebarWrapper(object):
             return None
 
         try:
-            with revit.Transaction(transaction_name):
+            with nosa_tx.revit_transaction(transaction_name):
                 result = DBS.Rebar.CreateFreeForm(self.doc, bar_type, host, loop_list)
                 if isinstance(result, tuple):
                     rebar, validation = result[0], result[1]
@@ -2032,7 +2033,7 @@ class RebarWrapper(object):
             return None
 
         try:
-            with revit.Transaction(transaction_name):
+            with nosa_tx.revit_transaction(transaction_name):
                 rebar = DBS.Rebar.CreateFromRebarShape(
                     self.doc, rebar_shape, bar_type, host, origin, x_vec, y_vec)
             return rebar

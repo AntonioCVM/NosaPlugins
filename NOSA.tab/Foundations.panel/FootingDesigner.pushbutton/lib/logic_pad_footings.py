@@ -11,6 +11,7 @@ if _lib not in sys.path:
 
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _MM_TO_FT = _uc10.MM_TO_FT
 _FOOTING_XY_TOL_FT = 300.0 * _MM_TO_FT   # footing within 300 mm of column base = existing
@@ -163,7 +164,7 @@ def create_footings(doc, columns, symbol):
     created = skipped = failed = 0
     errors = []
 
-    t = DB.Transaction(doc, u'NOSA — Create Pad Footings')
+    t = nosa_tx.guard(DB.Transaction(doc, u'NOSA — Create Pad Footings'))
     t.Start()
     try:
         if not symbol.IsActive:

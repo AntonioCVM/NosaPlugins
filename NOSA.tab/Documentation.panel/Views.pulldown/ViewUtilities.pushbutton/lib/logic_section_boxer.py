@@ -20,6 +20,7 @@ from nosa_utils.revit_helpers import element_name
 
 from Autodesk.Revit import DB
 from pyrevit import forms
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 
 def _get_offset_ft():
@@ -94,7 +95,7 @@ def create_section_box(doc, uidoc):
         forms.alert(u'No 3D view type found in this project.', title=u'Section Boxer')
         return
 
-    with DB.Transaction(doc, u'NOSA — Section Box') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Section Box')) as t:
         t.Start()
         view3d = DB.View3D.CreateIsometric(doc, vt_3d.Id)
         view3d.Name = u'NOSA — Section Box {}'.format(

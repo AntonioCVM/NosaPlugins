@@ -23,6 +23,7 @@ _LOG = u'ModelHealthHub/ui'
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _hs_logic  = load_module('mhh_hs_logic',  os.path.join(_here, 'logic_health_score.py'))
 _wt_logic  = load_module('mhh_wt_logic',  os.path.join(_here, 'logic_warnings_triage.py'))
 _sc_logic  = load_module('mhh_sc_logic',  os.path.join(_here, 'logic_model_sync.py'))
@@ -508,7 +509,7 @@ td{{padding:9px 14px;border-bottom:1px solid #eee;font-size:12px}}
         if not row or not row.Action:
             return
         try:
-            with DB.Transaction(self.doc, u'NOSA — Auto-fix Warning') as t:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Auto-fix Warning')) as t:
                 t.Start()
                 _wt_logic.auto_fix(self.doc, row._raw)
                 t.Commit()

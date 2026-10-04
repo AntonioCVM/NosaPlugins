@@ -12,6 +12,7 @@ if _lib not in sys.path:
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.collectors import collect_views, placed_view_ids
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 
 _MM_TO_FT = _uc10.MM_TO_FT
 
@@ -115,7 +116,7 @@ def create_sheets_with_views(doc, views, tb_id, prefix, start, pad,
     taken = _taken_numbers(doc)
     n = int(start)
 
-    with DB.Transaction(doc, u'NOSA — Sheets from Views') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Sheets from Views')) as t:
         t.Start()
         for rec in views:
             view = rec['view']
@@ -157,7 +158,7 @@ def place_views_grid(doc, sheet, views, cols, margin_mm=20.0):
     cell_w = (u1 - u0) / cols
     cell_h = (v1 - v0) / max(1, rows)
 
-    with DB.Transaction(doc, u'NOSA — Place Views on Sheet') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Place Views on Sheet')) as t:
         t.Start()
         for i, rec in enumerate(views):
             view = rec['view']
@@ -186,7 +187,7 @@ def place_legend_on_sheets(doc, legend_view, sheets, u_mm, v_mm):
     du = u_mm * _MM_TO_FT
     dv = v_mm * _MM_TO_FT
 
-    with DB.Transaction(doc, u'NOSA — Place Legend on Sheets') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Place Legend on Sheets')) as t:
         t.Start()
         for rec in sheets:
             sheet = rec['sheet']
@@ -212,7 +213,7 @@ def create_placeholders(doc, prefix, start, count, pad, name):
     taken = _taken_numbers(doc)
     n = int(start)
 
-    with DB.Transaction(doc, u'NOSA — Create Placeholder Sheets') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Create Placeholder Sheets')) as t:
         t.Start()
         for _ in range(int(count)):
             try:
@@ -245,7 +246,7 @@ def convert_placeholders(doc, placeholders, tb_id):
     converted = failed = 0
     errors = []
 
-    with DB.Transaction(doc, u'NOSA — Convert Placeholder Sheets') as t:
+    with nosa_tx.guard(DB.Transaction(doc, u'NOSA — Convert Placeholder Sheets')) as t:
         t.Start()
         for rec in placeholders:
             ph = rec['sheet']

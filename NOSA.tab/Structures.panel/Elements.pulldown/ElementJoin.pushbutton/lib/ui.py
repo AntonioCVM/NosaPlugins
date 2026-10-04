@@ -19,6 +19,7 @@ from nosa_utils.base_window import NOSAWindow
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils.revit_helpers import element_id_from_int
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _logic = load_module('elemjoin_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
@@ -209,7 +210,7 @@ class ElementJoinWindow(NOSAWindow):
         op = ('unjoin' if self.RbManualUnjoin.IsChecked == True else
               'swap'   if self.RbManualSwap.IsChecked   == True else 'join')
         try:
-            with revit.Transaction(u"NOSA — Element Join — Manual"):
+            with nosa_tx.revit_transaction(u"NOSA — Element Join — Manual"):
                 if op == 'join':
                     ok, msg = _logic.join_ordered(self.doc, self._picked_a, self._picked_b)
                 elif op == 'unjoin':

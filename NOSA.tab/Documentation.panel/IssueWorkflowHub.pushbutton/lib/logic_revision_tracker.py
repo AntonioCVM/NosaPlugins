@@ -11,6 +11,7 @@ from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from pyrevit import revit
 from nosa_utils.telemetry import log_swallowed
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _LOG = u'IssueWorkflowHub'
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -31,7 +32,7 @@ def create_revision(doc, description, date='', issued_by='', issued_to=''):
     Create a new project revision.
     Returns the new DB.Revision element.
     """
-    with revit.Transaction('NOSA — Create Revision'):
+    with nosa_tx.revit_transaction('NOSA — Create Revision'):
         rev = DB.Revision.Create(doc)
         rev.Description = description or u'New Revision'
         if date:
@@ -46,7 +47,7 @@ def create_revision(doc, description, date='', issued_by='', issued_to=''):
 def set_issued(doc, rev_elem, issued):
     """Issue or unissue a revision."""
     label = u'NOSA — Issue Revision' if issued else u'NOSA — Unissue Revision'
-    with revit.Transaction(label):
+    with nosa_tx.revit_transaction(label):
         rev_elem.Issued = issued
 
 
@@ -55,7 +56,7 @@ def delete_revision(doc, rev_elem):
     Delete a revision.
     Raises if revision clouds reference it — Revit will refuse the deletion.
     """
-    with revit.Transaction(u'NOSA — Delete Revision'):
+    with nosa_tx.revit_transaction(u'NOSA — Delete Revision'):
         doc.Delete(rev_elem.Id)
 
 
@@ -87,7 +88,7 @@ def get_sheets_with_status(doc, revision_id):
 def add_revision_to_sheets(doc, revision_id, sheet_ids):
     """Add revision explicitly to a list of sheet ElementIds. Returns count."""
     count = 0
-    with revit.Transaction(u'NOSA — Add Revision to Sheets'):
+    with nosa_tx.revit_transaction(u'NOSA — Add Revision to Sheets'):
         for sid in sheet_ids:
             try:
                 sheet = doc.GetElement(sid)
@@ -102,7 +103,7 @@ def add_revision_to_sheets(doc, revision_id, sheet_ids):
 def remove_revision_from_sheets(doc, revision_id, sheet_ids):
     """Remove revision from a list of sheet ElementIds. Returns count."""
     count = 0
-    with revit.Transaction(u'NOSA — Remove Revision from Sheets'):
+    with nosa_tx.revit_transaction(u'NOSA — Remove Revision from Sheets'):
         for sid in sheet_ids:
             try:
                 sheet = doc.GetElement(sid)

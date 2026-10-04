@@ -38,6 +38,7 @@ from nosa_utils import unit_conversion as _uc10
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _align_logic    = load_module('vu_align_logic',    os.path.join(_here, 'logic_align_view_titles.py'))
 _bay_logic      = load_module('vu_bay_logic',       os.path.join(_here, 'logic_bay_sections.py'))
 _level_logic    = load_module('vu_level_logic',     os.path.join(_here, 'logic_level_navigator.py'))
@@ -250,7 +251,7 @@ class ViewUtilitiesWindow(NOSAWindow):
 
         count = 0
         errors = []
-        with revit.Transaction(u"NOSA — Align Titles"):
+        with nosa_tx.revit_transaction(u"NOSA — Align Titles"):
             for item in self.av_matching_items:
                 try:
                     target_vp = item['viewport']
@@ -335,7 +336,7 @@ class ViewUtilitiesWindow(NOSAWindow):
         # same document-wide scan once per pair for an identical result.
         model_extents = _bay_logic._get_model_extents(self.doc)
         try:
-            with DB.Transaction(self.doc, u'NOSA — Bay Sections') as t:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Bay Sections')) as t:
                 t.Start()
                 for row_a in grids_a:
                     for row_b in grids_b:

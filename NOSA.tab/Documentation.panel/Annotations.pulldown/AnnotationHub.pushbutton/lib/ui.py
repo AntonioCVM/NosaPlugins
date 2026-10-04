@@ -18,6 +18,7 @@ from nosa_utils.collectors import collect_views
 
 _here = os.path.dirname(os.path.abspath(__file__))
 from nosa_utils.bootstrap import load_module
+from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _dw_logic = load_module('annhub_dw_logic',  os.path.join(_here, 'logic_dim_walls.py'))
 _ga_logic = load_module('annhub_ga_logic',  os.path.join(_here, 'logic_ga_auto_dim.py'))
 
@@ -127,7 +128,7 @@ class AnnotationHubWindow(NOSAWindow):
         created  = 0
         failed   = 0
         diag_log = []
-        with revit.Transaction(u'NOSA — Dimension Walls'):
+        with nosa_tx.revit_transaction(u'NOSA — Dimension Walls'):
             for view in selected:
                 walls = self._dw_logic.get_valid_walls_in_view(view)
                 for wall in walls:
