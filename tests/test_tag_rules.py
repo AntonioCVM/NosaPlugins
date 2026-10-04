@@ -46,5 +46,18 @@ class TagRulesTests(unittest.TestCase):
         self.assertFalse(tr.is_pile(u'Concrete Rectangular'))
 
 
+class MraPickTests(unittest.TestCase):
+    """tag_engine.mra_pick: Multi-Rebar Annotation type for rebar sets in plans (T8.15)."""
+
+    def test_dots_before_no_dots(self):
+        from nosa_utils import tag_engine
+        names = [u'Zone label - Mark only', u'Zone label - No dots', u'Zone label - Dots']
+        self.assertEqual(tag_engine.mra_pick(names), 2)
+
+    def test_first_when_nothing_matches(self):
+        from nosa_utils import tag_engine
+        self.assertEqual(tag_engine.mra_pick([u'MRA A', u'MRA B']), 0)
+
+
 if __name__ == '__main__':
     unittest.main()

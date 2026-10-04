@@ -137,6 +137,20 @@ def _tag_all_check(columns, beams):
         keys = tag_rules.recommend(view.ViewType, element_name(template) if template else u'', view.Name,
                                    rebar_visible=bool(tag_engine.elements(doc, view, 'rebar')))
         r = tag_engine.tag_view(doc, view, keys)
+        try:
+            image = IMAGE
+        except NameError:
+            image = None
+        if image and view.Id == plan.Id:
+            from System.Collections.Generic import List
+            opts = DB.ImageExportOptions()
+            opts.ExportRange = DB.ExportRange.SetOfViews
+            opts.SetViewsAndSheets(List[DB.ElementId]([view.Id]))
+            opts.FilePath = image
+            opts.HLRandWFViewsFileType = DB.ImageFileType.PNG
+            opts.ZoomType = DB.ZoomFitType.FitToPage
+            opts.PixelSize = 2400
+            doc.ExportImage(opts)
         tags = list(DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag))
         measure = DB.Transaction(doc, 'NOSA test - measure')
         measure.Start()
@@ -171,8 +185,8 @@ def _tag_all_check(columns, beams):
                         out.append(u'    cross: tag {} on {} {} anchor ({:.2f},{:.2f}) head ({:.2f},{:.2f})'.format(
                             x.Id.IntegerValue, el.Category.Name, el.Id.IntegerValue, segs[k][0][0], segs[k][0][1],
                             segs[k][1][0], segs[k][1][1]))
-        out.append(u'  TAG ALL "{}" keys {} -> new {} moved {} leaders {} failed {} | tags {} overlaps {} '
-                   u'crossings {} {}'.format(element_name(view), keys, r['created'], r['rearranged'], r['leaders'],
+        out.append(u'  TAG ALL "{}" keys {} -> new {} mra {} moved {} leaders {} failed {} | tags {} overlaps {} '
+                   u'crossings {} {}'.format(element_name(view), keys, r['created'], r['mra'], r['rearranged'], r['leaders'],
                                              r['failed'], len(tags), overlaps, crossings, r['errors'][:2]))
     return out
 

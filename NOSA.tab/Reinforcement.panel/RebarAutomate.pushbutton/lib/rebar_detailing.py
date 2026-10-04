@@ -561,8 +561,34 @@ def tag_type_for_view(doc, view, chosen_type_id=None):
     return chosen_type_id
 
 
+def set_direction_in_view(rebar, view, min_spread_mm=1.0):
+    """Unit direction (in the view plane) a rebar set is spread along, or None for a single bar,
+    a set seen end-on (e.g. column links in plan) or one spread less than min_spread_mm."""
+    try:
+        n = rebar.NumberOfBarPositions
+        if n < 2:
+            return None
+        from Autodesk.Revit.DB.Structure import MultiplanarOption
+
+        def _mid(i):
+            curves = list(rebar.GetTransformedCenterlineCurves(
+                False, True, True, MultiplanarOption.IncludeOnlyPlanarCurves, i))
+            return curves[0].Evaluate(0.5, True) if curves else None
+        a, b = _mid(0), _mid(n - 1)
+        if a is None or b is None:
+            return None
+        run = b - a
+        normal = view.ViewDirection
+        flat = run - normal.Multiply(run.DotProduct(normal))
+        if flat.GetLength() < 0.5 * run.GetLength() or flat.GetLength() < min_spread_mm / _MM_PER_FT:
+            return None
+        return flat.Normalize()
+    except Exception:
+        return None
+
+
 def create_multi_rebar_annotation(doc, view, rebars, mra_type=None,
-                                   dim_offset_mm=300.0, tag_has_leader=False):
+                                   dim_offset_mm=300.0, tag_has_leader=False, direction=None):
     """
     Create a Multi-Rebar Annotation (MRA) for the given rebars.
 
@@ -618,12 +644,12 @@ def create_multi_rebar_annotation(doc, view, rebars, mra_type=None,
         p0 = sorted_centers[0]
         p1 = sorted_centers[-1]
         run = p1 - p0
-        if run.GetLength() < 1.0 / _MM_PER_FT:
-            direction = right
-        else:
-            direction = run.Normalize()
-
-        offset = up.Multiply(dim_offset_mm / _MM_PER_FT)
+        if direction is None:
+            direction = right if run.GetLength() < 1.0 / _MM_PER_FT else run.Normalize()
+        side = view.ViewDirection.CrossProduct(direction)
+        if side.GetLength() < 1e-6:
+            side = up
+        offset = side.Normalize().Multiply(dim_offset_mm / _MM_PER_FT)
         mid = (p0 + p1).Multiply(0.5)
 
         options = DB.MultiReferenceAnnotationOptions(mra_type)

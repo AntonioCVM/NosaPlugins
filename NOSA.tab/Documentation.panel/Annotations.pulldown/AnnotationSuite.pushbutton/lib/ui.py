@@ -178,7 +178,7 @@ class AnnotationSuiteWindow(NOSAWindow):
             return
         type_ids, ticked = self._tag_choice()
         recommended = self.ChkTagRecommended.IsChecked == True
-        total = {'created': 0, 'rearranged': 0, 'leaders': 0, 'failed': 0}
+        total = {'created': 0, 'mra': 0, 'rearranged': 0, 'leaders': 0, 'failed': 0}
         lines, errors = [], []
         self.SetLoading(True, u'Tagging...')
         try:
@@ -197,14 +197,14 @@ class AnnotationSuiteWindow(NOSAWindow):
                 for k in total:
                     total[k] += r[k]
                 errors.extend(r['errors'])
-                lines.append(u'{}: {} new, {} moved, {} leaders'.format(
-                    view.Name, r['created'], r['rearranged'], r['leaders']))
+                lines.append(u'{}: {} new, {} MRA, {} moved, {} leaders'.format(
+                    view.Name, r['created'], r['mra'], r['rearranged'], r['leaders']))
         except Exception as e:
             forms.alert(u'Tag All failed: {}'.format(e))
             return
         finally:
             self.SetLoading(False)
-        text = (u'Tags — New: {created}  |  Moved: {rearranged}  |  Leaders: {leaders}  |  '
+        text = (u'Tags — New: {created}  |  MRA (rebar sets): {mra}  |  Moved: {rearranged}  |  Leaders: {leaders}  |  '
                 u'Failed: {failed}'.format(**total))
         self.SuiteTxtResult.Text = text + u'\n' + u'\n'.join(lines + errors[:6])
 

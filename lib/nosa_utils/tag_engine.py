@@ -21,6 +21,8 @@ _ELEMENT_CATEGORY = dict((c[0], c[2]) for c in tag_rules.CATEGORIES)
 _RA_LIB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                        'NOSA.tab', 'Reinforcement.panel', 'RebarAutomate.pushbutton', 'lib')
 _rebar_detailing = None
+MRA_PREFERENCE = (u'dots',)
+MRA_MIN_SPREAD_MM = 10.0    # paper: narrower sets (bars across a beam) get an ordinary tag
 
 
 def _bic(name):
@@ -174,6 +176,115 @@ def natural_rect(geometry, anchor, el_rect, tag_rect, gap):
     return (anchor[0] - w / 2.0, anchor[1] - h / 2.0, anchor[0] + w / 2.0, anchor[1] + h / 2.0)
 
 
+def mra_type_id(doc, preferred=MRA_PREFERENCE):
+    """Multi-Rebar Annotation type for Tag All in plans: the first whose name contains a preferred
+    word, else the first loaded, else None."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name
+    types = sorted(DB.FilteredElementCollector(doc).OfClass(DB.MultiReferenceAnnotationType),
+                   key=element_name)
+    if not types:
+        return None
+    names = [element_name(t) for t in types]
+    return types[mra_pick(names, preferred)].Id
+
+
+def mra_pick(names, preferred=MRA_PREFERENCE):
+    """Index of the preferred MRA type name (pure): 'Zone label - Dots' before 'No dots'."""
+    for wanted in preferred:
+        for i, name in enumerate(names):
+            low = (name or u'').lower()
+            if wanted in low and u'no ' + wanted not in low:
+                return i
+    return 0
+
+
+def _overlap(a, b):
+    return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+
+
+def stack_out(rects, sides, obstacles, gap, max_steps=40):
+    """
+    (dx, dy) per MRA tag head (pure): each head is pushed away from its dimension line along its
+    side (unit (x, y) in view coordinates), alternately to one side and the other a head at a time,
+    until it clears the obstacles and the heads already placed. A rect of None stays put.
+    """
+    placed = [r for r in obstacles if r is not None]
+    out = []
+    for rect, side in zip(rects, sides):
+        if rect is None:
+            out.append((0.0, 0.0))
+            continue
+        step = abs(side[0]) * (rect[2] - rect[0] + gap) + abs(side[1]) * (rect[3] - rect[1] + gap)
+        dx = dy = 0.0
+        for i in range(max_steps + 1):
+            k = (i + 1) // 2 * (1 if i % 2 else -1)
+            dx, dy = side[0] * step * k, side[1] * step * k
+            moved = (rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy)
+            if not any(_overlap(moved, o) for o in placed):
+                break
+        placed.append((rect[0] + dx, rect[1] + dy, rect[2] + dx, rect[3] + dy))
+        out.append((dx, dy))
+    return out
+
+
+def _mra_tagged(doc, view):
+    """({element id: (MRA tag, MRA)}, {tag id}) of the rebar already carried by a Multi-Rebar Annotation."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    elements_, tags = {}, set()
+    for mra in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.MultiReferenceAnnotation):
+        tag = doc.GetElement(mra.TagId)
+        if tag is None:
+            continue
+        tags.add(get_id_value(tag.Id))
+        tagged = _tagged_id(tag)
+        if tagged is not None:
+            elements_[tagged] = (tag, mra)
+    return elements_, tags
+
+
+def _mra_side(doc, mra, tag):
+    """Side an existing MRA head sits on: from its dimension line towards the head."""
+    try:
+        line = doc.GetElement(mra.DimensionId).Curve
+        run = tag.TagHeadPosition - line.Origin
+        away = run - line.Direction.Multiply(run.DotProduct(line.Direction))
+        return away.Normalize() if away.GetLength() > 1e-6 else None
+    except Exception:
+        return None
+
+
+def _stack_mra_heads(doc, view, stacked, items, keys, gap):
+    """Push the MRA heads clear of each other, the elements' outlines and the other tags."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    right, up = view.RightDirection, view.UpDirection
+    moving = set(get_id_value(t.Id) for t, _s in stacked) | set(get_id_value(it[0].Id) for it in items)
+    others = [tag for tag in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag)
+              if get_id_value(tag.Id) not in moving]
+    obstacles = head_rects(doc, view, others)
+    for key in ('columns', 'piles'):
+        if key in keys:
+            obstacles.extend(_rect(el, view) for el in elements(doc, view, key))
+    sides = []
+    for tag, side in stacked:
+        if side is None:
+            sides.append((0.0, 0.0))
+            continue
+        x, y = side.DotProduct(right), side.DotProduct(up)
+        n = (x * x + y * y) ** 0.5 or 1.0
+        sides.append((x / n, y / n))
+    rects = head_rects(doc, view, [t for t, _s in stacked])
+    moved = 0
+    for (tag, _side), (dx, dy) in zip(stacked, stack_out(rects, sides, obstacles, gap)):
+        if abs(dx) > 1e-9 or abs(dy) > 1e-9:
+            tag.TagHeadPosition = tag.TagHeadPosition + right.Multiply(dx) + up.Multiply(dy)
+            moved += 1
+    doc.Regenerate()
+    return moved
+
+
 def _tagged_id(tag):
     from nosa_utils.revit_helpers import get_id_value
     try:
@@ -209,11 +320,13 @@ def _rollback_on_error():
 def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, leader_after=1.5):
     """
     Tag `keys` (tag_rules.KEYS) in one view. type_ids: {key: tag type id} overrides the NOSA
-    preference. Returns {'created', 'rearranged', 'leaders', 'failed', 'errors'}.
+    preference ('rebar_mra' for the Multi-Rebar Annotation type). In plans every rebar set gets one
+    MRA (T8.15); single bars and sets seen end-on get a tag.
+    Returns {'created', 'mra', 'rearranged', 'leaders', 'failed', 'errors'}.
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import get_id_value
-    report = {'created': 0, 'rearranged': 0, 'leaders': 0, 'failed': 0, 'errors': []}
+    report = {'created': 0, 'mra': 0, 'rearranged': 0, 'leaders': 0, 'failed': 0, 'errors': []}
     kind = tag_rules.view_kind(view.ViewType)
     if kind is None:
         return report
@@ -227,16 +340,28 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
     t.SetFailureHandlingOptions(options)
     t.Start()
     try:
+        mra_elements, mra_tags = _mra_tagged(doc, view) if kind == 'plan' else ({}, set())
+        mra_type = None
+        if kind == 'plan' and 'rebar' in keys:
+            mra_type = doc.GetElement(type_ids.get('rebar_mra') or mra_type_id(doc) or DB.ElementId.InvalidElementId)
         existing = {}
         for tag in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag):
+            if get_id_value(tag.Id) in mra_tags:
+                continue
             tagged = _tagged_id(tag)
             if tagged is not None:
                 existing.setdefault(tagged, []).append(tag)
         items = []          # (tag, element, geometry)
+        stacked = []        # (MRA tag, side the head moves to)
         for key in keys:
             geometry = _GEOMETRY[key]
             for el in elements(doc, view, key):
                 eid = get_id_value(el.Id)
+                if eid in mra_elements:
+                    if rearrange:
+                        mra_tag, mra = mra_elements[eid]
+                        stacked.append((mra_tag, _mra_side(doc, mra, mra_tag)))
+                    continue
                 if eid in existing:
                     if rearrange:
                         items.extend((tag, el, geometry) for tag in existing[eid])
@@ -244,6 +369,19 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
                 type_id = type_ids.get(key) or default_type_id(doc, key, el, kind)
                 if type_id is None:
                     continue
+                if key == 'rebar' and mra_type is not None:
+                    det = _ra_detailing()
+                    scale = max(1, int(view.Scale))
+                    direction = det.set_direction_in_view(el, view, MRA_MIN_SPREAD_MM * scale)
+                    if direction is not None:
+                        mra = det.create_multi_rebar_annotation(doc, view, [el], mra_type, 6.0 * scale,
+                                                                tag_has_leader=True, direction=direction)
+                        if mra is not None:
+                            report['mra'] += 1
+                            mra_tag = doc.GetElement(mra.TagId)
+                            if mra_tag is not None:
+                                stacked.append((mra_tag, view.ViewDirection.CrossProduct(direction)))
+                            continue
                 try:
                     if key == 'rebar':
                         tag = _ra_detailing().create_rebar_tag(doc, view, el, (0.0, 0.0, 0.0), None, type_id, False)
@@ -265,6 +403,8 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
         items = [it for it in items if it[0] is not None and it[0].IsValidObject]
         scale = max(1, int(view.Scale)) if hasattr(view, 'Scale') else 50
         gap = gap_paper_mm * scale / _FT
+        if stacked:
+            report['rearranged'] += _stack_mra_heads(doc, view, stacked, items, keys, gap)
         moving = set(get_id_value(it[0].Id) for it in items)
         fixed = [tag for tag in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag)
                  if get_id_value(tag.Id) not in moving]
@@ -314,5 +454,5 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
         return report
     if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
         report['errors'].append(u'{}: rolled back by Revit — {}'.format(view.Name, u'; '.join(guard.errors)))
-        report['created'] = report['rearranged'] = report['leaders'] = 0
+        report['created'] = report['mra'] = report['rearranged'] = report['leaders'] = 0
     return report
