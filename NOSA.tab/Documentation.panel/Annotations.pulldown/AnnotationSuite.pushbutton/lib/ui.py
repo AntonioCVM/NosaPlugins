@@ -22,18 +22,9 @@ _VIS = System.Windows.Visibility.Visible
 _COL = System.Windows.Visibility.Collapsed
 
 
-def _load_sibling_logic(name, module_name):
-    base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    for suffix in ('pushbutton', 'nobutton'):
-        path = os.path.join(base, '{}.{}'.format(name, suffix), 'lib', 'logic.py')
-        if os.path.exists(path):
-            from nosa_utils.bootstrap import load_module
-            return load_module(module_name, path)
-    raise ImportError('Cannot find logic for: ' + name)
-
-
-_anno = _load_sibling_logic('AnnotationBatch', 'suite_anno')
-_gbb  = _load_sibling_logic('GridBubbleBatch', 'suite_gbb')
+from nosa_utils.bootstrap import load_module as _load_module
+_anno = _load_module('suite_anno', os.path.join(os.path.dirname(__file__), 'logic_annotation_batch.py'))
+_gbb  = _load_module('suite_gbb', os.path.join(os.path.dirname(__file__), 'logic_grid_bubbles.py'))
 
 
 class ViewItem(object):

@@ -19,16 +19,8 @@ _logic = load_module('viewmanager_logic',
                          os.path.join(os.path.dirname(__file__), 'logic.py'))
 
 
-def _load_sibling_logic(name, module_name):
-    base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-    for suffix in ('pushbutton', 'nobutton'):
-        path = os.path.join(base, '{}.{}'.format(name, suffix), 'lib', 'logic.py')
-        if os.path.exists(path):
-            return load_module(module_name, path)
-    raise ImportError('Cannot find logic for: ' + name)
-
-
-_vbm = _load_sibling_logic('ViewBatchManager', 'viewmanager_vbm')
+from nosa_utils.bootstrap import load_module as _load_module
+_vbm = _load_module('viewmanager_vbm', os.path.join(os.path.dirname(__file__), 'logic_view_batch.py'))
 
 _NO_TEMPLATE = u'(no template)'
 

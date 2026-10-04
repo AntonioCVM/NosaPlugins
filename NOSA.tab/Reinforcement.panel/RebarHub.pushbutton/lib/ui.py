@@ -25,11 +25,11 @@ _QTY_DIR = os.path.abspath(os.path.join(_HERE, '..', '..', '..', 'Structures.pan
 from nosa_utils.bootstrap import load_module
 from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 _bs_logic    = load_module('rebarhub_bslogic',
-    os.path.join(_QTY_DIR, 'RebarManager.nobutton',  'lib', 'logic.py'))
+    os.path.join(_HERE, 'logic_rebar_manager.py'))
 _sched_logic = load_module('rebarhub_schedlogic',
-    os.path.join(_QTY_DIR, 'RebarSchedule.nobutton', 'lib', 'logic.py'))
+    os.path.join(_HERE, 'logic_rebar_schedule.py'))
 _aud_logic   = load_module('rebarhub_audlogic',
-    os.path.join(_QTY_DIR, 'RebarAuditor.nobutton',  'lib', 'logic.py'))
+    os.path.join(_HERE, 'logic_rebar_auditor.py'))
 
 EXPOSURE_CLASSES = ['X0', 'XC1', 'XC2', 'XC3', 'XC4',
                     'XD1', 'XD2', 'XD3', 'XS1', 'XS2', 'XS3',

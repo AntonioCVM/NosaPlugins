@@ -59,18 +59,7 @@ def _lm_lcm_logic():
     """Lazy-load LinkChangeMonitor logic (lives under Structures/Coordination)."""
     global _lm_lcm
     if _lm_lcm is None:
-        ext_root = os.path.abspath(os.path.join(
-            os.path.dirname(__file__), '..', '..', '..', '..'))
-        for suffix in ('nobutton', 'pushbutton'):
-            path = os.path.join(ext_root, 'NOSA.tab', 'Structures.panel',
-                                'Coordination.modules',
-                                'LinkChangeMonitor.{}'.format(suffix),
-                                'lib', 'logic.py')
-            if os.path.isfile(path):
-                _lm_lcm = load_module('dth_lm_lcm_logic', path)
-                break
-        if _lm_lcm is None:
-            raise ImportError(u'LinkChangeMonitor logic not found.')
+        _lm_lcm = load_module('dth_lm_lcm_logic', os.path.join(os.path.dirname(__file__), 'logic_link_change.py'))
     return _lm_lcm
 
 

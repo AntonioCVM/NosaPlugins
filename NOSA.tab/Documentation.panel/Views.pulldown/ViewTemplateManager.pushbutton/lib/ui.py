@@ -163,7 +163,7 @@ class ViewTemplateManagerWindow(NOSAWindow):
             forms.alert(u'Could not select: {}'.format(e))
 
     def TG_EditRules_Click(self, sender, args):
-        rules = os.path.join(_here, '..', 'TemplateGuard.nobutton', 'lib', 'rules.json')
+        rules = os.path.join(_here, 'rules.json')
         rules = os.path.normpath(rules)
         try:
             import subprocess

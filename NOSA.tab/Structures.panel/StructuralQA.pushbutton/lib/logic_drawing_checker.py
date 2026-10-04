@@ -210,8 +210,7 @@ def _templateguard_logic():
     from nosa_utils.bootstrap import load_module
     views = os.path.abspath(os.path.join(
         os.path.dirname(__file__), '..', '..', '..', '..', 'NOSA.tab', 'Documentation.panel', 'Views.pulldown'))
-    for rel in (('ViewTemplateManager.pushbutton', 'lib', 'logic_template_guard.py'),
-                ('TemplateGuard.nobutton', 'lib', 'logic.py')):
+    for rel in (('ViewTemplateManager.pushbutton', 'lib', 'logic_template_guard.py'),):
         path = os.path.join(views, *rel)
         if os.path.isfile(path):
             return load_module('drawingchecker_tg_logic', path)

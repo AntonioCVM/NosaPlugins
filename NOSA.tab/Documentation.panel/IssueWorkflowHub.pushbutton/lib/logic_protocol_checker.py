@@ -17,20 +17,8 @@ _VALID_F6 = None
 def _sheet_namer():
     global _sn, _VALID_F6
     if _sn is None:
-        panel  = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-        own_dl = os.path.join(panel, 'Issue.modules')
-        # SheetNamer lives in Sheets.pulldown since v5.7; check both locations
-        for base in (os.path.join(panel, 'Sheets.pulldown'), own_dl):
-            for suffix in ('nobutton', 'pushbutton'):
-                path = os.path.join(base, 'SheetNamer.{}'.format(suffix), 'lib', 'logic.py')
-                if os.path.isfile(path):
-                    from nosa_utils.bootstrap import load_module
-                    _sn = load_module('sheet_namer_logic', path)
-                    break
-            if _sn is not None:
-                break
-        if _sn is None:
-            raise IOError(u'Sheet Namer logic not found (Sheets or Issue pulldown).')
+        from nosa_utils import sheet_namer
+        _sn = sheet_namer
         _VALID_F6 = {code for code, _ in _sn.F6_CODES}
     return _sn
 

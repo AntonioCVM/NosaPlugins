@@ -5,9 +5,6 @@ import os
 
 from Autodesk.Revit import DB
 
-_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
-if _lib not in sys.path:
-    sys.path.insert(0, _lib)
 
 from nosa_utils import sheet_protocol as _sp
 from nosa_utils.revit_helpers import coerce_element_id, get_id_value

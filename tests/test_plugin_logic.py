@@ -532,12 +532,12 @@ class AnnotationHubTests(unittest.TestCase):
 class AnnotationSuiteTests(unittest.TestCase):
     """'Documentation.panel/Annotations.pulldown/AnnotationSuite.pushbutton'"""
 
-    def test_sibling_tool_logic_is_found(self):
+    def test_tool_logic_lives_in_its_own_lib(self):
+        # T8.3: Annotation Batch / Grid Bubble Batch logic moved into the suite
         ui = _plugin('Documentation.panel', 'Annotations.pulldown', 'AnnotationSuite.pushbutton', 'lib', 'ui.py')
-        self.assertTrue(hasattr(ui._anno, '__file__'))
-        self.assertTrue(hasattr(ui._gbb, '__file__'))
-        with self.assertRaises(ImportError):
-            ui._load_sibling_logic('NoSuchTool', 'nope')
+        for mod, name in ((ui._anno, 'logic_annotation_batch.py'), (ui._gbb, 'logic_grid_bubbles.py')):
+            self.assertEqual(os.path.basename(mod.__file__), name)
+            self.assertIn('AnnotationSuite.pushbutton', mod.__file__)
 
 
 class TextToolsTests(unittest.TestCase):

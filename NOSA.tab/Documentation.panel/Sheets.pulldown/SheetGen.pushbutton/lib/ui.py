@@ -20,9 +20,7 @@ except NameError:
     unicode = str
 from nosa_utils.bootstrap import load_module
 _logic    = load_module('sheetcomposer_logic', os.path.join(os.path.dirname(__file__), 'logic.py'))
-_di_logic = load_module('drawingindex_logic',
-                 os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                              '..', '..', 'DrawingIndex.nobutton', 'lib', 'logic.py')))
+from nosa_utils import drawing_index as _di_logic
 
 # Column header → attr_name (for the Edit tab CellEditEnding handler)
 _HEADER_TO_ATTR = {

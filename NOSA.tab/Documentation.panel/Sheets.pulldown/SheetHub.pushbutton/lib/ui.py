@@ -39,12 +39,9 @@ def _resolve_hub_logic(plugin_base):
 
 def _hub_logics():
     global _di_logic, _sn_logic, _sc_logic
-    if _di_logic is None:
+    if _sc_logic is None:
         from nosa_utils.bootstrap import load_module
-        _di_logic = load_module('sheethub_di_logic',
-            _resolve_hub_logic('DrawingIndex'))
-        _sn_logic = load_module('sheethub_sn_logic',
-            _resolve_hub_logic('SheetNamer'))
+        from nosa_utils import drawing_index as _di_logic, sheet_namer as _sn_logic
         _sc_logic = load_module('sheethub_sc_logic',
             _resolve_hub_logic('SheetGen'))
     return _di_logic, _sn_logic, _sc_logic

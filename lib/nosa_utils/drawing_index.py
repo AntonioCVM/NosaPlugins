@@ -7,9 +7,6 @@ Can export to CSV/HTML or create a Revit key schedule.
 import csv, os, sys
 
 from Autodesk.Revit import DB
-_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
-if _lib not in sys.path:
-    sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import sheet_protocol as _sp
 

@@ -16,13 +16,8 @@ _dpc_logic = None
 def _load_dpc_logic():
     global _dpc_logic
     if _dpc_logic is None:
-        base = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'Issue.modules'))
-        for suffix in ('pushbutton', 'nobutton'):
-            path = os.path.join(base, 'DrawingProtocolChecker.{}'.format(suffix), 'lib', 'logic.py')
-            if os.path.exists(path):
-                from nosa_utils.bootstrap import load_module
-                _dpc_logic = load_module('dpc_logic_gate', path)
-                break
+        from nosa_utils.bootstrap import load_module
+        _dpc_logic = load_module('dpc_logic_gate', os.path.join(os.path.dirname(__file__), 'logic_dpc.py'))
     return _dpc_logic
 
 
