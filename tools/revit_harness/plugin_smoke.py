@@ -117,6 +117,21 @@ try:
                     windows.append(attr)
                 except Exception:
                     problems.append(u'window {}.{}: {}'.format(f, attr, traceback.format_exc().strip().splitlines()[-1]))
+        hub_path = os.path.join(lib, 'hub.py')
+        if os.path.isfile(hub_path):
+            try:
+                from nosa_utils.tabbed_hub import TabbedHub
+                hub_mod = modules.get('hub.py') or load_module('smoke_{}_hub'.format(key), hub_path)
+                hub = TabbedHub(key, 'smoke_' + key, hub_mod.tools(doc, _uiapp.ActiveUIDocument))
+                tabs = []
+                for i in range(hub.HubTabs.Items.Count):
+                    hub.HubTabs.SelectedIndex = i
+                    tool = hub.tool(i)
+                    tabs.append(u'{}={}'.format(hub.HubTabs.Items[i].Header, type(tool).__name__))
+                hub.Close()
+                windows.append(u'hub[{}]'.format(u', '.join(tabs)))
+            except Exception:
+                problems.append(u'hub: {}'.format(traceback.format_exc().strip().splitlines()[-1]))
         if problems:
             fail += 1
             _out.append(u'FAIL {} | windows {} | {}'.format(rel, windows, u' || '.join(problems)))

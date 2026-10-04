@@ -1,7 +1,7 @@
 layout:
-  - Sheets
+  - SheetHub
   - SheetExportHub
-  - Views
+  - ViewHub
   - Annotations
   - IssueWorkflowHub
   - QRCode

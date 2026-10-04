@@ -339,12 +339,18 @@ class NOSAWindow(WPFWindow):
     def ApplyTheme(self, dark_mode):
         self.dark_mode = dark_mode
         colors = ThemeManager.get_colors(dark_mode)
+
+        def media(c):
+            # ThemeManager speaks System.Drawing; WPF brushes need System.Windows.Media colours
+            # (assigning the Drawing colour failed silently, so dark mode never applied — T8, 2026-10-04)
+            from System.Windows.Media import Color as MediaColor
+            return MediaColor.FromArgb(c.A, c.R, c.G, c.B)
         try:
-            self.Resources["BgColor"].Color     = colors['bg']
-            self.Resources["PanelColor"].Color  = colors['panel']
-            self.Resources["TextColor"].Color   = colors['text']
-            self.Resources["AccentColor"].Color = colors['accent']
-            self.Resources["BorderColor"].Color = colors['border']
+            self.Resources["BgColor"].Color     = media(colors['bg'])
+            self.Resources["PanelColor"].Color  = media(colors['panel'])
+            self.Resources["TextColor"].Color   = media(colors['text'])
+            self.Resources["AccentColor"].Color = media(colors['accent'])
+            self.Resources["BorderColor"].Color = media(colors['border'])
         except Exception as e:
             logger.debug("NOSAWindow.ApplyTheme: {}".format(e))
 

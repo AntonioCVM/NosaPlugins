@@ -1478,6 +1478,9 @@
                             <Button Name="BtnExportPackage" Content="Export Fabrication Package (BBS + BVBS)..."
                                     HorizontalAlignment="Stretch" Margin="0,8,0,0"
                                     ToolTip="One folder for the fabricator: the BBS as Excel (with BS 8666 sketches) and CSV, plus the BVBS file for the bending machine. No model is shared."/>
+                            <Button Name="BtnRebarHub" Content="Model Rebar: Schedules, Bar Marks &amp; EC2 Audit..."
+                                    Click="RebarHub_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                    ToolTip="All the reinforcement in the model (not only RebarAutomate's): BS 8666 schedule by mark or host, duplicate bar marks and renumbering, and an EC2 audit of cover, reinforcement ratios and unreinforced elements."/>
                         </StackPanel>
                     </Border>
 

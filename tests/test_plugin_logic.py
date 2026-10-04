@@ -158,7 +158,7 @@ class StructuralQATests(unittest.TestCase):
     """'Structures.panel/StructuralQA.pushbutton'"""
 
     def setUp(self):
-        self.m = _plugin('Structures.panel', 'StructuralQA.pushbutton', 'lib',
+        self.m = _plugin('Structures.panel', 'QAHub.pushbutton', 'lib', 'structural_qa',
                          'logic_quantification_qa.py')
 
     def test_concrete_aggregated_by_category_material_level(self):
@@ -192,11 +192,11 @@ class StructuralQADrawingCheckerTests(unittest.TestCase):
     """'Structures.panel/StructuralQA.pushbutton' — drawing checker reuses Template Guard rules."""
 
     def test_template_guard_rules_come_from_view_template_manager(self):
-        m = _plugin('Structures.panel', 'StructuralQA.pushbutton', 'lib', 'logic_drawing_checker.py')
+        m = _plugin('Structures.panel', 'QAHub.pushbutton', 'lib', 'structural_qa', 'logic_drawing_checker.py')
         with permissive_imports():
             tg = m._templateguard_logic()
         self.assertIsNotNone(tg)
-        self.assertIn('ViewTemplateManager.pushbutton', tg.__file__)
+        self.assertIn('view_templates', tg.__file__)
         for name in ('load_rules', 'check_wrong_scale', 'check_sheet_naming', 'check_viewport_overrides',
                      'check_crop_region', 'check_detail_level'):
             self.assertTrue(callable(getattr(tg, name)), name)
@@ -333,7 +333,7 @@ class SurveyExportTests(unittest.TestCase):
     """'Foundations.panel/SurveyExport.pushbutton'"""
 
     def setUp(self):
-        self.m = _plugin('Foundations.panel', 'SurveyExport.pushbutton', 'lib',
+        self.m = _plugin('Foundations.panel', 'PileTools.pulldown', 'PileMaster.pushbutton', 'lib', 'survey',
                          'logic_cuadro_replanteo.py')
 
     def test_survey_csv_aliases_and_metres_to_mm(self):
@@ -368,7 +368,7 @@ class SheetGenTests(unittest.TestCase):
     """'Documentation.panel/Sheets.pulldown/SheetGen.pushbutton'"""
 
     def setUp(self):
-        self.m = _plugin('Documentation.panel', 'Sheets.pulldown', 'SheetGen.pushbutton', 'lib', 'logic.py')
+        self.m = _plugin('Documentation.panel', 'SheetHub.pushbutton', 'lib', 'sheet_gen', 'logic.py')
 
     def test_unique_copy_numbers_are_case_insensitive(self):
         taken = {u's-101-copy'}
@@ -389,7 +389,7 @@ class SheetHubTests(unittest.TestCase):
     """'Documentation.panel/Sheets.pulldown/SheetHub.pushbutton'"""
 
     def test_grid_header_maps_to_field_key(self):
-        ui = _plugin('Documentation.panel', 'Sheets.pulldown', 'SheetHub.pushbutton', 'lib', 'ui.py')
+        ui = _plugin('Documentation.panel', 'SheetHub.pushbutton', 'lib', 'sheet_hub', 'ui.py')
         first = ui._FIELD_KEYS[0]
         self.assertEqual(ui._field_key_from_header(first + u' Project No'), first)
         self.assertEqual(ui._field_key_from_header(u'  ' + first + u'  '), first)
@@ -439,7 +439,7 @@ class ViewManagerTests(unittest.TestCase):
     """'Documentation.panel/Views.pulldown/ViewManager.pushbutton'"""
 
     def test_unique_names_case_insensitive(self):
-        m = _plugin('Documentation.panel', 'Views.pulldown', 'ViewManager.pushbutton', 'lib', 'logic.py')
+        m = _plugin('Documentation.panel', 'ViewHub.pushbutton', 'lib', 'view_manager', 'logic.py')
         taken = {u'level 1'}
         self.assertEqual(m._unique_name(u'Level 1', taken), u'Level 1 (2)')
         self.assertEqual(m._unique_name(u'Level 1', taken), u'Level 1 (3)')
@@ -451,7 +451,7 @@ class ViewOverridesTests(unittest.TestCase):
     """'Documentation.panel/Views.pulldown/ViewOverrides.pushbutton'"""
 
     def test_colours_assigned_in_sorted_order_and_cycle(self):
-        m = _plugin('Documentation.panel', 'Views.pulldown', 'ViewOverrides.pushbutton', 'lib',
+        m = _plugin('Documentation.panel', 'ViewHub.pushbutton', 'lib', 'view_overrides',
                     'logic_colour_by_param.py')
         palette = list(m._PALETTE)
         values = [u'v{:02d}'.format(i) for i in range(len(palette) + 1)]
@@ -465,7 +465,7 @@ class ViewTemplateManagerTests(unittest.TestCase):
     """'Documentation.panel/Views.pulldown/ViewTemplateManager.pushbutton'"""
 
     def test_sheet_naming_rule(self):
-        m = _plugin('Documentation.panel', 'Views.pulldown', 'ViewTemplateManager.pushbutton', 'lib',
+        m = _plugin('Documentation.panel', 'ViewHub.pushbutton', 'lib', 'view_templates',
                     'logic_template_guard.py')
         sheets = [Namespace(SheetNumber=u'S-101', Name=u'General Arrangement', Id=1),
                   Namespace(SheetNumber=u'x1', Name=u'GA', Id=2)]
@@ -485,7 +485,7 @@ class ViewUtilitiesTests(unittest.TestCase):
     """'Documentation.panel/Views.pulldown/ViewUtilities.pushbutton'"""
 
     def test_title_alignment_modes(self):
-        m = _plugin('Documentation.panel', 'Views.pulldown', 'ViewUtilities.pushbutton', 'lib',
+        m = _plugin('Documentation.panel', 'ViewHub.pushbutton', 'lib', 'view_utilities',
                     'logic_align_view_titles.py')
         original = m.DB
         m.DB = Namespace(XYZ=_XYZ)
@@ -602,7 +602,7 @@ class SharedParamManagerTests(unittest.TestCase):
     """'Data.panel/SharedParamManager.pushbutton'"""
 
     def test_definitions_read_across_groups(self):
-        m = _plugin('Data.panel', 'SharedParamManager.pushbutton', 'lib', 'logic_shared_param.py')
+        m = _plugin('Data.panel', 'DataToolsHub.pushbutton', 'lib', 'shared_params', 'logic_shared_param.py')
         defs = Namespace(Groups=[
             Namespace(Name=u'Rebar', Definitions=[Namespace(Name=u'NOSA_Rebar_Mark', GUID=u'g-1')]),
             Namespace(Name=u'General', Definitions=[Namespace(Name=u'NOSA_Drawn_By', GUID=u'g-2')])])
@@ -628,7 +628,7 @@ class WorksharingAuditTests(unittest.TestCase):
     """'Data.panel/WorksharingAudit.pushbutton'"""
 
     def test_checkout_labels(self):
-        m = _plugin('Data.panel', 'WorksharingAudit.pushbutton', 'lib', 'logic.py')
+        m = _plugin('Data.panel', 'DataToolsHub.pushbutton', 'lib', 'worksharing', 'logic.py')
         for raw, label in m._CHECKOUT_LABELS.items():
             self.assertEqual(m._checkout_label(raw), label)
         self.assertEqual(m._checkout_label('Unexpected'), u'Unexpected')
@@ -638,7 +638,7 @@ class ModelHealthHubTests(unittest.TestCase):
     """'Structures.panel/ModelHealthHub.pushbutton'"""
 
     def _m(self, name):
-        return _plugin('Structures.panel', 'ModelHealthHub.pushbutton', 'lib', name)
+        return _plugin('Structures.panel', 'QAHub.pushbutton', 'lib', 'model_health', name)
 
     def test_health_score(self):
         m = self._m('logic_health_score.py')
@@ -692,12 +692,12 @@ class RebarHubTests(unittest.TestCase):
     """'Reinforcement.panel/RebarHub.pushbutton'"""
 
     def test_hub_finds_its_three_tool_logics(self):
-        ui = _plugin('Reinforcement.panel', 'RebarHub.pushbutton', 'lib', 'ui.py')
+        ui = _plugin('Reinforcement.panel', 'RebarAutomate.pushbutton', 'lib', 'rebar_hub', 'ui.py')
         for name in ('_bs_logic', '_sched_logic', '_aud_logic'):
             self.assertTrue(os.path.isfile(getattr(ui, name).__file__), name)
 
     def test_bs8666_groups_by_partition_and_mark(self):
-        ui = _plugin('Reinforcement.panel', 'RebarHub.pushbutton', 'lib', 'ui.py')
+        ui = _plugin('Reinforcement.panel', 'RebarAutomate.pushbutton', 'lib', 'rebar_hub', 'ui.py')
         bar = dict(diameter=16, diameter_label=u'H16', shape=u'00', shape_desc=u'Straight',
                    length_mm=3000.0, total_len_m=6.0, mass_kg=9.47, level=u'L1', host=u'Floor')
         bars = [dict(bar, mark=u'01', partition=u'F1', quantity=2),

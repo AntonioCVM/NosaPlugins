@@ -620,4 +620,19 @@ class ToolsMixin(object):
         forms.alert(msg, title=u'NOSA — Auto Sections')
 
 
+    def RebarHub_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._open_rebar_hub)
+
+    def _open_rebar_hub(self):
+        """T8.6 — the former Rebar Hub, opened in Revit's API context (it renumbers marks)."""
+        from nosa_utils.base_window import launch_nosa_window
+        hub_lib = os.path.join(_HERE, 'rebar_hub')
+        if hub_lib not in sys.path:
+            sys.path.insert(0, hub_lib)
+        hub = load_module('rebarhub_ui', os.path.join(hub_lib, 'ui.py'))
+        launch_nosa_window(hub.RebarHubWindow, self.doc, self.uidoc)
+
+
 _OWN = set(globals())

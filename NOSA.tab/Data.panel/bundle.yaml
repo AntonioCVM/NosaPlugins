@@ -1,7 +1,5 @@
 layout:
   - ProjectSetupWizard
   - ParameterHub
-  - SharedParamManager
   - ElementCommentsHub
   - DataToolsHub
-  - WorksharingAudit

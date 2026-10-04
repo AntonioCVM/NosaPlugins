@@ -154,7 +154,7 @@ def script_lib_problem(script, lib):
 class PluginContractTests(unittest.TestCase):
 
     def test_plugins_are_found(self):
-        self.assertGreaterEqual(len(plugins()), 30)
+        self.assertGreaterEqual(len(plugins()), 25)   # T8: merged into hubs (2026-10-04)
 
     def test_xaml_is_well_formed_and_handlers_exist(self):
         problems = []
