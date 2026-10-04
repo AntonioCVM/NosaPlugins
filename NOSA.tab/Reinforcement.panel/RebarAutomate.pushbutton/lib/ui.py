@@ -845,6 +845,7 @@ class RebarAutomateWindow(NOSAWindow):
                 revision=self.ra_project.get('revision', u''), steel_grade=steel_grade)
             lines = [u'{} BVBS record(s) written ({}) to:'.format(
                          written, rebar_export_bvbs.BVBS_GUIDELINE), output_path]
+            lines.append(rebar_export_bvbs.LENGTH_NOTE)
             if without_geometry:
                 lines.append(u'')
                 lines.append(u'{} position(s) exported without bending geometry (circular links '
@@ -903,6 +904,7 @@ class RebarAutomateWindow(NOSAWindow):
             revision=self.ra_project.get('revision', u''), steel_grade=steel_grade)
         files.append(abs_path)
         notes.append(u'{} BVBS record(s) ({}).'.format(written, rebar_export_bvbs.BVBS_GUIDELINE))
+        notes.append(rebar_export_bvbs.LENGTH_NOTE)
         if without_geometry:
             notes.append(u'{} position(s) without bending geometry: the fabricator bends these from '
                          u'the schedule.'.format(without_geometry))

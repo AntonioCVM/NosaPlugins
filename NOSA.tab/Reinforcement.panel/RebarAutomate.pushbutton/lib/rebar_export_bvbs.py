@@ -29,6 +29,11 @@ BVBS_FORMAT_VERIFIED = True
 BVBS_GUIDELINE = u'BVBS Guideline 3.1 (2021-05)'
 
 
+# T8.16 (user decision 2026-10-04): the header length is the sum of the outer dimensions, as in the
+# ZEICON reference record (tests); the machine derives the cut length from the mandrel
+LENGTH_NOTE = (u'Note: bar lengths in the .abs are the sum of the outer dimensions (BVBS); '
+               u'the BBS shows the cut length.')
+
 def checksum(record_up_to_c):
     """BVBS checksum of everything from the start of the record up to and including the 'C'."""
     return 96 - sum(ord(ch) for ch in record_up_to_c) % 32
