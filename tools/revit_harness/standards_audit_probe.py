@@ -15,7 +15,7 @@ for _p in (os.path.join(PYREVIT, 'pyrevitlib'), os.path.join(PYREVIT, 'site-pack
 _out = []
 try:
     from nosa_utils import standards_audit
-    findings = standards_audit.audit(doc)
+    findings = standards_audit.audit(doc, check_purge=globals().get('PURGE', True))
     path = os.path.join(tempfile.gettempdir(), 'nosa_standards_audit.tsv')
     with io.open(path, 'w', encoding='utf-8') as f:
         for x in findings:
