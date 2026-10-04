@@ -166,6 +166,39 @@ Orden propuesto por valor/dependencias. ∥ = paralelizable · R = prueba en Rev
 | [x] | T7.9 | Muros curvos en RebarAutomate | – | ✔ | – | Horizontales como arcos (o poligonal) y verticales radiales; solapes y U de extremos como en muros rectos. Hecho 2026-10-03: muros en arco circular — horizontales en arco (Rebar Set por cara, troceadas a stock con solape al tresbolillo), verticales radiales (un Free Form por cara), U de extremo con patas en arco y U de coronación como Free Form, horquillas radiales, esperas. Probado en v30 (R 6 m, 120°). Pendiente: pie en L bajo forjado apoyado en muro curvo (no se genera) |
 | [x] | T7.10 | Exportación genérica para fabricación | ✔ | – | ✔ | Decisión del usuario 2026-10-04: exportación genérica, sin compartir el modelo — basta el BBS y el fichero de la dobladora. Botón **Export Fabrication Package (BBS + BVBS)**: una carpeta con el BBS .xlsx (croquis BS 8666) + .csv y el BVBS .abs; probado en la v30. PXML/Tekla/RISA descartados |
 
+
+## Fase 8 — Consolidación (petición del usuario 2026-10-04)
+
+Objetivo: mejorar, fusionar o retirar lo que ya existe y auditar la plantilla. Análisis completo, plugin a plugin,
+en [docs/FASE8_ANALISIS.md](docs/FASE8_ANALISIS.md). ∥ = paralelizable · R = prueba en Revit · U = decisión/validación del usuario.
+
+| | ID | Tarea | ∥ | R | U | Alcance / criterio de aceptación |
+|---|---|---|:-:|:-:|:-:|---|
+| [ ] | T8.1 | **Transacciones protegidas en toda la extensión** | – | ✔ | – | `nosa_utils.transactions.nosa_transaction` instala un `IFailuresPreprocessor` (borra avisos, deshace errores y devuelve su texto, nunca abre un diálogo); migrar las ~150 transacciones de ~60 ficheros (hoy solo RebarAutomate está protegido). Prueba: forzar un error en cada hub sin que aparezca un diálogo |
+| [ ] | T8.2 | Prueba de humo de todos los plugins en Revit | ✔ | ✔ | – | El arnés abre cada ventana (sin modelo modificado) en 2024, 2025, 2026 y 2027 e informa de las que fallan; se ejecuta antes de cada merge a main |
+| [ ] | T8.3 | Retirar módulos ocultos absorbidos y carpetas vacías | ✔ | ✔ | ✔ | Verificar que el hub cubre cada función y borrar: AnnotationBatch, GridBubbleBatch, DrawingProtocolChecker, DrawingIndex, SheetNamer, TemplateGuard, ViewBatchManager, LinkChangeMonitor, RebarAuditor, RebarManager, RebarSchedule, ExportSheets, ClashReport, `QA.modules`, `TagAll2.pushbutton.DISABLED` |
+| [ ] | T8.4 | Lint a cero y salida de consola limpia | ✔ | – | – | 63 hallazgos de `nosa_lint`; los 246 `print` de RebarAutomate pasan a `nosa_utils.logging` (solo con depuración activada) |
+| [ ] | T8.5 | RebarAutomate: dividir `ui.py` por tipología | – | ✔ | – | Un módulo por pestaña (zapatas/forjados, pilares, vigas, muros, escaleras, detallado); la ventana solo enruta; sin cambios de comportamiento (tests + probes de la fase 7) |
+| [ ] | T8.6 | Fusionar Rebar Hub en RebarAutomate | – | ✔ | ✔ | BBS, marcas y agrupación ya están en RebarAutomate; la auditoría EC2 pasa a una pestaña de *Detailing & Tools*; retirar el botón |
+| [ ] | T8.7 | QA Hub: Structural QA + Model Health Hub | – | ✔ | ✔ | Un único botón con pestañas (salud del modelo, avisos, colisiones, auditoría de familias, IFC, cobertura de armado, cuantificación) |
+| [ ] | T8.8 | Replanteo único: Survey Export + coordenadas de Pile Master | – | ✔ | ✔ | El *pile setting-out* existe en los dos; queda en Pile Master (uso 107 frente a 1) y Survey Export conserva solo el replanteo de elementos o se integra |
+| [ ] | T8.9 | View Hub: View Manager + View Utilities + View Overrides + Template Manager | – | ✔ | ✔ | Un botón con pestañas; los tres últimos tienen 1–3 usos |
+| [ ] | T8.10 | Sheet Hub único: Sheet Gen + Sheet Hub | – | ✔ | ✔ | Creación, edición de protocolo y duplicado de hojas en una herramienta |
+| [ ] | T8.11 | Data Tools absorbe Shared Parameters y Worksharing Audit | – | ✔ | ✔ | Pestañas dentro de Data Tools |
+| [ ] | T8.12 | **Comprobador de planos en Sheet Export Hub** | – | ✔ | ✔ | Antes de exportar, por hoja: número y campos del protocolo NOSA v2.2 / ISO 19650 (`sheet_protocol`, reutilizando el comprobador de Issue Workflow Hub), código de revisión P01/C01 y estado, serie frente al *functional breakdown*, cajetín completo, escala del cajetín frente a los viewports, viewports fuera del área de impresión, hojas vacías, vistas sin plantilla, tipos de texto y cota no NOSA, erratas típicas. Informe y opción de bloquear la exportación de lo que no cumple. **U**: el PDF del protocolo (la hoja 0002 enlaza a `N:\2. Technical\NOSA QA\NOSA File Naming Protocols.pdf`) |
+| [ ] | T8.13 | Generador de notas generales (0900) por proyecto | ✔ | ✔ | ✔ | Diálogo con los valores del proyecto (clase de hormigón, recubrimientos por exposición, viento, fuego, cargas de barandilla, terreno, acero…) que actualiza el drafting view *0900 General notes*; la tabla de anclajes y solapes se regenera con `nosa_utils.standards` (el mismo motor de RebarAutomate) |
+| [ ] | T8.14 | Auditoría de estándares del proyecto frente a la plantilla | ✔ | ✔ | – | Pestaña del QA Hub: tipos, estilos, patrones y materiales ajenos, residuos de DWG, nombres en español, parámetros duplicados, vistas sin plantilla; con limpieza opcional |
+| [ ] | T8.15 | Tag All en plantas: anotación múltiple para la armadura | – | ✔ | ✔ | En plantas, una MRA o etiqueta por conjunto en lugar de etiquetas por barra (origen del cruce residual de T7.4) |
+| [ ] | T8.16 | BVBS: campo `l` de cabecera frente a la longitud de corte del BBS | ✔ | – | ✔ | Hoy la cabecera es la suma de tramos (forma 21: 1458 frente a 1425 del BBS); confirmar con la guía BVBS 3.1 o con el fabricante y unificar |
+| [~] | T8.17 | Plantilla: 0900 General notes | – | ✔ | ✔ | **Hecho 2026-10-04**: 8 drafting views + 1 leyenda + notas sueltas → un único drafting view *0900 General notes* en la misma posición (las vistas 1:5 y 1:20 redibujadas a escala); normas retiradas sustituidas (BS 5628, BS 1243, DD 140, BS 4486, BS EN 20888, BS 5080…), referencias añadidas (BS EN 1990, 13670, 206 + BS 8500, 1992-1-2, 10025-2, 1090-2 EXC2, ISO 12944, 15048/14399, 845-1, PD 6697, BS 6180, NA.8, BS EN 1992-4) y erratas corregidas; tablas realineadas. **Pendiente (U)**: (a) confirmar los valores de barandillas frente a la UK NA Tabla NA.8; (b) tabla de anclajes calculada (T8.13); (c) texto de 2,0 mm frente a los ≥ 2,5 mm de BS EN ISO 3098 en A1; (d) faltan 2 tiras del esquema de adherencia, por debajo de la tolerancia de Revit a escala 1:1; (e) guardar la v30 |
+| [ ] | T8.18 | Plantilla: limpieza de residuos | ✔ | ✔ | ✔ | Materiales en español y *Render Material x-y-z*, duplicados *Phase-Demo*, *Metal - Steel - 345 MPa*; patrones de línea en español, *IMPORT-* e imperiales; 3 *Linear Dimension Style* y *Arrow - 2.5mm Arial*; *Ceiling 1* duplicado; tipos con «(1)» o « 2»; filtros de prueba (*Isolate Shape 00/21*, *RC 01*, *Sec 01*); 6 imágenes con rutas rotas |
+| [ ] | T8.19 | Plantilla: parámetros de proyecto duplicados | – | ✔ | ✔ | *Manufacturer_ISO*, *Revit version*, *UniclassCode*, *UniclassDescription* aparecen dos veces; dejar uno compartido por nombre sin perder valores |
+| [ ] | T8.20 | Plantilla: revisiones ISO 19650 | – | ✔ | ✔ | Secuencias de numeración P01/C01, códigos de estado S0–S4/A, coherentes con el comprobador T8.12 |
+| [ ] | T8.21 | Plantilla: biblioteca de perfiles UK | – | ✔ | ✔ | Vigas hoy en perfiles europeos (HEA/HEB/IPE…) y pilares en UK: añadir UKB/UKC/PFC/CHS/RHS/SHS (BS EN 10365) como viga y pilar; depurar los 773 tipos sin uso dejando una biblioteca curada |
+| [ ] | T8.22 | Plantilla: plantillas de vista y navegador | – | ✔ | ✔ | Nomenclatura coherente, plantillas que faltan (cimentación, 3D, detalle), 3 vistas sin plantilla, organizaciones «all» repetidas |
+| [ ] | T8.23 | Plantilla: 0002 File naming protocols nativo | – | ✔ | ✔ | Sustituir la imagen del PDF por contenido Revit (tabla o drafting view) buscable y sin ruta externa. **U**: el PDF |
+| [ ] | T8.24 | Plantilla: tablas | ✔ | ✔ | ✔ | Errata «Stairscases»; *BBS* frente a *Rebar Schedule*; Uniclass 2015 rellenado en los tipos |
+
 ---
 
 ## Orden y dependencias
@@ -175,6 +208,7 @@ Fase 0 ──► Fase 1 ──┬──► Fase 2 (secuencial) ──► Fase 4 
                     ├──► Fase 3 (paralelo por plugin)
                     └──► Fase 5 / Fase 6 (paralelo, cuando haya hueco)
 1.0.0 ──► Fase 7 (backlog planificado: T7.1 primero; T7.3–T7.5 y T7.7 paralelizables)
+Fase 7 ──► Fase 8 (consolidación: T8.1 y T8.2 primero; fusiones T8.6–T8.11 con decisión del usuario; plantilla T8.17–T8.24 con su aprobación)
 ```
 
 - Fase 2 y Fase 4 tocan los mismos ficheros de RebarAutomate: **nunca dos sesiones a la vez** sobre ellas.
