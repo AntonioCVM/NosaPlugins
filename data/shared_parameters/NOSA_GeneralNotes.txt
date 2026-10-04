@@ -1,0 +1,62 @@
+# This is a Revit shared parameter file.
+# NOSA General Notes (T8.13): project values shown on 0900, bound to Project Information.
+# GUIDs are FINAL — never regenerate. A retired parameter keeps its GUID burned.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_General_Notes
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	c4b69e95-6265-49df-8e21-4034ba1e9d6d	NOSA_GN_Concrete_Grade	TEXT		1	1	Concrete grade (Concrete)	1	0
+PARAM	fb3bf62e-71ba-4aff-bac2-29de0e0fad3d	NOSA_GN_Cover_Typical	TEXT		1	1	Nominal cover — typical (Concrete)	1	0
+PARAM	5870b776-5d73-4a0d-a4aa-0dfc633a04b5	NOSA_GN_Cover_Slabs	TEXT		1	1	Nominal cover — slabs (Concrete)	1	0
+PARAM	11326877-aee9-4ab4-8c9a-017a0376234e	NOSA_GN_Anchorage_Concrete	TEXT		1	1	Anchorage & lap table concrete class (Concrete)	1	0
+PARAM	adf32a4a-e494-4afd-8c70-f7766b424afc	NOSA_GN_Penetration_Max	TEXT		1	1	Penetrations not shown up to (Concrete)	1	0
+PARAM	ae0ac4c0-63ce-42aa-a7a7-520e690ae36d	NOSA_GN_Column_Hole_Dia	TEXT		1	1	Hole beside a column — diameter (Concrete)	1	0
+PARAM	c3136bc0-591e-42f8-9b0b-3416fe9da002	NOSA_GN_Column_Hole_Clear	TEXT		1	1	Hole beside a column — minimum from column face (Concrete)	1	0
+PARAM	2679bffd-12c8-4865-9f37-f7afff64a688	NOSA_GN_Fire_Resistance	TEXT		1	1	Fire resistance (REI minutes) (Fire & movement)	1	0
+PARAM	f2330f18-89a3-4738-a6ac-d652bee838c6	NOSA_GN_Deflection_Total	TEXT		1	1	Deflection limit — total load (L/x) (Fire & movement)	1	0
+PARAM	8cf70dbd-1510-49a2-addb-09881c98311c	NOSA_GN_Deflection_Cantilever	TEXT		1	1	Deflection limit — cantilevers (L/x) (Fire & movement)	1	0
+PARAM	840d4996-1bf2-49df-aac1-738ce2a8ecd6	NOSA_GN_Deflection_Imposed	TEXT		1	1	Deflection limit — imposed load (L/x) (Fire & movement)	1	0
+PARAM	9acd7226-de02-4bbd-8d47-1cc0fd2de128	NOSA_GN_Deflection_Brittle	TEXT		1	1	Deflection limit — imposed, brittle finishes (L/x) (Fire & movement)	1	0
+PARAM	e5f48261-c6bc-475f-b0e4-c2894394db22	NOSA_GN_Deflection_Columns	TEXT		1	1	Column sway limit (H/x) (Fire & movement)	1	0
+PARAM	6fa574b7-d238-4d67-9089-08d090cc2624	NOSA_GN_Free_Zone	TEXT		1	1	Free zone below suspended structure (Fire & movement)	1	0
+PARAM	3901abd1-ba93-4339-9ce7-4fad087539ad	NOSA_GN_Cladding_Sway	TEXT		1	1	Frame movement for cladding — sway (Fire & movement)	1	0
+PARAM	34f85871-3a0f-4fee-a8a2-e667cd96b9a5	NOSA_GN_Cladding_Vertical	TEXT		1	1	Frame movement for cladding — vertical (Fire & movement)	1	0
+PARAM	9b2ba2d7-2467-4554-b833-6d4430c8fa32	NOSA_GN_Glass_Barrier_Deflection	TEXT		1	1	Glass balustrade deflection limit (Fire & movement)	1	0
+PARAM	f96cc955-728e-45af-8f4d-09a8cb4b28df	NOSA_GN_Wind_Terrain	TEXT		1	1	Wind — terrain (Wind & thermal)	1	0
+PARAM	1c3e3d54-23a4-47a3-be31-1b226f48c302	NOSA_GN_Wind_Speed	TEXT		1	1	Wind — basic wind speed (Wind & thermal)	1	0
+PARAM	70fd0117-31aa-43c0-9b4b-b8f4a4ff1017	NOSA_GN_Impact_Vertical	TEXT		1	1	Vertical impact loading (Wind & thermal)	1	0
+PARAM	2d12f9b1-3545-45f0-9138-32f6f55cc58a	NOSA_GN_Impact_Horizontal	TEXT		1	1	Horizontal impact loading (Wind & thermal)	1	0
+PARAM	259226cd-34c7-456d-81bc-9551dad88a78	NOSA_GN_Thermal_External	TEXT		1	1	Thermal range — external (Wind & thermal)	1	0
+PARAM	e43b8ab9-dfc4-4103-960c-1e630ffbec10	NOSA_GN_Thermal_Internal	TEXT		1	1	Thermal range — internal (Wind & thermal)	1	0
+PARAM	bdd34a47-3286-43c8-b2dd-f97513fd5fe9	NOSA_GN_Steel_Grade	TEXT		1	1	Structural steel grade (Steelwork)	1	0
+PARAM	e48f01f2-a8a0-4a6f-b469-95d298de9648	NOSA_GN_Execution_Class	TEXT		1	1	Steel execution class (Steelwork)	1	0
+PARAM	32ff0b28-48f8-4f75-8b4a-d285bb347f7c	NOSA_GN_Corrosion_Interior	TEXT		1	1	Corrosivity — interior (Steelwork)	1	0
+PARAM	48992020-4cb0-4276-9aa3-9530997b3ec6	NOSA_GN_Corrosion_Exterior	TEXT		1	1	Corrosivity — exterior (Steelwork)	1	0
+PARAM	8a60af44-cf57-4e6b-bb58-4b2f0d5ca97e	NOSA_GN_Tie_Force	TEXT		1	1	Minimum accidental tie force (Steelwork)	1	0
+PARAM	3b07d9d6-6a9e-420c-8ebc-085f05d667fa	NOSA_GN_Bolt_Class	TEXT		1	1	Bolt property class (Steelwork)	1	0
+PARAM	d39009b7-a76b-4b04-8d62-30cc25e23f90	NOSA_GN_Grout_Strength	TEXT		1	1	Grout strength at 28 days (Steelwork)	1	0
+PARAM	a1afa1da-6832-464d-9602-1030f47e22cf	NOSA_GN_Weld_Min	TEXT		1	1	Minimum weld leg length (Steelwork)	1	0
+PARAM	e58061a3-1d8a-47fd-9cd9-648ed2ee36e2	NOSA_GN_Plate_Min	TEXT		1	1	Minimum plate thickness (Steelwork)	1	0
+PARAM	6a01a056-5487-40cc-8e62-b1b73fb3b830	NOSA_GN_Buried_Steel_Cover	TEXT		1	1	Concrete surround to buried steel (Steelwork)	1	0
+PARAM	53ddea59-8ccf-49ce-b73b-90eeb8bc44fd	NOSA_GN_Timber_Solid	TEXT		1	1	Solid timber strength class (Timber)	1	0
+PARAM	2021633b-57e3-4f07-974f-46f4c0439d14	NOSA_GN_Timber_Glulam	TEXT		1	1	Glulam strength class (Timber)	1	0
+PARAM	e74c1188-ab2b-4388-b825-e8306a0afbec	NOSA_GN_Timber_Moisture	TEXT		1	1	Timber maximum moisture content (Timber)	1	0
+PARAM	1c5ffc6c-1a77-46c0-8135-3867b92dc6a4	NOSA_GN_Brick_Below_Strength	TEXT		1	1	Brickwork below DPC — strength (Masonry)	1	0
+PARAM	c81ab0cd-bc2a-458b-a458-13cb0a37a508	NOSA_GN_Brick_Below_Absorption	TEXT		1	1	Brickwork below DPC — water absorption (Masonry)	1	0
+PARAM	31ca2cc9-92ec-43aa-9004-4eaf60217bf4	NOSA_GN_Brick_Above_Strength	TEXT		1	1	Brickwork above DPC — strength (Masonry)	1	0
+PARAM	02dc33b7-2c9b-493e-9a0a-7c899e7b1a9f	NOSA_GN_Brick_Above_Absorption	TEXT		1	1	Brickwork above DPC — absorption (Masonry)	1	0
+PARAM	90f79054-adf5-417d-b23a-5369751338d6	NOSA_GN_Block_Below_Absorption	TEXT		1	1	Blockwork below DPC — water absorption (Masonry)	1	0
+PARAM	ccfc63a9-04bf-4120-83d9-fa569ee9e901	NOSA_GN_Block_Below_Strength	TEXT		1	1	Blockwork below DPC — strength (Masonry)	1	0
+PARAM	aba7a5ff-f0bb-4224-a57a-4ff0e07d4d55	NOSA_GN_Block_Above_Strength	TEXT		1	1	Blockwork above DPC — strength (Masonry)	1	0
+PARAM	aa569339-f740-4250-930c-d9f7f7868c77	NOSA_GN_Mortar_Class	TEXT		1	1	Mortar class above DPC (BS EN 998-2) (Masonry)	1	0
+PARAM	44ae6826-c7f5-4466-ac03-8ab3413ea54b	NOSA_GN_Wall_Tie_Vertical	TEXT		1	1	Wall ties — vertical centres (Masonry)	1	0
+PARAM	25b7ef7a-5d68-4a81-8f80-730f89b20558	NOSA_GN_Wall_Tie_Horizontal	TEXT		1	1	Wall ties — horizontal centres (Masonry)	1	0
+PARAM	f65a1dc5-7b66-4e29-bae6-9c324e4693e6	NOSA_GN_Movement_Brick	TEXT		1	1	Movement joints — brickwork (Masonry)	1	0
+PARAM	b6046090-e1a4-4769-9483-5688c03bb3e2	NOSA_GN_Movement_Block	TEXT		1	1	Movement joints — blockwork (Masonry)	1	0
+PARAM	679ce119-572b-4753-afc5-19336f1ddb3c	NOSA_GN_Movement_Cavity	TEXT		1	1	Movement joints — cavity walls (Masonry)	1	0
+PARAM	cfea9d24-77f3-41e1-906d-139ff7b5729c	NOSA_GN_Excavation_Angle	TEXT		1	1	Excavation influence zone angle (degrees) (Earthworks)	1	0
+PARAM	e4d2d8ae-7a01-48a4-832b-aac1379622a5	NOSA_GN_Obstruction_Depth	TEXT		1	1	Obstructions removed below founding level (Earthworks)	1	0
+PARAM	9973b032-f8ed-4452-aada-a5be2a20c0b0	NOSA_GN_Pile_Survey_Time	TEXT		1	1	Found piles surveyed within (Earthworks)	1	0
+PARAM	770c5dc4-2ed6-44d9-afaf-960922dffd80	NOSA_GN_Review_Period	TEXT		1	1	Contractor design review period (Contractor design)	1	0
+PARAM	3ca1957a-de61-4a32-becf-4e86a5f00b8c	NOSA_GN_Hard_Copies	TEXT		1	1	Hard copies requested (Contractor design)	1	0

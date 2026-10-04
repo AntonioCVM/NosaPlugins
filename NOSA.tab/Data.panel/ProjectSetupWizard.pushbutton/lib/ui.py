@@ -99,6 +99,14 @@ class ProjectSetupWindow(NOSAWindow):
         else:
             forms.alert(u'No steps were selected.', title=u'Project Setup Wizard')
 
+    def GeneralNotes_Click(self, sender, args):
+        """T8.13 — the project values of the 0900 General notes."""
+        notes = load_module('projsetup_general_notes', os.path.join(os.path.dirname(__file__),
+                                                                    'general_notes_window.py'))
+        win = notes.GeneralNotesWindow(self.doc)
+        win.Owner = self
+        win.ShowDialog()
+
     def Theme_Toggled(self, sender, args):
         NOSAWindow.Theme_Toggled(self, sender, args)
         cfg = self.LoadConfig()

@@ -124,6 +124,16 @@ def check_sheet(doc, sheet, number_counts=None):
     if other:
         add(pr.WARNING, u'Graphics', u'Text or dimensions in a non-NOSA font: {}.'.format(u', '.join(other)))
 
+    try:
+        from nosa_utils import general_notes
+        if any(getattr(doc.GetElement(p.ViewId), 'Name', None) == general_notes.VIEW_NAME for p in ports):
+            for label, on_sheet, wanted in general_notes.differences(doc):
+                add(pr.WARNING, u'General notes', u'{}: the sheet says "{}" but Project Information says "{}" '
+                                                  u'(Project Setup > General Notes to update).'.format(
+                                                      label, on_sheet, wanted))
+    except Exception:
+        log_swallowed(_LOG, u'check_sheet')
+
     if tb is not None and scales:
         shown = (_param(tb, 'SHEET_SCALE') or _param(sheet, 'SHEET_SCALE')).strip()
         expected = u'1 : {}'.format(list(scales)[0]) if len(scales) == 1 else u'As indicated'

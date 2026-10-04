@@ -262,3 +262,103 @@ def table_note_edits(text, concrete_class):
             lead = len(text[start:end]) - len(text[start:end].lstrip())
             out.append((start + lead, start + lead + len(current), value))
     return sorted(out, key=lambda e: -e[0])
+
+
+# ── Revit side ──────────────────────────────────────────────────────────────────────────────────
+
+def params_file():
+    import os
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'shared_parameters',
+                                        'NOSA_GeneralNotes.txt'))
+
+
+def bind(doc):
+    """Bind the NOSA_GN_* parameters to Project Information (idempotent). Returns the binding report."""
+    from nosa_utils import shared_params
+    return shared_params.ensure_bound(doc, ['OST_ProjectInformation'], params_file())
+
+
+def find_view(doc):
+    from Autodesk.Revit import DB
+    for view in DB.FilteredElementCollector(doc).OfClass(DB.ViewDrafting):
+        if not view.IsTemplate and view.Name == VIEW_NAME:
+            return view
+    return None
+
+
+def _notes(doc, view):
+    from Autodesk.Revit import DB
+    return list(DB.FilteredElementCollector(doc, view.Id).OfClass(DB.TextNote))
+
+
+def sheet_values(doc, view=None):
+    """{key: value} as currently written on the 0900 notes."""
+    view = view or find_view(doc)
+    if view is None:
+        return {}
+    return read_text_values([n.GetFormattedText().GetPlainText() for n in _notes(doc, view)])
+
+
+def project_values(doc):
+    """{key: value} from Project Information (only parameters that exist and hold text)."""
+    info = doc.ProjectInformation
+    out = {}
+    for key in (f[0] for f in FIELDS):
+        p = info.LookupParameter(param_name(key))
+        if p is not None and p.HasValue and (p.AsString() or u'').strip():
+            out[key] = p.AsString()
+    return out
+
+
+def write_project_values(doc, values):
+    """Set the NOSA_GN_* parameters (call inside a transaction). Returns the keys written."""
+    info = doc.ProjectInformation
+    done = []
+    for key, value in values.items():
+        p = info.LookupParameter(param_name(key))
+        if p is not None and not p.IsReadOnly and value is not None:
+            p.Set(value)
+            done.append(key)
+    return done
+
+
+def apply(doc, values, view=None):
+    """
+    Write `values` into the 0900 notes (call inside a transaction), keeping the formatting. The
+    anchorage table is recomputed only when its concrete class changes. -> (cells changed, keys with
+    no place on the sheet).
+    """
+    from Autodesk.Revit import DB
+    view = view or find_view(doc)
+    if view is None:
+        raise ValueError(u'No drafting view called "{}" in this model.'.format(VIEW_NAME))
+    notes = _notes(doc, view)
+    current = read_text_values([n.GetFormattedText().GetPlainText() for n in notes])
+    new_class = values.get(u'Anchorage_Concrete')
+    refresh_table = bool(new_class) and new_class != current.get(u'Anchorage_Concrete')
+    changed = 0
+    for note in notes:
+        ft = note.GetFormattedText()
+        text = ft.GetPlainText()
+        todo = [(s, e, v) for s, e, v, _k in edits(text, values)]
+        if refresh_table:
+            todo += table_note_edits(text, new_class)
+        if not todo:
+            continue
+        for start, end, value in sorted(todo, key=lambda x: -x[0]):
+            ft.SetPlainText(DB.TextRange(start, end - start), value)
+            changed += 1
+        note.SetFormattedText(ft)
+    missing = [k for k in values if k not in current]
+    return changed, missing
+
+
+def differences(doc):
+    """[(label, on the sheet, in Project Information)] where 0900 does not match Project Information."""
+    wanted = project_values(doc)
+    if not wanted:
+        return []
+    written = sheet_values(doc)
+    labels = dict((f[0], f[1]) for f in FIELDS)
+    return [(labels[k], written.get(k), v) for k, v in sorted(wanted.items())
+            if k in written and written[k].strip() != v.strip()]

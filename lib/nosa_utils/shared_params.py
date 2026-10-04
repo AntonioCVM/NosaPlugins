@@ -152,7 +152,7 @@ def parse_shared_parameters_txt(path=None):
     return {'groups': groups, 'params': params}
 
 
-def ensure_bound(doc, categories=None):
+def ensure_bound(doc, categories=None, path=None):
     """
     Idempotent. Called by RebarAutomate right before it first writes
     NOSA data to a document (see ui.py, _ensure_shared_params):
@@ -180,6 +180,7 @@ def ensure_bound(doc, categories=None):
 
     Args:
         doc         (DB.Document)
+        path        (str or None): another NOSA shared-parameter file (e.g. the General Notes one)
         categories  (list[str] or None): BuiltInCategory NAMES (see
                     DEFAULT_CATEGORY_NAMES) — defaults to the 5 "main"
                     categories. Pass DEFAULT_CATEGORY_NAMES + the tag
@@ -197,7 +198,7 @@ def ensure_bound(doc, categories=None):
     category_names = categories if categories is not None else list(DEFAULT_CATEGORY_NAMES)
 
     try:
-        parsed = parse_shared_parameters_txt()
+        parsed = parse_shared_parameters_txt(path)
     except Exception as e:
         report['errors'].append(u'Could not parse NOSA_SharedParameters.txt: {}'.format(e))
         return report
@@ -210,7 +211,7 @@ def ensure_bound(doc, categories=None):
         original_path = None
 
     try:
-        app.SharedParametersFilename = _DEFAULT_TXT_PATH
+        app.SharedParametersFilename = _resolve_txt_path(path)
         def_file = app.OpenSharedParameterFile()
         if def_file is None:
             report['errors'].append(
@@ -231,7 +232,8 @@ def ensure_bound(doc, categories=None):
         tag_eligible_requested = bool(set(category_names) & set(_TAG_CATEGORY_NAMES))
 
         # CRITICAL: Bindings MUST be inserted within a Transaction
-        t = Transaction(doc, u'NOSA — Bind Shared Parameters')
+        from nosa_utils import transactions as nosa_tx
+        t = nosa_tx.guard(Transaction(doc, u'NOSA — Bind Shared Parameters'))
         t.Start()
         try:
             for group in def_file.Groups:
