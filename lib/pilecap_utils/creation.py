@@ -13,7 +13,7 @@ _LOG = u'pilecap_utils.creation'
 try:
     from nosa_utils.unit_conversion import mm_to_feet, feet_to_mm
     from . import validation, geometry, data_retrieval
-except ImportError:
+except ImportError:  # nosa-lint: disable=NOSA006 - optional at import time
     # Fallback/Mock just for linting, runtime assumes sys.path is correct
     pass
 

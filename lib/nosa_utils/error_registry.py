@@ -14,6 +14,8 @@ import json
 import datetime
 import traceback
 import sys
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.error_registry'
 
 _REGISTRY_FILE = os.path.join(os.path.dirname(__file__), 'known_errors.json')
 _ERROR_LOG_DIR = os.path.join(
@@ -182,7 +184,7 @@ class ErrorRegistry:
             try:
                 os.makedirs(_ERROR_LOG_DIR)
             except (OSError, IOError):
-                pass
+                log_swallowed(_LOG, u'_ensure_log_dir')
 
     def _load_custom(self):
         """Load extra entries from known_errors.json if present."""
@@ -193,7 +195,7 @@ class ErrorRegistry:
                     if isinstance(extra, list):
                         self._catalogue.extend(extra)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_load_custom')
 
     # ──────────────────────────────────────────────
     # Lookup

@@ -49,5 +49,5 @@ launch_nosa_window(ui_module.ProjectSetupWindow, revit.doc)
 try:
     import nosa_utils.usage as _ut
     _ut.record('projectsetupwizard')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass

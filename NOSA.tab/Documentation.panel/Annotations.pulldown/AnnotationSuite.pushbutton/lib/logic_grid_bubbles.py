@@ -7,7 +7,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
-from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationsuite.logic_grid_bubbles'
 
 
 def _grid_cat():
@@ -21,7 +22,7 @@ def get_plan_views(doc):
             if isinstance(v, DB.ViewPlan) and not v.IsTemplate:
                 views.append(v)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_plan_views')
     return sorted(views, key=lambda x: x.Name or u'')
 
 

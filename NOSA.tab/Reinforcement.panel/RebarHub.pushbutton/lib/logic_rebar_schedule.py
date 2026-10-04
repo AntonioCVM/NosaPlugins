@@ -61,7 +61,7 @@ def _ps(el, bip, default=u''):
         if p and p.HasValue:
             return p.AsString() or default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_ps')
     return default
 
 
@@ -72,7 +72,7 @@ def _pd(el, bip, default=0.0):
             v = p.AsDouble()
             return v if v >= 0 else default
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pd')
     return default
 
 
@@ -82,7 +82,7 @@ def _pi(el, bip, default=0):
         if p and p.HasValue:
             return p.AsInteger()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_pi')
     return default
 
 
@@ -116,7 +116,7 @@ def _host_mark(host_el):
         if p and p.HasValue:
             return p.AsString() or u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_mark')
     return u'—'
 
 
@@ -134,7 +134,7 @@ def _host_level(host_el, doc):
                 if lv:
                     return lv.Name or u'—'
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_host_level')
     return u'—'
 
 
@@ -145,7 +145,7 @@ def _shape_name(rebar, doc):
         if shape:
             return element_name(shape) or u'—'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_shape_name')
     return u'—'
 
 
@@ -162,7 +162,7 @@ def _bar_diameter_mm(rebar, doc):
                     if d > 0:
                         return round(d * FT2MM, 1)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_bar_diameter_mm')
     return None
 
 
@@ -176,7 +176,7 @@ def _bar_spacing_mm(rebar):
             if s > 0:
                 return round(s * FT2MM, 1)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_bar_spacing_mm')
     return None
 
 
@@ -185,12 +185,12 @@ def _n_bars(rebar):
     try:
         return max(rebar.NumberOfBarPositions, 1)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_n_bars')
     try:
         n = _pi(rebar, DB.BuiltInParameter.REBAR_NUMBER_OF_SETS)
         return max(n, 1)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_n_bars')
     return 1
 
 
@@ -205,7 +205,7 @@ def _cut_length_mm(rebar):
                 if v > 0:
                     return round(v * FT2MM, 0)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_cut_length_mm')
     try:
         lp = rebar.get_Parameter(DB.BuiltInParameter.REBAR_TOTAL_LENGTH_PER_TYPE)
         if lp and lp.HasValue:
@@ -213,7 +213,7 @@ def _cut_length_mm(rebar):
             if n > 0:
                 return round((lp.AsDouble() / n) * FT2MM, 0)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_cut_length_mm')
     return None
 
 
@@ -336,14 +336,14 @@ def collect_schedule(doc, options):
                     if p and p.HasValue and get_id_value(p.AsElementId()) == filter_ph_id:
                         continue
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'_key')
 
             # Host element
             host_el = None
             try:
                 host_el = doc.GetElement(rebar.GetHostId())
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_key')
 
             # Host category filter
             if filter_host is not None:
@@ -369,7 +369,7 @@ def collect_schedule(doc, options):
                             lv_match = True
                             break
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'_key')
                 if not lv_match:
                     continue
 

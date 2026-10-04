@@ -47,6 +47,6 @@ ui_module = _lm('createpilecap_ui', os.path.join(lib_path, 'ui.py'))
 try:
     import nosa_utils.usage as _ut
     _ut.record('createpilecaptype')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass
 launch_nosa_window(ui_module.CreatePilecapWindow, revit.doc)

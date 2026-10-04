@@ -8,6 +8,8 @@ from Autodesk.Revit import DB
 
 from nosa_utils import sheet_protocol as _sp
 from nosa_utils.revit_helpers import coerce_element_id, get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.sheet_namer'
 
 # NOSA File Naming Protocol v2.2 — field definitions
 
@@ -390,14 +392,14 @@ def suggest_f4_from_level(doc, sheet):
                 if hasattr(view, 'GenLevel') and view.GenLevel:
                     level = view.GenLevel
             except Exception:
-                pass
+                log_swallowed(_LOG, u'suggest_f4_from_level')
             if level is None:
                 try:
                     lid = view.LevelId
                     if lid and lid != DB.ElementId.InvalidElementId:
                         level = doc.GetElement(coerce_element_id(lid))
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'suggest_f4_from_level')
             if level:
                 code = _f4_from_level_name(level.Name)
                 if code:
@@ -414,7 +416,7 @@ def suggest_f4_from_level(doc, sheet):
                     if vcode:
                         codes.append(vcode)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'suggest_f4_from_level')
     if not codes:
         return None
     unique = list(dict.fromkeys(codes))
@@ -442,7 +444,7 @@ def _f3_from_view_type(view):
         if vt == DB.ViewType.Schedule:
             return 'RP'
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_f3_from_view_type')
     return None
 
 
@@ -468,7 +470,7 @@ def suggest_f3_from_views(doc, sheet):
                 if code == u'PV':
                     plan_count += 1
     except Exception:
-        pass
+        log_swallowed(_LOG, u'suggest_f3_from_views')
     if not codes:
         return None
     if plan_count == len(codes) and plan_count > 0:
@@ -667,7 +669,7 @@ def _read_package(sheet_dict, sheet):
         if p:
             return (p.AsString() or p.AsValueString() or u'').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_read_package')
     return u''
 
 
@@ -696,7 +698,7 @@ def _collect_existing_f7_by_group(doc):
             if p:
                 pkg = (p.AsString() or p.AsValueString() or u'').strip()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_collect_existing_f7_by_group')
         fields = _sp.read_nosa_fields_from_sheet(doc, s)
         f4 = fields.get(u'f4', u'')
         f7 = fields.get(u'f7', u'') or (s.SheetNumber or u'').strip()

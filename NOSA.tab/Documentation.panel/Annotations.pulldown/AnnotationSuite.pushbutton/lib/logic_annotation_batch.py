@@ -6,6 +6,8 @@ column marks and grid bubbles to structural views based on configurable rules.
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value, element_name
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'annotationsuite.logic_annotation_batch'
 _FT_TO_MM = _uc10.FT_TO_MM
 
 
@@ -38,7 +40,7 @@ def get_structural_views(doc):
             if int(v.ViewType) in _VALID:
                 result.append(v)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_structural_views')
     return sorted(result, key=lambda v: v.Name)
 
 
@@ -65,9 +67,9 @@ def get_tag_families(doc, bic):
                 label = '{}: {}'.format(fam_name, sym_name) if fam_name else sym_name
                 tags.append({'name': label, 'id': sym.Id, 'symbol': sym})
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_tag_families')
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_tag_families')
     return sorted(tags, key=lambda t: t['name'])
 
 
@@ -130,9 +132,9 @@ def batch_tag_elements(doc, views, bic, tag_symbol_id, use_leader=False):
                 try:
                     existing.add(get_id_value(t.TaggedElementId))
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'batch_tag_elements')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'batch_tag_elements')
         for el in _collect(doc, bic, view):
             eid = get_id_value(el.Id)
             if eid in existing:

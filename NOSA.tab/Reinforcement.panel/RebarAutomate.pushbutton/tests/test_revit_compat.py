@@ -109,7 +109,7 @@ def test_bar_diameter_tries_names_in_order():
     try:
         c.bar_diameter(_Nothing())
         assert False, 'expected AttributeError when no diameter attribute exists at all'
-    except AttributeError:
+    except AttributeError:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
         pass
 
 

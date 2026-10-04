@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Read one Revit Rebar into plain values for schedules (RebarHub BS 8666 / Rebar Schedule tabs)."""
 from nosa_utils.revit_helpers import element_name, get_id_value
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.rebar_read'
 
 FT_TO_MM = 304.8
 
@@ -34,7 +36,7 @@ def _text(el, bip_name=None, name=None):
         if p is not None and p.HasValue:
             return p.AsString() or p.AsValueString() or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_text')
     return u''
 
 
@@ -44,7 +46,7 @@ def _double(el, bip_name):
         if p is not None and p.HasValue:
             return p.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_double')
     return 0.0
 
 

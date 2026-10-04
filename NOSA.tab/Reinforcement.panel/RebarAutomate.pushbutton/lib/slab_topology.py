@@ -77,6 +77,7 @@ would handle that; out of scope here, and not expected to matter for
 a real, buildable floor plate.
 """
 import math
+from nosa_utils.telemetry import log_info as _log_info
 
 _MM_PER_FT = 304.8
 
@@ -389,7 +390,7 @@ def offset_polygon_mm(points, offset_mm):
             cx = min(max(x, xmin), xmax)
             cy = min(max(y, ymin), ymax)
             if abs(cx - x) > 1e-6 or abs(cy - y) > 1e-6:
-                print(u'WARNING [slab_topology.offset_polygon_mm]: offset vertex '
+                _log_info(u'rebarautomate', u'WARNING [slab_topology.offset_polygon_mm]: offset vertex '
                       u'({:.2f}, {:.2f}) fell outside the original boundary\'s own '
                       u'bounding box — clamped to ({:.2f}, {:.2f}).'.format(x, y, cx, cy))
             clamped.append((cx, cy))

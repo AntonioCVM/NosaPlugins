@@ -7,7 +7,7 @@ from Autodesk.Revit import DB
 try:
     from nosa_utils.unit_conversion import feet_to_mm
     from . import data_retrieval
-except ImportError:
+except ImportError:  # nosa-lint: disable=NOSA006 - optional at import time
     pass
 
 def _doc():

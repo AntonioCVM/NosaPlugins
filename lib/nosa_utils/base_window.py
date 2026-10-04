@@ -18,6 +18,8 @@ import System.Windows
 
 from nosa_utils.theme import ThemeManager
 from nosa_utils.logging import Logger
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.base_window'
 
 logger = Logger()
 
@@ -60,7 +62,7 @@ def _create_nosa_window(window_class, args, kwargs):
             import traceback
             detail = u'{}\n\n{}'.format(e, traceback.format_exc())
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_create_nosa_window')
         forms.alert(
             u'{} failed to initialise:\n{}'.format(name, detail),
             title=u'NOSA — Window Error')
@@ -69,7 +71,7 @@ def _create_nosa_window(window_class, args, kwargs):
         try:
             win.Close()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_create_nosa_window')
         return None
     return win
 
@@ -82,7 +84,7 @@ def _record_launch(window_class, win):
             window_class, getattr(win, '_plugin_key', None) or name)
         _usage.record(_key)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_record_launch')
 
 
 def launch_nosa_window(window_class, *args, **kwargs):
@@ -122,7 +124,7 @@ def launch_nosa_window_modeless(window_class, *args, **kwargs):
                 existing.Activate()
                 return existing
         except Exception:
-            pass
+            log_swallowed(_LOG, u'launch_nosa_window_modeless')
     win = _create_nosa_window(window_class, args, kwargs)
     if win is None:
         return None
@@ -275,7 +277,7 @@ class NOSAWindow(WPFWindow):
                             if node.ReadLocalValue(FrameworkElement.StyleProperty) == DependencyProperty.UnsetValue:
                                 node.Style = style
                         except Exception:
-                            pass
+                            log_swallowed(_LOG, u'visit')
                         break
                 if isinstance(node, DependencyObject):
                     try:
@@ -283,7 +285,7 @@ class NOSAWindow(WPFWindow):
                             if child is not None:
                                 visit(child)
                     except Exception:
-                        pass
+                        log_swallowed(_LOG, u'visit')
 
             visit(self)
         except Exception as e:
@@ -313,11 +315,11 @@ class NOSAWindow(WPFWindow):
                 self.Width  = min(w, sw)
                 self.Height = min(h, sh)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_restore_window_size')
         try:
             self.Closing += self._nosa_save_window_size
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_restore_window_size')
 
     def _nosa_save_window_size(self, sender, args):
         if not self._is_resizable():
@@ -328,7 +330,7 @@ class NOSAWindow(WPFWindow):
             cfg['win_h'] = float(self.ActualHeight)
             self.SaveConfig(cfg)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_nosa_save_window_size')
 
     # ------------------------------------------------------------------
     # Theme
@@ -401,16 +403,16 @@ class NOSAWindow(WPFWindow):
         try:
             self.LoadingPanel.Visibility = state
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SetLoading')
         try:
             self.ProcessBar.IsIndeterminate = is_loading
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SetLoading')
         if message:
             try:
                 self.TxtStatus.Text = message
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SetLoading')
 
     def SetProgress(self, current, total, message=None):
         """
@@ -425,19 +427,19 @@ class NOSAWindow(WPFWindow):
             self.ProcessBar.Maximum = max(1, int(total))
             self.ProcessBar.Value   = min(int(current), int(total))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SetProgress')
         if message:
             try:
                 self.TxtStatus.Text = message
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SetProgress')
         try:
             import System
             from System.Windows.Threading import DispatcherPriority
             self.Dispatcher.Invoke(System.Action(lambda: None),
                                    DispatcherPriority.Background)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'SetProgress')
 
     def LogLine(self, msg):
         """Append a line to a TextBox named 'TxtLog' (optional)."""
@@ -445,7 +447,7 @@ class NOSAWindow(WPFWindow):
             self.TxtLog.AppendText(msg + "\n")
             self.TxtLog.ScrollToEnd()
         except Exception:
-            pass
+            log_swallowed(_LOG, u'LogLine')
 
     # ------------------------------------------------------------------
     # Standard result dialog
@@ -482,4 +484,4 @@ class NOSAWindow(WPFWindow):
                 btn = getattr(self, name)
                 btn.Tag = "Selected" if name == btn_name else ""
             except Exception:
-                pass
+                log_swallowed(_LOG, u'SwitchTab')

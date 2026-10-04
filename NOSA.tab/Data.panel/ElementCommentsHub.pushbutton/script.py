@@ -21,7 +21,7 @@ from pyrevit import revit
 try:
     import nosa_utils.usage as _ut
     _ut.record('element_comments_hub')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass
 
 launch_nosa_window(_ui.ElementCommentsHubWindow, revit.doc, revit.uidoc)

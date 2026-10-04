@@ -261,6 +261,7 @@ if _EXT_LIB not in sys.path:
     sys.path.insert(0, _EXT_LIB)
 
 from nosa_utils import standards  # noqa: E402
+from nosa_utils.telemetry import log_info as _log_info
 re_engine = None  # populated by _ensure_engine(), so this file can be
                    # imported/py_compiled standalone without imp needing
                    # a live pyRevit session
@@ -396,7 +397,7 @@ def _footing_bbox(host):
         if geom_mm <= 0:
             continue
         if param_mm > geom_mm * 2.0 or geom_mm > param_mm * 2.0:
-            print(u'WARNING [footing_rebar]: isolated-solid {} ({:.0f}mm) differs '
+            _log_info(u'rebarautomate', u'WARNING [footing_rebar]: isolated-solid {} ({:.0f}mm) differs '
                   u'from the "{}" type parameter ({:.0f}mm) by more than 2x — '
                   u'verify this footing\'s geometry/parameters are consistent.'.format(
                       name.lower(), geom_mm, name, param_mm))

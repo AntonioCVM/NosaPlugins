@@ -45,6 +45,6 @@ MaterialManagerWindow = ui_module.MaterialManagerWindow
 try:
     import nosa_utils.usage as _ut
     _ut.record('materialmanager')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass
 launch_nosa_window(MaterialManagerWindow, revit.doc)

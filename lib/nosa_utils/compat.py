@@ -55,7 +55,7 @@ else:
             return s
         if isinstance(s, str):
             return s.decode(encoding)
-        return unicode(s)  # noqa: F821
+        return unicode(s)  # noqa: F821  # nosa-lint: disable=NOSA007 - Python 2 branch of the compat layer
 
     def ensure_bytes(s, encoding='utf-8'):
         if isinstance(s, unicode):  # noqa: F821

@@ -6,6 +6,8 @@ Centralized configuration management for NOSA scripts.
 
 import os
 import json
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.config_manager'
 
 # =============================================================================
 # CONFIGURATION MANAGER
@@ -52,7 +54,7 @@ class ConfigManager:
             try:
                 os.makedirs(self.config_dir)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_ensure_directory')
     
     def load(self):
         """Load configuration from file. Returns dict."""
@@ -69,7 +71,7 @@ class ConfigManager:
                 from nosa_utils.telemetry import log_error
                 log_error('ConfigManager', str(ex))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'load')
 
         self._data = {}
         return self._data
@@ -99,7 +101,7 @@ class ConfigManager:
                 from nosa_utils.telemetry import log_error
                 log_error('ConfigManager', str(ex))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'save')
             return False
     
     def get(self, key, default=None):

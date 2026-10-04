@@ -317,7 +317,7 @@ def test_rebar_project_save_then_load_roundtrips():
     finally:
         try:
             os.remove(rebar_project.config_path(doc))
-        except Exception:
+        except Exception:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
             pass
 
 

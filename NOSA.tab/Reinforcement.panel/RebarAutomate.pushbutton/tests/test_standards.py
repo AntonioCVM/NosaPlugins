@@ -40,7 +40,7 @@ def test_load_unknown_code_raises():
     try:
         standards.load('DOES-NOT-EXIST')
         assert False, 'expected an IOError/OSError for a profile that is not shipped'
-    except (IOError, OSError):
+    except (IOError, OSError):  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
         pass
 
 
@@ -188,7 +188,7 @@ def test_hook_extension_mm_unknown_angle_raises():
     try:
         standards.hook_extension_mm(_std, 16.0, 47)
         assert False, 'expected KeyError for an undeclared hook angle'
-    except KeyError:
+    except KeyError:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
         pass
 
 

@@ -13,6 +13,8 @@ from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from System import Int64
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'rebarhub.logic_rebar_auditor'
 
 FT2MM = _uc10.FT_TO_MM
 MM2FT = _uc10.MM_TO_FT
@@ -69,7 +71,7 @@ def _param_double(el, bip, default=0.0):
         if p and p.HasValue:
             return p.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_double')
     return default
 
 
@@ -79,7 +81,7 @@ def _param_int(el, bip, default=0):
         if p and p.HasValue:
             return p.AsInteger()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_int')
     return default
 
 
@@ -112,7 +114,7 @@ def _bar_diameter_mm(rebar, doc):
         if d > 0:
             return d * FT2MM
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_bar_diameter_mm')
     return 0.0
 
 
@@ -140,7 +142,7 @@ def _cover_mm(rebar, doc):
         if d > 0:
             return d * FT2MM
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_cover_mm')
     # Try host element cover type
     try:
         host_id  = rebar.GetHostId()
@@ -158,7 +160,7 @@ def _cover_mm(rebar, doc):
             if isinstance(ctype, DB.RebarCoverType):
                 return ctype.CoverDistance * FT2MM
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_cover_mm')
     return None
 
 
@@ -178,7 +180,7 @@ def _host_section_area_mm2(host):
                     area_ft2 = vol_ft3 / length_ft
                     return area_ft2 * (FT2MM ** 2)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_section_area_mm2')
     # Fallback: bounding box
     try:
         bb = host.get_BoundingBox(None)
@@ -187,7 +189,7 @@ def _host_section_area_mm2(host):
             dy = (bb.Max.Y - bb.Min.Y) * FT2MM
             return dx * dy
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_host_section_area_mm2')
     return None
 
 
@@ -246,7 +248,7 @@ def check_cover(doc, exposure_class, custom_required_mm=None):
                     if p and p.HasValue:
                         host_mark = p.AsString() or ''
                 except Exception:
-                    pass
+                    log_swallowed(_LOG, u'check_cover')
 
             if cover_mm is None:
                 status = 'N/D'
@@ -266,7 +268,7 @@ def check_cover(doc, exposure_class, custom_required_mm=None):
                 'status':       status,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_cover')
     return rows
 
 
@@ -295,7 +297,7 @@ def check_rebar_ratio(doc):
                 host_rebars[host_id] = []
             host_rebars[host_id].append(rebar)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_rebar_ratio')
 
     rows = []
     for host_id, rebars in host_rebars.items():
@@ -337,7 +339,7 @@ def check_rebar_ratio(doc):
                 if p and p.HasValue:
                     host_mark = p.AsString() or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_rebar_ratio')
 
             rows.append({
                 'id':           host_id,
@@ -352,7 +354,7 @@ def check_rebar_ratio(doc):
                 'issues':       u'; '.join(issues),
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_rebar_ratio')
     return rows
 
 
@@ -377,7 +379,7 @@ def check_unreinforced(doc):
         try:
             reinforced.add(get_id_value(rebar.GetHostId()))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'check_unreinforced')
 
     rows = []
     bics = [
@@ -401,7 +403,7 @@ def check_unreinforced(doc):
                        'horm' not in (mat.Name or '').lower():
                         continue
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_unreinforced')
 
             mark = ''
             try:
@@ -409,7 +411,7 @@ def check_unreinforced(doc):
                 if p and p.HasValue:
                     mark = p.AsString() or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_unreinforced')
 
             level = ''
             try:
@@ -420,7 +422,7 @@ def check_unreinforced(doc):
                     if lv:
                         level = lv.Name or ''
             except Exception:
-                pass
+                log_swallowed(_LOG, u'check_unreinforced')
 
             rows.append({
                 'id':           get_id_value(el.Id),

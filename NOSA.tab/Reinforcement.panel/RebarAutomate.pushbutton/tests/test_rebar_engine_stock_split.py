@@ -153,7 +153,7 @@ def test_lap_length_must_be_smaller_than_stock_length():
     try:
         rebar_engine.split_rebar_by_stock_length(bar, 8000.0, 8000.0)
         assert False, 'expected ValueError for lap_length_mm >= stock_length_mm'
-    except ValueError:
+    except ValueError:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
         pass
 
 

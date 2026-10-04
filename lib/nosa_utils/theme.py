@@ -2,11 +2,13 @@
 import os
 import json
 import clr
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.theme'
 
 try:
     clr.AddReference('System.Drawing')
     from System.Drawing import Color
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - optional at import time
     pass # Handle cases where System.Drawing might not be available immediately
 
 class ThemeManager:
@@ -50,7 +52,7 @@ class ThemeManager:
                     data = json.load(f)
                     return data.get('dark_mode', False)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'load_theme')
         return False
     
     @staticmethod
@@ -64,7 +66,7 @@ class ThemeManager:
             with open(target_file, 'w') as f:
                 json.dump({'dark_mode': dark_mode}, f)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'save_theme')
     
     @staticmethod
     def get_colors(dark_mode=None):

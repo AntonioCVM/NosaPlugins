@@ -4,6 +4,8 @@ import re
 import sys
 import json
 import numbers
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.usage'
 
 _CONFIGS_DIR = os.path.join(
     os.getenv('APPDATA', ''),
@@ -167,14 +169,14 @@ def resolve_launch_key(window_class, fallback=None):
         if key:
             return key
     except Exception:
-        pass
+        log_swallowed(_LOG, u'resolve_launch_key')
     try:
         from pyrevit import EXEC_PARAMS
         key = bundle_key_from_path(EXEC_PARAMS.command_path)
         if key:
             return key
     except Exception:
-        pass
+        log_swallowed(_LOG, u'resolve_launch_key')
     return canonical_key(fallback) if fallback else fallback
 
 
@@ -220,7 +222,7 @@ def _save(data):
         with open(_USAGE_FILE, 'w') as f:
             json.dump(data, f, indent=2, sort_keys=True)
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_save')
 
 
 def _counts(data):

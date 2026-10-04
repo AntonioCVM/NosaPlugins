@@ -35,6 +35,8 @@ Usage — with automatic transaction rollback on cancel:
                     t.cancel()   # rolls back + exits both with-blocks
                 # ... model changes ...
 """
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.progress'
 
 
 class _NosaProgress(object):
@@ -62,7 +64,7 @@ class _NosaProgress(object):
             try:
                 self._window.SetLoading(True, self._title)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_start')
         else:
             try:
                 from pyrevit import forms as _forms
@@ -80,12 +82,12 @@ class _NosaProgress(object):
             try:
                 self._window.SetLoading(False)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_stop')
         if self._pb is not None:
             try:
                 self._pb.__exit__(None, None, None)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'_stop')
             self._pb = None
 
     def update(self, current, message=None):
@@ -110,14 +112,14 @@ class _NosaProgress(object):
                 if self._cancellable and self._pb.cancelled:
                     self.cancelled = True
             except Exception:
-                pass
+                log_swallowed(_LOG, u'update')
         elif self._window is not None:
             try:
                 msg = message or u'{} of {} ({} %)'.format(
                     current + 1, self._total, pct)
                 self._window.SetLoading(True, u'{} — {}'.format(self._title, msg))
             except Exception:
-                pass
+                log_swallowed(_LOG, u'update')
 
     def set_total(self, new_total):
         """Update total if the count wasn't known at construction time."""

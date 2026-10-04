@@ -25,7 +25,7 @@ from pyrevit import revit, script
 try:
     import nosa_utils.usage as _ut
     _ut.record('waffleslab')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass
 
 _ui.run(revit.doc, revit.uidoc, script.get_output())

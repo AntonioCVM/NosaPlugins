@@ -447,7 +447,7 @@ try:
         doc, bad_host, cover_mm=40.0, bar_diameter_mm=20.0, bar_count=8,
         stirrup_diameter_mm=10.0, dense_spacing_mm=100.0, normal_spacing_mm=200.0)
     assert False, "should have raised"
-except ValueError:
+except ValueError:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
     pass
 print("build_column_reinforcement: a non-rectangular column (not exactly 4 "
       "side faces) raises a clear ValueError: OK")
@@ -495,7 +495,7 @@ nothing_host = FakeHost(lp_host._solid, location=None, bbox=None)
 try:
     column_rebar.get_column_axis(nothing_host)
     assert False, "should have raised"
-except ValueError:
+except ValueError:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
     pass
 print("get_column_axis: neither LocationCurve, LocationPoint, nor a "
       "bounding box raises a clear ValueError, not a downstream crash: OK")

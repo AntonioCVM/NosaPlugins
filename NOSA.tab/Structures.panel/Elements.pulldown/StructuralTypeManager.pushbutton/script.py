@@ -47,6 +47,6 @@ StructuralTypeManagerWindow = ui_module.StructuralTypeManagerWindow
 try:
     import nosa_utils.usage as _ut
     _ut.record('structuraltypemanager')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass
 launch_nosa_window(StructuralTypeManagerWindow, revit.doc, getattr(revit, 'uidoc', None))

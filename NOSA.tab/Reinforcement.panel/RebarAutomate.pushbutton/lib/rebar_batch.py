@@ -44,6 +44,7 @@ if _LIB not in sys.path:
 from nosa_utils import shared_params  # noqa: E402
 from nosa_utils.revit_compat import get_id_value  # noqa: E402 -- lazy-safe, not revit_helpers
 from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
+from nosa_utils.telemetry import log_info as _log_info
 
 _OST_REBAR_LIKE_CATEGORY_NAMES = (
     u'OST_Rebar',
@@ -241,12 +242,12 @@ class RebarBatch(object):
                         standard = self.ctx.get('standard') or {}
                         standard_code = standard.get('shape_catalog') or self.ctx.get('standard_code', 'en_iso_3766')
                         shape_summary = rebar_shape_classifier.batch_classify(doc, all_created_ids, standard_code)
-                        print(u'[RebarBatch] Shape classification: {} classified, {} failed'.format(
+                        _log_info(u'rebarautomate', u'[RebarBatch] Shape classification: {} classified, {} failed'.format(
                             shape_summary['classified'], shape_summary['failed']))
                         if shape_summary['shapes']:
                             shapes_str = u', '.join(u'{}×{}'.format(code, count) 
                                                     for code, count in sorted(shape_summary['shapes'].items()))
-                            print(u'  Shapes: {}'.format(shapes_str))
+                            _log_info(u'rebarautomate', u'  Shapes: {}'.format(shapes_str))
                     except Exception as shape_err:
                         stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))
 
@@ -258,7 +259,7 @@ class RebarBatch(object):
                         all_created_ids = [e.Id for e in created_rebars]
                         mark_summary = rebar_marking.deduplicate_and_mark(doc, all_created_ids, self.ctx)
                         rebar_marking.assign_layers_and_lengths(doc, all_created_ids, self.ctx)
-                        print(u'[RebarBatch] Marking: {} positions, {} bars'.format(
+                        _log_info(u'rebarautomate', u'[RebarBatch] Marking: {} positions, {} bars'.format(
                             mark_summary['total_positions'], mark_summary['total_bars']))
                     except Exception as mark_err:
                         stamp_errors.append(u'Marking failed: {}'.format(mark_err))

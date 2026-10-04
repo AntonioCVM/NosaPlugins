@@ -3,6 +3,8 @@
 
 import os
 import time
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.diroots_tools_log'
 
 
 def _safe_makedirs(root):
@@ -12,7 +14,7 @@ def _safe_makedirs(root):
         if not os.path.exists(root):
             os.makedirs(root)
     except (OSError, IOError):
-        pass
+        log_swallowed(_LOG, u'_safe_makedirs')
 
 
 def log_dir():
@@ -35,4 +37,4 @@ def log_event(tool_key, event_key, detail_message):
         with open(path, 'a') as f:
             f.write(line.encode('utf-8'))
     except Exception:
-        pass
+        log_swallowed(_LOG, u'log_event')

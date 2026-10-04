@@ -484,8 +484,6 @@ class RebarAutomateWindow(NOSAWindow):
         """Bind NOSA's shared parameters once per window; False if binding failed outright."""
         if self._shared_params_report is not None:
             return not self._shared_params_report.get('fatal', False)
-        print(u'\n' + u'=' * 80)
-        print(u'NOSA RebarAutomate — Verifying shared parameters...')
         try:
             report = shared_params.ensure_bound(self.doc)
         except Exception as e:
@@ -504,15 +502,10 @@ class RebarAutomateWindow(NOSAWindow):
         self._shared_params_report = report
 
         errors = report.get('errors', [])
-        print(u'  ✓ Newly bound: {} parameters'.format(len(report.get('bound', []))))
-        print(u'  ✓ Already bound: {} parameters'.format(len(report.get('already', []))))
-        if report.get('skipped'):
-            print(u'  ⚠ Skipped: {} parameters'.format(len(report['skipped'])))
-        if errors:
-            print(u'  ✗ Errors: {} parameters'.format(len(errors)))
-            for err in errors:
-                print(u'    - {}'.format(err))
-        print(u'=' * 80 + u'\n')
+        from nosa_utils.telemetry import log_info
+        log_info(u'rebarautomate', u'shared parameters: {} bound, {} already, {} skipped, {} errors {}'.format(
+            len(report.get('bound', [])), len(report.get('already', [])), len(report.get('skipped', [])),
+            len(errors), errors[:5]))
 
         if errors:
             forms.alert(
@@ -784,7 +777,8 @@ class RebarAutomateWindow(NOSAWindow):
         try:
             return shape_images.render_shapes(self.doc, shapes)
         except Exception as e:
-            print(u'[rebar_schedule] bending sketches skipped: {}'.format(e))
+            from nosa_utils.telemetry import log_info
+            log_info(u'rebarautomate', u'bending sketches skipped: {}'.format(e))
             return {}
 
     def ShapeImages_Click(self, sender, args):

@@ -144,6 +144,7 @@ from Autodesk.Revit.DB import Structure as DBS
 from System.Collections.Generic import List
 from nosa_utils.telemetry import log_swallowed
 from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
+from nosa_utils.telemetry import log_info as _log_info
 _LOG = u'rebarautomate'
 
 _MM_PER_FT = 304.8
@@ -518,7 +519,7 @@ def get_native_cover_mm(doc, host, face_type_name, default_mm=DEFAULT_COVER_MM):
                               .format(bip_name))
         return cover_ft * _MM_PER_FT
     except Exception as e:
-        print(u'WARNING [rebar_engine]: could not read native clear cover for the '
+        _log_info(u'rebarautomate', u'WARNING [rebar_engine]: could not read native clear cover for the '
               u'{} face ({}) — using normative fallback {:.0f}mm. Set "Clear cover - '
               u'{} Face(s)" on this element in Revit for an accurate value.'.format(
                   face_type_name, e, default_mm, face_type_name))

@@ -4,7 +4,7 @@ import sys
 from Autodesk.Revit import DB
 import re
 
-_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils.revit_helpers import get_id_value, element_name, element_id_from_int
@@ -56,7 +56,7 @@ def _safe_double(param):
         if param and param.HasValue and param.StorageType == DB.StorageType.Double:
             return param.AsDouble()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_safe_double')
     return 0.0
 
 
@@ -65,7 +65,7 @@ def _safe_int(param):
         if param and param.HasValue and param.StorageType == DB.StorageType.Integer:
             return param.AsInteger()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_safe_int')
     return 0
 
 
@@ -75,7 +75,7 @@ def _safe_str(param):
             v = param.AsString()
             return v or u''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_safe_str')
     return u''
 
 
@@ -95,7 +95,7 @@ def _get_rebar_class():
             mod = __import__(ns, fromlist=[cls])
             return getattr(mod, cls)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_get_rebar_class')
     return None
 
 

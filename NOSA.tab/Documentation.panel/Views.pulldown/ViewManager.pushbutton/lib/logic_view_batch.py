@@ -5,7 +5,8 @@ from Autodesk.Revit import DB
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
-from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'viewmanager.logic_view_batch'
 
 _INCLUDE_VIEW_TYPES = None
 
@@ -22,7 +23,7 @@ def _get_include_view_types():
         try:
             result.add(getattr(DB.ViewType, name))
         except AttributeError:
-            pass
+            log_swallowed(_LOG, u'_get_include_view_types')
     _INCLUDE_VIEW_TYPES = frozenset(result)
     return _INCLUDE_VIEW_TYPES
 
@@ -55,7 +56,7 @@ def collect_views(doc, filter_text=''):
                 'template':  tmpl_name,
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'collect_views')
     result.sort(key=lambda r: (r['type'], r['name']))
     return result
 
@@ -68,7 +69,7 @@ def get_view_templates(doc):
             if v.IsTemplate and v.ViewType in _get_include_view_types():
                 templates.append((v.Id, v.Name or u'(unnamed)'))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_view_templates')
     templates.sort(key=lambda x: x[1])
     return templates
 

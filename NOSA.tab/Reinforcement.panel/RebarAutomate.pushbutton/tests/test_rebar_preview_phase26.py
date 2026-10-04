@@ -185,7 +185,7 @@ try:
     rebar_preview.compute_wall_section_preview(
         250.0, 900.0, 25.0, 12.0, 10.0, 200.0, include_ties=True)
     raise AssertionError("include_ties without tie_spacing_mm must raise ValueError")
-except ValueError:
+except ValueError:  # nosa-lint: disable=NOSA006 - test cleanup, failure is irrelevant
     pass
 
 print("compute_wall_section_preview: now a real vertical cut through the "

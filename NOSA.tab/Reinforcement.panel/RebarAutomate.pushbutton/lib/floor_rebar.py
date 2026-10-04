@@ -132,6 +132,7 @@ underlying cover/Z/hook conventions.
 """
 import math
 import os
+from nosa_utils.telemetry import log_info as _log_info
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 re_engine = None
@@ -364,7 +365,7 @@ def _warn_if_outside_bbox(x_mm, y_mm, xmin_mm, xmax_mm, ymin_mm, ymax_mm, label,
     """
     if (x_mm < xmin_mm - tol or x_mm > xmax_mm + tol or
             y_mm < ymin_mm - tol or y_mm > ymax_mm + tol):
-        print(u'WARNING [floor_rebar]: {} endpoint ({:.1f}, {:.1f}) falls outside '
+        _log_info(u'rebarautomate', u'WARNING [floor_rebar]: {} endpoint ({:.1f}, {:.1f}) falls outside '
               u'the floor\'s own boundary bounding box ([{:.1f}, {:.1f}] x '
               u'[{:.1f}, {:.1f}]) — geometry may be protruding.'.format(
                   label, x_mm, y_mm, xmin_mm, xmax_mm, ymin_mm, ymax_mm))
@@ -959,7 +960,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                 if len(raw_edges) >= 3:
                     edges = raw_edges
                     retried = True
-            print(u'WARNING [floor_rebar]: a large interior opening near '
+            _log_info(u'rebarautomate', u'WARNING [floor_rebar]: a large interior opening near '
                   u'({:.0f}, {:.0f}) mm produced only {} valid edge(s) after the '
                   u'cover offset — it likely self-intersected (a narrow notch '
                   u'offset outward by more than ~2x the cover). {}'.format(
@@ -1128,7 +1129,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                                             inward_normal, nominal_leg_mm, outer, large_holes)]
                 dropped = len(slots) - len(kept)
                 if dropped:
-                    print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm — {} of {} closure U-bar(s) '
+                    _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm — {} of {} closure U-bar(s) '
                           u'dropped: their {:.0f}mm leg would leave the material.'.format(
                               p0[0], p0[1], dropped, len(slots), nominal_leg_mm))
                 if not kept:
@@ -1149,7 +1150,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                             ubar_set['spacing_mm'] = (run[1] - run[0]) + _SET_SPACING_SLACK_MM
                             target_sets.append(ubar_set)
                 except _EDGE_EXCEPTION_TYPES as e:
-                    print(u'WARNING [floor_rebar]: closure U-bars on edge at ({:.0f},{:.0f})mm FAILED '
+                    _log_info(u'rebarautomate', u'WARNING [floor_rebar]: closure U-bars on edge at ({:.0f},{:.0f})mm FAILED '
                           u'({}) — skipping this edge only.'.format(p0[0], p0[1], e))
                     debug_failed_edges.append({'p0_mm': p0, 'p1_mm': p1, 'bz_ft': bz, 'tz_ft': tz,
                                                'inward_normal': inward_normal, 'error': str(e)})
@@ -1199,7 +1200,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
 
                     if len(relaxed_positions) >= 2:
                         target_sets.append(_make_set(relaxed_dists, relaxed_positions))
-                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                        _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
                               u'{:.0f}mm, too short for the main perimeter\'s own '
                               u'corner-inset spacing but fit {} open U-bars at the '
                               u'same {:.0f}mm spacing, relaxed corner margin.'.format(
@@ -1209,7 +1210,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                     hole_dists, hole_positions = _try_hole_min_bars()
                     if len(hole_positions) >= 2:
                         target_sets.append(_make_set(hole_dists, hole_positions))
-                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                        _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
                               u'{:.0f}mm, too short for {} open U-bars even at a '
                               u'relaxed margin — fit {} at a TIGHTER hole-only '
                               u'corner margin instead (leg {:.0f}mm).'.format(
@@ -1220,7 +1221,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                         target_bars.append({'curves': _chain_at(relaxed_positions[0]),
                                              'normal': normal_vec, 'style': None,
                                              'is_hole': is_hole})
-                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                        _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
                               u'{:.0f}mm, too short for spaced U-bars (leg {:.0f}mm) '
                               u'— placed ONE open U-bar centred on the edge '
                               u'instead.'.format(p0[0], p0[1], length_mm, nominal_leg_mm))
@@ -1236,7 +1237,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                         target_bars.append({'curves': _chain_at(mid_pos),
                                              'normal': normal_vec, 'style': None,
                                              'is_hole': is_hole})
-                        print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                        _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
                               u'{:.0f}mm, too short for spaced U-bars (leg {:.0f}mm) '
                               u'— placed ONE open U-bar centred on the edge '
                               u'instead.'.format(p0[0], p0[1], length_mm, nominal_leg_mm))
@@ -1271,7 +1272,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                     # AND recorded — debug_failed_edges is already
                     # returned to the caller and its count surfaced in
                     # ui.py's error list.
-                    print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                    _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
                           u'{:.0f}mm, fell back to ONE closed link — even a CENTRED '
                           u'leg ({:.0f}mm) would land outside material (genuinely '
                           u'narrow rib).'.format(
@@ -1302,7 +1303,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                     # Same diagnostic purpose as above — this branch
                     # means the edge itself is long enough, but at least
                     # one U-bar leg tip would land outside real material.
-                    print(u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
+                    _log_info(u'rebarautomate', u'INFO [floor_rebar]: edge at ({:.0f},{:.0f})mm, length '
                           u'{:.0f}mm, fell back to ONE closed link — at least one '
                           u'U-bar leg tip ({:.0f}mm) would land outside material.'.format(
                               p0[0], p0[1], length_mm, nominal_leg_mm))
@@ -1357,7 +1358,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
                 # Returns docstring), so there is nothing here that
                 # could itself corrupt a Transaction; that risk lived
                 # entirely in ui.py's now-removed ModelCurve drawing.
-                print(u'WARNING [floor_rebar]: perimeter closure U-bar edge FAILED '
+                _log_info(u'rebarautomate', u'WARNING [floor_rebar]: perimeter closure U-bar edge FAILED '
                       u'({}) — p0=({:.3f}, {:.3f}) p1=({:.3f}, {:.3f}) mm, '
                       u'bz={:.6f} tz={:.6f} ft — skipping this edge only, the '
                       u'rest of the floor\'s reinforcement continues.'.format(

@@ -45,6 +45,6 @@ ui_module = _lm('elemjoin_ui', os.path.join(lib_path, 'ui.py'))
 try:
     import nosa_utils.usage as _ut
     _ut.record('elementjoin')
-except Exception:
+except Exception:  # nosa-lint: disable=NOSA006 - usage stats must never break the tool
     pass
 launch_nosa_window(ui_module.ElementJoinWindow, revit.doc)

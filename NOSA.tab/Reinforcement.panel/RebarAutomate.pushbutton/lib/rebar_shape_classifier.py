@@ -21,6 +21,7 @@ if _lib not in sys.path:
 from nosa_utils import rebar_catalog
 from nosa_utils.compat import text_type
 import math
+from nosa_utils.telemetry import log_info as _log_info
 
 _FT_TO_MM = 304.8
 _MM_TO_FT = 1.0 / 304.8
@@ -296,7 +297,7 @@ def classify_and_stamp(doc, rebar_id, standard_code):
         return (shape_code, shape_params)
 
     except Exception as e:
-        print(u'[rebar_shape_classifier] Error classifying rebar {}: {}'.format(rebar_id, e))
+        _log_info(u'rebarautomate', u'[rebar_shape_classifier] Error classifying rebar {}: {}'.format(rebar_id, e))
         return (None, None)
 
 

@@ -7,12 +7,14 @@ import sys
 
 from Autodesk.Revit import DB
 
-_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
+_lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import unit_conversion as _uc10
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'datatoolshub.logic_link_change'
 
 _MM_PER_FOOT = _uc10.FT_TO_MM
 _SNAP_DIR = os.path.join(
@@ -51,7 +53,7 @@ def get_links(doc):
             if link_doc:
                 links.append((link, link_doc))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'get_links')
     return links
 
 
@@ -61,7 +63,7 @@ def _collect_levels(link_doc):
         try:
             data[lvl.Name.strip()] = _ft_to_mm(lvl.Elevation)
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_collect_levels')
     return data
 
 
@@ -72,7 +74,7 @@ def _collect_grids(link_doc):
             mid = g.Curve.Evaluate(0.5, True)
             data[g.Name.strip()] = (_ft_to_mm(mid.X), _ft_to_mm(mid.Y))
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_collect_grids')
     return data
 
 
@@ -139,7 +141,7 @@ def list_snapshots():
                 'ts': d.get('ts', u''),
             })
         except Exception:
-            pass
+            log_swallowed(_LOG, u'list_snapshots')
     return snaps
 
 

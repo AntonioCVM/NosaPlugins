@@ -9,6 +9,8 @@ import csv, os, sys
 from Autodesk.Revit import DB
 from nosa_utils.revit_helpers import get_id_value
 from nosa_utils import sheet_protocol as _sp
+from nosa_utils.telemetry import log_swallowed
+_LOG = u'nosa_utils.drawing_index'
 
 # NOSA File Naming Protocol fields — in display order.
 # Single source of truth lives in nosa_utils/sheet_protocol.py (shared with
@@ -37,7 +39,7 @@ def _param_str(el, name_or_bip):
             p = el.LookupParameter(name_or_bip)
         if p: return (p.AsString() or p.AsValueString() or '').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_param_str')
     return ''
 
 def get_all_sheet_param_names(doc):
@@ -56,7 +58,7 @@ def get_all_sheet_param_names(doc):
                     if n and n not in all_names:
                         all_names.append(n)
             except Exception:
-                pass
+                log_swallowed(_LOG, u'get_all_sheet_param_names')
     return all_names
 
 
@@ -69,7 +71,7 @@ def _get_originator(doc, sheet):
             if pi:
                 val = _param_str(pi, 'Organization Name')
         except Exception:
-            pass
+            log_swallowed(_LOG, u'_get_originator')
     return val
 
 def _get_revision_role(doc, sheet, role_name):
@@ -85,7 +87,7 @@ def _get_revision_role(doc, sheet, role_name):
         if p:
             return (p.AsString() or p.AsValueString() or '').strip()
     except Exception:
-        pass
+        log_swallowed(_LOG, u'_get_revision_role')
     return ''
 
 def collect_sheets(doc, filter_text='', param_names=None):
@@ -201,5 +203,5 @@ def get_project_name(doc):
         if doc.ProjectInformation:
             return doc.ProjectInformation.Name or ''
     except Exception:
-        pass
+        log_swallowed(_LOG, u'get_project_name')
     return ''
