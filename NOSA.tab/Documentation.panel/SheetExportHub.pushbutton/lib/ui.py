@@ -1007,6 +1007,10 @@ class SheetExportHubWindow(NOSAWindow):
                 MessageBox.Show("Could not create destination folder: {}".format(e))
                 return
 
+        selected_elements = self._drawing_check_gate(selected_elements)
+        if not selected_elements:
+            return
+
         from confirm_export_dialog import ConfirmExportDialog
         dlg = ConfirmExportDialog(
             selected_elements, self.naming_builder, export_formats,
@@ -1067,6 +1071,54 @@ class SheetExportHubWindow(NOSAWindow):
         except Exception as e:
             self.TxtLog.AppendText("ERROR: " + str(e) + "\n")
             logger.error("Export failed", e)
+
+    # =========================================================================
+    # DRAWING CHECK (T8.12)
+    # =========================================================================
+
+    def _drawing_findings(self, elements):
+        from nosa_utils import sheet_checks
+        sheets = [e for e in elements if isinstance(e, DB.ViewSheet)]
+        labels = [u'{} - {}'.format(s.SheetNumber, s.Name) for s in sheets]
+        return sheets, labels, sheet_checks.check_sheets(self.doc, sheets)
+
+    def _drawing_check_gate(self, elements):
+        """NOSA protocol + content check before exporting sheets: export all, compliant only, or cancel."""
+        if self.is_exporting_views:
+            return elements
+        try:
+            sheets, labels, findings = self._drawing_findings(elements)
+        except Exception as e:
+            logger.error("Drawing check failed", e)
+            return elements
+        if not findings:
+            return elements
+        from protocol_report_dialog import ProtocolReportDialog, ALL, COMPLIANT
+        dlg = ProtocolReportDialog(findings, labels, for_export=True)
+        dlg.Owner = self
+        dlg.ShowDialog()
+        if dlg.choice == ALL:
+            return elements
+        if dlg.choice == COMPLIANT:
+            keep = set(dlg.compliant_labels)
+            return [e for e in elements if not isinstance(e, DB.ViewSheet) or
+                    u'{} - {}'.format(e.SheetNumber, e.Name) in keep]
+        return []
+
+    def CheckDrawings_Click(self, sender, args):
+        selected = [item.Element for item in self.sheet_items if item.IsChecked]
+        sheets = [e for e in selected if isinstance(e, DB.ViewSheet)]
+        if not sheets:
+            MessageBox.Show("Select the sheets to check first.")
+            return
+        _s, labels, findings = self._drawing_findings(sheets)
+        if not findings:
+            MessageBox.Show("{} sheet(s) checked: no issues found.".format(len(labels)))
+            return
+        from protocol_report_dialog import ProtocolReportDialog
+        dlg = ProtocolReportDialog(findings, labels, for_export=False)
+        dlg.Owner = self
+        dlg.ShowDialog()
 
     def _pump_ui(self):
         """Give the WPF Dispatcher a beat to process pending layout/render
