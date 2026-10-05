@@ -89,6 +89,8 @@ class MaterialManagerWindow(NOSAWindow):
         self.CboElLevel.ItemsSource = [_ALL_LEVELS]
         self.CboElLevel.SelectedIndex = 0
 
+        self._fill_replace_box()
+
         cfg = self.LoadConfig()
         self.ChkDarkMode.IsChecked = cfg.get('dark_mode', self.dark_mode)
 
@@ -422,6 +424,52 @@ class MaterialManagerWindow(NOSAWindow):
                 forms.alert(tmsg, title="Assign Material (Type)")
 
         self.ScanElements_Click(None, None)
+
+    # ── replace material (bulk) ───────────────────────────────────────────────
+
+    def _fill_replace_box(self):
+        self.CboReplaceCategory.ItemsSource = [_logic.ALL_STRUCTURAL] + [n for n, _b in _logic.REPLACE_CATEGORIES]
+        self.CboReplaceCategory.SelectedIndex = 0
+        mats = [MatItem(mid, name) for mid, name in _logic.get_all_materials(self.doc)]
+        self.CboReplaceFrom.ItemsSource = mats
+        self.CboReplaceTo.ItemsSource = list(mats)
+        for i, m in enumerate(mats):
+            if m.Name == u'Concrete - Generic':
+                self.CboReplaceFrom.SelectedIndex = i
+
+    def ReplaceMaterial_Click(self, sender, args):
+        src, dst = self.CboReplaceFrom.SelectedItem, self.CboReplaceTo.SelectedItem
+        category = self.CboReplaceCategory.SelectedItem
+        if src is None or dst is None:
+            forms.alert(u'Choose the material to replace and the new one.', title=u'Replace material')
+            return
+        if src.Id == dst.Id:
+            forms.alert(u'The two materials are the same.', title=u'Replace material')
+            return
+        level = self.CboElLevel.SelectedItem
+        level = None if (not level or level == _ALL_LEVELS) else level
+        if not forms.alert(
+                u"Replace '{}' with '{}' in {}{}?\n\nWalls, floors, wall foundations and stairs change their "
+                u"TYPE (every instance of that type in the project).".format(
+                    src.Name, dst.Name, category, u' on level {}'.format(level) if level else u''),
+                title=u'Replace material', yes=True, no=True):
+            return
+        self.SetLoading(True, u'Replacing material...')
+        try:
+            report = _logic.replace_material(self.doc, src.Id, dst.Id, category, level)
+        except Exception as e:
+            self.SetLoading(False)
+            forms.alert(u'Replace failed: {}'.format(e), title=u'Replace material')
+            return
+        self.SetLoading(False)
+        msg = u'{} element(s) changed; {} type(s) changed.'.format(report['instances'], len(report['types']))
+        if report['types']:
+            msg += u'\n\nTypes:\n' + u'\n'.join(report['types'][:15])
+        if report['errors']:
+            msg += u'\n\nNot changed:\n' + u'\n'.join(report['errors'])
+        forms.alert(msg, title=u'Replace material')
+        if self._all_el_rows:
+            self.ScanElements_Click(None, None)
 
     # ── elements export ───────────────────────────────────────────────────────
 

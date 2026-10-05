@@ -743,3 +743,21 @@ class NOSADashboardTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class MaterialManagerReplaceTests(unittest.TestCase):
+    """Material Manager — scope of the bulk Replace material box."""
+
+    def setUp(self):
+        self.mod = _plugin('Structures.panel', 'Quantities.pulldown', 'MaterialManager.pushbutton', 'lib', 'logic.py')
+
+    def test_all_structural_covers_every_category(self):
+        scope = self.mod.replace_scope(self.mod.ALL_STRUCTURAL)
+        for bic in ('OST_StructuralColumns', 'OST_StructuralFraming', 'OST_StructuralFoundation', 'OST_Floors',
+                    'OST_Walls', 'OST_Stairs', 'OST_StairsRuns', 'OST_StairsLandings'):
+            self.assertIn(bic, scope)
+
+    def test_one_category_and_unknown(self):
+        self.assertEqual(self.mod.replace_scope(u'Structural Columns'), ['OST_StructuralColumns'])
+        self.assertEqual(self.mod.replace_scope(u'Stairs'), ['OST_Stairs', 'OST_StairsRuns', 'OST_StairsLandings'])
+        self.assertEqual(self.mod.replace_scope(u'Doors'), [])

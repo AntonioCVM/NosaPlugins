@@ -557,3 +557,94 @@ def export_element_materials_csv(rows, path):
 
 
 
+
+
+# ── replace material (bulk) ────────────────────────────────────────────────────
+
+REPLACE_CATEGORIES = [
+    (u'Structural Columns', ('OST_StructuralColumns',)),
+    (u'Structural Framing', ('OST_StructuralFraming',)),
+    (u'Structural Foundations', ('OST_StructuralFoundation',)),
+    (u'Floors', ('OST_Floors',)),
+    (u'Walls', ('OST_Walls',)),
+    (u'Stairs', ('OST_Stairs', 'OST_StairsRuns', 'OST_StairsLandings')),
+]
+ALL_STRUCTURAL = u'All structural categories'
+_TYPE_MATERIAL_PARAMS = (u'Structural Material', u'Monolithic Material', u'Material', u'Tread Material',
+                         u'Riser Material', u'Stringer Material', u'Landing Material')
+
+
+def replace_scope(label):
+    """BuiltInCategory names for a category label of the Replace box (pure)."""
+    if label in (None, u'', ALL_STRUCTURAL):
+        return [b for _l, bics in REPLACE_CATEGORIES for b in bics]
+    for name, bics in REPLACE_CATEGORIES:
+        if name == label:
+            return list(bics)
+    return []
+
+
+def _replace_in_type(doc, el_type, from_id, to_id):
+    """Swap from -> to in a type's compound layers and material parameters. True when changed."""
+    changed = False
+    try:
+        cs = el_type.GetCompoundStructure() if hasattr(el_type, 'GetCompoundStructure') else None
+    except Exception:
+        cs = None
+    if cs is not None:
+        hit = False
+        for i in range(cs.LayerCount):
+            if cs.GetMaterialId(i) == from_id:
+                cs.SetMaterialId(i, to_id)
+                hit = True
+        if hit:
+            el_type.SetCompoundStructure(cs)
+            changed = True
+    for name in _TYPE_MATERIAL_PARAMS:
+        p = el_type.LookupParameter(name)
+        if p is not None and not p.IsReadOnly and p.StorageType == DB.StorageType.ElementId \
+                and p.AsElementId() == from_id:
+            p.Set(to_id)
+            changed = True
+    return changed
+
+
+def replace_material(doc, from_id, to_id, category_label=None, level_name=None):
+    """
+    Every element of the scope made of `from_id` gets `to_id`: the instance Structural Material when the
+    element has one (or none set but its geometry is `from_id`, e.g. a concrete column taking the category
+    material), otherwise its TYPE (walls, floors, wall foundations, stair runs/landings: every instance of
+    that type changes). Returns {'instances': n, 'types': [names], 'errors': [..]}.
+    """
+    report = {'instances': 0, 'types': [], 'errors': []}
+    seen_types = set()
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Material Manager — Replace Material")) as t:
+        t.Start()
+        for bic_name in replace_scope(category_label):
+            bic = getattr(DB.BuiltInCategory, bic_name, None)
+            if bic is None:
+                continue
+            for el in DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType():
+                if level_name and _level_name(doc, el) != level_name:
+                    continue
+                try:
+                    p = el.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM)
+                    if p is not None and not p.IsReadOnly and p.StorageType == DB.StorageType.ElementId:
+                        cur = p.AsElementId()
+                        empty = cur is None or cur == DB.ElementId.InvalidElementId
+                        if cur == from_id or (empty and from_id in list(el.GetMaterialIds(False))):
+                            p.Set(to_id)
+                            report['instances'] += 1
+                            continue
+                    el_type = doc.GetElement(el.GetTypeId())
+                    if el_type is None or get_id_value(el_type.Id) in seen_types:
+                        continue
+                    seen_types.add(get_id_value(el_type.Id))
+                    if _replace_in_type(doc, el_type, from_id, to_id):
+                        from nosa_utils.revit_helpers import element_name
+                        report['types'].append(u'{}: {}'.format(_cat_name(el), element_name(el_type)))
+                except Exception as e:
+                    if len(report['errors']) < 5:
+                        report['errors'].append(u'{} {}: {}'.format(_cat_name(el), get_id_value(el.Id), e))
+        t.Commit()
+    return report
