@@ -231,7 +231,7 @@
                                 <TextBlock Text="Replace material" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
                                 <TextBlock FontSize="10" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,8"
                                            Foreground="{DynamicResource TextColor}"
-                                           Text="Every element of the category made of the first material gets the second one (e.g. all columns from Concrete - Generic to Concrete - RC40/50). Walls, floors, wall foundations and stairs change their TYPE: every instance of that type in the project. The Level filter applies to columns, beams and foundations."/>
+                                           Text="Every element of the category made of the first material gets the second one (e.g. all columns from Concrete - Generic to Concrete - C40/50). Walls, floors, wall foundations and stairs change their TYPE: every instance of that type in the project. The Level filter applies to columns, beams and foundations."/>
                                 <TextBlock Text="Category:" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
                                 <ComboBox Name="CboReplaceCategory" Height="26" FontSize="11"/>
                                 <TextBlock Text="From material:" FontSize="11" Foreground="{DynamicResource TextColor}" Margin="0,8,0,4"/>

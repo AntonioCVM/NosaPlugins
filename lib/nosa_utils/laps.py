@@ -116,7 +116,7 @@ _CLASS_RE = re.compile(r'(?<![0-9])R?C\s?(\d{2,3})\s?/\s?(\d{2,3})(?![0-9])', re
 
 
 def fck_from_material_name(name):
-    """fck from a strength class in a material name ('Concrete - RC32/40' -> 32), else None."""
+    """fck from a strength class in a material name ('Concrete - C32/40' or 'RC32/40' -> 32), else None."""
     match = _CLASS_RE.search(name or u'')
     if not match:
         return None

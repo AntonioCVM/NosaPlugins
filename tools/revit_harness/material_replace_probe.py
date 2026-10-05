@@ -53,7 +53,7 @@ try:
         category = CATEGORY
     except NameError:
         category = logic.ALL_STRUCTURAL
-    report = logic.replace_material(doc, names[u'Concrete - Generic'], names[u'Concrete - RC40/50'], category)
+    report = logic.replace_material(doc, names[u'Concrete - Generic'], names[u'Concrete - C40/50'], category)
     _log.append(u'report: {}'.format(report))
     _log.append(u'after: column {} | beam {} | wall {}'.format(mats(col), mats(beam), mats(wall)))
 except Exception:

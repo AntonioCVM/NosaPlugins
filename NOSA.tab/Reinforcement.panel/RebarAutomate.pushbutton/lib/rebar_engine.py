@@ -424,7 +424,7 @@ def _material_fck_mpa(doc, material_id):
                 return fck
         except Exception:
             log_swallowed(_LOG, u'_material_fck_mpa')
-    # UK templates carry the class in the name only ("Concrete - RC32/40").
+    # UK templates carry the class in the name only ("Concrete - C32/40").
     from nosa_utils import laps
     return laps.fck_from_material_name(DB.Element.Name.GetValue(material))
 
