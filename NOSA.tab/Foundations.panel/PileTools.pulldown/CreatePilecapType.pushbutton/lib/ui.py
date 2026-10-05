@@ -38,14 +38,18 @@ class CreatePilecapWindow(NOSAWindow):
         NOSAWindow.__init__(self, xaml, 'create_pilecap')
         # SelectionChanged/SelectedIndex wired in code after LoadComponent, never in XAML (NOSA106)
         self.CboShape.SelectionChanged += self.Shape_Changed
+        self.CboPileType.SelectionChanged += self.PileType_Changed
         self.doc    = doc
+        self._pile = ('round', 300.0)
         self._mode  = 'regular'
         self._shape_keys = list(_logic.IRREGULAR_SHAPES.keys())
 
         # Element type combos
         piles = _logic.get_pile_types(doc)
         self.CboPileType.ItemsSource = [_Item(eid, n) for eid, n in piles]
-        if piles: self.CboPileType.SelectedIndex = 0
+        if piles:
+            self.CboPileType.SelectedIndex = 0
+            self._pile = _logic.pile_type_section(doc, piles[0][0])
 
         caps = _logic.get_cap_types(doc)
         self.CboCapType.ItemsSource = [_Item(eid, n) for eid, n in caps]
@@ -127,6 +131,12 @@ class CreatePilecapWindow(NOSAWindow):
                 except Exception:
                     ctrl_box.Text = str(p[1])
 
+    def PileType_Changed(self, sender, args):
+        item = self.CboPileType.SelectedItem
+        if item is not None:
+            self._pile = _logic.pile_type_section(self.doc, item.Id)
+        self._refresh_preview()
+
     def _get_param(self, ctrl, default):
         try:
             return max(1, int(ctrl.Text or str(default)))
@@ -162,10 +172,17 @@ class CreatePilecapWindow(NOSAWindow):
         spc, clr = self._parse_spacing_clearance()
         cap_w, cap_h = _logic.calc_dimensions(n_h, n_v, spc, clr)
 
-        self.TxtInfoPiles.Text = u'Piles: {}  ({} \xd7 {})'.format(n_h * n_v, n_h, n_v)
+        self.TxtInfoPiles.Text = u'Piles: {}  ({} \xd7 {}) — {} {:.0f} mm'.format(
+            n_h * n_v, n_h, n_v, u'square' if self._pile[0] == 'square' else u'\xd8', self._pile[1])
         self.TxtInfoCap.Text   = u'Cap: {:.0f} \xd7 {:.0f} mm'.format(cap_w, cap_h)
-        self.TxtDims.Text      = u'{}\xd7{} piles — {:.0f}\xd7{:.0f} mm'.format(
-                                    n_h, n_v, cap_w, cap_h)
+        grid = _logic.grid_family(n_h, n_v)
+        method = (u'family {}{}'.format(grid[0], u' (rotated)' if grid[2] else u'') if grid
+                  else u'cap slab + piles (group)')
+        self.TxtDims.Text      = u'{}\xd7{} piles — {:.0f}\xd7{:.0f} mm — {}'.format(
+                                    n_h, n_v, cap_w, cap_h, method)
+        warn = _logic.clearance_warning(clr, self._pile[0], self._pile[1])
+        if warn:
+            self.TxtDims.Text += u' — WARNING: ' + warn
 
         self.PileCanvas.Children.Clear()
         cw, ch, margin = 400.0, 260.0, 24.0
@@ -187,12 +204,11 @@ class CreatePilecapWindow(NOSAWindow):
         WPFCanvas.SetTop(rect,  oy)
         self.PileCanvas.Children.Add(rect)
 
-        pile_dia = max(6.0, min(26.0, spc * scale * 0.35))
         for ri in range(n_v):
             for ci in range(n_h):
                 px = ox + clr*scale + ci*spc*scale
                 py = oy + clr*scale + ri*spc*scale
-                self._draw_pile_dot(px, py, pile_dia)
+                self._draw_pile_dot(px, py, scale)
 
     # ── Irregular preview ──────────────────────────────────────────────────────
 
@@ -231,6 +247,9 @@ class CreatePilecapWindow(NOSAWindow):
         else:
             self.TxtDims.Text = u'{} — {} piles — GEOMETRY WARNING: {}'.format(
                 info['label'], n_piles, problems[0])
+        warn = _logic.clearance_warning(clr, self._pile[0], self._pile[1])
+        if warn:
+            self.TxtDims.Text += u' — WARNING: ' + warn
 
         self.PileCanvas.Children.Clear()
         cw, ch, margin = 400.0, 260.0, 24.0
@@ -267,12 +286,13 @@ class CreatePilecapWindow(NOSAWindow):
         self.PileCanvas.Children.Add(poly_shape)
 
         # Piles — same origin/scale
-        pile_dia = max(5.0, min(22.0, spc * scale * 0.32))
         for (dx, dy) in offsets:
-            self._draw_pile_dot(ox + dx*scale, oy - dy*scale, pile_dia)
+            self._draw_pile_dot(ox + dx*scale, oy - dy*scale, scale)
 
-    def _draw_pile_dot(self, px, py, dia):
-        e = Ellipse()
+    def _draw_pile_dot(self, px, py, scale):
+        shape, size_mm = self._pile
+        dia = max(4.0, size_mm * scale)            # the pile at its real size, as the type defines it
+        e = Rectangle() if shape == 'square' else Ellipse()
         e.Width  = dia
         e.Height = dia
         e.Fill   = SolidColorBrush(_PILE_COL)

@@ -479,6 +479,11 @@ class AddPileToPilecapWindow(NOSAWindow):
 
         if not slab:
             return
+        if _logic.is_family_pile_cap(slab):
+            forms.alert(u'This pile cap is a family type: its piles come from the type (Create Pilecap, mixed '
+                        u'model). Change its type or its "Pile Type" parameter instead of adding piles.',
+                        title=u'Add Pile to Pilecap')
+            return
 
         level = _logic.get_slab_level(self.doc, slab)
         if not level:

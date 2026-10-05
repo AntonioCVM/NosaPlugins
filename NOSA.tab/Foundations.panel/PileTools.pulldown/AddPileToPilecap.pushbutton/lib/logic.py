@@ -150,6 +150,14 @@ class SlabFilter(ISelectionFilter):
                get_id_value(element.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFoundation)
     def AllowReference(self, ref, point):
         return True
+def is_family_pile_cap(element):
+    """True for a pile cap FAMILY instance that already carries nested piles."""
+    try:
+        return isinstance(element, DB.FamilyInstance) and len(list(element.GetSubComponentIds())) > 0
+    except Exception:
+        return False
+
+
 def get_slab_level(doc, slab):
     """Get level associated with slab."""
     param = slab.get_Parameter(DB.BuiltInParameter.LEVEL_PARAM)

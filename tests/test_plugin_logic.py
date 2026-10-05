@@ -761,3 +761,45 @@ class MaterialManagerReplaceTests(unittest.TestCase):
         self.assertEqual(self.mod.replace_scope(u'Structural Columns'), ['OST_StructuralColumns'])
         self.assertEqual(self.mod.replace_scope(u'Stairs'), ['OST_Stairs', 'OST_StairsRuns', 'OST_StairsLandings'])
         self.assertEqual(self.mod.replace_scope(u'Doors'), [])
+
+
+class CreatePilecapPileSectionTests(unittest.TestCase):
+    """Create Pilecap — the preview draws each pile with its real shape and size."""
+
+    def setUp(self):
+        self.mod = _plugin('Foundations.panel', 'PileTools.pulldown', 'CreatePilecapType.pushbutton', 'lib', 'logic.py')
+
+    def test_round_pile_reads_the_diameter(self):
+        self.assertEqual(self.mod.pile_section(u'Pile-Steel Pipe Circular',
+                                               {u'Width': 300.0, u'Diameter': 500.0, u'Radius': 250.0}),
+                         ('round', 500.0))
+
+    def test_square_pile_reads_the_width(self):
+        self.assertEqual(self.mod.pile_section(u'Pile Square piling', {u'Width': 400.0}), ('square', 400.0))
+
+    def test_radius_only_and_default(self):
+        self.assertEqual(self.mod.pile_section(u'Bored pile', {u'Radius': 300.0}), ('round', 600.0))
+        self.assertEqual(self.mod.pile_section(u'Mystery pile', {}), ('round', 300.0))
+
+
+class CreatePilecapGridFamilyTests(unittest.TestCase):
+    """Create Pilecap — regular grids become pile cap family types (mixed model)."""
+
+    def setUp(self):
+        self.mod = _plugin('Foundations.panel', 'PileTools.pulldown', 'CreatePilecapType.pushbutton', 'lib', 'logic.py')
+
+    def test_known_grids_and_rotation(self):
+        self.assertEqual(self.mod.grid_family(2, 2), (u'Pile Cap-4 Pile', None, False))
+        self.assertEqual(self.mod.grid_family(3, 2), (u'Pile Cap-6 Pile', None, True))
+        self.assertEqual(self.mod.grid_family(4, 2), (u'Pile Cap-8 Pile', u'3800 x 1800 x 1000mm', True))
+        self.assertIsNone(self.mod.grid_family(3, 4))
+
+    def test_type_values_follow_the_family_axes(self):
+        v = self.mod.grid_type_values(2, 3, 1050.0, 375.0, False)
+        self.assertEqual((v[u'Width'], v[u'Length'], v[u'Clearance']), (1800.0, 2850.0, 375.0))
+        r = self.mod.grid_type_values(3, 2, 1050.0, 375.0, True)
+        self.assertEqual((r[u'Width'], r[u'Length']), (1800.0, 2850.0))
+
+    def test_clearance_warning(self):
+        self.assertIsNone(self.mod.clearance_warning(450.0, 'round', 600.0))
+        self.assertIn(u'0 mm beyond', self.mod.clearance_warning(150.0, 'round', 300.0))

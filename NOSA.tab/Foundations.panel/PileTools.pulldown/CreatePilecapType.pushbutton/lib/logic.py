@@ -59,6 +59,38 @@ def get_pile_types(doc):
     return result
 
 
+def pile_section(family_name, lengths_mm):
+    """('square' | 'round', size mm) of a pile type from its family name and length parameters (pure).
+    lengths_mm: {parameter name: mm}. Round piles read Diameter, square ones Width (b)."""
+    name = (family_name or u'').lower()
+    square = any(k in name for k in (u'square', u'rect', u'precast', u'h-pile', u'sheet'))
+    if not square:
+        for key in (u'Diameter', u'Pile Diameter', u'D'):
+            if lengths_mm.get(key):
+                return 'round', float(lengths_mm[key])
+        if lengths_mm.get(u'Radius'):
+            return 'round', 2.0 * float(lengths_mm[u'Radius'])
+    for key in (u'Width', u'b', u'Pile Width', u'Side'):
+        if lengths_mm.get(key):
+            return ('square' if square or u'diameter' not in name else 'round'), float(lengths_mm[key])
+    return ('square' if square else 'round'), 300.0
+
+
+def pile_type_section(doc, type_id):
+    """pile_section() of a pile FamilySymbol in the document."""
+    sym = doc.GetElement(type_id)
+    if sym is None:
+        return 'round', 300.0
+    lengths = {}
+    for p in sym.Parameters:
+        try:
+            if p.StorageType == DB.StorageType.Double and p.Definition.GetDataType() == DB.SpecTypeId.Length:
+                lengths[p.Definition.Name] = p.AsDouble() / _MM_TO_FT
+        except Exception:
+            continue
+    return pile_section(getattr(sym, 'FamilyName', u''), lengths)
+
+
 def get_cap_types(doc):
     result = []
     for t in DB.FilteredElementCollector(doc).OfClass(DB.FloorType).ToElements():
@@ -184,9 +216,117 @@ def _create_pile(doc, cx, cy, cz, pile_type_id, level_id):
                                             DB.Structure.StructuralType.Footing)
 
 
+# ── Regular grids as pile cap FAMILY types (user 2026-10-05: mixed model) ──────
+
+# (piles along X, piles along Y) -> (family, type to duplicate or None); the template's Pile Cap-N families
+# place their piles from Width (X), Length (Y) and Clearance (from the pile axis, as this plugin does).
+GRID_FAMILIES = {
+    (1, 1): (u'Pile Cap-1 Pile', None),
+    (2, 1): (u'Pile Cap-2 Pile', None),
+    (2, 2): (u'Pile Cap-4 Pile', None),
+    (2, 3): (u'Pile Cap-6 Pile', None),
+    (2, 4): (u'Pile Cap-8 Pile', u'3800 x 1800 x 1000mm'),     # the 2 x 4 layout of that family
+    (3, 3): (u'Pile Cap-9 Pile', None),
+}
+
+
+def grid_family(n_h, n_v):
+    """(family, type to duplicate, rotate 90 deg) for an n_h x n_v grid, or None (pure)."""
+    if (n_h, n_v) in GRID_FAMILIES:
+        return GRID_FAMILIES[(n_h, n_v)] + (False,)
+    if (n_v, n_h) in GRID_FAMILIES:
+        return GRID_FAMILIES[(n_v, n_h)] + (True,)
+    return None
+
+
+def grid_type_values(n_h, n_v, spacing_mm, clearance_mm, rotate):
+    """{'Width', 'Length', 'Clearance'} mm of the family type for the grid (pure); Width runs along the
+    family X axis, which is the model Y axis when the instance is rotated."""
+    fam_x, fam_y = (n_v, n_h) if rotate else (n_h, n_v)
+    return {u'Width': (fam_x - 1) * spacing_mm + 2.0 * clearance_mm,
+            u'Length': (fam_y - 1) * spacing_mm + 2.0 * clearance_mm,
+            u'Clearance': float(clearance_mm)}
+
+
+def clearance_warning(clearance_mm, pile_shape, pile_size_mm, min_cover_mm=75.0):
+    """Message when the cap edge (clearance from the pile axis) leaves less than min_cover_mm beyond the
+    pile face, else None (pure)."""
+    half = pile_size_mm / 2.0
+    if clearance_mm < half + min_cover_mm:
+        return u'edge clearance {:.0f} mm leaves {:.0f} mm beyond the {} pile face (min {:.0f})'.format(
+            clearance_mm, clearance_mm - half, u'square' if pile_shape == 'square' else u'round', min_cover_mm)
+    return None
+
+
+def _floor_thickness_mm(doc, floor_type_id):
+    """Structural (concrete) thickness of the chosen cap slab type: blinding and hardcore layers excluded."""
+    ft = doc.GetElement(floor_type_id)
+    try:
+        cs = ft.GetCompoundStructure()
+        core = sum(cs.GetLayerWidth(i) for i in range(cs.LayerCount)
+                   if cs.GetLayerFunction(i) == DB.MaterialFunctionAssignment.Structure)
+        return (core or cs.GetWidth()) / _MM_TO_FT
+    except Exception:
+        p = ft.get_Parameter(DB.BuiltInParameter.FLOOR_ATTR_DEFAULT_THICKNESS_PARAM) if ft else None
+        return p.AsDouble() / _MM_TO_FT if p is not None else 900.0
+
+
+def create_pilecap_family(doc, config, center_pt, grid):
+    """Place a pile cap family type for a regular grid. Returns (created, errors)."""
+    from nosa_utils.revit_helpers import element_name
+    family_name, template_type, rotate = grid
+    values = grid_type_values(config['n_h'], config['n_v'], config['spacing_mm'], config['clearance_mm'], rotate)
+    thickness = _floor_thickness_mm(doc, config['cap_type_id'])
+    pile = doc.GetElement(config['pile_type_id'])
+    pile_name = element_name(pile) if pile is not None else u'pile'
+    type_name = u'{:.0f} x {:.0f} x {:.0f}mm - {}'.format(values[u'Width'], values[u'Length'], thickness, pile_name)
+    symbols = [s for s in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
+               if s.FamilyName == family_name]
+    if not symbols:
+        return 0, [u'{} is not loaded'.format(family_name)]
+    errors = []
+    with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Create Pile Cap ({})".format(family_name))) as t:
+        t.Start()
+        sym = [s for s in symbols if element_name(s) == type_name]
+        if sym:
+            sym = sym[0]
+        else:
+            base = [s for s in symbols if template_type and element_name(s) == template_type] or symbols
+            sym = base[0].Duplicate(type_name)
+            for name, mm in ((u'Width', values[u'Width']), (u'Length', values[u'Length']),
+                             (u'Clearance', values[u'Clearance']), (u'Foundation Thickness', thickness),
+                             (u'Cut-off', config['cutoff_mm'])):
+                p = sym.LookupParameter(name)
+                if p is not None and not p.IsReadOnly:
+                    p.Set(mm * _MM_TO_FT)
+            p = sym.LookupParameter(u'Pile Type')
+            if p is not None and not p.IsReadOnly:
+                try:
+                    p.Set(config['pile_type_id'])
+                except Exception as e:
+                    errors.append(u'Pile Type: {}'.format(e))
+        if not sym.IsActive:
+            sym.Activate()
+            doc.Regenerate()
+        level = doc.GetElement(config['level_id'])
+        from Autodesk.Revit.DB.Structure import StructuralType
+        inst = doc.Create.NewFamilyInstance(DB.XYZ(center_pt.X, center_pt.Y, level.Elevation), sym, level,
+                                            StructuralType.Footing)
+        if rotate:
+            axis = DB.Line.CreateBound(DB.XYZ(center_pt.X, center_pt.Y, 0), DB.XYZ(center_pt.X, center_pt.Y, 1))
+            DB.ElementTransformUtils.RotateElement(doc, inst.Id, axis, 1.5707963267948966)
+        doc.Regenerate()
+        piles = len(list(inst.GetSubComponentIds()))
+        t.Commit()
+    return 1 + piles, errors
+
+
 # ── Regular rectangular pile cap ──────────────────────────────────────────────
 
 def create_pilecap(doc, config, center_pt):
+    grid = grid_family(config['n_h'], config['n_v'])
+    if grid is not None and any(f.Name == grid[0] for f in DB.FilteredElementCollector(doc).OfClass(DB.Family)):
+        return create_pilecap_family(doc, config, center_pt, grid)
     errors  = []
     created = 0
     n_h          = config['n_h']
