@@ -319,3 +319,9 @@ finally:
     _log.extend(u'REVIT ERROR (rolled back): ' + f for f in _failures)
 
 RESULT = u'\n'.join(_log) + u'\n--- console ---\n' + _console.getvalue()[-2500:]
+try:
+    import io as _io
+    with _io.open(OUT, 'w', encoding='utf-8') as _fh:       # long runs outlive the 60 s call: read the file
+        _fh.write(RESULT)
+except NameError:
+    pass

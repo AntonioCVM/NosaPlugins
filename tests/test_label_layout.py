@@ -43,8 +43,9 @@ class LabelLayoutTests(unittest.TestCase):
     def test_candidates_start_at_home_and_grow(self):
         offsets = candidate_offsets(10, 2, 0.5, rings=2)
         self.assertEqual(offsets[0], (0.0, 0.0))
-        self.assertEqual(len(offsets), 1 + 8 * 2)
-        self.assertIn((0.0, 2.5), offsets[:3])
+        self.assertEqual(len(offsets), (2 * 2 + 1) ** 2)
+        self.assertEqual(offsets[1], (0.0, 2.5))            # one height up comes first
+        self.assertLess(offsets.index((0.0, 5.0)), offsets.index((5.25, 0.0)))   # stack before sliding
 
 
 if __name__ == '__main__':

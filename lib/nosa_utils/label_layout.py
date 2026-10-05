@@ -12,16 +12,19 @@ def _shift(rect, dx, dy):
 
 
 def candidate_offsets(width, height, gap, rings=8):
-    """Offsets nearest first: up/down by one tag height + gap, then sideways, ring by ring."""
+    """
+    Offsets nearest first by real distance: a grid of one tag height (+ gap) vertically and half a tag
+    width sideways, `rings` steps each way. Tags are wide and low, so stacking above or below the
+    element comes before sliding along it; a dense line of beams no longer sends tags a few tag-widths
+    away with long leaders (T7.4 follow-up, 2026-10-05).
+    """
     step_y = height + gap
-    step_x = width + gap
-    out = [(0.0, 0.0)]
-    for k in range(1, rings + 1):
-        ring = [(0.0, k * step_y), (0.0, -k * step_y), (k * step_x, 0.0), (-k * step_x, 0.0),
-                (k * step_x, k * step_y), (-k * step_x, k * step_y),
-                (k * step_x, -k * step_y), (-k * step_x, -k * step_y)]
-        out.extend(sorted(ring, key=lambda d: (abs(d[0]) / max(step_x, 1e-9) + abs(d[1]) / max(step_y, 1e-9),
-                                               abs(d[0]))))
+    step_x = (width + gap) / 2.0
+    out = []
+    for i in range(-rings, rings + 1):
+        for j in range(-rings, rings + 1):
+            out.append((i * step_x, j * step_y))
+    out.sort(key=lambda d: (d[0] * d[0] + d[1] * d[1], abs(d[0]), -d[1]))
     return out
 
 
@@ -145,7 +148,7 @@ def layout_tags(anchors, rects, obstacles=(), gap=0.0, leader_after=1.5, rings=8
         if not segments_cross(anchors[i], _centre(placed[i]), anchors[j], _centre(placed[j])):
             continue
         for k in (j, i):
-            rect = relocate(k, 3 * rings)
+            rect = relocate(k, 2 * rings)
             if rect is not None:
                 placed[k] = rect
                 leaders[k] = needs_leader(anchors[k], rect)
