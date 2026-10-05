@@ -115,6 +115,13 @@ def audit(doc, check_purge=True):
             for n in names[1:]:
                 add(area, by_name[n], u'Duplicate of "{}"'.format(names[0]))
 
+    from nosa_utils import material_groups
+    for m in collect(DB.Material):
+        p = m.LookupParameter(material_groups.PARAM)
+        if p is not None and not (p.AsString() or u'').strip():
+            add(u'Material', m, u'No {} (the concrete schedules count it as concrete); suggested: {}'.format(
+                material_groups.PARAM, material_groups.classify(_name(m), m.MaterialClass)))
+
     for cls, area in ((DB.TextNoteType, u'Text type'), (DB.DimensionType, u'Dimension type')):
         for t in collect(cls):
             p = t.get_Parameter(DB.BuiltInParameter.TEXT_FONT)
