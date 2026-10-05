@@ -68,15 +68,17 @@ def test_png_sketch_draws_the_u_and_its_letters():
     import png_sketch
     lines, _to_px = sk.fit(SHAPE_21)
     labels = sk.label_positions(lines, [u'A', u'B', u'C'])
-    png = png_sketch.draw_sketch(lines, labels, sk.WIDTH, sk.HEIGHT).png()
+    png = png_sketch.draw_sketch(lines, labels, sk.WIDTH, sk.HEIGHT).png(dpi=sk.DPI)
     width, height, rows, chunks = _decode(png)
     assert (width, height) == (sk.WIDTH, sk.HEIGHT)
-    assert chunks[b'pHYs'][:4] == (11811).to_bytes(4, 'big')          # 300 dpi
+    assert chunks[b'pHYs'][:4] == (35433).to_bytes(4, 'big')          # 900 dpi: 30 x 15 mm, 3x sharper
     x, y = [int(round(v)) for v in lines[1][0]]                          # a corner of the U: inked
     assert rows[y][x] < 60
     assert rows[2][2] == 255                                             # paper elsewhere
     _t, lx, ly = labels[1]
-    letter = [rows[yy][xx] for yy in range(int(ly) - 13, int(ly) + 13) for xx in range(int(lx) - 13, int(lx) + 13)]
+    half = 13 * sk.SCALE
+    letter = [rows[yy][xx] for yy in range(int(ly) - half, int(ly) + half)
+              for xx in range(int(lx) - half, int(lx) + half)]
     assert min(letter) == 0                                              # the 'B' is drawn
 
 

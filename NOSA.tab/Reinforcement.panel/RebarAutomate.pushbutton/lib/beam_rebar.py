@@ -219,6 +219,109 @@ def beam_spans_mm(host, axis):
     return cb.solid_spans(intervals, length_mm) if intervals else [(0.0, length_mm)]
 
 
+def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir):
+    """
+    [(kind, point at x_mm)] for n extra bars beside a row of main bars (base_lines, axis order):
+    between two main bars with their outer faces level, then in a second layer behind the row.
+    to_face: unit vector from the bars towards their face (up for top bars, down for bottom).
+    """
+    import continuous_beam as cb
+    drop = (bar_dia_mm / 2.0 + max(bar_dia_mm, 25.0) + dia_mm / 2.0) / _MM_PER_FT
+    lift = (bar_dia_mm - dia_mm) / 2.0 / _MM_PER_FT
+
+    def at(line, x):
+        return line.GetEndPoint(0) + axis_dir.Multiply(x / _MM_PER_FT)
+    out = []
+    for kind, i in cb.support_bar_slots(len(base_lines), n_bars):
+        if kind == 'between':
+            p = (at(base_lines[i], x_mm) + at(base_lines[i + 1], x_mm)).Multiply(0.5) + to_face.Multiply(lift)
+        else:
+            p = at(base_lines[i], x_mm) - to_face.Multiply(drop)
+        out.append((kind, p))
+    return out
+
+
+def _grouped(chains_by_key, normal, label):
+    """Rebar Set groups of parallel extra bars, one per (layer, reach) key."""
+    sets = []
+    for key, chains in sorted(chains_by_key.items()):
+        gaps = [chains[k + 1][0][0].GetEndPoint(0).DistanceTo(chains[k][0][0].GetEndPoint(0)) * _MM_PER_FT
+                for k in range(len(chains) - 1)]
+        even = gaps and max(gaps) - min(gaps) < 1.0
+        name = label + (u' (2nd layer)' if key[0] == 'second' else u'')
+        sets.extend(group_parallel_bar_chains_into_sets(chains, gaps[0] if even else 0.0, normal, name))
+    return sets
+
+
+def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bottom_ext_mm,
+                        continuous_ends, up, normal, bar_dia_mm, d_mm, anchorage_mm, clear_mm,
+                        n_support, support_dia_mm, n_span, span_dia_mm):
+    """
+    Extra bars of one beam element (x mm along `axis` from its start; spans_mm = clear spans
+    between support faces). Hogging bars over every intermediate support: half to 0.15 l + al
+    (>= lbd), half to 0.30 l + al, each side by its own span; at an end support with a column
+    (and not a support of a continuous line), top bars from the column's far face with a leg,
+    to 0.2 l. Sagging bars in each span, stopping 0.08 l from an end and 0.20 l from an internal
+    support. Returns {'support': [set groups], 'span': [set groups]}.
+    """
+    import continuous_beam as cb
+    out = {'support': [], 'span': []}
+    direction = axis.Direction
+    length = axis.Length * _MM_PER_FT
+    al = cb.shift_al_mm(d_mm)
+    if n_support and top_lines:
+        dia = support_dia_mm or bar_dia_mm
+        lbd = (anchorage_mm or 40.0 * bar_dia_mm) * dia / bar_dia_mm
+        base = [_extend_line(l, -top_ext_mm[0], -top_ext_mm[1]) if any(top_ext_mm) else l for l in top_lines]
+        n_long, _n_short = cb.hogging_groups(n_support)
+        chains = {}
+
+        def add(key, p, x0, x1, leg0=0.0, leg1=0.0):
+            q0 = p + direction.Multiply(x0 / _MM_PER_FT)
+            q1 = p + direction.Multiply(x1 / _MM_PER_FT)
+            curves = [DB.Line.CreateBound(q0, q1)]
+            if leg0:
+                curves.insert(0, DB.Line.CreateBound(q0 - up.Multiply(leg0 / _MM_PER_FT), q0))
+            if leg1:
+                curves.append(DB.Line.CreateBound(q1, q1 - up.Multiply(leg1 / _MM_PER_FT)))
+            chains.setdefault(key, []).append([curves])
+
+        for (la, lb), (ra, rb) in zip(spans_mm[:-1], spans_mm[1:]):
+            left, right = cb.hogging_reaches_mm(lb - la, al, lbd), cb.hogging_reaches_mm(rb - ra, al, lbd)
+            for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction)):
+                reach = 1 if k < n_long else 0
+                add((kind, reach, 'internal'), p, max(lb - left[reach], 0.0), min(ra + right[reach], length))
+        for end in (0, 1):
+            ext = top_ext_mm[end]
+            if not ext or continuous_ends[end]:
+                continue
+            span = spans_mm[0] if end == 0 else spans_mm[-1]
+            reach = cb.end_hogging_reach_mm(span[1] - span[0], lbd)
+            leg = support_leg_mm(lbd, ext, dia, clear_mm)
+            for kind, p in _slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction):
+                if end == 0:
+                    add((kind, 2, 'start'), p, -ext, min(span[0] + reach, length), leg0=leg)
+                else:
+                    add((kind, 2, 'end'), p, max(span[1] - reach, 0.0), length + ext, leg1=leg)
+        out['support'] = _grouped(chains, normal, u'Beam Support Bars')
+    if n_span and bottom_lines:
+        dia = span_dia_mm or bar_dia_mm
+        base = [_extend_line(l, -bottom_ext_mm[0], -bottom_ext_mm[1]) if any(bottom_ext_mm) else l
+                for l in bottom_lines]
+        chains = {}
+        last = len(spans_mm) - 1
+        for k, (a, b) in enumerate(spans_mm):
+            rng = cb.sagging_range_mm(a, b, k > 0 or bool(continuous_ends[0]), k < last or bool(continuous_ends[1]))
+            if rng is None:
+                continue
+            for kind, p in _slot_points(base, n_span, dia, bar_dia_mm, up.Negate(), 0.0, direction):
+                q0 = p + direction.Multiply(rng[0] / _MM_PER_FT)
+                chains.setdefault((kind, k), []).append(
+                    [[DB.Line.CreateBound(q0, p + direction.Multiply(rng[1] / _MM_PER_FT))]])
+        out['span'] = _grouped(chains, normal, u'Beam Span Bars')
+    return out
+
+
 def get_beam_section_mm(doc, host, cover_mm, bar_diameter_mm=20.0):
     """
     Representative beam width / height (mm) from host solid faces.
@@ -803,7 +906,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              include_interior_ties=False, tie_layout='all',
                              link_bend_diameter_mm=None, continuous_ends=(False, False),
                              internal_bottom_ext_mm=(0.0, 0.0), include_top=True,
-                             n_support_bars=0, support_bar_diameter_mm=None, support_fraction=0.25):
+                             n_support_bars=0, support_bar_diameter_mm=None,
+                             n_span_bars=0, span_bar_diameter_mm=None):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -1043,36 +1147,14 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
             'positions': positions,
         })
 
-    support_bar_sets = []
-    if n_support_bars and len(spans_mm) > 1 and top_lines:
-        import continuous_beam as cb
-        sup_dia = support_bar_diameter_mm or bar_diameter_mm
-        base = [_extend_line(l, -ext0_mm, -ext1_mm) if (ext0_mm or ext1_mm) else l for l in top_lines]
-        drop = (bar_diameter_mm / 2.0 + max(bar_diameter_mm, 25.0) + sup_dia / 2.0) / _MM_PER_FT
-        lift = (bar_diameter_mm - sup_dia) / 2.0 / _MM_PER_FT    # tops level with the top bars
-
-        def at(line, x):
-            return line.GetEndPoint(0) + axis.Direction.Multiply(x / _MM_PER_FT)
-
-        for (la, lb), (ra, rb) in zip(spans_mm[:-1], spans_mm[1:]):
-            support = {'x0': lb, 'x1': ra, 'width': ra - lb}
-            xa, xb = cb.support_bar_range(support, {'x0': la, 'x1': lb}, {'x0': ra, 'x1': rb}, support_fraction)
-            xa, xb = max(xa, 0.0), min(xb, axis.Length * _MM_PER_FT)
-            rows = {}
-            for kind, i in cb.support_bar_slots(len(base), n_support_bars):
-                if kind == 'between':
-                    pt = (at(base[i], xa) + at(base[i + 1], xa)).Multiply(0.5) + height_dir_legs.Multiply(lift)
-                else:
-                    pt = at(base[i], xa) - height_dir_legs.Multiply(drop)
-                rows.setdefault(kind, []).append(
-                    [[DB.Line.CreateBound(pt, pt + axis.Direction.Multiply((xb - xa) / _MM_PER_FT))]])
-            for kind, chains in sorted(rows.items()):
-                gaps = [chains[k + 1][0][0].GetEndPoint(0).DistanceTo(chains[k][0][0].GetEndPoint(0)) * _MM_PER_FT
-                        for k in range(len(chains) - 1)]
-                even = gaps and max(gaps) - min(gaps) < 1.0
-                label = u'Beam Support Bars' + (u' (2nd layer)' if kind == 'second' else u'')
-                support_bar_sets.extend(group_parallel_bar_chains_into_sets(
-                    chains, gaps[0] if even else 0.0, long_bar_normal_vec, label))
+    # Additional bars (user decision 2026-10-05): hogging bars over the supports, sagging bars in
+    # the spans — EC2 + UK NA, Concrete Centre / IStructE simplified curtailment (continuous_beam).
+    d_mm = beam_height_mm - longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
+    extra = additional_bar_sets(
+        axis, spans_mm, top_lines, bottom_lines, (ext0_mm, ext1_mm), (b_ext0, b_ext1),
+        continuous_ends, height_dir_legs, long_bar_normal_vec, bar_diameter_mm, d_mm, anchor_mm,
+        clear_mm, n_support_bars, support_bar_diameter_mm, n_span_bars, span_bar_diameter_mm)
+    support_bar_sets, span_bar_sets = extra['support'], extra['span']
 
     bar_inset = longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
     interior_tie_sets = []
@@ -1102,6 +1184,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'interior_tie_sets': interior_tie_sets,
         'spans_mm': spans_mm,
         'support_bar_sets': support_bar_sets,
+        'span_bar_sets': span_bar_sets,
         'warnings': warnings,
     }
 
@@ -1163,7 +1246,7 @@ def group_beam_lines(hosts, max_gap_mm=1500.0, tol_mm=10.0):
 
 def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, stirrup_bar_diameter_mm,
                           support_bar_diameter_mm, n_support_bars, stock_length_mm, lap_length_mm,
-                          anchorage_mm, support_fraction=0.25):
+                          anchorage_mm):
     """
     Hanger (continuous top) bars and support bars of one line of spans, plus how each span's
     own bars must end (continuous_beam's rules — see that module).
@@ -1222,6 +1305,11 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         x_line = (line.GetEndPoint(0) - origin).DotProduct(direction) * _MM_PER_FT
         return line.GetEndPoint(0) + direction.Multiply((x - x_line) / _MM_PER_FT)
 
+    def at_point(p, x):
+        """The point of p's bar line at line coordinate x."""
+        x_p = (p - origin).DotProduct(direction) * _MM_PER_FT
+        return p + direction.Multiply((x - x_p) / _MM_PER_FT)
+
     def host_at(x):
         for span in ordered:
             if x <= span['x1'] + 1.0:
@@ -1253,28 +1341,29 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
             hanger_sets.append((host_at((a + b) / 2.0), group))
 
     support_sets = []
-    drop = (bar_diameter_mm / 2.0 + max(bar_diameter_mm, 25.0) + support_bar_diameter_mm / 2.0) / _MM_PER_FT
-    lift = (bar_diameter_mm - support_bar_diameter_mm) / 2.0 / _MM_PER_FT    # tops level with the hangers
+    # hogging bars over the line's supports: half to 0.15 l + al (>= lbd), half to 0.30 l + al,
+    # each side by its own clear span (user decision 2026-10-05)
+    d_mm = clear_mm + longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
+    al = cb.shift_al_mm(d_mm)
+    lbd = (anchorage_mm or 40.0 * bar_diameter_mm) * support_bar_diameter_mm / bar_diameter_mm
+    n_long, _n_short = cb.hogging_groups(n_support_bars or 0)
     by_id = dict((s['id'], s) for s in ordered)
     for support in supports:
         if not support['continuous'] or not n_support_bars:
             continue
         left, right = by_id[support['left']], by_id[support['right']]
-        xa, xb = cb.support_bar_range(support, left, right, support_fraction)
+        reach_l = cb.hogging_reaches_mm(left['x1'] - left['x0'], al, lbd)
+        reach_r = cb.hogging_reaches_mm(right['x1'] - right['x0'], al, lbd)
         rows = {}
-        for kind, i in cb.support_bar_slots(len(top_lines), n_support_bars):
-            if kind == 'between':
-                p = (at(top_lines[i], xa) + at(top_lines[i + 1], xa)).Multiply(0.5) + height.Multiply(lift)
-            else:
-                p = at(top_lines[i], xa) - height.Multiply(drop)
-            rows.setdefault(kind, []).append([[DB.Line.CreateBound(p, p + direction.Multiply((xb - xa) / _MM_PER_FT))]])
-        for kind, chains in sorted(rows.items()):
-            gaps = [chains[k + 1][0][0].GetEndPoint(0).DistanceTo(chains[k][0][0].GetEndPoint(0)) * _MM_PER_FT
-                    for k in range(len(chains) - 1)]
-            even = gaps and max(gaps) - min(gaps) < 1.0
-            label = u'Beam Support Bars' + (u' (2nd layer)' if kind == 'second' else u'')
-            for group in group_parallel_bar_chains_into_sets(chains, gaps[0] if even else 0.0, normal, label):
-                support_sets.append((left['host'], group))
+        for k, (kind, p) in enumerate(_slot_points(top_lines, n_support_bars, support_bar_diameter_mm,
+                                                   bar_diameter_mm, height, 0.0, direction)):
+            g = 1 if k < n_long else 0
+            xa, xb = support['x0'] - reach_l[g], support['x1'] + reach_r[g]
+            q = at_point(p, xa)
+            rows.setdefault((kind, g), []).append(
+                [[DB.Line.CreateBound(q, q + direction.Multiply((xb - xa) / _MM_PER_FT))]])
+        for group in _grouped(rows, normal, u'Beam Support Bars'):
+            support_sets.append((left['host'], group))
 
     span_ends = {}
     for i, span in enumerate(ordered):

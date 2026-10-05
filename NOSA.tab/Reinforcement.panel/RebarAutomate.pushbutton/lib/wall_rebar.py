@@ -371,9 +371,11 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               horiz_lap_length_mm=None,
                               vert_is_outer=True,
                               ubar_lap_length_mm=None,
-                              anchorage_mm=None):
+                              anchorage_mm=None, stagger_laps=False):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
+    stagger_laps (user decision 2026-10-05, optional): alternate bars lapped 1.3 l0 apart (T7.6);
+    off, every bar of a set laps in the same section and the caller sizes the lap for 100 %.
 
     Optional:
       - Ties: straight through-wall ties linking both faces
@@ -414,7 +416,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
             include_starter_bars=include_starter_bars, starter_length_mm=starter_length_mm,
             stock_length_mm=stock_length_mm, lap_length_mm=lap_length_mm,
             horiz_lap_length_mm=horiz_lap_length_mm, vert_is_outer=vert_is_outer,
-            ubar_lap_length_mm=ubar_lap_length_mm)
+            ubar_lap_length_mm=ubar_lap_length_mm, stagger_laps=stagger_laps)
     engine = _ensure_engine()
     axis = get_wall_axis(host)
     axis_dir = axis.Direction.Normalize()
@@ -787,7 +789,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     out.append(ms)
                     continue
                 count = ms.get('count', 1)
-                layouts = (parity_layouts(count, ms['spacing_mm']) if count > 1
+                layouts = (parity_layouts(count, ms['spacing_mm']) if (count > 1 and stagger_laps)
                            else [(0.0, count, ms['array_length_mm'])])
                 staggered = len(layouts) > 1
                 rows = []
@@ -865,7 +867,7 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
                                     include_end_ubars=False, ubar_dia_mm=None, include_top_ubars=False,
                                     include_starter_bars=False, starter_length_mm=None,
                                     stock_length_mm=12000.0, lap_length_mm=None, horiz_lap_length_mm=None,
-                                    vert_is_outer=True, ubar_lap_length_mm=None):
+                                    vert_is_outer=True, ubar_lap_length_mm=None, stagger_laps=False):
     """
     T7.9 — mesh of a circular-arc wall, same keys as build_wall_reinforcement: horizontals are arcs
     (one Rebar Set per face, spread up the wall, laps staggered as on straight walls), verticals are
@@ -962,7 +964,7 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
         groups = {}
         for i, line in enumerate(lines):
             if line.Length * _MM_PER_FT > stock + 1.0 and vert_lap:
-                first = stagger_first_mm(stock, vert_lap) if i % 2 else None
+                first = stagger_first_mm(stock, vert_lap) if (stagger_laps and i % 2) else None
                 segs = engine.split_rebar_by_stock_length(line, stock, vert_lap, first_length_mm=first)
                 for k, seg in enumerate(segs):
                     groups.setdefault((i % 2, k), []).append([seg.curve])
@@ -982,7 +984,7 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
         count = len(horiz_positions)
         spacing = ((horiz_positions[-1] - horiz_positions[0]) / float(count - 1)) if count > 1 else 0.0
         long_bar = bool(horiz_lap) and cw.arc_length_mm(r_h, h_a0, h_a1) > stock + 1.0
-        layouts = (parity_layouts(count, spacing) if long_bar and count > 1
+        layouts = (parity_layouts(count, spacing) if long_bar and count > 1 and stagger_laps
                    else [(0.0, count, spacing * (count - 1))])
         staggered = len(layouts) > 1
         for parity, (offset_mm, n, array_mm) in enumerate(layouts):

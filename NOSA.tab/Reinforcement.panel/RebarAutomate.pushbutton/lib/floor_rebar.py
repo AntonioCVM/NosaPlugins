@@ -439,7 +439,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
                            own_dia_mm, perp_dia_mm, row_spacing_mm,
                            xmin_mm, xmax_mm, ymin_mm, ymax_mm, own_z_ft,
                            max_stock_length_mm, use_legs, leg_length_mm, leg_direction,
-                           narrow_threshold_mm=None, std=None, good_bond=True):
+                           narrow_threshold_mm=None, std=None, good_bond=True, stagger_laps=False):
     """
     Every bar for ONE main-grid direction ('x' = along_x/Layer 1,
     running in X, one row per Y; 'y' = along_y/Layer 2, running in Y,
@@ -489,8 +489,10 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     # same section, so 100 % lapped until splices are staggered.
     # Staggered laps (T4.8, EC2 8.7.2(3)): every other row moves its laps 1.3 l0 along, so
     # at most half the bars are lapped at any section -> alpha6 for 50 % (1.4, not 1.5).
+    # Optional since 2026-10-05 (user decision): without staggering every lap of the mat is in
+    # one section, 100 % lapped (alpha6 = 1.5, EC2 Table 8.3).
     lap_length_mm = footing_mod.default_lap_mm(own_dia_mm, std=std, good_bond=good_bond,
-                                               pct_lapped=STAGGERED_PCT_LAPPED)
+                                               pct_lapped=STAGGERED_PCT_LAPPED if stagger_laps else 100.0)
     stagger_first_mm = 25.0 * math.floor((max_stock_length_mm - STAGGER_FACTOR * lap_length_mm) / 25.0)
     # PHASE 2.6 FIX ("flying bars") — bar_direction x global-Z has a
     # FIXED rotational handedness (see
@@ -545,7 +547,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     row_index = dict((row, k) for k, (row, _) in enumerate(rows_with_ivs))
 
     def _first_mm(row):
-        return stagger_first_mm if row_index[row] % 2 else None
+        return stagger_first_mm if (stagger_laps and row_index[row] % 2) else None
 
     sets, bars = [], []
     for run in _group_uniform_runs(rows_with_ivs, _intervals_equal):
@@ -1463,7 +1465,8 @@ def build_floor_reinforcement(doc, host,
                                x_anchor_ubar_dia_mm=None, x_anchor_ubar_spacing_mm=None,
                                y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
                                max_stock_length_mm=12000.0, std=None,
-                               include_opening_diagonals=False, opening_diagonal_dia_mm=None):
+                               include_opening_diagonals=False, opening_diagonal_dia_mm=None,
+                               stagger_laps=False):
     """
     Phase 2.3 pipeline for one floor/slab host. See module docstring
     for the four hardening fixes over Phase 2.2. Real cover is applied
@@ -1612,7 +1615,7 @@ def build_floor_reinforcement(doc, host,
         leg_length_mm=(abs(bottom_target_z_ft - b1_z_ft) * _MM_PER_FT) if bottom_hooks else 0.0,
         leg_direction=DB.XYZ.BasisZ if bottom_hooks else None,
         narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None,
-        std=std)
+        std=std, stagger_laps=stagger_laps)
     along_y_bottom = _build_direction_bars(
         topo, footing_mod, engine, DB, bottom_outer, bottom_holes, 'y',
         bottom_dia_y_mm, bottom_dia_x_mm, bottom_spacing_mm,
@@ -1621,7 +1624,7 @@ def build_floor_reinforcement(doc, host,
         leg_length_mm=(abs(bottom_target_z_ft - b2_z_ft) * _MM_PER_FT) if bottom_hooks else 0.0,
         leg_direction=DB.XYZ.BasisZ if bottom_hooks else None,
         narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None,
-        std=std)
+        std=std, stagger_laps=stagger_laps)
 
     result = {
         'bottom_mat': {'along_x': along_x_bottom, 'along_y': along_y_bottom},
@@ -1664,7 +1667,7 @@ def build_floor_reinforcement(doc, host,
             leg_length_mm=(abs(top_target_z_ft - t1_z_ft) * _MM_PER_FT) if top_hooks else 0.0,
             leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
             narrow_threshold_mm=(2.0 * x_leg_mm) if include_perimeter_closure_ubars else None,
-            std=std,
+            std=std, stagger_laps=stagger_laps,
             good_bond=footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT))
         along_y_top = _build_direction_bars(
             topo, footing_mod, engine, DB, top_outer, top_holes, 'y',
@@ -1674,7 +1677,7 @@ def build_floor_reinforcement(doc, host,
             leg_length_mm=(abs(top_target_z_ft - t2_z_ft) * _MM_PER_FT) if top_hooks else 0.0,
             leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
             narrow_threshold_mm=(2.0 * y_leg_mm) if include_perimeter_closure_ubars else None,
-            std=std,
+            std=std, stagger_laps=stagger_laps,
             good_bond=footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT))
         result['top_mat'] = {'along_x': along_x_top, 'along_y': along_y_top}
 

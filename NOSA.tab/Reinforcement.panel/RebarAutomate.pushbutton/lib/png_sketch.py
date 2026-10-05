@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 NOSA.RebarAutomate — draw a shape sketch to a PNG in pure Python (T7.5): anti-aliased thick
-lines, a 5x7 bitmap font for the dimension letters, zlib PNG encoding with a 300 dpi pHYs chunk.
+lines, a stroke font for the dimension letters, zlib PNG encoding with its print resolution.
 No .NET drawing: System.Drawing from IronPython crashed Revit 2024 (stack overflow, 2026-10-03).
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
@@ -9,20 +9,24 @@ import math
 import struct
 import zlib
 
-# 5x7 glyphs, rows top to bottom, '#' = ink (dimension letters and what labels may contain)
-_FONT = dict(zip(u'ABCDEFRGH, ', (
-    (' ### ', '#   #', '#   #', '#####', '#   #', '#   #', '#   #'),
-    ('#### ', '#   #', '#   #', '#### ', '#   #', '#   #', '#### '),
-    (' ####', '#    ', '#    ', '#    ', '#    ', '#    ', ' ####'),
-    ('#### ', '#   #', '#   #', '#   #', '#   #', '#   #', '#### '),
-    ('#####', '#    ', '#    ', '#### ', '#    ', '#    ', '#####'),
-    ('#####', '#    ', '#    ', '#### ', '#    ', '#    ', '#    '),
-    ('#### ', '#   #', '#   #', '#### ', '# #  ', '#  # ', '#   #'),
-    (' ####', '#    ', '#    ', '# ###', '#   #', '#   #', ' ### '),
-    ('#   #', '#   #', '#   #', '#####', '#   #', '#   #', '#   #'),
-    ('     ', '     ', '     ', '     ', '  ## ', '  ## ', ' #   '),
-    ('     ',) * 7,
-)))
+# Stroke font for the dimension letters (BS 8666 sketches): strokes on a 4 x 6 grid, y down,
+# drawn as anti-aliased lines so the letters stay sharp at any resolution (2026-10-05; the 5x7
+# bitmap font before read poorly once the sketch was reduced in the schedule).
+_C_ARC = [(4.0, 1.0), (3.0, 0.0), (1.0, 0.0), (0.0, 1.2), (0.0, 4.8), (1.0, 6.0), (3.0, 6.0), (4.0, 5.0)]
+_STROKES = {
+    u'A': [[(0.0, 6.0), (2.0, 0.0), (4.0, 6.0)], [(0.8, 3.8), (3.2, 3.8)]],
+    u'B': [[(0.0, 0.0), (0.0, 6.0)], [(0.0, 0.0), (2.8, 0.0), (3.6, 0.6), (3.6, 2.3), (2.8, 3.0), (0.0, 3.0)],
+           [(2.8, 3.0), (3.9, 3.7), (3.9, 5.3), (3.0, 6.0), (0.0, 6.0)]],
+    u'C': [_C_ARC],
+    u'D': [[(0.0, 0.0), (0.0, 6.0), (2.3, 6.0), (3.6, 5.0), (4.0, 3.6), (4.0, 2.4), (3.6, 1.0), (2.3, 0.0), (0.0, 0.0)]],
+    u'E': [[(4.0, 0.0), (0.0, 0.0), (0.0, 6.0), (4.0, 6.0)], [(0.0, 3.0), (3.0, 3.0)]],
+    u'G': [_C_ARC[:-1] + [(4.0, 3.6), (2.4, 3.6)]],
+    u'H': [[(0.0, 0.0), (0.0, 6.0)], [(4.0, 0.0), (4.0, 6.0)], [(0.0, 3.0), (4.0, 3.0)]],
+    u'R': [[(0.0, 6.0), (0.0, 0.0), (2.8, 0.0), (3.8, 0.8), (3.8, 2.2), (2.8, 3.0), (0.0, 3.0)], [(1.8, 3.0), (4.0, 6.0)]],
+    u',': [[(2.2, 5.2), (2.2, 6.0), (1.6, 6.8)]],
+    u' ': [],
+}
+_STROKES[u'EF'[1]] = [[(4.0, 0.0), (0.0, 0.0), (0.0, 6.0)], [(0.0, 3.0), (3.0, 3.0)]]   # CI reads a quoted capital eff as an f-string
 
 
 class Canvas(object):
@@ -68,21 +72,18 @@ class Canvas(object):
         for a, b in zip(points[:-1], points[1:]):
             self.line(a, b, width)
 
-    def text(self, text, cx, cy, size):
-        """Text centred on (cx, cy); size = glyph height in pixels."""
-        cell = max(1, int(round(size / 7.0)))
-        glyphs = [_FONT.get(ch.upper(), _FONT[' ']) for ch in text]
-        total_w = len(glyphs) * 6 * cell - cell
-        left = int(round(cx - total_w / 2.0))
-        top = int(round(cy - 7 * cell / 2.0))
-        for n, glyph in enumerate(glyphs):
-            gx = left + n * 6 * cell
-            for r, pattern in enumerate(glyph):
-                for c, mark in enumerate(pattern):
-                    if mark != ' ':
-                        for yy in range(top + r * cell, top + (r + 1) * cell):
-                            for xx in range(gx + c * cell, gx + (c + 1) * cell):
-                                self.ink(xx, yy, 1.0)
+    def text(self, text, cx, cy, size, weight=None):
+        """Text centred on (cx, cy); size = letter height in pixels (stroke font)."""
+        unit = size / 6.0
+        weight = weight or max(1.5, size / 9.0)
+        advance = 5.4 * unit
+        total_w = len(text) * advance - 1.4 * unit
+        left = cx - total_w / 2.0
+        top = cy - size / 2.0
+        for n, ch in enumerate(text):
+            gx = left + n * advance
+            for stroke in _STROKES.get(ch.upper(), []):
+                self.polyline([(gx + x * unit, top + y * unit) for x, y in stroke], weight)
 
     def png(self, dpi=300):
         """PNG bytes, 8-bit grey-scale, with the print resolution."""
@@ -99,7 +100,11 @@ class Canvas(object):
                 chunk(b'IEND', b''))
 
 
-def draw_sketch(pixel_lines, labels, width, height, line_width=5.0, letter_size=26):
+def draw_sketch(pixel_lines, labels, width, height, line_width=None, letter_size=None):
+    """The bar and its letters; widths scale with the image (drawn at 3x since 2026-10-05)."""
+    scale = height / 180.0
+    line_width = line_width or 5.0 * scale
+    letter_size = letter_size or 26.0 * scale
     canvas = Canvas(width, height)
     for line in pixel_lines:
         if len(line) >= 2:

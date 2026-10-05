@@ -80,3 +80,31 @@ def test_solid_spans_split_by_an_intermediate_column():
 def test_solid_spans_ignore_slivers_and_hairline_gaps():
     spans = cb.solid_spans([(0.0, 3000.0), (3004.0, 6000.0), (6000.0, 6020.0)], 6000.0)
     assert spans == [(0.0, 6000.0)]
+
+
+def test_shift_rule_is_1125_d():
+    assert abs(cb.shift_al_mm(700.0) - 787.5) < 1e-9
+
+
+def test_hogging_bars_reach_015_and_030_l_plus_al():
+    short, long_ = cb.hogging_reaches_mm(6000.0, 787.5)
+    assert abs(short - 1687.5) < 1e-9 and abs(long_ - 2587.5) < 1e-9
+    # never shorter than the anchorage length
+    assert cb.hogging_reaches_mm(2000.0, 200.0, lbd_mm=900.0)[0] == 900.0
+
+
+def test_hogging_bars_split_half_and_half():
+    assert cb.hogging_groups(1) == (1, 0)
+    assert cb.hogging_groups(2) == (1, 1)
+    assert cb.hogging_groups(3) == (2, 1)
+
+
+def test_end_support_top_bars_reach_02_l():
+    assert cb.end_hogging_reach_mm(5000.0) == 1000.0
+
+
+def test_sagging_bars_stop_008_l_from_an_end_and_020_l_from_an_internal_support():
+    a, b = cb.sagging_range_mm(0.0, 5000.0, False, True)
+    assert abs(a - 400.0) < 1e-9 and abs(b - 4000.0) < 1e-9
+    a, b = cb.sagging_range_mm(0.0, 5000.0, True, True)
+    assert abs(a - 1000.0) < 1e-9 and abs(b - 4000.0) < 1e-9

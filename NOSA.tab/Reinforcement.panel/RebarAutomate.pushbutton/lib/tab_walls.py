@@ -32,6 +32,7 @@ class WallsMixin(object):
         values['horiz_spacing'] = self._read_number(
             self.TxtWallHorizSpacing.Text, u'Horizontal spacing', errors)
         values['both_faces'] = self.ChkWallBothFaces.IsChecked == True
+        values['stagger_laps'] = self.ChkWallStaggerLaps.IsChecked == True
         # BUG FIX (2026-09-01) — reported live: End/Top U-bars (and the
         # main mesh) always assumed vertical = outer layer, no way to
         # flip it. This selector controls both.
@@ -128,9 +129,11 @@ class WallsMixin(object):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'wall'))
         lap_mm = None
+        # staggered laps: half the bars lapped at a section (alpha6 1.4); otherwise all (1.5)
+        pct_lapped = wall_rebar.STAGGERED_PCT_LAPPED if values.get('stagger_laps') else 100.0
         try:
             lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['vert_dia'], False, wall_rebar.STAGGERED_PCT_LAPPED, True)
+                self._host_std(host), values['vert_dia'], False, pct_lapped, True)
         except Exception:
             lap_mm = max(40.0 * values['vert_dia'], 15.0 * values['vert_dia'], 300.0)
         # BUG FIX (2026-09-01) — horiz_dia's own lap, not vert_dia's
@@ -139,7 +142,7 @@ class WallsMixin(object):
         horiz_lap_mm = None
         try:
             horiz_lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['horiz_dia'], False, wall_rebar.STAGGERED_PCT_LAPPED, True)
+                self._host_std(host), values['horiz_dia'], False, pct_lapped, True)
         except Exception:
             horiz_lap_mm = max(40.0 * values['horiz_dia'], 15.0 * values['horiz_dia'], 300.0)
 
@@ -167,7 +170,8 @@ class WallsMixin(object):
             vert_is_outer=values.get('vert_is_outer', True),
             ubar_lap_length_mm=self._splice_mm(
                 None, values.get('ubar_dia') or values['vert_dia'], host),
-            anchorage_mm=self._anchorage_mm(host, values['vert_dia']))
+            anchorage_mm=self._anchorage_mm(host, values['vert_dia']),
+            stagger_laps=values.get('stagger_laps', False))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))

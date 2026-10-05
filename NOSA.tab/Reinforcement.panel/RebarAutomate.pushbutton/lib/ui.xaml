@@ -369,8 +369,13 @@
                 </Border>
 
                 <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
-                    <CheckBox Name="ChkGenerateSections" Content="Generate Detail Sections — 2 orthogonal sections, centred (Footings only)"
-                              Foreground="{DynamicResource TextColor}"/>
+                    <StackPanel>
+                        <CheckBox Name="ChkStaggerLaps" Content="Stagger laps — alternate bars lapped 1.3 l0 apart (EC2 8.7.2(3))"
+                                  ToolTip="Off: every lap of a mat in one section, 100 % lapped (alpha6 = 1.5, longer laps). On: half the bars lapped at any section (alpha6 = 1.4)."
+                                  Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
+                        <CheckBox Name="ChkGenerateSections" Content="Generate Detail Sections — 2 orthogonal sections, centred (Footings only)"
+                                  Foreground="{DynamicResource TextColor}"/>
+                    </StackPanel>
                 </Border>
 
                 <Button Name="BtnRunFooting" Content="GENERATE REINFORCEMENT"
@@ -787,12 +792,24 @@
                             <CheckBox Name="ChkBeamContinuous" Content="Continuous beam over several spans"
                                       FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"
                                       ToolTip="Select every span of the line: beams on one straight line, end to end across their supports."/>
+                            <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
+                                       Foreground="{DynamicResource TextColor}"
+                                       Text="The top bars become continuous hanger bars along the whole line, lapped in the central third of a span; each span's bottom bars run straight 10 phi into the intermediate supports (EC2 9.2.1.5) and keep their legs at the end columns. Links and densified zones stay per span."/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                        <StackPanel>
+                            <TextBlock Text="Additional Bars (EC2 + UK NA, simplified curtailment)" Style="{StaticResource RA_SectionTitle}"/>
+                            <CheckBox Name="ChkBeamSupportBars" Content="Top support bars (hogging)"
+                                      FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"
+                                      ToolTip="Intermediate supports: half the bars to 0.15 l + al (not less than lbd), half to 0.30 l + al, each side by its own span. End supports with a column: anchored in the column with a leg, to 0.2 l (EC2 9.2.1.2(1)). al = 1.125 d (EC2 9.2.1.3(2))."/>
                             <Grid Style="{StaticResource RA_FieldRow}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Support Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Extra top bars over each intermediate support."/>
+                                <TextBlock Grid.Column="0" Text="Support Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Extra top bars over the supports."/>
                                 <TextBox Grid.Column="1" Name="TxtBeamSupportDia" Text="16" Style="{StaticResource RA_NumField}"/>
                             </Grid>
                             <Grid Style="{StaticResource RA_FieldRow}">
@@ -800,20 +817,31 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Support Bars (number)" Style="{StaticResource RA_FieldLabel}" ToolTip="Placed between the hanger bars, then in a second layer if they do not fit."/>
+                                <TextBlock Grid.Column="0" Text="Support Bars (number)" Style="{StaticResource RA_FieldLabel}" ToolTip="Placed between the top bars, then in a second layer if they do not fit."/>
                                 <TextBox Grid.Column="1" Name="TxtBeamSupportCount" Text="2" Style="{StaticResource RA_NumField}"/>
+                            </Grid>
+                            <CheckBox Name="ChkBeamSpanBars" Content="Bottom span bars (sagging)"
+                                      FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,10,0,6"
+                                      ToolTip="Extra bottom bars in every span, stopping 0.08 l from an end support and 0.20 l from an intermediate one (IStructE simplified rules); the continuous bottom bars (at least 25 % of the span steel, EC2 9.2.1.4 / 9.2.1.5) still run into the supports."/>
+                            <Grid Style="{StaticResource RA_FieldRow}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="110"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Span Bar Diameter (mm)" Style="{StaticResource RA_FieldLabel}" ToolTip="Extra bottom bars in the spans."/>
+                                <TextBox Grid.Column="1" Name="TxtBeamSpanDia" Text="16" Style="{StaticResource RA_NumField}"/>
                             </Grid>
                             <Grid Style="{StaticResource RA_FieldRow}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="110"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Support Bar Reach (x L)" Style="{StaticResource RA_FieldLabel}" ToolTip="Past each support face, as a fraction of the longer adjacent clear span (IStructE simplified rules: 0.25)."/>
-                                <TextBox Grid.Column="1" Name="TxtBeamSupportFraction" Text="0.25" Style="{StaticResource RA_NumField}"/>
+                                <TextBlock Grid.Column="0" Text="Span Bars (number)" Style="{StaticResource RA_FieldLabel}" ToolTip="Placed between the bottom bars, then in a second layer if they do not fit."/>
+                                <TextBox Grid.Column="1" Name="TxtBeamSpanCount" Text="2" Style="{StaticResource RA_NumField}"/>
                             </Grid>
                             <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
                                        Foreground="{DynamicResource TextColor}"
-                                       Text="The top bars become continuous hanger bars along the whole line, lapped in the central third of a span; extra bars over every intermediate support; each span's bottom bars run straight 10 phi into the intermediate supports (EC2 9.2.1.5) and keep their legs at the end columns. Links and densified zones stay per span."/>
+                                       Text="l = clear span between support faces; d from the beam's own section. Check the bar areas against the design moments: the rules fix the bar lengths, not the amount of steel."/>
                         </StackPanel>
                     </Border>
 
@@ -973,6 +1001,9 @@
                                       IsChecked="True" Margin="0,0,0,4"
                                       Click="WallPreview_Changed"
                                       Foreground="{DynamicResource TextColor}"/>
+                            <CheckBox Name="ChkWallStaggerLaps" Content="Stagger laps — alternate bars lapped 1.3 l0 apart (EC2 8.7.2(3))"
+                                      ToolTip="Off: all bars of a face lapped in one section, 100 % lapped (alpha6 = 1.5, longer laps). On: half the bars lapped at any section (alpha6 = 1.4)."
+                                      Margin="0,0,0,4" Foreground="{DynamicResource TextColor}"/>
                             <TextBlock Text="When unchecked, mesh is placed on the exterior face only."
                                        FontSize="10" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.55"/>

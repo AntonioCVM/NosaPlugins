@@ -1555,6 +1555,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 self.TxtOpeningDiagonalDia.Text, u'Opening corner diagonal bar diameter', errors)
 
         values['generate_sections'] = self.ChkGenerateSections.IsChecked == True
+        values['stagger_laps'] = self.ChkStaggerLaps.IsChecked == True
 
         if errors:
             forms.alert(u'\n'.join(errors))
@@ -2185,7 +2186,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             max_stock_length_mm=values['max_stock_length'],
             std=self._host_std(host),
             include_opening_diagonals=values.get('include_opening_diagonals', False),
-            opening_diagonal_dia_mm=values.get('opening_diagonal_dia'))
+            opening_diagonal_dia_mm=values.get('opening_diagonal_dia'),
+            stagger_laps=values.get('stagger_laps', False))
 
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(

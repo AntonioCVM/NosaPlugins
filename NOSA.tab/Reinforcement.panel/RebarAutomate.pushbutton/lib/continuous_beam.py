@@ -129,3 +129,40 @@ def solid_spans(intervals, length_mm, min_gap_mm=10.0, min_span_mm=50.0):
     spans[0] = (0.0, spans[0][1]) if spans[0][0] < min_gap_mm else spans[0]
     spans[-1] = (spans[-1][0], length_mm) if length_mm - spans[-1][1] < min_gap_mm else spans[-1]
     return spans
+
+
+# Additional bars (user decision 2026-10-05): EC2 + UK NA with the Concrete Centre / IStructE
+# simplified detailing rules. l = clear span, al = shift rule (EC2 9.2.1.3(2)).
+HOG_SHORT, HOG_LONG = 0.15, 0.30        # internal support: half the bars to 0.15 l + al, half to 0.30 l + al
+END_HOG = 0.20                          # end support: top bars >= 0.2 l from the face (EC2 9.2.1.2(1))
+SAG_END, SAG_INTERNAL = 0.08, 0.20      # extra bottom bars stop this far from an end / internal support
+
+
+def shift_al_mm(d_mm):
+    """al = z (cot theta - cot alpha) / 2 with z = 0.9 d, cot theta = 2.5, vertical links: 1.125 d."""
+    return 1.125 * d_mm
+
+
+def hogging_reaches_mm(span_mm, al_mm, lbd_mm=0.0):
+    """(short, long) reach past an internal support face into a span of clear length span_mm."""
+    short = max(HOG_SHORT * span_mm + al_mm, lbd_mm)
+    return short, max(HOG_LONG * span_mm + al_mm, short)
+
+
+def end_hogging_reach_mm(span_mm, lbd_mm=0.0):
+    """Reach of the top bars at an end support, past its face into the span."""
+    return max(END_HOG * span_mm, lbd_mm)
+
+
+def hogging_groups(n_bars):
+    """(long, short) counts: half the bars run to 0.30 l + al, the rest stop at 0.15 l + al."""
+    long_ = (n_bars + 1) // 2
+    return long_, n_bars - long_
+
+
+def sagging_range_mm(x0, x1, start_internal, end_internal):
+    """Extent of the extra bottom bars of a span between faces x0..x1, or None if nothing is left."""
+    span = x1 - x0
+    a = x0 + (SAG_INTERNAL if start_internal else SAG_END) * span
+    b = x1 - (SAG_INTERNAL if end_internal else SAG_END) * span
+    return (a, b) if b - a > 1.0 else None

@@ -67,17 +67,27 @@ class BeamsMixin(object):
         if values.get('n_top') == 0 and values.get('n_bottom') == 0:
             errors.append(u'At least one top or bottom bar is required.')
         values['continuous'] = self.ChkBeamContinuous.IsChecked == True
-        if values['continuous']:
+        if values['continuous'] and values.get('n_top', 0) < 2:
+            errors.append(u'A continuous beam needs at least 2 top (hanger) bars.')
+        # additional bars (2026-10-05): hogging over the supports, sagging in the spans
+        values['n_support'] = values['n_span'] = 0
+        if self.ChkBeamSupportBars.IsChecked == True:
             values['support_dia'] = self._read_number(
                 self.TxtBeamSupportDia.Text, u'Support bar diameter', errors)
             try:
                 values['n_support'] = int(float(self.TxtBeamSupportCount.Text))
             except (TypeError, ValueError):
                 errors.append(u'"Support bars" must be a number.')
-            values['support_fraction'] = self._read_number(
-                self.TxtBeamSupportFraction.Text, u'Support bar reach', errors)
-            if values.get('n_top', 0) < 2:
-                errors.append(u'A continuous beam needs at least 2 top (hanger) bars.')
+            if values.get('n_top', 0) < 2 and values['n_support']:
+                errors.append(u'Support bars sit between the top bars: at least 2 top bars are needed.')
+        if self.ChkBeamSpanBars.IsChecked == True:
+            values['span_dia'] = self._read_number(self.TxtBeamSpanDia.Text, u'Span bar diameter', errors)
+            try:
+                values['n_span'] = int(float(self.TxtBeamSpanCount.Text))
+            except (TypeError, ValueError):
+                errors.append(u'"Span bars" must be a number.')
+            if values.get('n_bottom', 0) < 2 and values['n_span']:
+                errors.append(u'Span bars sit between the bottom bars: at least 2 bottom bars are needed.')
         if errors:
             forms.alert(u'\n'.join(errors))
             return None
@@ -576,12 +586,12 @@ class BeamsMixin(object):
         lap_mm, anchorage_mm = self._beam_lap_anchorage(first, values['bar_dia'])
         data = beam_rebar.build_continuous_line(
             self.doc, line, cover_mm, values['bar_dia'], values['n_top'], values['stirrup_dia'],
-            values['support_dia'], values['n_support'], values['stock_length'], lap_mm,
-            anchorage_mm, values['support_fraction'])
+            values.get('support_dia') or values['bar_dia'], values.get('n_support', 0),
+            values['stock_length'], lap_mm, anchorage_mm)
         name = u'Beams {}'.format(u', '.join(str(get_id_value(h.Id)) for h in line))
         errors.extend(u'{}: {}'.format(name, w) for w in data['warnings'])
         bar_type = bar_types.get(values['bar_dia'])
-        support_type = bar_types.get(values['support_dia'])
+        support_type = bar_types.get(values.get('support_dia'))
         if bar_type is not None:
             for host, group in data['hanger_sets']:
                 self._create_long_group(wrapper, host, group, bar_type, u'Beam Hanger Bar', u'top',
@@ -651,9 +661,10 @@ class BeamsMixin(object):
             continuous_ends=(span or {}).get('continuous_ends', (False, False)),
             internal_bottom_ext_mm=(span or {}).get('internal_bottom_ext_mm', (0.0, 0.0)),
             include_top=span is None,
-            n_support_bars=values.get('n_support', 0) if values.get('continuous') and span is None else 0,
+            n_support_bars=values.get('n_support', 0),
             support_bar_diameter_mm=values.get('support_dia'),
-            support_fraction=values.get('support_fraction', 0.25))
+            n_span_bars=values.get('n_span', 0),
+            span_bar_diameter_mm=values.get('span_dia'))
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -755,9 +766,14 @@ class BeamsMixin(object):
             for group in curves.get('support_bar_sets') or []:
                 self._create_long_group(wrapper, host, group, support_type, u'Beam Support Bar',
                                         u'top_support', errors, created_rebars)
-        if len(curves.get('spans_mm') or []) > 1 and not values.get('continuous'):
+        span_type = bar_types.get(values.get('span_dia'))
+        if span_type is not None:
+            for group in curves.get('span_bar_sets') or []:
+                self._create_long_group(wrapper, host, group, span_type, u'Beam Span Bar',
+                                        u'bottom_span', errors, created_rebars)
+        if len(curves.get('spans_mm') or []) > 1 and not values.get('n_support'):
             errors.append(u'Beam {}: runs over {} intermediate support(s) — links placed span by span; '
-                          u'tick "Continuous beam" to add the support bars over them.'.format(
+                          u'tick "Top support bars" for the hogging bars over them.'.format(
                               get_id_value(host.Id), len(curves['spans_mm']) - 1))
 
 
@@ -881,8 +897,10 @@ class BeamsMixin(object):
     def _run_beam_reinforcement(self, beams, values):
         errors = []
         diameters = {values['bar_dia'], values['stirrup_dia']}
-        if values.get('continuous'):
+        if values.get('n_support'):
             diameters.add(values['support_dia'])
+        if values.get('n_span'):
+            diameters.add(values['span_dia'])
         bar_types = {}
         for dia_mm in diameters:
             bt = re_engine.get_bar_type_by_diameter(self.doc, dia_mm)
