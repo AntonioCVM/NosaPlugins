@@ -32,7 +32,11 @@ try:
     _out.append(u'dialog rows {} | concrete box "{}"'.format(len(win._boxes), win._boxes[u'Concrete_Grade'].Text))
     win._boxes[u'Concrete_Grade'].Text = u'C35/45'
     win._boxes[u'Timber_Solid'].Text = u'C24'
+    _out.append(u'section boxes: {}'.format(sorted(win._sections)))
+    win._sections[u'timber'].IsChecked = False
     win.Apply_Click(None, None)
+    from nosa_utils import general_notes_sections as gs
+    _out.append(u'state after apply: hidden {} shift {}'.format(gs.read_state(doc)[u'hidden'], gs.read_state(doc)[u'shift']))
     _out.append(u'apply: ' + win.TxtStatus.Text)
     win.Close()
     sheet = [s for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet) if s.SheetNumber == u'0900'][0]

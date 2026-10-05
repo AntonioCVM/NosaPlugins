@@ -60,3 +60,4 @@ PARAM	e4d2d8ae-7a01-48a4-832b-aac1379622a5	NOSA_GN_Obstruction_Depth	TEXT		1	1	O
 PARAM	9973b032-f8ed-4452-aada-a5be2a20c0b0	NOSA_GN_Pile_Survey_Time	TEXT		1	1	Found piles surveyed within (Earthworks)	1	0
 PARAM	770c5dc4-2ed6-44d9-afaf-960922dffd80	NOSA_GN_Review_Period	TEXT		1	1	Contractor design review period (Contractor design)	1	0
 PARAM	3ca1957a-de61-4a32-becf-4e86a5f00b8c	NOSA_GN_Hard_Copies	TEXT		1	1	Hard copies requested (Contractor design)	1	0
+PARAM	65e69b95-e918-48bf-b180-772cfc513988	NOSA_GN_Sections	TEXT		1	1	Sections of 0900 hidden in this project and their shifts (JSON, managed by NOSA)	0	0
