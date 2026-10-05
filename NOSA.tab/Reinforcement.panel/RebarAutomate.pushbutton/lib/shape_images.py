@@ -335,6 +335,11 @@ def image_types(doc, shapes, paths):
         if not path:
             continue
         options = DB.ImageTypeOptions(path, False, DB.ImageTypeSource.Import)
+        try:
+            # Revit ignores the PNG's own pHYs (reads 72 dpi): the sketch keeps its 30 x 15 mm
+            options.Resolution = shape_sketch.DPI
+        except Exception:
+            log_swallowed(_LOG, u'image_types resolution')
         image = images.get(os.path.basename(path))
         if image is None:
             image = DB.ImageType.Create(doc, options)
