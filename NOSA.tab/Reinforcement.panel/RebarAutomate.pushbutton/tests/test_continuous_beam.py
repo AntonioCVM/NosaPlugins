@@ -64,3 +64,19 @@ def test_support_bar_slots_fill_between_hangers_then_a_second_layer():
     assert cb.support_bar_slots(2, 1) == [('between', 0)]
     assert cb.support_bar_slots(2, 3) == [('between', 0), ('second', 0), ('second', 1)]
     assert cb.support_bar_slots(4, 1) == [('between', 1)]
+
+
+def test_solid_spans_one_piece_is_one_span():
+    assert cb.solid_spans([(0.0, 9550.0)], 9550.0) == [(0.0, 9550.0)]
+    assert cb.solid_spans([], 6000.0) == [(0.0, 6000.0)]
+
+
+def test_solid_spans_split_by_an_intermediate_column():
+    # a 10 m beam over a 450 mm column at mid length: the solid comes in two pieces
+    spans = cb.solid_spans([(4775.0, 9550.0), (0.0, 4325.0)], 9550.0)
+    assert spans == [(0.0, 4325.0), (4775.0, 9550.0)]
+
+
+def test_solid_spans_ignore_slivers_and_hairline_gaps():
+    spans = cb.solid_spans([(0.0, 3000.0), (3004.0, 6000.0), (6000.0, 6020.0)], 6000.0)
+    assert spans == [(0.0, 6000.0)]

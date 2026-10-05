@@ -11,7 +11,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from rebar_partitions import bar_signature, fingerprint, plan, prefix_for  # noqa: E402
+from rebar_partitions import bar_signature, fingerprint, keep_names, plan, prefix_for  # noqa: E402
 from rebar_schedule import bbs_rows  # noqa: E402
 from rebar_export_bvbs import bvbs_record  # noqa: E402
 
@@ -108,3 +108,27 @@ def test_bbs_columns_follow_the_bs8666_sheet():
     assert len(row) == len(BBS_COLUMNS)
     assert row[8:10] == [u'2500', u'1000'] and row[14] == u'24'
     assert row[-2:] == [u'6.2', u'A']
+
+
+def test_regeneration_keeps_the_member_names_already_given():
+    hosts = [_host(1, x=0.0), _host(2, x=5000.0), _host(3, x=10000.0, bars=_COLUMN_BARS[:1])]
+    hosts[0]['partition'] = hosts[1]['partition'] = u'C-GRID-A'
+    result = keep_names(hosts, plan(hosts))
+    assert result[1]['partition'] == result[2]['partition'] == u'C-GRID-A'
+    assert result[3]['partition'] == u'C2'
+
+
+def test_kept_name_never_merges_two_members():
+    # the odd column was called C1 by hand; the identical pair must not become C1 as well
+    hosts = [_host(1, x=0.0), _host(2, x=5000.0), _host(3, x=10000.0, bars=_COLUMN_BARS[:1])]
+    hosts[2]['partition'] = u'C1'
+    result = keep_names(hosts, plan(hosts))
+    assert result[3]['partition'] == u'C1'
+    assert result[1]['partition'] == result[2]['partition'] != u'C1'
+
+
+def test_hosts_that_now_differ_do_not_keep_a_shared_old_name():
+    hosts = [_host(1, x=0.0), _host(2, x=5000.0, bars=_COLUMN_BARS[:1])]
+    hosts[0]['partition'] = hosts[1]['partition'] = u'C1'
+    result = keep_names(hosts, plan(hosts))
+    assert result[1]['partition'] != result[2]['partition']

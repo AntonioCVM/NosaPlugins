@@ -87,6 +87,7 @@ class SchedulePosition(object):
         self.legs = None
         self.mandrel_mm = None
         self.variants = {}
+        self.sequence = []    # (geometry, length) of each bar of the first element, in set order
     
     def add_bar(self, rebar_id, quantity=1):
         """Añade un elemento Rebar (un Rebar Set aporta todas sus barras)."""
@@ -95,6 +96,8 @@ class SchedulePosition(object):
     
     def add_variants(self, bars):
         """Tally each bar's bending geometry; bars with equal legs share one variant."""
+        if not self.sequence:
+            self.sequence = list(bars)
         for geometry, length_mm in bars:
             import rebar_bending
             key = rebar_bending.variant_key(geometry, length_mm)
@@ -281,10 +284,16 @@ def group_by_position(doc, rebar_ids):
 
 
 def _variant_rows(pos):
-    """A varying set: one row per bar length, marks 05A, 05B ... (BS 8666, T4.2)."""
+    """
+    A varying set: one row per bar, marks 05A, 05B ... in the order of the set, as Revit numbers
+    the bars of a varying set as a whole (template v30, 2026-10-05) so the Excel BBS and the
+    Revit one carry the same sub-marks. Identical elements of the mark multiply each row.
+    """
     import rebar_marking
     rows = []
-    variants = sorted(pos.variants.values(), key=lambda v: v['unit_length_mm'])
+    copies = max(1, len(pos.bars))
+    variants = [{'legs': g['legs'] if g else None, 'mandrel_mm': g['mandrel_mm'] if g else None,
+                 'count': copies, 'unit_length_mm': length} for g, length in pos.sequence] or         sorted(pos.variants.values(), key=lambda v: v['unit_length_mm'])
     for k, var in enumerate(variants):
         total_mm = var['count'] * var['unit_length_mm'] * pos.members
         rows.append({

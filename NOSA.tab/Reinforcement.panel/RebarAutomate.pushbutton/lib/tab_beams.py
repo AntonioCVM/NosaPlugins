@@ -650,7 +650,10 @@ class BeamsMixin(object):
             link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])),
             continuous_ends=(span or {}).get('continuous_ends', (False, False)),
             internal_bottom_ext_mm=(span or {}).get('internal_bottom_ext_mm', (0.0, 0.0)),
-            include_top=span is None)
+            include_top=span is None,
+            n_support_bars=values.get('n_support', 0) if values.get('continuous') and span is None else 0,
+            support_bar_diameter_mm=values.get('support_dia'),
+            support_fraction=values.get('support_fraction', 0.25))
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -747,6 +750,16 @@ class BeamsMixin(object):
                         created_rebars.append(rebar)
 
         long_rebars = created_rebars[first_long:]
+        support_type = bar_types.get(values.get('support_dia'))
+        if support_type is not None:
+            for group in curves.get('support_bar_sets') or []:
+                self._create_long_group(wrapper, host, group, support_type, u'Beam Support Bar',
+                                        u'top_support', errors, created_rebars)
+        if len(curves.get('spans_mm') or []) > 1 and not values.get('continuous'):
+            errors.append(u'Beam {}: runs over {} intermediate support(s) — links placed span by span; '
+                          u'tick "Continuous beam" to add the support bars over them.'.format(
+                              get_id_value(host.Id), len(curves['spans_mm']) - 1))
+
 
         bar_type_st = bar_types.get(values['stirrup_dia'])
         stirrup_sets = curves.get('stirrup_sets') or []

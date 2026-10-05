@@ -417,7 +417,8 @@ def _column_faces(cover_mgr, axis_dir):
         ValueError: if the host doesn't have exactly 4 side faces —
         see module SCOPE note (e.g. circular columns).
     """
-    sides = [f for f in cover_mgr.faces if abs(f.normal.Z) < 0.3]
+    # a beam or floor running through the column cuts its solid: one face per plane
+    sides = [f for f in _ensure_engine().merge_coplanar_faces(cover_mgr.faces) if abs(f.normal.Z) < 0.3]
     if len(sides) != 4:
         raise ValueError(
             u'Expected exactly 4 vertical side faces for a rectangular '

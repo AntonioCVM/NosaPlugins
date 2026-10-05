@@ -343,10 +343,36 @@ def get_host_faces(host):
                 (bbox_uv.Min.V + bbox_uv.Max.V) / 2.0)
             normal = face.ComputeNormal(uv_mid).Normalize()
             origin = face.Evaluate(uv_mid)
-            out.append(HostFaceInfo(face, normal, origin))
+            info = HostFaceInfo(face, normal, origin)
+            try:
+                info.area = face.Area
+            except Exception:
+                info.area = 0.0
+            out.append(info)
         except Exception:
             continue
     return out
+
+
+def merge_coplanar_faces(faces, angle_tol=1e-3, offset_tol_mm=1.0):
+    """
+    One face per plane: an element joined to another that runs through it (a beam over an
+    intermediate column, a column through a beam or floor) has its solid cut into pieces, each
+    with its own copy of the top, bottom and side faces. Keeps the largest face of each plane;
+    the cover offsets of the copies are identical.
+    """
+    tol = offset_tol_mm / _MM_PER_FT
+    groups = []
+    for f in faces:
+        for g in groups:
+            ref = g[0]
+            if (f.normal.DotProduct(ref.normal) > 1.0 - angle_tol and
+                    abs((f.origin - ref.origin).DotProduct(ref.normal)) < tol):
+                g.append(f)
+                break
+        else:
+            groups.append([f])
+    return [max(g, key=lambda x: getattr(x, 'area', 0.0) or 0.0) for g in groups]
 
 
 def get_rebar_host_data(doc, host):
@@ -948,7 +974,109 @@ def link_corner_extra_inset_mm(bar_dia_mm, link_dia_mm, link_bend_dia_mm=None):
     return bend_r - (bend_r - bar_r) / math.sqrt(2.0) - bar_r
 
 
-def pin_rebar_to_host_faces(doc, rebar, host, inset_mm):
+def _targets_other_element(constraint, host):
+    """True when a host-face constraint points at an element other than `host`."""
+    try:
+        if constraint.GetConstraintType() not in (DBS.RebarConstraintType.ToCover,
+                                                  DBS.RebarConstraintType.FixedDistanceToHostFace):
+            return False
+        from nosa_utils.revit_helpers import get_id_value
+        return get_id_value(constraint.GetTargetHostFaceReference().ElementId) != get_id_value(host.Id)
+    except Exception:
+        return False
+
+
+def _chain_points_mm(curves):
+    pts = [curves[0].GetEndPoint(0)] + [c.GetEndPoint(1) for c in curves]
+    return [(p.X * _MM_PER_FT, p.Y * _MM_PER_FT, p.Z * _MM_PER_FT) for p in pts]
+
+
+def _built_points_mm(rebar, index):
+    """Centreline of one bar of a set without hooks or bend radii, as a point chain (mm)."""
+    curves = list(rebar.GetTransformedCenterlineCurves(
+        False, True, True, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, index))
+    return _chain_points_mm(curves) if curves else []
+
+
+def _bars_follow(rebar, wanted, tolerance_mm, count):
+    """True when every bar of the set lies in the plane of its row (whatever its length)."""
+    import varying_sets as vs
+    if rebar.NumberOfBarPositions != count:
+        return False
+    for i, chain in enumerate(wanted):
+        built = _built_points_mm(rebar, i)
+        if not built:
+            return False
+        n = vs.plane_normal(chain, vs._sub(wanted[-1][0], wanted[0][0]))
+        if n is None or abs(vs._dot(vs._sub(built[0], chain[0]), n)) > tolerance_mm:
+            return False
+    return True
+
+
+def _varying_error_mm(rebar, wanted):
+    import varying_sets as vs
+    worst = 0.0
+    for i, chain in enumerate(wanted):
+        built = _built_points_mm(rebar, i)
+        worst = max(worst, vs.end_error_mm(built, chain) if built else 1e9)
+    return worst
+
+
+def _set_preferred(mgr, handle, constraint):
+    if hasattr(mgr, 'SetPreferredConstraint'):
+        mgr.SetPreferredConstraint(constraint)
+    else:
+        mgr.SetPreferredConstraintForHandle(handle, constraint)  # Revit 2024
+
+
+def fit_varying_ends(doc, rebar, host, wanted, passes=2):
+    """
+    Constrain every handle of a varying set to the host face that brings each bar's ends to its
+    wanted row (wanted: point chains, mm). Tries each face candidate of each handle in a
+    SubTransaction and keeps the best; no assumption about which handle is which end, so it
+    works for straight bars, U-bars and closure U-bars alike. Call inside a transaction.
+    Returns the worst remaining end error, mm.
+    """
+    mgr = rebar.GetRebarConstraintsManager()
+    kinds = (DBS.RebarConstraintType.FixedDistanceToHostFace, DBS.RebarConstraintType.ToCover)
+    skip = (DBS.RebarHandleType.RebarPlane, DBS.RebarHandleType.OutOfPlaneExtent)
+    error = _varying_error_mm(rebar, wanted)
+    for _pass in range(passes):
+        improved = False
+        for handle in list(mgr.GetAllHandles()):
+            if error < 0.5:
+                return error
+            if handle.GetHandleType() in skip:
+                continue
+            best, best_error = None, error
+            candidates = [c for c in mgr.GetConstraintCandidatesForHandle(handle, host.Id)
+                          if c.GetConstraintType() in kinds]
+            for index, candidate in enumerate(candidates):
+                trial = DB.SubTransaction(doc)
+                trial.Start()
+                try:
+                    _set_preferred(mgr, handle, candidate)
+                    doc.Regenerate()
+                    trial_error = _varying_error_mm(rebar, wanted)
+                except Exception:
+                    trial_error = 1e9
+                trial.RollBack()
+                if trial_error < best_error - 0.5:
+                    best, best_error = index, trial_error
+            if best is not None:
+                # candidates are re-read: the trials rolled back the objects they came from
+                candidates = [c for c in mgr.GetConstraintCandidatesForHandle(handle, host.Id)
+                              if c.GetConstraintType() in kinds]
+                _set_preferred(mgr, handle, candidates[best])
+                doc.Regenerate()
+                error = _varying_error_mm(rebar, wanted)
+                improved = True
+        if not improved:
+            break
+    return error
+
+
+def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=('Edge',)):
     """
     Replace Revit's snaps of this rebar to other bars with a fixed distance
     (inset_mm, to the bar centreline) from the nearest host face. Call inside
@@ -957,16 +1085,28 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm):
     Measured live 2026-09-30 (T2.10b): a column vertical set snapped to its
     link ends one bar 5 mm inwards (67.9 mm from the face instead of 62.9);
     pinning that handle to the face puts both face sets back symmetric.
+    Also re-pins the edges Revit snapped to the cover of ANOTHER element: a
+    column link in the joint of a beam that runs through the column took the
+    beam's side cover, 20 mm inside the column's (2026-10-05).
+    foreign_handles: the handle types re-pinned when they target another element (a set of
+    straight bars sits by its RebarPlane / OutOfPlaneExtent handles).
     Returns the number of handles re-pinned.
     """
+    foreign = [getattr(DBS.RebarHandleType, name) for name in foreign_handles]
     mgr = rebar.GetRebarConstraintsManager()
     pinned = 0
     for handle in mgr.GetAllHandles():
         current = mgr.GetCurrentConstraintOnHandle(handle)
-        if current is None or current.GetConstraintType() != DBS.RebarConstraintType.ToOtherRebar:
+        if current is None:
             continue
+        if current.GetConstraintType() != DBS.RebarConstraintType.ToOtherRebar and not (
+                handle.GetHandleType() in foreign and _targets_other_element(current, host)):
+            continue
+        # Revit also offers the faces of elements joined to the host (a beam through a column):
+        # pinning to those put the bars 20 mm inside the column (2026-10-05)
         candidates = [cand for cand in mgr.GetConstraintCandidatesForHandle(handle, host.Id)
-                      if cand.GetConstraintType() == DBS.RebarConstraintType.FixedDistanceToHostFace]
+                      if cand.GetConstraintType() == DBS.RebarConstraintType.FixedDistanceToHostFace
+                      and not _targets_other_element(cand, host)]
         if not candidates:
             continue
         nearest = min(candidates, key=lambda cand: abs(cand.GetDistanceToTargetHostFace()))
@@ -1787,6 +1927,57 @@ class RebarWrapper(object):
             return rebar
         except Exception as e:
             self.last_error = u'Rebar.CreateFromCurves failed: {}'.format(e)
+            return None
+
+    def create_varying_set(self, host, curve_chains, bar_type, style=None,
+                           transaction_name=u'NOSA — Create Varying Rebar Set', tolerance_mm=5.0):
+        """
+        ONE shape-driven set with DistributionType = VaryingLength for rows of bars cut by an
+        inclined face (user decision 2026-10-05, Revit's own "Varying Rebar Set"): the first
+        chain's shape repeated square to its plane, every end constrained to the host face that
+        makes each bar meet its wanted ends (curve_chains, first to last row). None, with
+        last_error, when Revit cannot follow the rows within tolerance_mm (nothing is left in
+        the model then).
+        """
+        import varying_sets as vs
+        self.last_error = None
+        if bar_type is None or len(curve_chains or []) < 2:
+            self.last_error = u'Need a bar type and at least 2 rows.'
+            return None
+        wanted = [_chain_points_mm(chain) for chain in curve_chains]
+        layout = vs.set_layout(wanted)
+        if layout is None:
+            self.last_error = u'The rows do not lie in parallel planes.'
+            return None
+        normal_mm, length_mm, count = layout
+        normal = DB.XYZ(*normal_mm)
+        style = style or DBS.RebarStyle.Standard
+        try:
+            with nosa_tx.revit_transaction(transaction_name):
+                rebar = rebar_from_curves(
+                    self.doc, style, bar_type, None, None, host, normal,
+                    List[DB.Curve](curve_chains[0]), hook_orientation_left(), hook_orientation_left(),
+                    True, True)
+                if rebar is None:
+                    self.last_error = u'Rebar.CreateFromCurves returned None.'
+                    return None
+                rebar.GetShapeDrivenAccessor().SetLayoutAsFixedNumber(
+                    count, length_mm / _MM_PER_FT, True, True, True)
+                if not _bars_follow(rebar, wanted, tolerance_mm, count):
+                    # bars propagated away from the rows: the other side of the plane
+                    rebar.GetShapeDrivenAccessor().SetLayoutAsFixedNumber(
+                        count, length_mm / _MM_PER_FT, False, True, True)
+                rebar.DistributionType = DBS.DistributionType.VaryingLength
+                self.doc.Regenerate()
+                error = fit_varying_ends(self.doc, rebar, host, wanted)
+                if error > tolerance_mm:
+                    self.doc.Delete(rebar.Id)
+                    self.last_error = (u'varying set could not follow the faces (bar ends up to '
+                                       u'{:.0f} mm off)'.format(error))
+                    return None
+            return rebar
+        except Exception as e:
+            self.last_error = u'Varying set failed: {}'.format(e)
             return None
 
     def create_rebar_set_fixed_number(self, host, curves, bar_type, count, array_length_mm,

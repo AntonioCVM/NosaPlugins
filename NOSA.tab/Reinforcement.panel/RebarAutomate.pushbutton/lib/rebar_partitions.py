@@ -104,6 +104,46 @@ def plan(hosts, group_identical=True):
     return result
 
 
+def keep_names(hosts, assignment):
+    """
+    Re-plans keep the member names already on the bars (typed in the Partitions window or
+    given by an earlier run): a group whose hosts all carry one existing name, not claimed by
+    another group, keeps it; a group whose new automatic name clashes with a kept one gets the
+    next free one. Updates and returns `assignment`.
+    """
+    by_group = {}
+    for host in hosts:
+        entry = assignment.get(host['id'])
+        if entry is not None:
+            by_group.setdefault(entry['group'], []).append(host)
+    kept = {}
+    for group, members in sorted(by_group.items()):
+        names = set((h.get('partition') or u'').strip() for h in members)
+        name = names.pop() if len(names) == 1 else u''
+        if name and name not in kept.values():
+            kept[group] = name
+    used = set(kept.values())
+    final = {}
+    for group in sorted(by_group):
+        if group in kept:
+            final[group] = kept[group]
+            continue
+        name = assignment[by_group[group][0]['id']]['partition']
+        if name in used:
+            prefix = u''.join(c for c in name if not c.isdigit()) or _DEFAULT_PREFIX
+            n = 1
+            while u'{}{}'.format(prefix, n) in used:
+                n += 1
+            name = u'{}{}'.format(prefix, n)
+        used.add(name)
+        final[group] = name
+    for host in hosts:
+        entry = assignment.get(host['id'])
+        if entry is not None:
+            entry['partition'] = final[entry['group']]
+    return assignment
+
+
 def _natural(text):
     digits = u''.join(c for c in text if c.isdigit())
     return (u''.join(c for c in text if not c.isdigit()), int(digits) if digits else 0, text)
@@ -218,11 +258,24 @@ def collect_hosts(doc):
             'x_mm': centre.X * _FT_TO_MM,
             'y_mm': centre.Y * _FT_TO_MM,
             'rebar_ids': [get_id_value(r.Id) for r in rebars],
+            'partition': _common_partition(rebars),
             'bars': sum(_quantity(r) for r in rebars),
             'finalized': sum(1 for r in rebars if is_finalized(r)),
             'fingerprint': fingerprint(category, host_type, [_signature(doc, r) for r in rebars]),
         })
     return hosts
+
+
+def _common_partition(rebars):
+    from Autodesk.Revit import DB  # Lazy import
+    counts = {}
+    for rebar in rebars:
+        try:
+            name = (rebar.get_Parameter(DB.BuiltInParameter.NUMBER_PARTITION_PARAM).AsString() or u'').strip()
+        except Exception:
+            name = u''
+        counts[name] = counts.get(name, 0) + 1
+    return max(sorted(counts), key=lambda n: counts[n]) if counts else u''
 
 
 def _quantity(rebar):

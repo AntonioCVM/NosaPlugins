@@ -109,3 +109,23 @@ def support_bar_slots(n_hangers, n_extra):
     for i in under[:max(remaining, 0)]:
         slots.append(('second', i))
     return sorted(slots, key=lambda s: (s[0] != 'between', s[1]))
+
+
+def solid_spans(intervals, length_mm, min_gap_mm=10.0, min_span_mm=50.0):
+    """
+    Spans [(x0, x1)] of one beam element from the extents of its solid pieces along the axis: a
+    column or wall the beam runs through (joined, cutting it) splits the solid; each gap wider
+    than min_gap_mm is an intermediate support. [(0, length)] when the solid is in one piece.
+    """
+    pieces = sorted((max(a, 0.0), min(b, length_mm)) for a, b in intervals if b - a >= min_span_mm)
+    spans = []
+    for a, b in pieces:
+        if spans and a - spans[-1][1] < min_gap_mm:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], b))
+        else:
+            spans.append((a, b))
+    if not spans:
+        return [(0.0, length_mm)]
+    spans[0] = (0.0, spans[0][1]) if spans[0][0] < min_gap_mm else spans[0]
+    spans[-1] = (spans[-1][0], length_mm) if length_mm - spans[-1][1] < min_gap_mm else spans[-1]
+    return spans

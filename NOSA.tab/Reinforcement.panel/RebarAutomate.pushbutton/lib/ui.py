@@ -58,6 +58,7 @@ rebar_partitions = load_module('rebar_partitions', os.path.join(_HERE, 'rebar_pa
 stair_rebar = load_module('stair_rebar', os.path.join(_HERE, 'stair_rebar.py'))
 stair_host = load_module('stair_host', os.path.join(_HERE, 'stair_host.py'))
 view_plan = load_module('view_plan', os.path.join(_HERE, 'view_plan.py'))
+varying_sets = load_module('varying_sets', os.path.join(_HERE, 'varying_sets.py'))
 rebar_views = load_module('rebar_views', os.path.join(_HERE, 'rebar_views.py'))
 shape_images = load_module('shape_images', os.path.join(_HERE, 'shape_images.py'))
 rebar_preview = load_module('rebar_preview', os.path.join(_HERE, 'rebar_preview.py'))
@@ -1794,6 +1795,43 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         if rebar is not None and location:
             self._pending_locations[get_id_value(rebar.Id)] = location
 
+    @staticmethod
+    def _set_runs_along_its_plane(group):
+        """True when a set's distribution normal is not square to the plane of its bar."""
+        try:
+            curves = group['curves']
+            chain = [(p.X, p.Y, p.Z) for p in [curves[0].GetEndPoint(0)] + [c.GetEndPoint(1) for c in curves]]
+            plane = varying_sets.plane_normal(chain)
+            if plane is None:
+                return False
+            n = group['normal']
+            return abs(plane[0] * n.X + plane[1] * n.Y + plane[2] * n.Z) < 0.999
+        except Exception:
+            return False
+
+    def _create_varying_runs(self, wrapper, host, bars, bar_type, style, label, layer, created_rebars):
+        """Varying rebar sets for the runs of `bars` one set can hold; returns the bars left over."""
+        chains = [[(p.X * 304.8, p.Y * 304.8, p.Z * 304.8)
+                   for p in [b['curves'][0].GetEndPoint(0)] + [c.GetEndPoint(1) for c in b['curves']]]
+                  for b in bars]
+        left = []
+        for run in varying_sets.split_runs(chains):
+            if len(run) < 2:
+                left.extend(bars[i] for i in run)
+                continue
+            rebar = wrapper.create_varying_set(
+                host, [bars[i]['curves'] for i in run], bar_type, style=style,
+                transaction_name=u'NOSA — Create {} (varying set)'.format(label))
+            if rebar is None:
+                from nosa_utils.telemetry import log_info
+                log_info(u'rebarautomate', u'{}: varying set not built ({}); FreeForm instead'.format(
+                    label, wrapper.last_error))
+                left.extend(bars[i] for i in run)
+                continue
+            self._stamp_layer(rebar, layer)
+            created_rebars.append(rebar)
+        return left
+
     def _create_grouped_bars(self, wrapper, host, grouped, bar_type, errors, created_rebars, label,
                               layer=None):
         """
@@ -1830,16 +1868,28 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         ITSELF fails does this fall back further to individual
         create_from_curves bars, per row — the true last resort, not
         the default path for irregular geometry.
+
+        2026-10-05 (user decision): before FreeForm, rows cut by an
+        inclined face become Revit varying rebar sets (one element per
+        run, MRA-taggable, real shape code, every bar its own length as a
+        sub-mark in the BBS); FreeForm is left for what no varying set
+        can follow.
         """
         if bar_type is None:
             return
         style_map = {'StirrupTie': DBS.RebarStyle.StirrupTie}
         for s in grouped.get('sets', []):
             style = style_map.get(s.get('style'))
-            rebar = wrapper.create_rebar_set(
-                host, s['curves'], bar_type, s['spacing_mm'], s['array_length_mm'],
-                normal=s['normal'], style=style,
-                transaction_name=u'NOSA — Create {}'.format(label))
+            if self._set_runs_along_its_plane(s):
+                # rows stepping along an inclined edge: no Rebar Set can hold them (Revit throws
+                # "An internal error has occurred"), straight to the varying set below
+                rebar = None
+                wrapper.last_error = u'rows step along an inclined edge'
+            else:
+                rebar = wrapper.create_rebar_set(
+                    host, s['curves'], bar_type, s['spacing_mm'], s['array_length_mm'],
+                    normal=s['normal'], style=style,
+                    transaction_name=u'NOSA — Create {}'.format(label))
             propagated = rebar is not None and not (
                 wrapper.last_error and u'propagation failed' in wrapper.last_error)
             if propagated:
@@ -1859,6 +1909,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     log_swallowed(_LOG, u'RebarAutomateWindow._create_grouped_bars')
 
             materialized = s.get('materialized_bars', [])
+            if len(materialized) >= 2:
+                # 2026-10-05: rows Revit cannot propagate (bars along an inclined edge) become
+                # varying sets whose ends follow the faces; FreeForm only for what is left
+                materialized = self._create_varying_runs(
+                    wrapper, host, materialized, bar_type, style, label, layer, created_rebars)
+                if not materialized:
+                    continue
             # PHASE 3.5.8 (2026-09-02, explicit user request) — hole-closure
             # U-bars must report their real Shape (e.g. 21), never generic
             # "Shape 00": for a `set` FLAGGED is_hole, skip the FreeForm
@@ -1925,6 +1982,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         # grouping-over-shape-name trade-off.
         freeform_candidates = [b for b in loose_bars
                                 if b.get('style') is None and not b.get('is_hole')]
+        if len(freeform_candidates) >= 2:
+            # bars cut by a chamfer: one varying set per run, real lengths per bar in the BBS
+            freeform_candidates = self._create_varying_runs(
+                wrapper, host, freeform_candidates, bar_type, None, label, layer, created_rebars)
         fallback_bars = [b for b in loose_bars
                           if b.get('style') is not None or b.get('is_hole')]
 

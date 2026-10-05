@@ -162,6 +162,28 @@ class BatchResult(object):
         self.summary = summary    # the raw dict generate_fn() returned, untouched
 
 
+def ensure_varying_submarks(doc):
+    """
+    Varying rebar sets numbered as a whole, bars suffixed A, B, C ... (template v30, 2026-10-05):
+    the BBS then lists every bar of a set cut by a chamfer as its own sub-mark (05A, 05B) with its
+    real dimensions. In a transaction; True when the project setting had to change.
+    """
+    from Autodesk.Revit.DB import Structure as DBS
+    try:
+        settings = DBS.ReinforcementSettings.GetReinforcementSettings(doc)
+        changed = False
+        if settings.NumberVaryingLengthRebarsIndividually:
+            settings.NumberVaryingLengthRebarsIndividually = False
+            changed = True
+        if settings.RebarVaryingLengthNumberSuffix != u'A':
+            settings.RebarVaryingLengthNumberSuffix = u'A'
+            changed = True
+        return changed
+    except Exception:
+        log_swallowed(_LOG, u'ensure_varying_submarks')
+        return False
+
+
 class RebarBatch(object):
     """One user-triggered generation run. See module docstring."""
 
@@ -213,6 +235,7 @@ class RebarBatch(object):
 
             if created_rebars:
                 with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Stamp Provenance'):
+                    ensure_varying_submarks(doc)
                     for elem in created_rebars:
                         results = shared_params.stamp_provenance(elem, self.ctx)
                         layer = self.layers.get(get_id_value(elem.Id))
@@ -275,6 +298,20 @@ class RebarBatch(object):
                                                 shape_images.image_types(doc, shapes, paths))
                 except Exception as sketch_err:
                     stamp_errors.append(u'BS 8666 sketches not stamped: {}'.format(sketch_err))
+
+                # BBS members without a manual step (2026-10-05): every reinforced host gets its
+                # partition, identical hosts share one ("No. of Mbrs" = N on one of them, the others
+                # left out of the BBS) and each partition is renumbered 01 upwards.
+                try:
+                    rebar_partitions = load_module('rebar_partitions',
+                        os.path.join(os.path.dirname(__file__), 'rebar_partitions.py'))
+                    hosts = rebar_partitions.collect_hosts(doc)
+                    with nosa_tx.revit_transaction(u'NOSA RebarAutomate — BBS Members'):
+                        members = rebar_partitions.apply(
+                            doc, hosts, rebar_partitions.keep_names(hosts, rebar_partitions.plan(hosts)), self.ctx)
+                    summary['members'] = members
+                except Exception as member_err:
+                    stamp_errors.append(u'BBS members not assigned: {}'.format(member_err))
 
             transaction_group.Assimilate()
         except Exception as e:

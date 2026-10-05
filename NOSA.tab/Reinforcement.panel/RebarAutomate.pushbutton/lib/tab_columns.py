@@ -592,6 +592,7 @@ class ColumnsMixin(object):
         vertical_rebars = created_rebars[first_vertical:]
 
         bar_type_link = bar_types.get(values['link_dia'])
+        link_rebars = []
         if bar_type_link is not None:
             for s in reinforcement['stirrup_sets']:
                 style = DBS.RebarStyle.StirrupTie if s.get('style') == 'StirrupTie' else None
@@ -616,6 +617,7 @@ class ColumnsMixin(object):
                 else:
                     self._stamp_layer(rebar, u'stirrup')
                     created_rebars.append(rebar)
+                    link_rebars.append(rebar)
                     if wrapper.last_error:
                         errors.append(u'Column {}: links (set) — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
@@ -632,9 +634,15 @@ class ColumnsMixin(object):
             try:
                 with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pin Column Vertical Bars')) as t:
                     t.Start()
+                    for rebar in link_rebars:     # off the cover of a beam joined through the column
+                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, cover_mm + values['link_dia'] / 2.0)
+                    if link_rebars:
+                        self.doc.Regenerate()
                     for rebar in vertical_rebars:
                         re_engine.pin_rebar_to_host_faces(
                             self.doc, rebar, host, reinforcement['bar_inset_mm'])
+                        if link_rebars:
+                            self.doc.Regenerate()
                     t.Commit()
             except Exception as e:
                 errors.append(u'Column {}: vertical bars left where Revit snapped them '

@@ -108,11 +108,24 @@ def all_shapes(doc):
     return list(DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape))
 
 
+def _image_file(image):
+    try:
+        return os.path.basename(image.Path or u'')
+    except Exception:
+        return u''
+
+
 def image_types(doc, shapes, paths):
-    """{shape id value: ImageType id}, one ImageType per PNG (reloaded when it exists). In a transaction."""
+    """
+    {shape id value: ImageType id}, one ImageType per PNG (reloaded when it exists). In a transaction.
+    The ImageType is named by the bare shape code ("21"): a BBS schedule view lists the image by
+    name, so it reads like the shape code column; the sheet shows the sketch itself.
+    """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import element_name, get_id_value
-    images = dict((element_name(i), i) for i in DB.FilteredElementCollector(doc).OfClass(DB.ImageType))
+    images = {}
+    for i in DB.FilteredElementCollector(doc).OfClass(DB.ImageType):
+        images[_image_file(i) or element_name(i)] = i
     out = {}
     for shape in shapes:
         path = paths.get(get_id_value(shape.Id))
@@ -125,6 +138,12 @@ def image_types(doc, shapes, paths):
             images[os.path.basename(path)] = image
         else:
             image.ReloadFrom(options)
+        code = (element_name(shape) or u'').strip()
+        if code and element_name(image) != code:
+            try:
+                image.Name = code
+            except Exception:  # nosa-lint: disable=NOSA006 - name taken: the file name stays
+                pass
         out[get_id_value(shape.Id)] = image.Id
     return out
 

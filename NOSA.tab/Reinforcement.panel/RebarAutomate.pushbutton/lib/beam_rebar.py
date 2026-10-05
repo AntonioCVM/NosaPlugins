@@ -194,6 +194,31 @@ def _clamp_axis_to_bbox(axis, host):
     return DB.Line.CreateBound(new_p0, new_p1)
 
 
+def beam_spans_mm(host, axis):
+    """
+    [(x0, x1)] mm along `axis` (from its start) where the beam's solid exists: more than one
+    span when the beam runs through an intermediate column or wall that cuts it.
+    """
+    import continuous_beam as cb
+    length_mm = axis.Length * _MM_PER_FT
+    intervals = []
+    try:
+        solid = _ensure_engine().get_host_solid(host, include_nested=False)
+        pieces = DB.SolidUtils.SplitVolumes(solid) if solid is not None else []
+        p0, d = axis.GetEndPoint(0), axis.Direction
+        for piece in pieces:
+            ts = []
+            for edge in piece.Edges:
+                c = edge.AsCurve()
+                for i in (0, 1):
+                    ts.append((c.GetEndPoint(i) - p0).DotProduct(d) * _MM_PER_FT)
+            if ts:
+                intervals.append((min(ts), max(ts)))
+    except Exception:
+        intervals = []
+    return cb.solid_spans(intervals, length_mm) if intervals else [(0.0, length_mm)]
+
+
 def get_beam_section_mm(doc, host, cover_mm, bar_diameter_mm=20.0):
     """
     Representative beam width / height (mm) from host solid faces.
@@ -216,6 +241,10 @@ def get_beam_section_mm(doc, host, cover_mm, bar_diameter_mm=20.0):
     half_w = abs((side_a_pt - p_start).DotProduct(width_dir)
                  - (side_b_pt - p_start).DotProduct(width_dir)) / 2.0 * _MM_PER_FT
     return max(half_w * 2.0 + 2.0 * inset_mm, 100.0), max(half_h * 2.0 + 2.0 * inset_mm, 150.0)
+
+
+def _area(face_info):
+    return getattr(face_info, 'area', 0.0) or 0.0
 
 
 def _beam_faces(cover_mgr, axis_dir):
@@ -246,14 +275,16 @@ def _beam_faces(cover_mgr, axis_dir):
     """
     top = bottom = None
     sides = []
-    for f in cover_mgr.faces:
+    for f in _ensure_engine().merge_coplanar_faces(cover_mgr.faces):
         z = f.normal.Z
         if z > 0.7:
-            if top is None or f.normal.Z > top.normal.Z:
+            if top is None or f.normal.Z > top.normal.Z + 1e-6 or (
+                    abs(f.normal.Z - top.normal.Z) <= 1e-6 and _area(f) > _area(top)):
                 top = f
             continue
         if z < -0.7:
-            if bottom is None or f.normal.Z < bottom.normal.Z:
+            if bottom is None or f.normal.Z < bottom.normal.Z - 1e-6 or (
+                    abs(f.normal.Z - bottom.normal.Z) <= 1e-6 and _area(f) > _area(bottom)):
                 bottom = f
             continue
         if abs(f.normal.DotProduct(axis_dir)) < 0.3:
@@ -262,11 +293,17 @@ def _beam_faces(cover_mgr, axis_dir):
     if top is None or bottom is None:
         raise ValueError(u'Could not find both a top and a bottom face on '
                           u'this beam — is its profile a simple rectangle?')
+    if len(sides) > 2:
+        # a stepped or flanged profile: the largest face on each side carries the links
+        ref = sides[0].normal
+        pos = [f for f in sides if f.normal.DotProduct(ref) > 0.0]
+        neg = [f for f in sides if f.normal.DotProduct(ref) <= 0.0]
+        if pos and neg:
+            sides = [max(pos, key=_area), max(neg, key=_area)]
     if len(sides) != 2:
         raise ValueError(
-            u'Expected exactly 2 long side faces, found {} — non-rectangular '
-            u'or tapered beam profiles are not supported by this module '
-            u'yet.'.format(len(sides)))
+            u'Expected 2 long side faces, found {} — this beam profile (not a rectangle) '
+            u'is not supported yet.'.format(len(sides)))
     return top, bottom, sides[0], sides[1]
 
 
@@ -765,7 +802,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              confine_length_mm=None, anchorage_mm=None,
                              include_interior_ties=False, tie_layout='all',
                              link_bend_diameter_mm=None, continuous_ends=(False, False),
-                             internal_bottom_ext_mm=(0.0, 0.0), include_top=True):
+                             internal_bottom_ext_mm=(0.0, 0.0), include_top=True,
+                             n_support_bars=0, support_bar_diameter_mm=None, support_fraction=0.25):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -789,7 +827,13 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
           'stirrup_sets': list[dict],  # grouped by zone for Set creation
           'beam_height_mm': float,
           'confine_length_mm': float,
+          'spans_mm': [(x0, x1)],        # more than one when the beam runs over
+                                          # intermediate columns (beam_spans_mm)
+          'support_bar_sets': list[dict], # extra top bars over those supports
         }
+    A beam over intermediate supports gets its links span by span (none inside the column),
+    its top-bar laps in the central third of a span and, with n_support_bars, the support bars
+    of a continuous line (continuous_beam's rules).
     """
     engine = _ensure_engine()
     axis = get_beam_axis(host)
@@ -802,6 +846,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     warnings = []
     cover_mgr = engine.CoverGeometryManager(doc, host)
     top, bottom, side_a, side_b = _beam_faces(cover_mgr, axis.Direction)
+    spans_mm = beam_spans_mm(host, axis)
 
     # Computed here (not after, as before the round-4 fix) so BOTH the
     # top and the bottom compute_longitudinal_bar_lines calls below can
@@ -847,7 +892,27 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
             u'({} mm) but lap_length_mm was not supplied — required to '
             u'split it.'.format(stock_length_mm))
 
-    if lap_length_mm is not None:
+    if lap_length_mm is not None and len(spans_mm) > 1 and any(
+            l.Length * _MM_PER_FT > stock_length_mm for l in top_lines):
+        # laps of the top bars where hogging is nil: central third of a span
+        import continuous_beam as cb
+        top_chains = []
+        x_start, x_end = -ext0_mm, axis.Length * _MM_PER_FT + ext1_mm
+        segments, lap_notes = cb.lap_cuts(x_start, x_end, [{'x0': a, 'x1': b} for a, b in spans_mm],
+                                          stock_length_mm, lap_length_mm)
+        warnings.extend(lap_notes)
+        down = height_dir_legs.Negate().Multiply(bar_diameter_mm / _MM_PER_FT)
+        for line in top_lines:
+            p0 = line.GetEndPoint(0) + axis.Direction.Multiply(ext0_mm / _MM_PER_FT)
+            chain = []
+            for j, (a, b) in enumerate(segments):
+                pa, pb = p0 + axis.Direction.Multiply(a / _MM_PER_FT), p0 + axis.Direction.Multiply(b / _MM_PER_FT)
+                if j % 2:
+                    pa, pb = pa + down, pb + down
+                chain.append(DB.Line.CreateBound(pa, pb))
+            top_chains.append(chain)
+        bottom_chains = split_long_bars(bottom_lines, stock_length_mm, lap_length_mm, lap_offset_mm)
+    elif lap_length_mm is not None:
         top_chains = split_long_bars(top_lines, stock_length_mm, lap_length_mm, lap_offset_mm)
         bottom_chains = split_long_bars(bottom_lines, stock_length_mm, lap_length_mm, lap_offset_mm)
     else:
@@ -925,19 +990,29 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     if confine_length_mm is None or confine_length_mm <= 0:
         confine_length_mm = 2.0 * beam_height_mm
 
-    if densify_ends:
-        dens = dense_spacing_mm if dense_spacing_mm else max(stirrup_spacing_mm * 0.5, 75.0)
-        zone_groups = generate_stirrup_positions_densified(
-            axis, stirrup_spacing_mm, dens, confine_length_mm,
-            stirrup_start_offset_mm, stirrup_end_offset_mm)
-    else:
-        positions = generate_stirrup_positions(
-            axis, stirrup_spacing_mm, stirrup_start_offset_mm, stirrup_end_offset_mm)
-        zone_groups = [{
-            'zone': u'middle',
-            'spacing_mm': stirrup_spacing_mm,
-            'positions': positions,
-        }] if positions else []
+    zone_groups = []
+    for k, (a, b) in enumerate(spans_mm):
+        # one span at a time: no links inside an intermediate column
+        span_axis = axis if len(spans_mm) == 1 else DB.Line.CreateBound(
+            p_start + axis.Direction.Multiply(a / _MM_PER_FT), p_start + axis.Direction.Multiply(b / _MM_PER_FT))
+        if densify_ends:
+            dens = dense_spacing_mm if dense_spacing_mm else max(stirrup_spacing_mm * 0.5, 75.0)
+            groups = generate_stirrup_positions_densified(
+                span_axis, stirrup_spacing_mm, dens, confine_length_mm,
+                stirrup_start_offset_mm, stirrup_end_offset_mm)
+        else:
+            positions = generate_stirrup_positions(
+                span_axis, stirrup_spacing_mm, stirrup_start_offset_mm, stirrup_end_offset_mm)
+            groups = [{
+                'zone': u'middle',
+                'spacing_mm': stirrup_spacing_mm,
+                'positions': positions,
+            }] if positions else []
+        for g in groups:
+            g['positions'] = [a + x for x in g['positions']]
+            if len(spans_mm) > 1:
+                g['zone'] = u'span {} {}'.format(k + 1, g['zone'])
+        zone_groups.extend(groups)
 
     stirrups = []
     stirrup_sets = []
@@ -968,6 +1043,37 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
             'positions': positions,
         })
 
+    support_bar_sets = []
+    if n_support_bars and len(spans_mm) > 1 and top_lines:
+        import continuous_beam as cb
+        sup_dia = support_bar_diameter_mm or bar_diameter_mm
+        base = [_extend_line(l, -ext0_mm, -ext1_mm) if (ext0_mm or ext1_mm) else l for l in top_lines]
+        drop = (bar_diameter_mm / 2.0 + max(bar_diameter_mm, 25.0) + sup_dia / 2.0) / _MM_PER_FT
+        lift = (bar_diameter_mm - sup_dia) / 2.0 / _MM_PER_FT    # tops level with the top bars
+
+        def at(line, x):
+            return line.GetEndPoint(0) + axis.Direction.Multiply(x / _MM_PER_FT)
+
+        for (la, lb), (ra, rb) in zip(spans_mm[:-1], spans_mm[1:]):
+            support = {'x0': lb, 'x1': ra, 'width': ra - lb}
+            xa, xb = cb.support_bar_range(support, {'x0': la, 'x1': lb}, {'x0': ra, 'x1': rb}, support_fraction)
+            xa, xb = max(xa, 0.0), min(xb, axis.Length * _MM_PER_FT)
+            rows = {}
+            for kind, i in cb.support_bar_slots(len(base), n_support_bars):
+                if kind == 'between':
+                    pt = (at(base[i], xa) + at(base[i + 1], xa)).Multiply(0.5) + height_dir_legs.Multiply(lift)
+                else:
+                    pt = at(base[i], xa) - height_dir_legs.Multiply(drop)
+                rows.setdefault(kind, []).append(
+                    [[DB.Line.CreateBound(pt, pt + axis.Direction.Multiply((xb - xa) / _MM_PER_FT))]])
+            for kind, chains in sorted(rows.items()):
+                gaps = [chains[k + 1][0][0].GetEndPoint(0).DistanceTo(chains[k][0][0].GetEndPoint(0)) * _MM_PER_FT
+                        for k in range(len(chains) - 1)]
+                even = gaps and max(gaps) - min(gaps) < 1.0
+                label = u'Beam Support Bars' + (u' (2nd layer)' if kind == 'second' else u'')
+                support_bar_sets.extend(group_parallel_bar_chains_into_sets(
+                    chains, gaps[0] if even else 0.0, long_bar_normal_vec, label))
+
     bar_inset = longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
     interior_tie_sets = []
     if include_interior_ties:
@@ -994,6 +1100,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'long_bar_normal': width_dir,
         'bar_inset_mm': bar_inset,
         'interior_tie_sets': interior_tie_sets,
+        'spans_mm': spans_mm,
+        'support_bar_sets': support_bar_sets,
         'warnings': warnings,
     }
 
