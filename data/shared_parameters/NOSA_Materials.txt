@@ -1,0 +1,9 @@
+# This is a Revit shared parameter file.
+# NOSA material classification: which schedules a material belongs to (concrete volumes, steelwork weight).
+# GUIDs are FINAL — never regenerate.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Materials
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	4e045276-3543-450a-80c2-af2005993c18	NOSA_Material_Group	TEXT		1	1	Concrete, Structural steel, Reinforcement, Piling, Timber, Masonry or Other. Blank counts as concrete in the concrete schedules.	1	0
