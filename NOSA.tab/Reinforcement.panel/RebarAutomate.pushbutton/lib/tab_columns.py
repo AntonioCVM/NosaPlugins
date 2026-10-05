@@ -635,7 +635,10 @@ class ColumnsMixin(object):
                 with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pin Column Vertical Bars')) as t:
                     t.Start()
                     for rebar in link_rebars:     # off the cover of a beam joined through the column
-                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, cover_mm + values['link_dia'] / 2.0)
+                        # cover + link diameter: the distance Revit itself keeps on the hooked sides,
+                        # so a column with a beam through it matches its neighbours in the BBS
+                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, cover_mm + values['link_dia'],
+                                                         foreign_handles=('Edge',))
                     if link_rebars:
                         self.doc.Regenerate()
                     for rebar in vertical_rebars:

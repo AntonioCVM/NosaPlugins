@@ -1076,7 +1076,7 @@ def fit_varying_ends(doc, rebar, host, wanted, passes=2):
     return error
 
 
-def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=('Edge',)):
+def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
     """
     Replace Revit's snaps of this rebar to other bars with a fixed distance
     (inset_mm, to the bar centreline) from the nearest host face. Call inside
@@ -1088,17 +1088,22 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=('Edge',
     Also re-pins the edges Revit snapped to the cover of ANOTHER element: a
     column link in the joint of a beam that runs through the column took the
     beam's side cover, 20 mm inside the column's (2026-10-05).
-    foreign_handles: the handle types re-pinned when they target another element (a set of
-    straight bars sits by its RebarPlane / OutOfPlaneExtent handles).
+    foreign_handles: the handle types re-pinned when they target another element — ('Edge',)
+    for column links; never for beam bars, whose legs rightly sit in the column they anchor in.
     Returns the number of handles re-pinned.
     """
     foreign = [getattr(DBS.RebarHandleType, name) for name in foreign_handles]
+    # The ends of a bar may pin to an element joined to the host: a beam bar runs on into the
+    # column it frames into (Revit cuts it back to the beam's end cover on creation, and only the
+    # column's far face puts it back). The sides of the section never may (2026-10-05).
+    ends = (DBS.RebarHandleType.StartOfBar, DBS.RebarHandleType.EndOfBar)
     mgr = rebar.GetRebarConstraintsManager()
     pinned = 0
     for handle in mgr.GetAllHandles():
         current = mgr.GetCurrentConstraintOnHandle(handle)
         if current is None:
             continue
+        is_end = handle.GetHandleType() in ends
         if current.GetConstraintType() != DBS.RebarConstraintType.ToOtherRebar and not (
                 handle.GetHandleType() in foreign and _targets_other_element(current, host)):
             continue
@@ -1106,7 +1111,7 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=('Edge',
         # pinning to those put the bars 20 mm inside the column (2026-10-05)
         candidates = [cand for cand in mgr.GetConstraintCandidatesForHandle(handle, host.Id)
                       if cand.GetConstraintType() == DBS.RebarConstraintType.FixedDistanceToHostFace
-                      and not _targets_other_element(cand, host)]
+                      and (is_end or not _targets_other_element(cand, host))]
         if not candidates:
             continue
         nearest = min(candidates, key=lambda cand: abs(cand.GetDistanceToTargetHostFace()))
