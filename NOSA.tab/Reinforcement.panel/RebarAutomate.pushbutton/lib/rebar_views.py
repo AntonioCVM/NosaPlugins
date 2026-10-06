@@ -291,6 +291,31 @@ def _unique_view_name(doc, wanted):
     return name
 
 
+def ensure_fine(view):
+    """
+    Detail level Fine (user decision 2026-10-06): bars drawn at their real diameter, cut bars as
+    filled circles (IStructE SMDSC 4.2). When the view template controls the detail level, the RC
+    template itself is set to Fine; otherwise the view. In a transaction; True when it is Fine.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    doc = view.Document
+    template = doc.GetElement(view.ViewTemplateId) if view.ViewTemplateId != DB.ElementId.InvalidElementId else None
+    target = view
+    if template is not None:
+        free = set(get_id_value(i) for i in template.GetNonControlledTemplateParameterIds())
+        if int(DB.BuiltInParameter.VIEW_DETAIL_LEVEL) not in free:
+            target = template
+    try:
+        if target.DetailLevel != DB.ViewDetailLevel.Fine:
+            target.DetailLevel = DB.ViewDetailLevel.Fine
+        return True
+    except Exception:
+        from nosa_utils.telemetry import log_swallowed
+        log_swallowed(u'rebarautomate', u'ensure_fine')
+        return False
+
+
 def _apply_template_and_scale(view, template, scale):
     from Autodesk.Revit import DB  # Lazy import
     if template is not None:
@@ -303,6 +328,7 @@ def _apply_template_and_scale(view, template, scale):
         if template is not None:
             view.ApplyViewTemplateParameters(template)
         view.Scale = scale
+    ensure_fine(view)
 
 
 def _rollback_on_error():
