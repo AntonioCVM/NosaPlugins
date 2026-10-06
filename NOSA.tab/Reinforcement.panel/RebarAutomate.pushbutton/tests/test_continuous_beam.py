@@ -82,29 +82,36 @@ def test_solid_spans_ignore_slivers_and_hairline_gaps():
     assert spans == [(0.0, 6000.0)]
 
 
-def test_shift_rule_is_1125_d():
-    assert abs(cb.shift_al_mm(700.0) - 787.5) < 1e-9
+def test_shift_rule_default_is_125_d():
+    assert abs(cb.shift_al_mm(700.0) - 875.0) < 1e-9
 
 
-def test_hogging_bars_reach_015_and_030_l_plus_al():
-    short, long_ = cb.hogging_reaches_mm(6000.0, 787.5)
-    assert abs(short - 1687.5) < 1e-9 and abs(long_ - 2587.5) < 1e-9
-    # never shorter than the anchorage length
-    assert cb.hogging_reaches_mm(2000.0, 200.0, lbd_mm=900.0)[0] == 900.0
+def test_effective_span_is_clear_span_plus_d():
+    assert cb.effective_span_mm(4550.0, 735.0) == 5285.0
 
 
-def test_hogging_bars_split_half_and_half():
+def test_support_bars_reach_025_l_and_never_less_than_015_l_or_45_dia():
+    short, long_ = cb.hogging_reaches_mm(6000.0, 16.0)
+    assert short == 900.0 and long_ == 1500.0
+    short, long_ = cb.hogging_reaches_mm(3000.0, 25.0)       # 45 x 25 = 1125 > 0.15 L = 450
+    assert short == 1125.0 and long_ == 1125.0                 # the long reach never shorter
+
+
+def test_at_least_60_percent_of_support_bars_are_long():
     assert cb.hogging_groups(1) == (1, 0)
-    assert cb.hogging_groups(2) == (1, 1)
+    assert cb.hogging_groups(2) == (2, 0)
     assert cb.hogging_groups(3) == (2, 1)
+    assert cb.hogging_groups(5) == (3, 2)
 
 
-def test_end_support_top_bars_reach_02_l():
-    assert cb.end_hogging_reach_mm(5000.0) == 1000.0
+def test_span_bars_stop_015_l_internal_01_l_exterior_008_l_simple():
+    a, b = cb.sagging_range_mm(0.0, 5000.0, 'exterior', 'internal')
+    assert abs(a - 500.0) < 1e-9 and abs(b - 4250.0) < 1e-9
+    a, b = cb.sagging_range_mm(0.0, 5000.0, 'simple', 'simple', d_mm=500.0)   # L = 5500
+    assert abs(a - 440.0) < 1e-9 and abs(b - 4560.0) < 1e-9
 
 
-def test_sagging_bars_stop_008_l_from_an_end_and_020_l_from_an_internal_support():
-    a, b = cb.sagging_range_mm(0.0, 5000.0, False, True)
-    assert abs(a - 400.0) < 1e-9 and abs(b - 4000.0) < 1e-9
-    a, b = cb.sagging_range_mm(0.0, 5000.0, True, True)
-    assert abs(a - 1000.0) < 1e-9 and abs(b - 4000.0) < 1e-9
+def test_simplified_rules_conditions_are_reported():
+    assert cb.simplified_rules_warnings([5000.0, 5000.0, 5200.0]) == []
+    assert len(cb.simplified_rules_warnings([5000.0])) == 1
+    assert len(cb.simplified_rules_warnings([4000.0, 5000.0, 5000.0])) == 1

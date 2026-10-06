@@ -800,10 +800,10 @@
 
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
-                            <TextBlock Text="Additional Bars (EC2 + UK NA, simplified curtailment)" Style="{StaticResource RA_SectionTitle}"/>
+                            <TextBlock Text="Additional Bars (IStructE SMDSC 6.3.2 simplified curtailment)" Style="{StaticResource RA_SectionTitle}"/>
                             <CheckBox Name="ChkBeamSupportBars" Content="Top support bars (hogging)"
                                       FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"
-                                      ToolTip="Intermediate supports: half the bars to 0.15 l + al (not less than lbd), half to 0.30 l + al, each side by its own span. End supports with a column: anchored in the column with a leg, to 0.2 l (EC2 9.2.1.2(1)). al = 1.125 d (EC2 9.2.1.3(2))."/>
+                                      ToolTip="At least 60 % of the bars run 0.25 L past the support face and none stops short of 0.15 L or 45 bar diameters, each side by its own span (L = clear span + d). End supports with a column: anchored in the column with a leg, same reach (top leg of the end U-bar)."/>
                             <Grid Style="{StaticResource RA_FieldRow}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -822,7 +822,7 @@
                             </Grid>
                             <CheckBox Name="ChkBeamSpanBars" Content="Bottom span bars (sagging)"
                                       FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,10,0,6"
-                                      ToolTip="Extra bottom bars in every span, stopping 0.08 l from an end support and 0.20 l from an intermediate one (IStructE simplified rules); the continuous bottom bars (at least 25 % of the span steel, EC2 9.2.1.4 / 9.2.1.5) still run into the supports."/>
+                                      ToolTip="Extra bottom bars in every span, stopping 0.15 L from an internal support, 0.1 L from an exterior (monolithic) support and 0.08 L from a simple support. The continuous bottom bars (at least 30 % of the span steel, 50 % for simply supported beams) still run to the supports."/>
                             <Grid Style="{StaticResource RA_FieldRow}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -841,7 +841,7 @@
                             </Grid>
                             <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
                                        Foreground="{DynamicResource TextColor}"
-                                       Text="l = clear span between support faces; d from the beam's own section. Check the bar areas against the design moments: the rules fix the bar lengths, not the amount of steel."/>
+                                       Text="Simplified rules: uniform loads, Qk not above Gk, three or more spans within 15 % of each other (a warning lists what is not met). L = clear span + d. The rules fix the bar lengths, not the amount of steel: check the areas against the design moments."/>
                         </StackPanel>
                     </Border>
 

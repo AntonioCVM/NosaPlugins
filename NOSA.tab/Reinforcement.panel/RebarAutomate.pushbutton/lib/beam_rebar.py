@@ -219,6 +219,11 @@ def beam_spans_mm(host, axis):
     return cb.solid_spans(intervals, length_mm) if intervals else [(0.0, length_mm)]
 
 
+def cb_rules():
+    import continuous_beam
+    return continuous_beam
+
+
 def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir):
     """
     [(kind, point at x_mm)] for n extra bars beside a row of main bars (base_lines, axis order):
@@ -258,17 +263,20 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
                         n_support, support_dia_mm, n_span, span_dia_mm):
     """
     Extra bars of one beam element (x mm along `axis` from its start; spans_mm = clear spans
-    between support faces). Hogging bars over every intermediate support: half to 0.15 l + al
-    (>= lbd), half to 0.30 l + al, each side by its own span; at an end support with a column
-    (and not a support of a continuous line), top bars from the column's far face with a leg,
-    to 0.2 l. Sagging bars in each span, stopping 0.08 l from an end and 0.20 l from an internal
-    support. Returns {'support': [set groups], 'span': [set groups]}.
+    between support faces), SMDSC 6.3.2 simplified rules (L = clear span + d): support bars over
+    every intermediate support, at least 60 % to 0.25 L and none shorter than max(0.15 L, 45 bar
+    diameters), each side by its own span; at an end support with a column (not a support of a
+    continuous line) the same reach, from the column's far face with a leg (top leg of the end
+    U-bar). Span bars stopping 0.15 L from an internal support, 0.1 L from an exterior
+    (monolithic) one and 0.08 L from a simple support. Returns {'support': [...], 'span': [...]}.
     """
     import continuous_beam as cb
     out = {'support': [], 'span': []}
     direction = axis.Direction
     length = axis.Length * _MM_PER_FT
-    al = cb.shift_al_mm(d_mm)
+
+    def eff(span):
+        return cb.effective_span_mm(span[1] - span[0], d_mm)
     if n_support and top_lines:
         dia = support_dia_mm or bar_dia_mm
         lbd = (anchorage_mm or 40.0 * bar_dia_mm) * dia / bar_dia_mm
@@ -287,7 +295,7 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
             chains.setdefault(key, []).append([curves])
 
         for (la, lb), (ra, rb) in zip(spans_mm[:-1], spans_mm[1:]):
-            left, right = cb.hogging_reaches_mm(lb - la, al, lbd), cb.hogging_reaches_mm(rb - ra, al, lbd)
+            left, right = cb.hogging_reaches_mm(eff((la, lb)), dia), cb.hogging_reaches_mm(eff((ra, rb)), dia)
             for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction)):
                 reach = 1 if k < n_long else 0
                 add((kind, reach, 'internal'), p, max(lb - left[reach], 0.0), min(ra + right[reach], length))
@@ -296,13 +304,14 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
             if not ext or continuous_ends[end]:
                 continue
             span = spans_mm[0] if end == 0 else spans_mm[-1]
-            reach = cb.end_hogging_reach_mm(span[1] - span[0], lbd)
+            reaches = cb.hogging_reaches_mm(eff(span), dia)
             leg = support_leg_mm(lbd, ext, dia, clear_mm)
-            for kind, p in _slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction):
+            for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction)):
+                g = 1 if k < n_long else 0
                 if end == 0:
-                    add((kind, 2, 'start'), p, -ext, min(span[0] + reach, length), leg0=leg)
+                    add((kind, g, 'start'), p, -ext, min(span[0] + reaches[g], length), leg0=leg)
                 else:
-                    add((kind, 2, 'end'), p, max(span[1] - reach, 0.0), length + ext, leg1=leg)
+                    add((kind, g, 'end'), p, max(span[1] - reaches[g], 0.0), length + ext, leg1=leg)
         out['support'] = _grouped(chains, normal, u'Beam Support Bars')
     if n_span and bottom_lines:
         dia = span_dia_mm or bar_dia_mm
@@ -310,8 +319,13 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
                 for l in bottom_lines]
         chains = {}
         last = len(spans_mm) - 1
+
+        def kind_at(end, inner):
+            if inner or continuous_ends[end]:
+                return 'internal'
+            return 'exterior' if top_ext_mm[end] else 'simple'     # a column there: monolithic
         for k, (a, b) in enumerate(spans_mm):
-            rng = cb.sagging_range_mm(a, b, k > 0 or bool(continuous_ends[0]), k < last or bool(continuous_ends[1]))
+            rng = cb.sagging_range_mm(a, b, kind_at(0, k > 0), kind_at(1, k < last), d_mm)
             if rng is None:
                 continue
             for kind, p in _slot_points(base, n_span, dia, bar_dia_mm, up.Negate(), 0.0, direction):
@@ -1155,6 +1169,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         continuous_ends, height_dir_legs, long_bar_normal_vec, bar_diameter_mm, d_mm, anchor_mm,
         clear_mm, n_support_bars, support_bar_diameter_mm, n_span_bars, span_bar_diameter_mm)
     support_bar_sets, span_bar_sets = extra['support'], extra['span']
+    if (n_support_bars or n_span_bars) and not any(continuous_ends):
+        warnings.extend(cb_rules().simplified_rules_warnings([b - a for a, b in spans_mm]))
 
     bar_inset = longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
     interior_tie_sets = []
@@ -1341,19 +1357,18 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
             hanger_sets.append((host_at((a + b) / 2.0), group))
 
     support_sets = []
-    # hogging bars over the line's supports: half to 0.15 l + al (>= lbd), half to 0.30 l + al,
-    # each side by its own clear span (user decision 2026-10-05)
+    # support bars over the line's supports, SMDSC 6.3.2: at least 60 % to 0.25 L, none shorter than
+    # max(0.15 L, 45 diameters), each side by its own span, L = clear span + d (user decision 2026-10-06)
     d_mm = clear_mm + longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
-    al = cb.shift_al_mm(d_mm)
-    lbd = (anchorage_mm or 40.0 * bar_diameter_mm) * support_bar_diameter_mm / bar_diameter_mm
+    warnings.extend(cb.simplified_rules_warnings([s['x1'] - s['x0'] for s in ordered]) if n_support_bars else [])
     n_long, _n_short = cb.hogging_groups(n_support_bars or 0)
     by_id = dict((s['id'], s) for s in ordered)
     for support in supports:
         if not support['continuous'] or not n_support_bars:
             continue
         left, right = by_id[support['left']], by_id[support['right']]
-        reach_l = cb.hogging_reaches_mm(left['x1'] - left['x0'], al, lbd)
-        reach_r = cb.hogging_reaches_mm(right['x1'] - right['x0'], al, lbd)
+        reach_l = cb.hogging_reaches_mm(cb.effective_span_mm(left['x1'] - left['x0'], d_mm), support_bar_diameter_mm)
+        reach_r = cb.hogging_reaches_mm(cb.effective_span_mm(right['x1'] - right['x0'], d_mm), support_bar_diameter_mm)
         rows = {}
         for k, (kind, p) in enumerate(_slot_points(top_lines, n_support_bars, support_bar_diameter_mm,
                                                    bar_diameter_mm, height, 0.0, direction)):

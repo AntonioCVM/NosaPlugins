@@ -131,38 +131,59 @@ def solid_spans(intervals, length_mm, min_gap_mm=10.0, min_span_mm=50.0):
     return spans
 
 
-# Additional bars (user decision 2026-10-05): EC2 + UK NA with the Concrete Centre / IStructE
-# simplified detailing rules. l = clear span, al = shift rule (EC2 9.2.1.3(2)).
-HOG_SHORT, HOG_LONG = 0.15, 0.30        # internal support: half the bars to 0.15 l + al, half to 0.30 l + al
-END_HOG = 0.20                          # end support: top bars >= 0.2 l from the face (EC2 9.2.1.2(1))
-SAG_END, SAG_INTERNAL = 0.08, 0.20      # extra bottom bars stop this far from an end / internal support
+# Additional bars: IStructE Standard Method of Detailing (SMDSC) 6.3.2 simplified rules for beams
+# (user decision 2026-10-06, replacing the Concrete Centre version of 2026-10-05). Valid for
+# substantially uniform loads, Qk <= Gk, three or more spans differing by no more than 15 %.
+# L = effective span = clear span + d.
+HOG_LONG_SHARE = 0.60                   # at least 60 % of the support bars ...
+HOG_LONG = 0.25                         # ... run 0.25 L past the support face
+HOG_SHORT, HOG_SHORT_DIA = 0.15, 45.0   # none stops short of max(0.15 L, 45 bar diameters)
+SAG_INTERNAL, SAG_EXTERIOR, SAG_SIMPLE = 0.15, 0.10, 0.08   # span bars stop this far from the support
+SPAN_VARIATION = 0.15
 
 
 def shift_al_mm(d_mm):
-    """al = z (cot theta - cot alpha) / 2 with z = 0.9 d, cot theta = 2.5, vertical links: 1.125 d."""
-    return 1.125 * d_mm
+    """al the detailer assumes when the designer gives none (SMDSC 6.3.2): 1.25 d."""
+    return 1.25 * d_mm
 
 
-def hogging_reaches_mm(span_mm, al_mm, lbd_mm=0.0):
-    """(short, long) reach past an internal support face into a span of clear length span_mm."""
-    short = max(HOG_SHORT * span_mm + al_mm, lbd_mm)
-    return short, max(HOG_LONG * span_mm + al_mm, short)
+def effective_span_mm(clear_mm, d_mm):
+    """L for the simplified rules: need not be taken greater than the clear span + d."""
+    return clear_mm + d_mm
 
 
-def end_hogging_reach_mm(span_mm, lbd_mm=0.0):
-    """Reach of the top bars at an end support, past its face into the span."""
-    return max(END_HOG * span_mm, lbd_mm)
+def hogging_reaches_mm(span_mm, bar_dia_mm):
+    """(short, long) reach of the support bars past the support face into a span of effective length span_mm."""
+    short = max(HOG_SHORT * span_mm, HOG_SHORT_DIA * bar_dia_mm)
+    return short, max(HOG_LONG * span_mm, short)
 
 
 def hogging_groups(n_bars):
-    """(long, short) counts: half the bars run to 0.30 l + al, the rest stop at 0.15 l + al."""
-    long_ = (n_bars + 1) // 2
+    """(long, short) counts: at least 60 % of the bars run to 0.25 L, the rest stop at the short reach."""
+    long_ = min(n_bars, int(-(-HOG_LONG_SHARE * n_bars // 1)))
     return long_, n_bars - long_
 
 
-def sagging_range_mm(x0, x1, start_internal, end_internal):
-    """Extent of the extra bottom bars of a span between faces x0..x1, or None if nothing is left."""
-    span = x1 - x0
-    a = x0 + (SAG_INTERNAL if start_internal else SAG_END) * span
-    b = x1 - (SAG_INTERNAL if end_internal else SAG_END) * span
+def sagging_range_mm(x0, x1, start_kind, end_kind, d_mm=0.0):
+    """
+    Extent of the extra bottom (span) bars between support faces x0..x1: they stop 0.15 L from an
+    internal support, 0.1 L from an exterior (monolithic) one and 0.08 L from a simple support.
+    kinds: 'internal' | 'exterior' | 'simple'. None if nothing is left.
+    """
+    span = effective_span_mm(x1 - x0, d_mm)
+    cut = {'internal': SAG_INTERNAL, 'exterior': SAG_EXTERIOR, 'simple': SAG_SIMPLE}
+    a = x0 + cut[start_kind] * span
+    b = x1 - cut[end_kind] * span
     return (a, b) if b - a > 1.0 else None
+
+
+def simplified_rules_warnings(spans_mm):
+    """Why the SMDSC simplified curtailment may not apply to these clear spans (designer to confirm)."""
+    out = []
+    if len(spans_mm) < 3:
+        out.append(u'SMDSC 6.3.2 simplified curtailment assumes three or more spans ({} here): check the bar '
+                   u'lengths against the bending moment diagram.'.format(len(spans_mm)))
+    if spans_mm and max(spans_mm) > 0 and (max(spans_mm) - min(spans_mm)) > SPAN_VARIATION * max(spans_mm):
+        out.append(u'spans differ by more than 15 % ({:.0f} to {:.0f} mm): the SMDSC simplified curtailment '
+                   u'does not apply; check against the bending moment diagram.'.format(min(spans_mm), max(spans_mm)))
+    return out

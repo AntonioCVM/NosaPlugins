@@ -28,6 +28,9 @@ Creado: 2026-09-28 · Rama de integración: **`develop`** (= `fix/rebar-f7-...` 
 | D4 | Fase 13 de `PLAN_MEJORA` (migrar pilecap tools a `pilecap_utils`): ¿se desbloquea? | T5.5 | [x] 2026-09-30: sí, con pruebas en Revit |
 | D5 | Hubs grandes con uso casi nulo (ModelHealthHub, StructuralQA, DataToolsHub, IssueWorkflowHub): ¿mantener, simplificar o fusionar? | T6.2 | [x] 2026-09-30: mantener y pulir (solo correcciones/limpieza) |
 | D7 | Tamaño de iconos | — | [x] 2026-09-30: **96×96** (estándar pyRevit, nítido en HiDPI). Regla NOSA204 (medium) + CLAUDE.md. Los 7 con `icon.svg` ya regenerados a 96; los 51 restantes (solo PNG 32/65) → T6.4 |
+| D8 | Submarcas de varying sets: minúscula `1a, 1b` (SMDSC 4.5.1) o mayúscula `05A` (hoy) | T8.28 | [ ] |
+| D9 | Marcas por *member* (hoy, C1-01) o únicas por plano/planilla (SMDSC 4.5.1) | T8.33 | [ ] |
+| D10 | Despiece de vigas: Concrete Centre (2026-10-05) o SMDSC 6.3.2 | T8.35 | [x] 2026-10-06: SMDSC 6.3.2 |
 | D6 | ¿Adoptar GSD (`/gsd-new-project`) para gestionar este roadmap, o seguir con este fichero + sesiones? | — | [x] 2026-10-02 (delegada por el usuario): seguir con este fichero — ya es la fuente única, versionada y enlazada a commits; GSD duplicaría el estado en `.planning/` sin aportar a un equipo de una persona |
 
 ---
@@ -209,7 +212,7 @@ coordinación (T8.48, T8.49, T8.54) · **4** capacidades nuevas (T8.44, T8.50–
 
 | | ID | Tarea | ∥ | R | U | Alcance / criterio de aceptación |
 |---|---|---|:-:|:-:|:-:|---|
-| [x] | T8.25 | Vistas de armado en nivel de detalle *Fine* | – | ✔ | – | Secciones, alzados, plantas y secciones de detalle de zapatas que crea RebarAutomate en *Fine* (barras a su Ø real y cortadas como puntos, SMDSC 3.10); si la plantilla RC controla el nivel de detalle se pone *Fine* la plantilla (`rebar_views.ensure_fine`) **Hecho 2026-10-06 (cf7f4f8)**. Pendiente: comprobar en la v30 qué plantillas lo controlan (el MCP de 2024 no respondía). |
+| [x] | T8.25 | Vistas de armado en nivel de detalle *Fine* | – | ✔ | – | Secciones, alzados, plantas y secciones de detalle de zapatas que crea RebarAutomate en *Fine* (barras a su Ø real y cortadas como puntos, SMDSC 3.10); si la plantilla RC controla el nivel de detalle se pone *Fine* la plantilla (`rebar_views.ensure_fine`) **Hecho 2026-10-06 (cf7f4f8)**. Pendiente (R): comprobar en la v30 qué plantillas RC controlan el nivel de detalle y que queden en *Fine* (el MCP de 2024 no respondía, ver «Estado al cierre del 2026-10-06»). |
 | [ ] | T8.26 | Grosores de línea del SMDSC | – | ✔ | ✔ | Contorno 0,35; barra principal 0,7; cercos 0,35–0,7; cotas y ejes 0,25 (§1): estilos de objeto de *Structural Rebar* + filtros por `NOSA_Rebar_Layer` (principal / cercos) en las plantillas RC; comprobar en impresión A1 y A3 |
 | [ ] | T8.27 | Barra tipo y línea indicadora | – | ✔ | ✔ | Plantas y alzados como el SMDSC 6.2.2: una barra tipo por conjunto (modo de presentación de Revit), línea indicadora con flecha en primera y última barra y punto en la unión (MRA), cantidades por zona entre paréntesis, «Stg.»/«Alt.», barras de otro plano en discontinuo con «SEE DRG», extremos cortados con oblicuas de 30°. Prueba visual con el usuario sobre una losa y una viga |
 | [ ] | T8.28 | Llamada de barras BS 8666 y notación de capas | ✔ | ✔ | ✔ | Etiqueta `20H16-63-150 B1` (número, tipo+Ø, marca, separación, capa; sin separación ni capa en vigas y pilares) y capas B1/B2/T1/T2/N1/N2/F1/F2 calculadas desde `NOSA_Rebar_Layer`; varying sets como `8H20-1(a to h)-150`. **U**: sufijo de submarca en minúscula (SMDSC) o mayúscula (hoy) |
@@ -219,7 +222,7 @@ coordinación (T8.48, T8.49, T8.54) · **4** capacidades nuevas (T8.44, T8.50–
 | [ ] | T8.32 | Notas de armado por plano | ✔ | ✔ | – | Bloque de notas (clase de hormigón, recubrimientos, abreviaturas, referencias a GA y a planillas, SMDSC 3.7) desde los parámetros `NOSA_GN_*` de T8.13, colocado con las vistas |
 | [ ] | T8.33 | Referencia de planilla y marcas | – | ✔ | ✔ | Referencia de 6 caracteres (plano 3 + planilla 2 + revisión 1, §2) y marcas únicas por planilla; relación plano-planilla en el BBS y en la etiqueta de atado. **U**: marcas por *member* (hoy, C1-01) o por plano (SMDSC) |
 | [ ] | T8.34 | BBS conforme a BS 8666:2020 | ✔ | ✔ | – | Longitudes redondeadas hacia arriba a 25 y cotas a 5, estado P/T/C, letra de revisión, orden numérico, agrupado por elemento y planta, planillas A4 independientes (Revit y Excel); cotejar con la Tabla 4.2 |
-| [ ] | T8.35 | **Despiece de vigas al SMDSC 6.3.2** | – | ✔ | ✔ | Sustituye la regla de la Concrete Centre puesta el 2026-10-05: superiores en apoyo interior ≥ 60 % a 0,25L, ninguna < max(0,15L; 45Ø); positivos a 0,15L de apoyo interior, 0,1L de exterior monolítico, 0,08L de apoyo simple; al = 1,25d; L = luz libre + d; aviso si no se cumplen las condiciones (Qk ≤ Gk, ≥ 3 vanos, luces ±15 %). **U**: confirmar el cambio de regla |
+| [x] | T8.35 | **Despiece de vigas al SMDSC 6.3.2** | – | ✔ | ✔ | Sustituye la regla de la Concrete Centre puesta el 2026-10-05: superiores en apoyo interior ≥ 60 % a 0,25L, ninguna < max(0,15L; 45Ø); positivos a 0,15L de apoyo interior, 0,1L de exterior monolítico, 0,08L de apoyo simple; al = 1,25d; L = luz libre + d; aviso si no se cumplen las condiciones (Qk ≤ Gk, ≥ 3 vanos, luces ±15 %) **Hecho 2026-10-06 (decisión D10)**: `continuous_beam` (reglas puras + tests), `beam_rebar.additional_bar_sets` y líneas continuas; en apoyos extremos con pilar la patilla superior llega igual que en los intermedios (pata superior de la U de extremo); avisos de condiciones en el resultado. Pendiente (R): prueba en vivo sobre la viga 1466370 de la v30 cuando vuelva el MCP de 2024. |
 | [ ] | T8.36 | Detallado flexible de vigas (opción) | – | ✔ | ✔ | SMDSC 4.2.3/6.15/MB1: inferiores de vano y montaje paran a 25/50 de la cara del pilar; empalmes inferiores ≥ 30 % con solape; U en extremos (≥ 30 %, 50 % en apoyo simple); montaje ≥ 20 % (2H16 si h ≥ 500); *closers* con cercos abiertos desde 300; laterales con h ≥ 1000; hueco de vibrador de 75 cada 300; separadores entre capas cada 1 m en la planilla |
 | [ ] | T8.37 | Cercos de viga según el SMDSC | ✔ | ✔ | – | Paso mín. max(100; 50 + 12,5·ramas), máx. min(300; 0,75d; 12Ø); ramas a ≤ min(600; 0,75d) y ninguna barra a > 150 de una rama; Asw/(s·bw) ≥ 0,085 %; sin cercos solapados; abiertos con cierre desde 450; forma de torsión. Validación y ajuste automático de la disposición interior |
 | [ ] | T8.38 | Pilares según el SMDSC 6.4 / MC1–MC6 | – | ✔ | – | Ø de cerco ≥ max(Ø/4; 8); pasos con ×0,6 junto a vigas y losas y en solapes (≤ min(12Ø; 0,6·b; 240), ≥ 3 cercos); barras a ≤ 150 de una sujeta; codo 1:10 (hoy 1:6) con cerco en el codo; cercos de estallido con Ø ≥ 20; coronación MC4 A/B según canto; zuncho helicoidal en circulares; límites de cuantía, Ø y número de barras |
@@ -243,6 +246,34 @@ coordinación (T8.48, T8.49, T8.54) · **4** capacidades nuevas (T8.44, T8.50–
 | [ ] | T8.56 | Rendimiento en modelos grandes | – | ✔ | – | Creación por lotes, menos regeneraciones, caché de candidatos en `fit_varying_ends`; objetivo: losa de 2000 barras en < 60 s |
 | [ ] | T8.57 | Modelo de pruebas de armado generado por script | – | ✔ | – | Todas las tipologías y formas (rectangular, L/T, circular, chaflanes, inclinadas, curvas, huecos) creadas por script y armadas en 2024–2027 antes de cada merge (amplía T8.2) |
 | [ ] | T8.58 | Cobertura geométrica pendiente | – | ✔ | ✔ | Vigas curvas y acarteladas, pilares en L/T e inclinados, losas inclinadas, bordes curvos (los varying sets no se atan a caras curvas), alas de vigas en T |
+
+### Estado al cierre del 2026-10-06 y arranque del 2026-10-07
+
+**Próxima sesión (decisión del usuario): empezar la actualización de la plantilla y del plugin con la oleada 1.**
+Orden propuesto: T8.25 (verificar *Fine* en la v30) → T8.26 grosores de línea (plantilla) → T8.31 leyenda de capas y
+T8.32 notas de armado (plantilla) → T8.28 llamada de barras (familias de etiqueta + parámetro de capa; antes D8) →
+T8.29/T8.30 secciones y escalas (plugin) → T8.33/T8.34 planillas (antes D9) → prueba en vivo de T8.35.
+
+Detectado en las sesiones del 2026-10-05/06 (ya resuelto, para no repetirlo):
+- Viga sobre pilar intermedio unido → sólido partido en trozos: caras agrupadas por plano, vanos detectados en un
+  solo elemento, cercos por vano (8cb4afd).
+- Cercos y verticales de un pilar atravesado por una viga se ataban a la cara de la viga (20 mm dentro): reenganche
+  solo en cercos de pilar y a recubrimiento + Ø de cerco (6a05ffb). Esa regla NO debe aplicarse a las patillas de
+  viga, que se atan al pilar en el que anclan (regresión corregida en 6a05ffb).
+- Horquillas de borde inclinado repartidas en diagonal → Revit lanza «An internal error has occurred»: ahora varying
+  sets perpendiculares atados a la cara inclinada; barras de chaflán en varying sets (sin FreeForm ni «<varies>»).
+- BBS: *members* automáticos tras cada Generate (iguales agrupados), submarcas de varying sets (numeración «as a
+  whole», sufijo A, BBS ordenado por sufijo, *Bar mark* combinado), croquis con el código limpio y a 900 ppp.
+- Tresbolillo opcional en muros y losas/cimentaciones (α6 1,5 sin tresbolillo, 1,4 con él).
+
+Pendiente fuera de la oleada 1:
+- **MCP de Revit 2024**: el gateway se queda en Revit 2026 (con el proyecto real 25320 abierto, no tocar) y
+  `revit_switch_target 2024` falla aunque el puerto 6195 responde y no hay diálogos. Probar cerrando el Revit 2026
+  o reiniciando la sesión de Claude Code antes de empezar.
+- **Usuario**: pluma 1 de 0,10 a 0,13 mm (tabla de grosores, sin API); guardar la v30; regenerar la viga 1466370
+  con el código nuevo; revisión visual de T7.1/T7.2/T7.3/T7.8.
+- **T8.2**: prueba de humo en 2025/2026/2027 con un modelo de prueba (nunca con proyectos reales abiertos).
+- **Merge develop → main** tras la verificación del usuario.
 
 ---
 
