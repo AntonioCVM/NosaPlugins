@@ -1,0 +1,30 @@
+{
+  "output_folder": "", 
+  "subfolder": "", 
+  "force_black": false, 
+  "version": "1.0.0", 
+  "combined_pdf_name": "Combined Export", 
+  "naming": {
+    "template": [
+      "Project Number", 
+      "SH_Designed", 
+      "SH_Area", 
+      "SH_Discipline", 
+      "SH_DrawingType", 
+      "SH_Sequencial", 
+      "Current Revision", 
+      "Sheet Name"
+    ], 
+    "separator": "-", 
+    "version": "2.0"
+  }, 
+  "name": "WWTP - Naming", 
+  "dwg_setup_name": null, 
+  "export_formats": {
+    "pdf": true, 
+    "dwg": false, 
+    "dxf": false, 
+    "pdf_combine": false
+  }, 
+  "created": "2026-10-01 14:46:18"
+}
