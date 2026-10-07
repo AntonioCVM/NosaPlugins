@@ -173,6 +173,20 @@ def lap_transverse_ok(bar_dia_mm, pct_lapped, lap_length_mm, link_dia_mm, link_l
     return area >= need['area_mm2'] / 2.0 - 1e-6
 
 
+def lap_link_pitch_mm(bar_dia_mm, lap_length_mm, link_dia_mm, link_legs=2, pct_lapped=100.0):
+    """Widest pitch (25 mm steps) of links that passes lap_transverse_ok, or None when any pitch does."""
+    need = lap_transverse_bars(bar_dia_mm, pct_lapped)
+    if need is None:
+        return None
+    per_link = link_legs * math.pi * link_dia_mm ** 2 / 4.0
+    per_third = max(2, int(math.ceil(need['area_mm2'] / 2.0 / per_link - 1e-9)))
+    pitch = 25.0 * math.floor((lap_length_mm / 3.0) / (per_third - 1) / 25.0 + 1e-9)
+    while pitch > 25.0 and not lap_transverse_ok(bar_dia_mm, pct_lapped, lap_length_mm, link_dia_mm,
+                                                 link_legs, pitch):
+        pitch -= 25.0
+    return max(pitch, 25.0)
+
+
 def large_bar_notes(bar_dia_mm, min_section_mm):
     """SMDSC 5.4.4 / EC2 8.8: bars over 40 mm are not lapped unless the section is at least 1 m."""
     notes = []

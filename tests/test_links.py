@@ -61,3 +61,11 @@ def test_starter_links():
     assert links.starter_link_levels_mm(150.0, 100.0) == []                               # no room
     from nosa_utils import standards
     assert standards.FOUNDATION_LEVEL_TOLERANCE_MM == 150.0
+
+
+def test_lap_link_pitch():
+    from nosa_utils import laps
+    assert laps.lap_link_pitch_mm(16.0, 825.0, 8.0) is None              # under H20: the links there do
+    assert laps.lap_link_pitch_mm(25.0, 1300.0, 8.0) == 200.0            # 2 H8 legs a link: 3 per third
+    assert laps.lap_transverse_ok(25.0, 100.0, 1300.0, 8.0, 2, 200.0)
+    assert not laps.lap_transverse_ok(25.0, 100.0, 1300.0, 8.0, 2, 225.0)

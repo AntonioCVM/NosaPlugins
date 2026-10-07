@@ -530,12 +530,16 @@ class ColumnsMixin(object):
             # SMDSC 6.4 / 5.4.3: links against bursting at laps of H20 and over (sum Ast >= As)
             from nosa_utils import laps
             lap_mm = column_rebar.default_lap_length_mm(values['bar_dia'], std=self._host_std(host))
-            lap_pitch = dense if values.get('densify') else pitch
-            if not laps.lap_transverse_ok(values['bar_dia'], 100.0, lap_mm, values['link_dia'], 2, lap_pitch):
-                errors.append(u'Column {}: the H{:.0f} laps ({:.0f} mm) need links of at least the area of one '
-                              u'bar in each outer third (SMDSC 6.4, Fig. 6.25); H{:.0f} at {:.0f} do not give '
-                              u'it.'.format(get_id_value(host.Id), float(values['bar_dia']), float(lap_mm),
-                                            float(values['link_dia']), float(lap_pitch)))
+            # SMDSC 6.4 / Fig. 6.25: along every lap the links are at the dense pitch, closer for
+            # H20 and over so each outer third holds the area of one lapped bar
+            lap_pitch = dense or pitch
+            burst = laps.lap_link_pitch_mm(values['bar_dia'], lap_mm, values['link_dia'], 2)
+            if burst is not None and burst < lap_pitch:
+                lap_pitch = burst
+                errors.append(u'Column {}: links at {:.0f} along the H{:.0f} laps ({:.0f} mm) so each outer '
+                              u'third holds the area of one bar (SMDSC 6.4, Fig. 6.25).'.format(
+                                  get_id_value(host.Id), float(burst), float(values['bar_dia']), float(lap_mm)))
+            values = dict(values, lap_link_spacing=lap_pitch)
             if pitch != values['link_spacing'] or dense != values.get('dense_spacing'):
                 values = dict(values, link_spacing=pitch, dense_spacing=dense)
         except Exception:
@@ -558,6 +562,7 @@ class ColumnsMixin(object):
             include_crossties=values['crossties'],
             crosstie_layout=values['crosstie_layout'], link_bend_diameter_mm=link_bend_mm,
             std=self._host_std(host), kicker_mm=self._kicker_mm(),
+            lap_link_spacing_mm=values.get('lap_link_spacing'),
             slab_top_mat_mm=self._preview_number(self.TxtTopDiaX, 12.0)
             + self._preview_number(self.TxtTopDiaY, 12.0))
 

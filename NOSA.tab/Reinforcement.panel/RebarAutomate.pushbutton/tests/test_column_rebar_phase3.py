@@ -749,3 +749,12 @@ single = column_rebar.generate_storey_stirrup_zones(3000.0, 450.0, 100.0, 200.0,
 assert len(single) == 3, "a single-storey column keeps its 3 zones"
 print("generate_storey_stirrup_zones: intermediate node densified above and below "
       "the slab, no link inside it: OK")
+
+zones = column_rebar.apply_lap_zones(
+    [{'start_mm': 50.0, 'end_mm': 2950.0, 'spacing_mm': 300.0}], [(0.0, 1125.0)], 200.0)
+assert zones[0] == {'start_mm': 50.0, 'end_mm': 1125.0, 'spacing_mm': 200.0}, zones
+assert zones[1] == {'start_mm': 1425.0, 'end_mm': 2950.0, 'spacing_mm': 300.0}, zones
+same = column_rebar.apply_lap_zones([{'start_mm': 50.0, 'end_mm': 400.0, 'spacing_mm': 150.0}],
+                                    [(0.0, 1125.0)], 200.0)
+assert same == [{'start_mm': 50.0, 'end_mm': 400.0, 'spacing_mm': 150.0}]   # already closer
+print("apply_lap_zones: links along each lap at the lap pitch, the rest untouched: OK")

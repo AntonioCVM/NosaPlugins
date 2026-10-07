@@ -1980,6 +1980,38 @@ def generate_storey_stirrup_zones(clear_height_mm, larger_dim_mm, dense_spacing_
     return zones
 
 
+def apply_lap_zones(zones, lap_ranges_mm, lap_spacing_mm):
+    """
+    IStructE SMDSC 6.4 / Fig. 6.25: links along a lap no further apart than lap_spacing_mm. Every
+    zone is cut at the lap ranges [(lo, hi)] (mm from the column base); the parts inside take
+    min(own pitch, lap_spacing_mm). Like the zones themselves, a part starts one pitch after the
+    previous part's last link.
+    """
+    if not lap_ranges_mm or not lap_spacing_mm:
+        return zones
+    out = []
+    for zone in zones:
+        s, e, sp = zone['start_mm'], zone['end_mm'], zone['spacing_mm']
+        cuts = sorted(set([s, e] + [x for lo, hi in lap_ranges_mm for x in (lo, hi) if s < x < e]))
+        pieces = []
+        for a, b in zip(cuts[:-1], cuts[1:]):
+            mid = (a + b) / 2.0
+            inside = any(lo <= mid <= hi for lo, hi in lap_ranges_mm)
+            pitch = min(sp, lap_spacing_mm) if inside else sp
+            if pieces and abs(pieces[-1][2] - pitch) < 1e-6:
+                pieces[-1][1] = b
+            else:
+                pieces.append([a, b, pitch])
+        start = s
+        for k, (a, b, pitch) in enumerate(pieces):
+            if k:
+                start = a + pitch
+            if start > b + 1e-6:
+                continue
+            out.append({'start_mm': start, 'end_mm': b, 'spacing_mm': pitch})
+    return out
+
+
 def _subtract_floor_bands(zones, floor_bands_mm):
     """
     PHASE 3.4 item 2 — cut every floor's own thickness OUT of a
@@ -2301,7 +2333,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
                                           use_cranked_laps, crank_offset_mm, crank_slope,
                                           joint_zone_length_mm, start_offset_mm, end_offset_mm,
                                           std=None, kicker_mm=0.0,
-                                          slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
+                                          slab_top_mat_mm=DEFAULT_TOP_MAT_MM, lap_link_spacing_mm=None):
     """
     PHASE 3.5.7 item 1 — circular column reinforcement: radial vertical
     bars (pure trigonometry — DB.XYZ(cos, sin)) and circular ties.
@@ -2437,6 +2469,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
         clear_height_mm, 2.0 * stirrup_radius_mm, dense_spacing_mm, normal_spacing_mm,
         densify_at_nodes, start_offset_mm, end_offset_mm, floor_bands_mm=floor_bands_mm,
         joint_zone_length_mm=joint_zone_length_mm, std=std)
+    zones = apply_lap_zones(zones, [(lo, lo + kicker_mm + lap_mm) for lo in
+                                    [0.0] + [hi for _lo, hi in floor_bands_mm]], lap_link_spacing_mm)
 
     stirrup_sets = []
     for zone in zones:
@@ -2477,7 +2511,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 crank_slope=CRANK_SLOPE, include_crossties=False,
                                 crosstie_layout='all', link_bend_diameter_mm=None,
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
-                                end_offset_mm=50.0, std=None, kicker_mm=0.0,
+                                end_offset_mm=50.0, std=None, kicker_mm=0.0, lap_link_spacing_mm=None,
                                 slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
     """
     PHASE 3 (multi-story + Rebar-Set verticals — PHASE 3.2) — the
@@ -2698,7 +2732,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             include_starter_bars, starter_bar_length_mm, starter_bar_multiplier,
             use_cranked_laps, crank_offset_mm, crank_slope,
             joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std, kicker_mm=kicker_mm,
-            slab_top_mat_mm=slab_top_mat_mm)
+            slab_top_mat_mm=slab_top_mat_mm, lap_link_spacing_mm=lap_link_spacing_mm)
 
     engine = _ensure_engine()
     cover_mgr = engine.CoverGeometryManager(doc, host)
@@ -2829,6 +2863,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
         clear_height_mm, larger_dim_mm, dense_spacing_mm, normal_spacing_mm, densify_at_nodes,
         start_offset_mm, end_offset_mm, floor_bands_mm=floor_bands_mm,
         joint_zone_length_mm=joint_zone_length_mm, std=std)
+    zones = apply_lap_zones(zones, [(lo, lo + kicker_mm + lap_mm) for lo in
+                                    [0.0] + [hi for _lo, hi in floor_bands_mm]], lap_link_spacing_mm)
 
     stirrup_sets = build_stirrup_sets(
         axis, u_dir, v_dir, stirrup_half_w_mm, stirrup_half_d_mm, zones)

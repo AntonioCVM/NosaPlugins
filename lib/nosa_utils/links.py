@@ -151,7 +151,7 @@ def column_review(geometry, cover_mm, link_dia_mm, bar_dia_mm, bar_count, per_fa
                      u'(SMDSC 6.4).'.format(label, dense_spacing_mm, most, dense))
     elif not densify:
         notes.append(u'{}: links at 0.6 x the pitch ({:.0f} mm) are needed within {:.0f} mm of beams '
-                     u'and slabs and at laps (SMDSC 6.4): tick the dense zones.'.format(
+                     u'and slabs (SMDSC 6.4): tick the dense zones (laps get them anyway).'.format(
                          label, dense_most, max(geometry.get('width_mm', least), geometry.get('depth_mm', least))))
     need_link = column_link_dia_min_mm(bar_dia_mm, least)
     if link_dia_mm < need_link - 1e-6:
