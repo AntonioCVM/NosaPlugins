@@ -2111,6 +2111,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                             self.doc, host, u'Top', self._standard_default_cover_mm(u'foundation'))
                         if values['include_top_mat'] else None)
         values = self._smdsc_mesh_review(host, values, bottom_cover_mm, top_cover_mm, errors, foundation=True)
+        values = self._pile_cap_values(host, values, bar_types, errors)
         reinforcement = footing_rebar.build_footing_reinforcement(
             self.doc, host,
             bottom_cover_mm=bottom_cover_mm,
@@ -2146,6 +2147,12 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
             max_stock_length_mm=values['max_stock_length'],
             std=self._host_std(host))
+        if self._is_pile_cap(host):
+            side_cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Exterior', bottom_cover_mm)
+            errors.extend(u'Pile cap {}: {}'.format(get_id_value(host.Id), n)
+                          for n in footing_rebar.pile_cap_anchorage_notes(
+                              host, side_cover_mm, bottom_cover_mm, top_cover_mm, values['dia_x'], values['dia_y'],
+                              self._anchorage_mm(host, values['dia_x']), self._anchorage_mm(host, values['dia_y'])))
 
         # PHASE 3.5.7 item 3 — bottom_mat/top_mat/perimeter_closure_ubars
         # now come from footing_rebar's topology-aware builders (real
@@ -2199,6 +2206,27 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 wrapper, host, reinforcement['dowels'],
                 bar_types.get(values.get('dowel_diameter')),
                 hook_type, errors, created_rebars)
+
+    def _is_pile_cap(self, host):
+        try:
+            return u'pile' in host.Symbol.FamilyName.lower() or bool(footing_rebar.pile_centres_ft(host))
+        except Exception:
+            return False
+
+    def _pile_cap_values(self, host, values, bar_types, errors):
+        """IStructE SMDSC MF2 / Table 6.10: main bars bent at both ends, two layers of H12 lacers."""
+        if not self._is_pile_cap(host):
+            return values
+        label = u'Pile cap {}'.format(get_id_value(host.Id))
+        if not values.get('bottom_hooks'):
+            values = dict(values, bottom_hooks=True)
+            errors.append(u'{}: main bars bent up at both ends (SMDSC MF2, Table 6.10).'.format(label))
+        if not values.get('include_side_rebar'):
+            values = dict(values, include_side_rebar=True, side_diameter=12.0, side_spacing=10000.0)
+            if bar_types.get(12.0) is None:
+                bar_types[12.0] = re_engine.get_bar_type_by_diameter(self.doc, 12.0)
+            errors.append(u'{}: two layers of H12 lacers added (SMDSC MF2).'.format(label))
+        return values
 
     def _smdsc_mesh_review(self, host, values, bottom_cover_mm, top_cover_mm, errors, foundation):
         """

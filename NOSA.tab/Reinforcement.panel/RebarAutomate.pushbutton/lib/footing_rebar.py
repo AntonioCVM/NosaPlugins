@@ -1259,7 +1259,7 @@ def build_perimeter_closure_ubar_sets(host,
 
 
 def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_mm, spacing_mm,
-                         bottom_clear_mm=None, top_clear_mm=None):
+                         bottom_clear_mm=None, top_clear_mm=None, lateral_extra_mm=0.0):
     """
     A closed rectangular perimeter ("skin"/anti-crack) reinforcement
     shape, with its X/Y vertices sized from the BOTTOM face's own plan
@@ -1340,7 +1340,8 @@ def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_
     if global_bbox is None:
         raise ValueError(u'Could not read this footing\'s global bounding box.')
 
-    inset_ft = (bottom_cover_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
+    # lateral_extra_mm: inside the bent-up legs of the mats (IStructE SMDSC MF2 lacers)
+    inset_ft = (bottom_cover_mm + lateral_extra_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
     bbox = bottom_face.face.GetBoundingBox()
     u0, u1 = bbox.Min.U + inset_ft, bbox.Max.U - inset_ft
     v0, v1 = bbox.Min.V + inset_ft, bbox.Max.V - inset_ft
@@ -1512,6 +1513,71 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
 # need SOME fallback; build_footing_reinforcement below now calls the
 # topology versions as primary.
 # ══════════════════════════════════════════════════════════════════════════
+
+def pile_centres_ft(host, tol_mm=10.0):
+    """Plan centres (x, y) of the piles nested in a pile-cap family: nested solids under the cap's own body."""
+    engine = _ensure_engine()
+    own = engine.get_isolated_solid_bbox(host)
+    if own is None:
+        return []
+    centres = []
+    try:      # shared nested piles: their own elements, reaching below the cap
+        for sid in host.GetSubComponentIds():
+            box = host.Document.GetElement(sid).get_BoundingBox(None)
+            if box is not None and box.Min.Z < own.Min.Z - tol_mm / _MM_PER_FT:
+                centres.append(((box.Min.X + box.Max.X) / 2.0, (box.Min.Y + box.Max.Y) / 2.0))
+    except Exception:
+        centres = []
+    if centres:
+        return centres
+    try:
+        geometry = host.get_Geometry(DB.Options())
+    except Exception:
+        return []
+    def _solids(items):
+        for obj in items or []:
+            if isinstance(obj, DB.GeometryInstance):
+                for sub in _solids(obj.GetInstanceGeometry()):
+                    yield sub
+            elif isinstance(obj, DB.Solid) and obj.Volume > 0.0:
+                yield obj
+
+    for sub in _solids(geometry):
+        pts = [p for edge in sub.Edges for p in edge.Tessellate()]
+        if not pts or min(p.Z for p in pts) > own.Min.Z - tol_mm / _MM_PER_FT:
+            continue                         # not reaching below the cap: the cap itself
+        x = (min(p.X for p in pts) + max(p.X for p in pts)) / 2.0
+        y = (min(p.Y for p in pts) + max(p.Y for p in pts)) / 2.0
+        if all(abs(x - a) > 1e-3 or abs(y - b) > 1e-3 for a, b in centres):
+            centres.append((x, y))
+    return centres
+
+
+def pile_cap_anchorage_notes(host, side_cover_mm, cover_mm, top_cover_mm, dia_x_mm, dia_y_mm,
+                             anchorage_x_mm, anchorage_y_mm):
+    """
+    IStructE SMDSC 6.7 / MF2: a full tension anchorage from the centre line of the edge pile to the end
+    of the bar (along the mat, then up the bent end). Notes where the cap is too small for it.
+    """
+    engine = _ensure_engine()
+    own = engine.get_isolated_solid_bbox(host)
+    piles = pile_centres_ft(host)
+    if own is None or not piles:
+        return []
+    height_mm = (own.Max.Z - own.Min.Z) * _MM_PER_FT
+    leg_mm = height_mm - cover_mm - (top_cover_mm or cover_mm)
+    notes = []
+    for axis, k, dia, need in ((u'X', 0, dia_x_mm, anchorage_x_mm), (u'Y', 1, dia_y_mm, anchorage_y_mm)):
+        lo, hi = (own.Min.X, own.Max.X) if k == 0 else (own.Min.Y, own.Max.Y)
+        pmin, pmax = min(p[k] for p in piles), max(p[k] for p in piles)
+        reach = min(pmin - lo, hi - pmax) * _MM_PER_FT - side_cover_mm - dia / 2.0
+        have = reach + leg_mm
+        if have < need - 1.0:
+            notes.append(u'pile cap {} bars: {:.0f} mm from the edge pile centre to the bar end, under the '
+                         u'{:.0f} mm tension anchorage SMDSC MF2 asks for — larger bends or a bigger cap.'.format(
+                             axis, have, need))
+    return notes
+
 
 def _plan_extent_ft(bbox, direction):
     """(min, max) of a bounding box's plan corners along a horizontal direction, ft."""
@@ -1974,7 +2040,8 @@ def build_footing_reinforcement(doc, host,
                      if include_top_mat else bottom_cover_mm + half_side)
         result['side_rebar'] = build_side_rebar_set(
             doc, host, bottom_cover_mm, effective_top_cover_mm, side_diameter_mm, side_spacing_mm,
-            bottom_clear_mm=bottom_clear, top_clear_mm=top_clear)
+            bottom_clear_mm=bottom_clear, top_clear_mm=top_clear,
+            lateral_extra_mm=max(bottom_dia_x_mm, bottom_dia_y_mm) if bottom_hooks else 0.0)
 
     if include_perimeter_closure_ubars:
         if not include_top_mat:
