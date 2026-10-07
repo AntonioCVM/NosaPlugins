@@ -2186,6 +2186,20 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             std=self._host_std(host))
         if self._is_pile_cap(host):
             side_cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Exterior', bottom_cover_mm)
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            import math
+            for axis in (u'x', u'y'):
+                dia = values[u'dia_' + axis]
+                need = standards.bearing_mandrel_mm(dia, values['spacing'], side_cover_mm, fck)
+                if need > standards.standard_mandrel_mm(dia) + 1.0:
+                    errors.append(u'Pile cap {}: {} bars bent at the ends need a large radius bend — mandrel '
+                                  u'{:.0f} mm for a fully stressed H{:.0f} at {:.0f} (EC2 8.3, SMDSC 5.1.8; '
+                                  u'BS 8666 standard {:.0f}); specify it (shape 99) or check the bar stress.'.format(
+                                      get_id_value(host.Id), axis.upper(), 25.0 * math.ceil(need / 25.0), dia,
+                                      values['spacing'], standards.standard_mandrel_mm(dia)))
             errors.extend(u'Pile cap {}: {}'.format(get_id_value(host.Id), n)
                           for n in footing_rebar.pile_cap_anchorage_notes(
                               host, side_cover_mm, bottom_cover_mm, top_cover_mm, values['dia_x'], values['dia_y'],

@@ -260,6 +260,30 @@ CONFINED_ALPHA3 = 0.9
 FOUNDATION_LEVEL_TOLERANCE_MM = 150.0
 
 
+def min_end_projection_mm(bar_dia_mm, link=False):
+    """SMDSC Table B1 / BS 8666: the straight end P past a bend, 5d (10d on links bent under 150 degrees)."""
+    return (10.0 if link else 5.0) * float(bar_dia_mm)
+
+
+def standard_mandrel_mm(bar_dia_mm):
+    """BS 8666 minimum mandrel diameter: 4d up to 16 mm, 7d from 20 mm."""
+    return (4.0 if bar_dia_mm <= 16.0 else 7.0) * float(bar_dia_mm)
+
+
+def bearing_mandrel_mm(bar_dia_mm, spacing_mm, side_cover_mm, fck_mpa, fyk_mpa=500.0):
+    """
+    EC2 8.3 (3) / SMDSC 5.1.8: mandrel diameter that keeps the concrete inside a bend of a fully
+    stressed bar within its bearing limit, phi_m >= Fbt (1/ab + 1/(2 phi)) / fcd, ab the lesser of half
+    the bar centres and cover + phi/2, Fbt = As fyd (UK: alpha_cc 0.85, gamma_c 1.5, gamma_s 1.15).
+    """
+    import math
+    dia = float(bar_dia_mm)
+    ab = min(float(spacing_mm) / 2.0, float(side_cover_mm) + dia / 2.0)
+    fbt = math.pi * dia ** 2 / 4.0 * fyk_mpa / 1.15
+    fcd = 0.85 * float(fck_mpa) / 1.5
+    return fbt * (1.0 / ab + 1.0 / (2.0 * dia)) / fcd
+
+
 def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True, alpha3=1.0):
     return round_up_mm(_lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond, alpha3))
 
