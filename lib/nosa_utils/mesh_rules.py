@@ -127,3 +127,27 @@ def _unique(notes):
         if n not in out:
             out.append(n)
     return out
+
+
+def stair_review(throat_mm, cover_mm, main_dia, main_spacing, dist_dia, dist_spacing, fck_mpa,
+                 top_dia=None, top_spacing=None, label=u'Stair'):
+    """
+    SMDSC 6.8 (slab rules of 6.2 on the waist): main bars <= min(3h, 400) and As,min, distribution
+    bars <= min(3.5h, 450) and >= 20 % of the main steel, top bars as main bars.
+    Returns (main spacing, distribution spacing, top spacing, notes).
+    """
+    h, cover = float(throat_mm), float(cover_mm)
+    main_dia, main_spacing = float(main_dia), float(main_spacing)
+    dist_dia, dist_spacing = float(dist_dia), float(dist_spacing)
+    notes = []
+    main_spacing = _clamp(main_spacing, slab_max_pitch_mm(h), label, u'main bars', u'min(3h, 400)', notes)
+    dist_spacing = _clamp(dist_spacing, min(3.5 * h, 450.0), label, u'distribution bars',
+                          u'min(3.5h, 450)', notes)
+    _min_steel(h, cover, [(u'main', main_dia, main_spacing, 0.0)], fck_mpa, label, notes)
+    if area_per_m(dist_dia, dist_spacing) < 0.2 * area_per_m(main_dia, main_spacing) - 1e-6:
+        notes.append(u'{}: distribution bars under 20 % of the main steel (SMDSC 6.2).'.format(label))
+    if top_dia and top_spacing:
+        top_spacing = _clamp(float(top_spacing), slab_max_pitch_mm(h), label, u'top bars', u'min(3h, 400)', notes)
+    if main_dia < SLAB_MIN_DIA_MM:
+        notes.append(u'{}: H{:.0f} main bars under the preferred H10 (SMDSC 6.2).'.format(label, main_dia))
+    return main_spacing, dist_spacing, top_spacing, _unique(notes)

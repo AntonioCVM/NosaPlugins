@@ -132,6 +132,27 @@ class StairsMixin(object):
             lines += [u'', u'{} issue(s):'.format(len(summary['errors']))] + list(summary['errors'])
         self.TxtStairResult.Text = u'\n'.join(lines)
 
+    def _smdsc_stair_review(self, host, run, cover, values, errors):
+        """T8.42 — IStructE SMDSC 6.8 on this flight's waist: pitches over the maxima come down, the rest is reported."""
+        try:
+            import math
+            from nosa_utils import mesh_rules, standards
+            throat = (run['pitch_z0'] - run['soffit_z0']) * math.cos(math.atan(run['slope']))
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            main, dist, top, notes = mesh_rules.stair_review(
+                throat, cover, values['main_dia'], values['main_spacing'], values['dist_dia'],
+                values['dist_spacing'], fck, top_dia=values.get('top_dia'), top_spacing=values.get('top_spacing'),
+                label=u'Stair {}'.format(get_id_value(host.Id)))
+            errors.extend(n for n in notes if n not in errors)
+            return dict(values, main_spacing=main, dist_spacing=dist,
+                        top_spacing=top if top is not None else values.get('top_spacing'))
+        except Exception:
+            log_swallowed(_LOG, u'stair SMDSC review')
+            return values
+
     def _run_stair_reinforcement(self, stairs, values):
         errors = []
         bar_types = {}
@@ -161,11 +182,12 @@ class StairsMixin(object):
                     data, values['ubar_dia'], cover, values['main_dia']))
             jobs = []
             for run in data['runs']:
+                run_values = self._smdsc_stair_review(host, run, cover, values, errors)
                 starters, starter_host = self._stair_starters(host, run, cover, anchorage, values, errors)
                 for bar_set in stair_rebar.build_flight(
-                        run, cover, values['main_dia'], values['main_spacing'], values['dist_dia'],
-                        values['dist_spacing'], anchorage, top_dia=values['top_dia'],
-                        top_spacing=values['top_spacing'], slab_anchor=values['slab_anchor'],
+                        run, cover, run_values['main_dia'], run_values['main_spacing'], run_values['dist_dia'],
+                        run_values['dist_spacing'], anchorage, top_dia=run_values['top_dia'],
+                        top_spacing=run_values['top_spacing'], slab_anchor=values['slab_anchor'],
                         starters=starters):
                     jobs.append((run['frame'], bar_set,
                                  starter_host if bar_set['layer'] == u'stair_starter' else host))

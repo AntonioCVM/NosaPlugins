@@ -31,3 +31,11 @@ def test_foundation_review():
     s, _ts, notes = mr.foundation_review(600, 50, 12, 12, 350, 30, piled=True)
     joined = u' '.join(notes)
     assert s == 300 and u'H16' in joined and u'100 mm' in joined
+
+
+def test_stair_review():
+    m, d, t, notes = mr.stair_review(150, 25, 12, 150, 10, 200, 30, top_dia=10, top_spacing=200)
+    assert (m, d, t) == (150, 200, 200) and notes == []
+    m, d, t, notes = mr.stair_review(120, 25, 16, 400, 6, 500, 30, top_dia=10, top_spacing=500)
+    assert m == 350 and d == 400 and t == 350                   # 3h = 360, 3.5h = 420
+    assert any(u'20 %' in n for n in notes)                     # H6@400 = 71 < 0.2 x H16@350 = 115
