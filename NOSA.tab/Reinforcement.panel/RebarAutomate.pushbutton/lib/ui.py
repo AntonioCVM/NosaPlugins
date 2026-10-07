@@ -1760,8 +1760,31 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
     def _foundation_starter_mm(self, typed_mm, bar_dia_mm, host, errors):
         """Foundation starter projection (SMDSC MF1 / MC1 / MW1): lap + kicker + 150 level tolerance."""
+        try:
+            base_ft = host.get_BoundingBox(None).Min.Z
+        except Exception:
+            base_ft = None
         return (self._splice_mm(typed_mm, bar_dia_mm, host, errors, u'Starter splice')
-                + self._kicker_mm() + standards.FOUNDATION_LEVEL_TOLERANCE_MM)
+                + self._kicker_at_mm(base_ft, host, errors) + standards.FOUNDATION_LEVEL_TOLERANCE_MM)
+
+    def _ground_level_ft(self):
+        """Elevation of the project's ground level: the level named 'Ground…', else 0."""
+        try:
+            for level in DB.FilteredElementCollector(self.doc).OfClass(DB.Level):
+                if level.Name.lower().startswith(u'ground'):
+                    return level.Elevation
+        except Exception:
+            log_swallowed(_LOG, u'RebarAutomateWindow._ground_level_ft')
+        return 0.0
+
+    def _kicker_at_mm(self, base_ft, host, errors):
+        """Kicker height at a base: the set one, at least 150 mm below ground (SMDSC MF1 / MC1 / MW1)."""
+        kicker = self._kicker_mm()
+        if base_ft is None or kicker >= 150.0 or base_ft >= self._ground_level_ft() - 50.0 / 304.8:
+            return kicker
+        errors.append(u'{} {}: base below ground — kicker 150 mm (SMDSC MF1 / MW1), not {:.0f}.'.format(
+            host.Category.Name if host.Category else u'Element', get_id_value(host.Id), kicker))
+        return 150.0
 
     def _create_foundation_starter_bars(self, wrapper, host, starters, bar_type, hook_type,
                                          label, errors, created_rebars):
@@ -2143,7 +2166,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             dowel_anchor_length_mm=values.get('dowel_anchor'),
             dowel_splice_length_mm=self._splice_mm(
                 values.get('dowel_splice'), values.get('dowel_diameter') or 16.0, host, errors,
-                u'Dowel splice') + self._kicker_mm() + standards.FOUNDATION_LEVEL_TOLERANCE_MM,
+                u'Dowel splice') + self._kicker_at_mm(footing_rebar._footing_bbox(host).Max.Z, host, errors)
+            + standards.FOUNDATION_LEVEL_TOLERANCE_MM,
             dowel_column_width_mm=values.get('dowel_col_width', 400.0),
             dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
             dowel_column_bar_count=values.get('dowel_col_bar_count'),
