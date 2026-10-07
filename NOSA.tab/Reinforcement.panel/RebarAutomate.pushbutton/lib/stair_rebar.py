@@ -506,6 +506,53 @@ def build_landing(landing, cover, main_dia, dist_dia, dist_spacing, infill_spaci
     return sets
 
 
+PULLOUT_MAX_DIA_MM = 12.0     # SMDSC MW3: pull-out U-bars class B/C, size 12 at most
+
+
+def pullout_bars(landing, edge, cover, wall_cover, u_dia, lap, spacing, fix_dia):
+    """
+    IStructE SMDSC MW3 (half landing cast after the wall): U-bars cast in the wall along a landing
+    edge, back behind the wall face at the wall cover, legs running a tension lap into the landing
+    at its top and bottom cover; two fixing bars inside the U. edge: 's_max', 'v_min' or 'v_max'.
+    Returns stair_rebar sets in the landing frame (hosted in the wall by the caller).
+    """
+    u = min(float(u_dia), PULLOUT_MAX_DIA_MM)
+    zt, zb = landing['top'] - cover - u / 2.0, landing['bottom'] + cover + u / 2.0
+    if zt - zb < 2.0 * u + fix_dia or not ubar_fits(zt - zb, u):
+        return []                    # no room to bend the U inside the landing's covers
+    inset = wall_cover + u / 2.0
+    zf_top, zf_bot = zt - (u + fix_dia) / 2.0, zb + (u + fix_dia) / 2.0
+    sets = []
+    if edge == 's_max':
+        back = landing['s_max'] + inset
+        tip = landing['s_max'] - lap
+        first, array, count = width_layout(landing['v_min'], landing['v_max'], cover, u, spacing)
+        sets.append({'label': u'Stair Landing Pull-out U-Bar', 'layer': u'stair_pullout', 'dia': u,
+                     'points': [(tip, zt), (back, zt), (back, zb), (tip, zb)], 'axis': 'v',
+                     'first': first, 'array': array, 'count': count, 'spacing': spacing})
+        s_fix = back - (u + fix_dia) / 2.0
+        sets.append({'label': u'Stair Landing Pull-out Fixing Bar', 'layer': u'stair_pullout', 'dia': fix_dia,
+                     'points': [(s_fix, zf_bot)], 'v_range': (landing['v_min'] + cover, landing['v_max'] - cover),
+                     'axis': 'slope', 'direction': (0.0, 1.0), 'array': zf_top - zf_bot, 'count': 2,
+                     'spacing': zf_top - zf_bot})
+        return sets
+    sign = 1.0 if edge == 'v_min' else -1.0
+    face = landing[edge]
+    back = face - sign * inset
+    tip = face + sign * lap
+    s0, s1 = landing['s_min'] + cover + u / 2.0, landing['s_max'] - cover - u / 2.0
+    count, _pitch = spaced_count(s1 - s0, spacing)
+    sets.append({'label': u'Stair Landing Pull-out U-Bar', 'layer': u'stair_pullout', 'dia': u,
+                 'points_vz': [(tip, zt), (back, zt), (back, zb), (tip, zb)], 'axis': 's',
+                 'first': s0, 'array': s1 - s0, 'count': count, 'spacing': spacing})
+    v_fix = back + sign * (u + fix_dia) / 2.0
+    for z in (zf_top, zf_bot):
+        sets.append({'label': u'Stair Landing Pull-out Fixing Bar', 'layer': u'stair_pullout', 'dia': fix_dia,
+                     'points': [(s0, z), (s1, z)], 'axis': 'v', 'first': v_fix, 'array': 0.0, 'count': 1,
+                     'spacing': spacing})
+    return sets
+
+
 def section_profile(run, slab_stub=600.0):
     """Closed concrete outline of one flight with its ends, (s, z) points counter-clockwise."""
     lower, upper = run['lower'], run['upper']

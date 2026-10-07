@@ -281,3 +281,17 @@ def test_landing_ubars_carry_half_the_main_bottom_area():
     assert runs[0]['upper']['top'] == 1755.0 and landings[0]['top'] == 1755.0
     assert abs(runs[0]['pitch_z0'] + 10.0 / sr._cos(SLOPE)) < 1e-9
     assert first_flight()['upper']['top'] == 1765.0                  # the originals are untouched
+
+
+def test_mw3_pullout_bars_lap_into_the_landing_from_the_wall():
+    landing = {'s_min': 2520.0, 's_max': 3520.0, 'v_min': -500.0, 'v_max': 500.0, 'top': 1765.0, 'bottom': 1515.0}
+    sets = sr.pullout_bars(landing, 's_max', COVER, 40.0, 16.0, 500.0, 200.0, 12.0)
+    u = sets[0]
+    assert u['dia'] == 12.0                                       # 12 at most
+    assert u['points'][0][0] == 3520.0 - 500.0 and u['points'][1][0] == 3520.0 + 46.0   # lap in, back in the wall
+    assert sets[1]['count'] == 2                                  # two fixing bars inside the U
+    side = sr.pullout_bars(landing, 'v_min', COVER, 40.0, 12.0, 500.0, 200.0, 12.0)
+    assert side[0]['points_vz'][1][0] == -546.0 and side[0]['points_vz'][0][0] == 0.0
+    assert len(side) == 3
+    thin = dict(landing, bottom=1765.0 - 150.0)                    # 150 thick, 40 cover: legs 58 apart
+    assert sr.pullout_bars(thin, "s_max", COVER, 40.0, 12.0, 500.0, 200.0, 12.0) == []   # no room to bend

@@ -1378,6 +1378,8 @@
                             <TextBlock Text="Ends" Style="{StaticResource RA_SectionTitle}"/>
                             <CheckBox Name="ChkStairCurtailTop" Content="Top bars stop at 'A' from each knee (SMDSC MST1)" IsChecked="True" Margin="0,0,0,6"
                                       ToolTip="'A' = the greatest of 0.1 x the design span, a tension anchorage and 500 mm, measured along the flight from each knee. Untick to run the top bars over the whole flight."/>
+                            <CheckBox Name="ChkStairPullout" Content="Landings cast after the walls: pull-out bars (SMDSC MW3)" Margin="0,0,0,6"
+                                      ToolTip="Where a landing edge meets a wall, U-bars of 12 mm at most are cast in the wall and bent out into the landing a tension lap, with two fixing bars inside them."/>
                             <CheckBox Name="ChkStairNoFinish" Content="No finish: 10 mm more top cover (SMDSC 6.8)" Margin="0,0,0,6"
                                       ToolTip="For stairs left as cast concrete: the top bars of flights and landings move 10 mm down."/>
                             <CheckBox Name="ChkStairSlabAnchor" Content="Lap into the floor slab where a flight ends without a landing" IsChecked="True"
