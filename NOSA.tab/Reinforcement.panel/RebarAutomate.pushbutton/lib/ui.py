@@ -2360,8 +2360,17 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                               u'opening for a 45° diagonal bar — detail by hand.'.format(
                                   get_id_value(host.Id), diagonals['n_skipped']))
 
+        for layer, dia, grouped in reinforcement.get('hole_trimmers') or []:
+            if bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+            self._create_grouped_bars(
+                wrapper, host, grouped, bar_types.get(dia), errors, created_rebars,
+                u'Floor Opening Trimmer', layer=layer)
+        errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n)
+                      for n in reinforcement.get('hole_notes') or [])
+
         if reinforcement.get('n_small_holes_ignored'):
-            errors.append(u'Floor {}: {} small opening(s) (≤200x200mm) ignored — '
+            errors.append(u'Floor {}: {} small opening(s) (sides ≤ 150 mm, SMDSC 6.2) ignored — '
                           u'main reinforcement runs through uncut, by design.'.format(
                               get_id_value(host.Id), reinforcement['n_small_holes_ignored']))
 

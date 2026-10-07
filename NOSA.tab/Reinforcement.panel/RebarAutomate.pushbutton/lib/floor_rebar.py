@@ -1457,6 +1457,71 @@ def opening_corner_diagonals_mm(topo, raw_holes, outer, large_holes, cover_mm, b
     return segments, skipped
 
 
+def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals):
+    """
+    IStructE SMDSC 6.2 (vi)-(vii): each hole over 150 mm is trimmed on all sides with bars of the
+    area the hole cuts, half each side, reaching 45 phi past it — in the bottom mat, and in the top
+    one too over 500 mm. mats: [(layer, dia_x, dia_y, spacing, z_x_ft, z_y_ft)], bottom first.
+    Returns ([(layer, dia_mm, {'sets', 'bars'})], notes).
+    """
+    from nosa_utils import mesh_rules
+    xmin, xmax, ymin, ymax = bounds_mm
+    groups, notes = {}, []
+    for hole in raw_holes:
+        x0, x1, y0, y1 = _hole_bbox(hole)
+        kind = mesh_rules.slab_hole_class(x1 - x0, y1 - y0)
+        if kind == u'design':
+            notes.append(u'opening {:.0f} x {:.0f} mm is over 1000 mm: SMDSC 6.2 leaves its trimming to the '
+                         u'design — bottom trimmers added, check them.'.format(x1 - x0, y1 - y0))
+        elif kind == u'both' and depth_mm > 250.0 and not diagonals:
+            notes.append(u'opening {:.0f} x {:.0f} mm in a {:.0f} mm slab: SMDSC 6.2 suggests diagonal bars '
+                         u'top and bottom (tick Opening Diagonals).'.format(x1 - x0, y1 - y0, depth_mm))
+        for k, (layer, dia_x, dia_y, spacing, z_x, z_y) in enumerate(mats):
+            if k > 0 and kind == u'bottom':
+                continue
+            for axis, dia, z in ((u'x', dia_x, z_x), (u'y', dia_y, z_y)):
+                if axis == u'x':          # bars along X, cut over the hole's Y extent
+                    lo, hi, c0, c1, b0, b1 = x0, x1, y0, y1, xmin, xmax
+                else:
+                    lo, hi, c0, c1, b0, b1 = y0, y1, x0, x1, ymin, ymax
+                n = mesh_rules.trimmers_per_side(c1 - c0, spacing)
+                pitch = max(50.0, 3.0 * dia)
+                anchor = mesh_rules.TRIMMER_ANCHOR_PHI * dia
+                s0 = max(lo - anchor, b0 + dia / 2.0)
+                s1 = min(hi + anchor, b1 - dia / 2.0)
+                first = side_cover_mm + ubar_dia_mm + dia / 2.0
+                for edge, sign in ((c0, -1.0), (c1, 1.0)):
+                    across = [edge + sign * (first + j * pitch) for j in range(n)]
+                    lim0, lim1 = (ymin, ymax) if axis == u'x' else (xmin, xmax)
+                    across = [a for a in across if lim0 + dia / 2.0 <= a <= lim1 - dia / 2.0]
+                    if not across or s1 - s0 < 100.0:
+                        continue
+                    if axis == u'x':
+                        p, q = DB.XYZ(s0 / _MM_PER_FT, across[0] / _MM_PER_FT, z), \
+                            DB.XYZ(s1 / _MM_PER_FT, across[0] / _MM_PER_FT, z)
+                        normal = DB.XYZ(0.0, sign, 0.0)
+                    else:
+                        p, q = DB.XYZ(across[0] / _MM_PER_FT, s0 / _MM_PER_FT, z), \
+                            DB.XYZ(across[0] / _MM_PER_FT, s1 / _MM_PER_FT, z)
+                        normal = DB.XYZ(sign, 0.0, 0.0)
+                    grouped = groups.setdefault((layer, dia), {'sets': [], 'bars': []})
+                    curves = [DB.Line.CreateBound(p, q)]
+                    if len(across) > 1:
+                        grouped['sets'].append({'curves': curves, 'normal': normal, 'spacing_mm': pitch + 0.01,
+                                                'array_length_mm': pitch * (len(across) - 1),
+                                                'label': u'Floor Opening Trimmer'})
+                    else:
+                        grouped['bars'].append({'curves': curves, 'normal': normal,
+                                                'label': u'Floor Opening Trimmer'})
+    return [(layer, dia, g) for (layer, dia), g in sorted(groups.items())], notes
+
+
+def _hole_bbox(points):
+    xs = [p[0] for p in points]
+    ys = [p[1] for p in points]
+    return min(xs), max(xs), min(ys), max(ys)
+
+
 def _diagonal_bars(engine, DB, segments, z_ft):
     bars = []
     for (x0, y0), (x1, y1) in segments:
@@ -1540,6 +1605,16 @@ def build_floor_reinforcement(doc, host,
 
     raw_loops = topo.extract_loops_mm(bottom_face.face)
     raw_outer, raw_holes, n_small_holes = topo.classify_loops(raw_loops)
+    # IStructE SMDSC 6.2: holes with sides of 150 mm or less are ignored, the bars run through
+    from nosa_utils import mesh_rules
+    kept_holes = []
+    for hole in raw_holes:
+        hx0, hx1, hy0, hy1 = topo.polygon_bbox_mm(hole)
+        if mesh_rules.slab_hole_class(hx1 - hx0, hy1 - hy0) == u'ignore':
+            n_small_holes += 1
+        else:
+            kept_holes.append(hole)
+    raw_holes = kept_holes
     bottom_z_ft = bottom_face.origin.Z
 
     if include_top_mat and None in (top_cover_mm, top_dia_x_mm, top_dia_y_mm, top_spacing_mm):
@@ -1716,6 +1791,16 @@ def build_floor_reinforcement(doc, host,
             x_leg_mm, x_anchor_ubar_spacing_mm, b1_z_ft, t1_z_ft,
             y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
             raw_holes=raw_holes, mat_rows=rows)
+
+    if raw_holes:
+        result['hole_trimmers'], result['hole_notes'] = _hole_trimmers(
+            DB, raw_holes, (xmin_mm, xmax_mm, ymin_mm, ymax_mm), side_cover_mm,
+            max(x_anchor_ubar_dia_mm or 0.0, y_anchor_ubar_dia_mm or 0.0) if include_perimeter_closure_ubars else 0.0,
+            [(u'trimmer_bottom', bottom_dia_x_mm, bottom_dia_y_mm, bottom_spacing_mm, b1_z_ft, b2_z_ft)]
+            + ([(u'trimmer_top', top_dia_x_mm, top_dia_y_mm, top_spacing_mm, t1_z_ft, t2_z_ft)]
+               if include_top_mat else []),
+            (top_z_ft - bottom_z_ft) * _MM_PER_FT if top_z_ft is not None else 0.0,
+            include_opening_diagonals)
 
     if include_opening_diagonals and raw_holes:
         if not opening_diagonal_dia_mm:

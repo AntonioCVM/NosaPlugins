@@ -134,6 +134,32 @@ def edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, share=EDGE_UBAR_S
     return float(BAR_SIZES_MM[-1])
 
 
+HOLE_IGNORE_MM, HOLE_BOTTOM_MM, HOLE_TOP_MM = 150.0, 500.0, 1000.0   # SMDSC 6.2 holes in slabs
+TRIMMER_ANCHOR_PHI = 45.0
+
+
+def slab_hole_class(width_mm, length_mm):
+    """
+    SMDSC 6.2 for an isolated hole: 'ignore' (sides <= 150, bars run through), 'bottom' (<= 500: bars
+    cut and trimmed with bars of equal area), 'both' (<= 1000: the top trimmed too, diagonals if
+    h > 250) or 'design' (over 1000: the designer specifies it).
+    """
+    side = max(float(width_mm), float(length_mm))
+    if side <= HOLE_IGNORE_MM + 1e-6:
+        return u'ignore'
+    if side <= HOLE_BOTTOM_MM + 1e-6:
+        return u'bottom'
+    if side <= HOLE_TOP_MM + 1e-6:
+        return u'both'
+    return u'design'
+
+
+def trimmers_per_side(cut_extent_mm, spacing_mm):
+    """Bars each side of a hole replacing the bars it cuts (equal area, half each side, at least one)."""
+    cut = max(1, int(math.ceil(float(cut_extent_mm) / float(spacing_mm) - 1e-9)))
+    return max(1, int(math.ceil(cut / 2.0)))
+
+
 BAND_FACTOR = 1.5          # SMDSC 6.7: a band under the column when l > 1.5 (c + 3d)
 BAND_SHARE = 2.0 / 3.0
 

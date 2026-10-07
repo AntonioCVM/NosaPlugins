@@ -55,3 +55,10 @@ def test_edge_ubars_carry_half_the_bottom_area():
     assert mr.edge_ubar_dia_mm(10, 200, 12, 200) == 10.0          # 100 >= 0.5 x 144
     assert mr.edge_ubar_dia_mm(10, 200, 16, 150) == 16.0          # 0.5 x 256/150 = 0.85 > 144/200
     assert mr.edge_ubar_dia_mm(10, 300, 20, 150) == 20.0          # 400/300 = 0.5 x 400/150 exactly
+
+
+def test_slab_holes():
+    assert mr.slab_hole_class(150, 100) == u'ignore' and mr.slab_hole_class(300, 300) == u'bottom'
+    assert mr.slab_hole_class(600, 300) == u'both' and mr.slab_hole_class(1200, 300) == u'design'
+    assert mr.trimmers_per_side(300, 200) == 1 and mr.trimmers_per_side(600, 200) == 2
+    assert mr.trimmers_per_side(1000, 150) == 4                     # 7 bars cut: 4 each side
