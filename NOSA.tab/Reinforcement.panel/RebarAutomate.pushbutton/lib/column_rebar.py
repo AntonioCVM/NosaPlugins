@@ -1016,7 +1016,9 @@ def default_lap_length_mm(bar_diameter_mm, multiplier=40.0, std=None,
     """
     # Column splices and starters lap every bar at one section: 100 % lapped (alpha6 1.5).
     if std is not None:
-        return standards.lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond)
+        # confined by the column links: alpha3 = 0.9 (IStructE SMDSC Table 6.5)
+        return standards.lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond,
+                                       alpha3=standards.CONFINED_ALPHA3)
     return max(bar_diameter_mm * multiplier, 15.0 * bar_diameter_mm, 300.0)
 
 

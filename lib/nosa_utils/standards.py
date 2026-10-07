@@ -238,15 +238,19 @@ def round_down_mm(length_mm, step_mm=DETAILING_STEP_MM):
     return math.floor(length_mm / step_mm + 1e-9) * step_mm
 
 
-def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True):
-    return round_up_mm(_lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond))
+# IStructE SMDSC Tables 6.4/6.5: beams and columns, confined by their links, take alpha3 = 0.9
+CONFINED_ALPHA3 = 0.9
 
 
-def anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False):
-    return round_up_mm(_anchorage_length_mm(std, bar_diameter_mm, good_bond, in_compression))
+def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True, alpha3=1.0):
+    return round_up_mm(_lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond, alpha3))
 
 
-def _lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True):
+def anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False, alpha3=1.0):
+    return round_up_mm(_anchorage_length_mm(std, bar_diameter_mm, good_bond, in_compression, alpha3))
+
+
+def _lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True, alpha3=1.0):
     """
     Lap length, mm. lap.mode "ec2" / "bs8110" use nosa_utils.laps (EC2 8.7 with alpha6
     from pct_lapped; BS 8110 Table 3.27); "factor" keeps the profile's diameter multiples.
@@ -257,14 +261,14 @@ def _lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0,
     mode = lap_block.get('mode', 'factor')
     if mode in (laps.EC2, laps.BS8110):
         return laps.lap_mm(bar_diameter_mm, concrete_fck_mpa(std), good_bond, pct_lapped,
-                           in_compression, mode)
+                           in_compression, mode, alpha3=alpha3)
     factor = (lap_block['compression_factor'] if in_compression
               else _interpolated_tension_factor(std, pct_lapped))
     return max(bar_diameter_mm * factor, lap_block['min_mm'],
                laps.ABS_MIN_LAP_FACTOR * bar_diameter_mm, laps.ABS_MIN_LAP_MM)
 
 
-def _anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False):
+def _anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=False, alpha3=1.0):
     """
     Anchorage length, mm. anchorage.mode "ec2" / "bs8110" use nosa_utils.laps; "factor"
     uses basic_length_factor (x compression_factor), clamped to min_mm / min_factor.
@@ -274,7 +278,7 @@ def _anchorage_length_mm(std, bar_diameter_mm, good_bond=True, in_compression=Fa
     mode = anchorage_block.get('mode', 'factor')
     if mode in (laps.EC2, laps.BS8110):
         return laps.anchorage_mm(bar_diameter_mm, concrete_fck_mpa(std), good_bond,
-                                 in_compression, mode)
+                                 in_compression, mode, alpha3=alpha3)
     factor_key = 'good_bond' if good_bond else 'poor_bond'
     factor = anchorage_block['basic_length_factor'][factor_key]
     if in_compression:

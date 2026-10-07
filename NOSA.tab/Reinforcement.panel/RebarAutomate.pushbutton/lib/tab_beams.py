@@ -549,11 +549,14 @@ class BeamsMixin(object):
         bbox = host.get_BoundingBox(None)
         good = ((bbox.Max.Z - bbox.Min.Z) * 304.8 if bbox is not None else 0.0) <= 250.0
         try:
-            lap = standards.lap_length_mm(self._host_std(host), bar_dia, False, 100.0, good)
+            # confined by the beam links: alpha3 = 0.9 (IStructE SMDSC Table 6.4)
+            lap = standards.lap_length_mm(self._host_std(host), bar_dia, False, 100.0, good,
+                                          alpha3=standards.CONFINED_ALPHA3)
         except Exception:
             lap = max(40.0 * bar_dia, 300.0)
         try:
-            anchorage = standards.anchorage_length_mm(self._host_std(host), bar_dia, good)
+            anchorage = standards.anchorage_length_mm(self._host_std(host), bar_dia, good,
+                                                      alpha3=standards.CONFINED_ALPHA3)
         except Exception:
             anchorage = 40.0 * bar_dia
         return lap, anchorage
@@ -590,6 +593,17 @@ class BeamsMixin(object):
             values['stock_length'], lap_mm, anchorage_mm)
         name = u'Beams {}'.format(u', '.join(str(get_id_value(h.Id)) for h in line))
         errors.extend(u'{}: {}'.format(name, w) for w in data['warnings'])
+        if len(data['hanger_sets']) > 1:
+            # IStructE SMDSC 5.4.3: a lap of H20 or more needs links of sum Ast >= As of one bar in
+            # each outer third; the span links (2 legs) are checked, none are added here
+            from nosa_utils import laps
+            if not laps.lap_transverse_ok(values['bar_dia'], 100.0, lap_mm, values['stirrup_dia'], 2,
+                                          values['stirrup_spacing']):
+                errors.append(u'{}: the H{:.0f} top-bar laps ({:.0f} mm) need links of at least the area of '
+                              u'one lapped bar in each outer third (SMDSC 5.4.3); the H{:.0f} links at '
+                              u'{:.0f} mm do not give it: close them up over the laps.'.format(
+                                  name, values['bar_dia'], lap_mm, values['stirrup_dia'],
+                                  values['stirrup_spacing']))
         bar_type = bar_types.get(values['bar_dia'])
         support_type = bar_types.get(values.get('support_dia'))
         if bar_type is not None:
@@ -630,13 +644,15 @@ class BeamsMixin(object):
             bbox = host.get_BoundingBox(None)
             depth_mm = (bbox.Max.Z - bbox.Min.Z) * 304.8 if bbox is not None else 0.0
             lap_mm = standards.lap_length_mm(
-                self._host_std(host), values['bar_dia'], False, 100.0, depth_mm <= 250.0)
+                self._host_std(host), values['bar_dia'], False, 100.0, depth_mm <= 250.0,
+                alpha3=standards.CONFINED_ALPHA3)
         except Exception:
             lap_mm = max(40.0 * values['bar_dia'], 15.0 * values['bar_dia'], 300.0)
         try:
             # anchorage into the columns, measured for the (poorer-bond) top bars
             anchorage_mm = standards.anchorage_length_mm(
-                self._host_std(host), values['bar_dia'], depth_mm <= 250.0)
+                self._host_std(host), values['bar_dia'], depth_mm <= 250.0,
+                alpha3=standards.CONFINED_ALPHA3)
         except Exception:
             anchorage_mm = None
 
