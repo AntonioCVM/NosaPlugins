@@ -1,0 +1,12 @@
+# This is a Revit shared parameter file.
+# NOSA bar schedules (T8.33/T8.34, 2026-10-07): A4 schedule sheet header, bound to Sheets.
+# GUIDs are FINAL — never regenerate. A retired parameter keeps its GUID burned.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Bar_Schedules
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	bc73291c-8153-4096-970d-b690be2b3e5e	NOSA_BBS_Drawing	TEXT		1	1	Reinforcement drawing the bar schedule refers to, e.g. 4002 (SMDSC 4.5.1)	1	0
+PARAM	03e2edac-1367-442a-a705-8e42f7b3d632	NOSA_BBS_Ref	TEXT		1	1	Bar schedule reference: drawing + schedule + revision, e.g. 4002-01-A (SMDSC 4.5.1)	1	0
+PARAM	ce87cdf9-f7bd-4d91-9fa0-db3c599b8968	NOSA_BBS_Revision	TEXT		1	1	Bar schedule revision letter	1	0
+PARAM	e0e98004-1ce2-4046-ae64-59cd56358a38	NOSA_BBS_Status	TEXT		1	1	Bar schedule status: P Preliminary, T Tender, C Construction	1	0
