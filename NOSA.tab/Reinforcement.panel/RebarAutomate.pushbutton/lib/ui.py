@@ -124,6 +124,15 @@ class _CategorySelectionFilter(ISelectionFilter):
         return True
 
 
+def is_ground_beam(element):
+    """A line-based Structural Foundation (the NOSA 'RC Ground Beam' tie beam): reinforced as a beam."""
+    try:
+        return (get_id_value(element.Category.Id) == _cat_id('OST_StructuralFoundation')
+                and isinstance(element.Location, DB.LocationCurve))
+    except Exception:
+        return False
+
+
 def _is_valid_rebar_host(element):
     """True if Revit accepts rebar hosted on this element."""
     try:
@@ -164,8 +173,9 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralColumns')])
                 prompt = u'Select Structural Columns to reinforce, then click Finish.'
             elif mode == 'beams':
-                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFraming')])
-                prompt = u'Select Structural Framing (beams) to reinforce, then click Finish.'
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFraming'),
+                                                       _cat_id('OST_StructuralFoundation')])
+                prompt = u'Select Structural Framing (beams) or ground beams to reinforce, then click Finish.'
             elif mode == 'walls':
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_Walls')])
                 prompt = u'Select Walls to reinforce, then click Finish.'
@@ -220,6 +230,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 window._show_column_result(elements, summary)
                 window._refresh_batch_list()
             elif mode == 'beams':
+                elements = [e for e in elements if get_id_value(e.Category.Id) ==
+                            _cat_id('OST_StructuralFraming') or is_ground_beam(e)]
                 if not elements:
                     forms.alert(u'No Structural Framing (beams) selected.')
                     return
@@ -2446,6 +2458,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         created_rebars = []
 
         for host in footings:
+            if is_ground_beam(host):
+                errors.append(u'Footing {}: a ground beam — reinforce it from the Beams tab.'.format(
+                    get_id_value(host.Id)))
+                continue
             try:
                 self._process_footing(host, values, wrapper, bar_types, hook_type,
                                       errors, created_rebars)

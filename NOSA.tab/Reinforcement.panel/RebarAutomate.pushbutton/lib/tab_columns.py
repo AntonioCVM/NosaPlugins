@@ -405,7 +405,7 @@ class ColumnsMixin(object):
             elem = self.doc.GetElement(eid)
             if elem is None or elem.Category is None:
                 continue
-            if get_id_value(elem.Category.Id) == _cat_id('OST_StructuralFraming'):
+            if get_id_value(elem.Category.Id) == _cat_id('OST_StructuralFraming') or is_ground_beam(elem):
                 beams.append(elem)
         return beams
 

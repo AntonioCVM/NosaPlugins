@@ -586,6 +586,9 @@ class BeamsMixin(object):
         first = line[0]
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, first, u'Other', self._standard_default_cover_mm(u'beam'))
+        if is_ground_beam(first) and cover_mm < 75.0 - 1e-6:
+            errors.append(u'Ground beam {}: cover {:.0f} mm — SMDSC 6.7 asks for 75 mm where it is cast '
+                          u'against the ground; set the host cover if so.'.format(get_id_value(first.Id), cover_mm))
         try:
             # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
             import fit_checks
@@ -669,6 +672,12 @@ class BeamsMixin(object):
             log_swallowed(_LOG, u'RebarAutomateWindow._process_beam')
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
+        if is_ground_beam(host):
+            bottom_mm = re_engine.get_native_cover_mm(self.doc, host, u'Bottom', cover_mm)
+            if min(bottom_mm, cover_mm) < 75.0 - 1e-6:
+                errors.append(u'Ground beam {}: cover {:.0f} mm (bottom {:.0f}) — SMDSC 6.7 asks for 75 mm where it '
+                              u'is cast against the ground; set the host cover if so.'.format(
+                                  get_id_value(host.Id), cover_mm, bottom_mm))
         try:
             # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
             import fit_checks
