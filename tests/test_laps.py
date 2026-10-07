@@ -139,3 +139,12 @@ def test_large_bars_and_bundles():
     assert problems                                              # 69 mm > 55
     _phi_n, problems = laps.bundle_equivalent_dia_mm([12.0, 25.0])
     assert problems                                              # ratio > 1.7
+
+
+def test_smdsc_stock_lengths_and_transport():
+    from nosa_utils import standards
+    assert standards.bar_stock_length_mm(16.0, 12000.0) == 12000.0
+    assert standards.bar_stock_length_mm(10.0, 12000.0) == 6000.0       # SMDSC 4.2.4
+    assert standards.bar_stock_length_mm(20.0, 18000.0) == 12000.0
+    assert standards.bar_stock_length_mm(8.0, 5000.0) == 5000.0         # the user's shorter stock
+    assert standards.transportable(6370.0, 475.0) and not standards.transportable(3000.0, 2800.0)

@@ -472,6 +472,8 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
         {'sets': [{'curves','normal','array_length_mm','spacing_mm'}],
          'bars': [{'curves','normal'}]}
     """
+    from nosa_utils import standards
+    max_stock_length_mm = standards.bar_stock_length_mm(own_dia_mm, max_stock_length_mm)   # SMDSC 4.2.4
     own_inset_mm = own_dia_mm / 2.0
     perp_inset_mm = perp_dia_mm / 2.0
     if own_axis == 'x':

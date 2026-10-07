@@ -778,19 +778,21 @@ def build_wall_reinforcement(doc, host, cover_mm,
         horiz_lap_mm = _resolve_lap_mm(
             horiz_lap_length_mm if horiz_lap_length_mm is not None else lap_length_mm)
 
-        def _split_mesh_sets(mesh_sets, axis_label, own_lap_mm):
+        def _split_mesh_sets(mesh_sets, axis_label, own_lap_mm, own_dia_mm):
             """Split each mesh set by stock length; output remains Rebar Sets.
 
             T7.6 — laps staggered as on slabs: alternate bars form their own Set whose first
             bar is shorter (stock − 1.3 l0), so only half the bars are lapped in any section.
             """
+            from nosa_utils import standards
+            own_stock_mm = standards.bar_stock_length_mm(own_dia_mm, stock_length_mm)   # SMDSC 4.2.4
             out = []
             for ms in mesh_sets:
                 c0 = ms['curves'][0] if ms.get('curves') else None
                 if c0 is None:
                     continue
                 bar_len = c0.Length * _MM_PER_FT
-                if bar_len <= stock_length_mm + 1.0 or own_lap_mm is None:
+                if bar_len <= own_stock_mm + 1.0 or own_lap_mm is None:
                     out.append(ms)
                     continue
                 count = ms.get('count', 1)
@@ -803,9 +805,9 @@ def build_wall_reinforcement(doc, host, cover_mm,
                         shift = DB.Transform.CreateTranslation(ms['normal'].Multiply(offset_mm / _MM_PER_FT))
                         curves = ([c.CreateTransformed(shift) for c in ms['curves']] if offset_mm
                                   else ms['curves'])
-                        first = stagger_first_mm(stock_length_mm, own_lap_mm) if parity else None
+                        first = stagger_first_mm(own_stock_mm, own_lap_mm) if parity else None
                         rows.append((parity, n, array_mm, curves, engine.split_rebar_by_stock_length(
-                            curves[0], stock_length_mm, own_lap_mm, first_length_mm=first)))
+                            curves[0], own_stock_mm, own_lap_mm, first_length_mm=first)))
                 except Exception as ex:
                     warnings.append(u'{} mesh stock split skipped: {}'.format(axis_label, ex))
                     out.append(ms)
@@ -826,8 +828,8 @@ def build_wall_reinforcement(doc, host, cover_mm,
                         })
             return out
 
-        vertical_sets = _split_mesh_sets(vertical_sets, u'Wall Vertical', lap_mm)
-        horizontal_sets = _split_mesh_sets(horizontal_sets, u'Wall Horizontal', horiz_lap_mm)
+        vertical_sets = _split_mesh_sets(vertical_sets, u'Wall Vertical', lap_mm, vert_dia_mm)
+        horizontal_sets = _split_mesh_sets(horizontal_sets, u'Wall Horizontal', horiz_lap_mm, horiz_dia_mm)
 
     if (not vertical_sets and not horizontal_sets
             and not (end_ubars['sets'] or end_ubars['bars'])
@@ -961,6 +963,9 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
     vert_lap = _resolve_lap(lap_length_mm)
     horiz_lap = _resolve_lap(horiz_lap_length_mm if horiz_lap_length_mm is not None else lap_length_mm)
     stock = stock_length_mm if stock_length_mm and stock_length_mm >= 500.0 else 12000.0
+    from nosa_utils import standards
+    vstock = standards.bar_stock_length_mm(vert_dia_mm, stock)     # SMDSC 4.2.4, per bar size
+    stock = standards.bar_stock_length_mm(horiz_dia_mm, stock)
 
     vertical_sets, horizontal_sets = [], []
     for name, r_face, inward in faces:
@@ -968,9 +973,9 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
         lines = [DB.Line.CreateBound(_xyz(r_v, a, vert_bottom_z), _xyz(r_v, a, vert_top_z)) for a in vert_angles]
         groups = {}
         for i, line in enumerate(lines):
-            if line.Length * _MM_PER_FT > stock + 1.0 and vert_lap:
-                first = stagger_first_mm(stock, vert_lap) if (stagger_laps and i % 2) else None
-                segs = engine.split_rebar_by_stock_length(line, stock, vert_lap, first_length_mm=first)
+            if line.Length * _MM_PER_FT > vstock + 1.0 and vert_lap:
+                first = stagger_first_mm(vstock, vert_lap) if (stagger_laps and i % 2) else None
+                segs = engine.split_rebar_by_stock_length(line, vstock, vert_lap, first_length_mm=first)
                 for k, seg in enumerate(segs):
                     groups.setdefault((i % 2, k), []).append([seg.curve])
             else:

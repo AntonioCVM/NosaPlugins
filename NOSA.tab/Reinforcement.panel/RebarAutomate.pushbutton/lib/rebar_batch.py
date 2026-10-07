@@ -42,6 +42,7 @@ if _LIB not in sys.path:
     sys.path.insert(0, _LIB)
 
 from nosa_utils import shared_params  # noqa: E402
+from nosa_utils import standards  # noqa: E402
 from nosa_utils.revit_compat import get_id_value  # noqa: E402 -- lazy-safe, not revit_helpers
 from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
 from nosa_utils.telemetry import log_info as _log_info
@@ -169,6 +170,33 @@ class BatchResult(object):
 SUBMARK_SUFFIX = u'a'
 
 
+def bent_bar_size_mm(rebar):
+    """(long, short) side of the rectangle enclosing one bar of a bent rebar, in its plane; None if straight."""
+    try:
+        from Autodesk.Revit.DB.Structure import MultiplanarOption
+        curves = list(rebar.GetCenterlineCurves(False, False, False,
+                                                MultiplanarOption.IncludeOnlyPlanarCurves, 0))
+        if len(curves) < 2:
+            return None
+        pts = [curves[0].GetEndPoint(0)] + [c.GetEndPoint(1) for c in curves]
+        u = (curves[0].GetEndPoint(1) - curves[0].GetEndPoint(0)).Normalize()
+        v = None
+        for c in curves[1:]:
+            d = c.GetEndPoint(1) - c.GetEndPoint(0)
+            w = d - u.Multiply(d.DotProduct(u))
+            if w.GetLength() > 1e-6:
+                v = w.Normalize()
+                break
+        if v is None:
+            return None
+        us = [p.DotProduct(u) * 304.8 for p in pts]
+        vs = [p.DotProduct(v) * 304.8 for p in pts]
+        a, b = max(us) - min(us), max(vs) - min(vs)
+        return (max(a, b), min(a, b))
+    except Exception:
+        return None
+
+
 def ensure_varying_submarks(doc):
     """
     Varying rebar sets numbered as a whole, bars suffixed a, b, c ... (SMDSC 4.5.1): the BBS then
@@ -283,6 +311,13 @@ class RebarBatch(object):
                         for elem in created_rebars:
                             if shared_params.read(elem, u'NOSA_Rebar_Shape_Code', u'') == u'00':
                                 rebar_engine.round_straight_like_total(elem)
+                            else:
+                                size = bent_bar_size_mm(elem)
+                                if size and not standards.transportable(*size):
+                                    stamp_errors.append(
+                                        u'Element {}: bent bar {:.0f} x {:.0f} mm does not travel (shorter side '
+                                        u'over 2.75 m, SMDSC 5.1.6): split it with a lap or a coupler.'.format(
+                                            get_id_value(elem.Id), size[0], size[1]))
                     except Exception as shape_err:
                         stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))
 

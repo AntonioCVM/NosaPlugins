@@ -953,6 +953,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     its top-bar laps in the central third of a span and, with n_support_bars, the support bars
     of a continuous line (continuous_beam's rules).
     """
+    from nosa_utils import standards
+    stock_length_mm = standards.bar_stock_length_mm(bar_diameter_mm, stock_length_mm)   # SMDSC 4.2.4
     engine = _ensure_engine()
     axis = get_beam_axis(host)
     # BUG FIX (2026-09-01) — see _clamp_axis_to_bbox's own docstring:
@@ -1270,6 +1272,8 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
              'spans': {host id value: {'continuous_ends', 'internal_bottom_ext_mm'}},
              'warnings': [...]} — group dicts as group_parallel_bar_chains_into_sets returns.
     """
+    from nosa_utils import standards
+    stock_length_mm = standards.bar_stock_length_mm(bar_diameter_mm, stock_length_mm)   # SMDSC 4.2.4
     import continuous_beam as cb
     from nosa_utils.revit_compat import get_id_value
     direction = get_beam_axis(hosts[0]).Direction.Normalize()

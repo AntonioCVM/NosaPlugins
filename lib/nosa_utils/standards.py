@@ -238,6 +238,20 @@ def round_down_mm(length_mm, step_mm=DETAILING_STEP_MM):
     return math.floor(length_mm / step_mm + 1e-9) * step_mm
 
 
+def bar_stock_length_mm(bar_diameter_mm, stock_length_mm=None):
+    """
+    Longest bar to schedule (IStructE SMDSC 4.2.4): 12 m for 12 mm bars and over, 6 m for 10 mm
+    and under, and never more than the stock length the user set.
+    """
+    cap = 12000.0 if bar_diameter_mm >= 11.5 else 6000.0
+    return min(stock_length_mm, cap) if stock_length_mm and stock_length_mm > 0 else cap
+
+
+def transportable(width_mm, height_mm):
+    """A bent bar travels when its enclosing rectangle's shorter side is within 2.75 m (SMDSC 5.1.6)."""
+    return min(width_mm, height_mm) <= 2750.0 + 1e-6
+
+
 # IStructE SMDSC Tables 6.4/6.5: beams and columns, confined by their links, take alpha3 = 0.9
 CONFINED_ALPHA3 = 0.9
 
