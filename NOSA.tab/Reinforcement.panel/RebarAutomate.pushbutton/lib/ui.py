@@ -331,6 +331,11 @@ class _ReinforcementEventHandler(IExternalEventHandler):
         return u'NOSA RebarAutomate — Reinforcement Generation'
 
 
+# Varying sets of trimmed 25 mm rows (floor_rebar.trim_to_step_mm): ends up to one step off the
+# faces are accepted, then moved half a step inside so the rounded-up cut length keeps the cover
+VARYING_STEP_TOLERANCE_MM = 30.0
+VARYING_END_MARGIN_MM = 12.5
+
 _LAP_RULES = (u'EC2 — BS EN 1992-1-1 (UK NA)', u'BS 8110 — legacy multiples')
 _STAIR_STARTER_TYPES = (u'New foundation / beam — cast-in L bars',
                         u'Existing slab / beam — post-installed with resin')
@@ -1820,9 +1825,12 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             if len(run) < 2:
                 left.extend(bars[i] for i in run)
                 continue
+            # rows are trimmed to whole 25 mm lengths (floor_rebar.trim_to_step_mm): a set that
+            # follows the faces sits up to one step off them; half a step inside keeps the cover
             rebar = wrapper.create_varying_set(
                 host, [bars[i]['curves'] for i in run], bar_type, style=style,
-                transaction_name=u'NOSA — Create {} (varying set)'.format(label))
+                transaction_name=u'NOSA — Create {} (varying set)'.format(label),
+                tolerance_mm=VARYING_STEP_TOLERANCE_MM, end_margin_mm=VARYING_END_MARGIN_MM)
             if rebar is None:
                 from nosa_utils.telemetry import log_info
                 log_info(u'rebarautomate', u'{}: varying set not built ({}); FreeForm instead'.format(

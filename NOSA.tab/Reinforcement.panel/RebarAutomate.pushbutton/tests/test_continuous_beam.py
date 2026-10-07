@@ -115,3 +115,13 @@ def test_simplified_rules_conditions_are_reported():
     assert cb.simplified_rules_warnings([5000.0, 5000.0, 5200.0]) == []
     assert len(cb.simplified_rules_warnings([5000.0])) == 1
     assert len(cb.simplified_rules_warnings([4000.0, 5000.0, 5000.0])) == 1
+
+
+def test_top_lap_lies_wholly_in_the_central_third_at_mid_span():
+    """SMDSC 6.3: 3 x 6 m on 450 columns, 12 m stock, 1475 lap -> lap centred at mid-span 2."""
+    spans = [{'x0': 225.0, 'x1': 5775.0}, {'x0': 6225.0, 'x1': 11775.0}, {'x0': 12225.0, 'x1': 17775.0}]
+    segments, warnings = cb.lap_cuts(-175.0, 18175.0, spans, 12000.0, 1475.0)
+    assert not warnings and len(segments) == 2
+    lap = (segments[1][0], segments[0][1])
+    assert abs((lap[0] + lap[1]) / 2.0 - 9000.0) < 1e-6
+    assert lap[0] >= 6225.0 + 5550.0 / 3.0 and lap[1] <= 11775.0 - 5550.0 / 3.0

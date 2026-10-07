@@ -1076,6 +1076,62 @@ def fit_varying_ends(doc, rebar, host, wanted, passes=2):
     return error
 
 
+def round_straight_like_total(rebar):
+    """
+    BS 8666 shape 00: A is the cut length. Revit rounds the total length (25 mm, up) and the
+    segments (5 mm, down) separately, so a straight bar of any length shows A 5265 against a
+    length of 5275; this bar's own rounding takes the total length's for its segment too.
+    """
+    try:
+        rm = rebar.GetReinforcementRoundingManager()
+        rm.IsActiveOnElement = True
+        rm.SegmentLengthRounding = rm.ApplicableTotalLengthRounding
+        rm.SegmentLengthRoundingMethod = rm.ApplicableTotalLengthRoundingMethod
+        return True
+    except Exception:
+        log_swallowed(_LOG, u'round_straight_like_total')
+        return False
+
+
+def inset_bar_ends(doc, rebar, margin_mm):
+    """
+    Move both bar ends of a face-constrained set margin_mm further inside (call in a transaction).
+    Revit rounds a varying set's lengths UP to the 25 mm schedule step; half a step inside each end
+    keeps the cut bar within the nominal cover. The sign is checked on the set's own length.
+    Returns True when the ends moved inwards.
+    """
+    ends = (DBS.RebarHandleType.StartOfBar, DBS.RebarHandleType.EndOfBar)
+    mgr = rebar.GetRebarConstraintsManager()
+
+    def _shift(handle, delta_ft):
+        c = mgr.GetCurrentConstraintOnHandle(handle)
+        kind = c.GetConstraintType() if c is not None else None
+        if kind == DBS.RebarConstraintType.FixedDistanceToHostFace:
+            c.SetDistanceToTargetHostFace(c.GetDistanceToTargetHostFace() + delta_ft)
+        elif kind == DBS.RebarConstraintType.ToCover:
+            c.SetDistanceToTargetCover(c.GetDistanceToTargetCover() + delta_ft)
+        else:
+            return False
+        _set_preferred(mgr, handle, c)
+        return True
+
+    handles = [h for h in mgr.GetAllHandles() if h.GetHandleType() in ends]
+    for sign in (1.0, -1.0):
+        before = rebar.TotalLength
+        trial = DB.SubTransaction(doc)
+        trial.Start()
+        try:
+            moved = [_shift(h, sign * margin_mm / _MM_PER_FT) for h in handles]
+            doc.Regenerate()
+            if any(moved) and rebar.TotalLength < before - 1e-6:
+                trial.Commit()
+                return True
+        except Exception:
+            log_swallowed(_LOG, u'inset_bar_ends')
+        trial.RollBack()
+    return False
+
+
 def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
     """
     Replace Revit's snaps of this rebar to other bars with a fixed distance
@@ -1935,14 +1991,15 @@ class RebarWrapper(object):
             return None
 
     def create_varying_set(self, host, curve_chains, bar_type, style=None,
-                           transaction_name=u'NOSA — Create Varying Rebar Set', tolerance_mm=5.0):
+                           transaction_name=u'NOSA — Create Varying Rebar Set', tolerance_mm=5.0,
+                           end_margin_mm=0.0):
         """
         ONE shape-driven set with DistributionType = VaryingLength for rows of bars cut by an
         inclined face (user decision 2026-10-05, Revit's own "Varying Rebar Set"): the first
         chain's shape repeated square to its plane, every end constrained to the host face that
         makes each bar meet its wanted ends (curve_chains, first to last row). None, with
         last_error, when Revit cannot follow the rows within tolerance_mm (nothing is left in
-        the model then).
+        the model then). end_margin_mm: ends moved that much inside once fitted (see inset_bar_ends).
         """
         import varying_sets as vs
         self.last_error = None
@@ -1980,6 +2037,11 @@ class RebarWrapper(object):
                     self.last_error = (u'varying set could not follow the faces (bar ends up to '
                                        u'{:.0f} mm off)'.format(error))
                     return None
+                if end_margin_mm > 0.0 and not inset_bar_ends(self.doc, rebar, end_margin_mm):
+                    log_swallowed(_LOG, u'create_varying_set: ends not inset')
+                chain = list(curve_chains[0])
+                if len(chain) == 1 and isinstance(chain[0], DB.Line):
+                    round_straight_like_total(rebar)
             return rebar
         except Exception as e:
             self.last_error = u'Varying set failed: {}'.format(e)

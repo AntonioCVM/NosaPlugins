@@ -911,7 +911,15 @@ class BeamsMixin(object):
 
         wrapper = re_engine.RebarWrapper(self.doc)
         created_rebars = []
-        lines = beam_rebar.group_beam_lines(beams) if values.get('continuous') else [[b] for b in beams]
+        lines = beam_rebar.group_beam_lines(beams)
+        if not values.get('continuous'):
+            for line in lines:
+                if len(line) > 1:
+                    errors.append(u'Beams {} form one line over their supports but were reinforced as '
+                                  u'separate spans: tick "Continuous beam over several spans" to detail them '
+                                  u'as one (IStructE SMDSC 6.3).'.format(
+                                      u', '.join(str(get_id_value(h.Id)) for h in line)))
+            lines = [[b] for b in beams]
         for line in lines:
             if len(line) > 1:
                 try:

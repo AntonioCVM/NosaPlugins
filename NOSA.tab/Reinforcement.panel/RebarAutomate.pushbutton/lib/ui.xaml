@@ -789,7 +789,7 @@
 
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
-                            <CheckBox Name="ChkBeamContinuous" Content="Continuous beam over several spans"
+                            <CheckBox Name="ChkBeamContinuous" Content="Continuous beam over several spans" IsChecked="True"
                                       FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"
                                       ToolTip="Select every span of the line: beams on one straight line, end to end across their supports."/>
                             <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"

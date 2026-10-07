@@ -257,8 +257,10 @@ coordinación (T8.48, T8.49, T8.54) · **4** capacidades nuevas (T8.44, T8.50–
 - Siguiente: T8.28 (etiquetas BS 8666 con capa), T8.33/T8.34 (planillas, con D9 ya decidida), prueba en vivo de T8.35.
 
 Hallazgos de la prueba en vivo (losa trapezoidal, 2026-10-07), para más adelante:
-- En la losa de cimentación trapezoidal las barras cortadas por el borde inclinado salieron como **FreeForm** y no
-  como varying set nativo: revisar por qué falla `_create_varying_runs` en losas.
+- ~~FreeForm en vez de varying set en losas~~ **Resuelto 2026-10-07**: las filas se recortan a 25 mm
+  (`trim_to_step_mm`) y la tolerancia de 5 mm las rechazaba; ahora se aceptan hasta un paso (30 mm) y los extremos se
+  meten 12,5 mm (`inset_bar_ends`) para que el redondeo hacia arriba de Revit no invada el recubrimiento; en barras
+  rectas el tramo A se redondea como la longitud (`round_straight_like_total`, BS 8666: A = longitud).
 - Barras muy cortas en la esquina aguda (H16 de 250 mm): falta una longitud mínima (anclaje) por debajo de la cual no
   se coloca la barra (SMDSC 5.x / detalle de esquina).
 
@@ -269,10 +271,10 @@ Hallazgos de la prueba de la viga continua (2026-10-07), para la oleada 2:
   barras idénticas de distintos miembros comparten marca (`bar_schedules.schedule_marks`). Volver a pulsarlo tras regenerar.
 - Barras en L iguales pero simétricas (vano 1 y vano 3) salen con A y B intercambiadas y marcas distintas: normalizar la
   orientación de las formas simétricas en la clave de identidad o al crear la barra.
-- El solape de las superiores continuas (1475 en el vano 2) no queda centrado en el tercio central del vano (8075–9925):
-  revisar la posición del corte en `lap_cuts` según SMDSC 6.3 (solapes de superiores en el centro del vano).
-- *Continuous* está desmarcado por defecto: valorar marcarlo solo cuando las vigas seleccionadas estén alineadas y
-  compartan apoyos.
+- ~~Solape de superiores fuera del tercio central~~ **Resuelto 2026-10-07**: `lap_cuts` deja el solape entero en el
+  tercio central y centrado en el vano cuando la barra comercial llega (8262–9738 en el ejemplo).
+- ~~*Continuous* desmarcado~~ **Resuelto 2026-10-07**: marcado por defecto; desmarcado, avisa cuando las vigas
+  seleccionadas forman una línea sobre sus apoyos.
 
 ### Estado al cierre del 2026-10-06 y arranque del 2026-10-07
 

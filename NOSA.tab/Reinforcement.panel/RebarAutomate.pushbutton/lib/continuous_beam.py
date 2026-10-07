@@ -61,7 +61,9 @@ def bottom_anchor_into_support(bar_dia, support_width, clearance=10.0):
 def lap_cuts(x_start, x_end, spans, stock_mm, lap_mm):
     """
     Segments [(x0, x1)] of one continuous bar from x_start to x_end, each no longer than
-    stock_mm, overlapping lap_mm, with every lap centred in the central third of a clear span.
+    stock_mm, overlapping lap_mm. SMDSC 6.3: a top-bar lap lies wholly in the central third of a
+    clear span, at mid-span when the stock length reaches it; only a lap longer than the third
+    falls back to a centre inside it. The farthest span that fits keeps the laps fewest.
     Returns (segments, warnings).
     """
     segments, warnings = [], []
@@ -72,14 +74,22 @@ def lap_cuts(x_start, x_end, spans, stock_mm, lap_mm):
         if guard > 100:
             break
         best = None
-        for span in spans:
-            length = span['x1'] - span['x0']
-            lo, hi = span['x0'] + length / 3.0, span['x1'] - length / 3.0
-            centre = min(hi, start + stock_mm - lap_mm / 2.0)
-            if centre < lo or centre - lap_mm / 2.0 <= start + lap_mm:
-                continue
-            if best is None or centre > best:
-                best = centre
+        reach = start + stock_mm - lap_mm / 2.0          # farthest lap centre one stock length allows
+        for whole in (True, False):
+            for span in spans:
+                length = span['x1'] - span['x0']
+                lo, hi = span['x0'] + length / 3.0, span['x1'] - length / 3.0
+                if whole:
+                    lo, hi = lo + lap_mm / 2.0, hi - lap_mm / 2.0
+                    if hi < lo:
+                        continue
+                centre = min((span['x0'] + span['x1']) / 2.0, hi, reach)
+                if centre < lo or centre - lap_mm / 2.0 <= start + lap_mm:
+                    continue
+                if best is None or centre > best:
+                    best = centre
+            if best is not None:
+                break
         if best is None:
             best = start + stock_mm - lap_mm / 2.0
             warnings.append(u'no central third within one stock length from {:.0f} mm — lap placed '
