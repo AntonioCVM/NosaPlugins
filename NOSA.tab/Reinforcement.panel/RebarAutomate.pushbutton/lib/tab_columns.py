@@ -653,6 +653,9 @@ class ColumnsMixin(object):
                         errors.append(u'Column {}: links (set) — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
 
+        if bar_type_link is not None:
+            self._crank_knuckle_links(host, reinforcement, bar_type_link, wrapper, errors, created_rebars)
+
         # PHASE F7.18 (2026-09-02, explicit request — "Starter bars con
         # forma de L en columnas y muros... unidas a la cimentación") —
         # a representative 4-corner starter cage (n_u=n_v=2, matching
@@ -721,6 +724,28 @@ class ColumnsMixin(object):
                 wrapper, [{'bars': lines, 'hand': hand, 'foundation': foundation}
                           for foundation, lines in by_foundation.values()],
                 values['bar_dia'], cover_mm, errors, created_rebars, u'Column', host)
+
+    def _crank_knuckle_links(self, host, reinforcement, bar_type_link, wrapper, errors, created_rebars):
+        """IStructE SMDSC MC2: one more link at the knuckle of each crank, where the bars push outwards."""
+        rect = [s for s in reinforcement.get('stirrup_sets', []) if not s.get('circle')]
+        knuckles = reinforcement.get('crank_knuckles_ft') or []
+        if not rect or not knuckles:
+            return
+        template = rect[0]
+        z0 = template['curves'][0].GetEndPoint(0).Z
+        for z in knuckles:
+            shift = DB.Transform.CreateTranslation(DB.XYZ(0.0, 0.0, z - z0))
+            curves = [c.CreateTransformed(shift) for c in template['curves']]
+            rebar = wrapper.create_rebar_set(
+                host, curves, bar_type_link, template['spacing_mm'], 0.0, normal=template['normal'],
+                style=DBS.RebarStyle.StirrupTie, transaction_name=u'NOSA — Create Crank Link',
+                link_hook=re_engine.get_link_hook_type(self.doc))
+            if rebar is None:
+                errors.append(u'Column {}: link at the crank knuckle — {}'.format(
+                    get_id_value(host.Id), wrapper.last_error))
+                continue
+            self._stamp_layer(rebar, u'crank_link')
+            created_rebars.append(rebar)
 
     def _run_column_reinforcement(self, columns, values):
         """

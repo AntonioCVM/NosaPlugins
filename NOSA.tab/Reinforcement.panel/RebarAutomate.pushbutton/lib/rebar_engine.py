@@ -2051,10 +2051,11 @@ class RebarWrapper(object):
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
                     return None
                 try:
-                    accessor = rebar.GetShapeDrivenAccessor()
-                    accessor.SetLayoutAsMaximumSpacing(
-                        spacing_ft, array_length_ft, bars_on_normal_side,
-                        include_first_bar, include_last_bar)
+                    if array_length_ft > 1e-9:       # 0: one bar, as created
+                        accessor = rebar.GetShapeDrivenAccessor()
+                        accessor.SetLayoutAsMaximumSpacing(
+                            spacing_ft, array_length_ft, bars_on_normal_side,
+                            include_first_bar, include_last_bar)
                 except Exception as e:
                     self.last_error = (u'Rebar created as a single bar, but Rebar Set '
                                         u'propagation failed: {}'.format(e))

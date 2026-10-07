@@ -344,7 +344,7 @@ print("build_column_reinforcement (starter bars): each vertical bar's TOP "
 
 # ── Test 7b (user decision 2026-09-30): the crank finishes just below the slab top ──
 # A 20 mm bar at a floor the column crosses cranks one diameter (+ the given reduction)
-# at 1:6, the diagonal ending 40 mm under the slab's top face; the straight lap above it
+# at 1:10 (SMDSC MC2), the diagonal ending 40 mm under the slab's top face; the straight lap above it
 # runs kicker + lap above the slab top. A roof projection with nothing above stays straight.
 try:
     _FLOORS_IN_DOC[:] = [FakeFloor(-1000.0, 1000.0, -1000.0, 1000.0, top_z_mm=1500.0)]
@@ -360,7 +360,7 @@ try:
         start_z = main_line.GetEndPoint(1).Z * _MM_PER_FT
         end_z = crank_line.GetEndPoint(1).Z * _MM_PER_FT
         assert abs(end_z - (1500.0 - 40.0)) < 1e-6, end_z
-        assert abs((end_z - start_z) - 6.0 * 50.0) < 1e-6, 'offset 30 + one diameter, at 1:6'
+        assert abs((end_z - start_z) - 10.0 * 50.0) < 1e-6, 'offset 30 + one diameter, at 1:10'
         shift = crank_line.GetEndPoint(1) - crank_line.GetEndPoint(0)
         assert abs(math.hypot(shift.X, shift.Y) * _MM_PER_FT - 50.0) < 1e-6
         assert abs(lap_line.GetEndPoint(1).Z * _MM_PER_FT - (1500.0 + 75.0 + 1000.0)) < 1e-6
@@ -369,7 +369,7 @@ try:
     assert roof, 'the roof projection has nothing above it: straight'
 finally:
     _FLOORS_IN_DOC[:] = []
-print("build_column_reinforcement (cranked laps): 1:6 crank of one diameter + reduction, "
+print("build_column_reinforcement (cranked laps): 1:10 crank of one diameter + reduction, "
       "ending 40 mm below the slab top; lap measured above the kicker: OK")
 
 # Pure rules.
@@ -386,9 +386,9 @@ print("crank_offset_rule_mm / top_l_foot_mm: site rules by diameter, 12 phi mini
 assert column_rebar.crank_min_sloped_leg_mm(16.0) == 160.0
 assert column_rebar.crank_min_sloped_leg_mm(20.0) == 260.0
 rise = column_rebar.crank_rise_mm(20.0, 20.0)
-assert abs(math.hypot(rise, 20.0) - 260.0) < 1e-6, 'H20 one-diameter crank: B = 13d, flatter than 1:6'
-assert column_rebar.crank_rise_mm(16.0, 50.0) == 300.0, '1:6 already gives B >= 10d'
-print("crank_rise_mm: 1:6, lengthened so the sloped leg B meets 10d / 13d: OK")
+assert abs(math.hypot(rise, 20.0) - 260.0) < 1e-6, 'H20 one-diameter crank: B = 13d, flatter than 1:10'
+assert column_rebar.crank_rise_mm(16.0, 50.0) == 500.0, "1:10 already gives B >= 10d"
+print("crank_rise_mm: 1:10, lengthened so the sloped leg B meets 10d / 13d: OK")
 
 # ── Test 7c (Phase 3.3): crank offset AUTO-DETECTED from the real ──────
 # column found above — 0.0 (no crank) when the SAME instance continues

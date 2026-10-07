@@ -103,6 +103,7 @@ def _ensure_engine():
 
 
 _MM_PER_FT = 304.8
+CRANK_SLOPE = 10.0   # IStructE SMDSC MC2: the crank is 10 x its offset long (was 1:6)
 
 # PHASE 3.4/3.5/3.5.2 — how far INSIDE the host's own real vertical
 # extent a clamped axis endpoint is pulled, mm — see get_column_axis's
@@ -1240,7 +1241,7 @@ def _resolve_upper_half_extents(doc, host, elevation_ft, x0, y0, engine, bar_ins
 
 
 def build_cranked_starter(seg_end_point, inward_dir, axis_dir, lap_length_mm,
-                           crank_offset_mm, crank_slope=6.0):
+                           crank_offset_mm, crank_slope=CRANK_SLOPE):
     """
     PHASE 3.2 item 1 — the crank-then-straight continuation of a
     vertical bar above a split point (a floor top, or the column's own
@@ -1432,7 +1433,7 @@ def crank_min_sloped_leg_mm(bar_diameter_mm):
     return (10.0 if bar_diameter_mm <= 16.0 else 13.0) * bar_diameter_mm
 
 
-def crank_rise_mm(bar_diameter_mm, offset_mm, crank_slope=6.0):
+def crank_rise_mm(bar_diameter_mm, offset_mm, crank_slope=CRANK_SLOPE):
     """Rise of the crank: 1:crank_slope, lengthened (flatter) when B would fall below its minimum."""
     b_min = crank_min_sloped_leg_mm(bar_diameter_mm)
     rise = crank_slope * offset_mm
@@ -1446,7 +1447,7 @@ def top_l_foot_mm(anchorage_mm, embedment_mm, bar_diameter_mm):
     return max(anchorage_mm - embedment_mm, 12.0 * bar_diameter_mm)
 
 
-def crank_elevations_ft(slab_top_ft, offset_mm, crank_slope=6.0,
+def crank_elevations_ft(slab_top_ft, offset_mm, crank_slope=CRANK_SLOPE,
                         end_below_mm=CRANK_END_BELOW_SLAB_TOP_MM, bar_diameter_mm=0.0):
     """(start, end) elevations of the crank (see crank_rise_mm) ending just below the slab top."""
     end_ft = slab_top_ft - end_below_mm / _MM_PER_FT
@@ -1570,11 +1571,20 @@ def _chain_shape(chain):
     return CRANK_SHAPE_CODE if vertical and abs(dirs[1].Z) < 0.999 else None
 
 
+def _unique_levels_ft(levels_ft, tol_mm=5.0):
+    """Sorted levels with those within tol_mm of one another merged."""
+    out = []
+    for z in sorted(levels_ft or []):
+        if not out or (z - out[-1]) * _MM_PER_FT > tol_mm:
+            out.append(z)
+    return out
+
+
 def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
                                 include_starter_bars, use_cranked_laps,
-                                inward_dir, crank_offset_fn, crank_slope=6.0,
+                                inward_dir, crank_offset_fn, crank_slope=CRANK_SLOPE,
                                 bar_diameter_mm=0.0, kicker_mm=0.0, top=None,
-                                foot_dir=None, warnings=None):
+                                foot_dir=None, warnings=None, knuckles=None):
     """
     One vertical bar position, one curve chain per storey segment. At every splice (a
     floor the column crosses, or its own top when a column continues above) the bar laps
@@ -1628,6 +1638,8 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
         start_ft, end_ft = crank_elevations_ft(slab_top_ft, offset_mm, crank_slope,
                                                bar_diameter_mm=bar_diameter_mm)
         shift = inward_dir.Multiply(offset_mm / _MM_PER_FT)
+        if knuckles is not None and start_ft - seg_start.Z >= 50.0 / _MM_PER_FT:
+            knuckles.append(start_ft)       # SMDSC MC2: a link at the knuckle of the crank
         if start_ft - seg_start.Z < 50.0 / _MM_PER_FT:
             # Storey too short for the crank below the slab: crank above it, as before.
             extra = build_cranked_starter(seg_end, inward_dir, axis_dir,
@@ -2369,6 +2381,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
 
     n = max(3, int(bar_count))
     vertical_bars = []
+    knuckles = []
     top = resolve_column_top(doc, host, axis, bar_diameter_mm, std, slab_top_mat_mm)
     for i in range(n):
         theta = 2.0 * math.pi * i / n
@@ -2404,7 +2417,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
             axis, offset, split_elevations_ft, lap_mm, include_starter_bars,
             use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
             bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
-            foot_dir=foot_dir, warnings=warnings)
+            foot_dir=foot_dir, warnings=warnings, knuckles=knuckles)
         for chain in chains_per_segment:
             vertical_bars.append({'curves': chain, 'normal': tangent_dir,
                                   'shape': _chain_shape(chain)})
@@ -2452,7 +2465,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
 
     return {'vertical_bars': vertical_bars, 'vertical_bar_sets': [],
             'stirrup_sets': stirrup_sets, 'crosstie_sets': [],
-            'interior_stirrup_sets': [], 'warnings': warnings}
+            'interior_stirrup_sets': [], 'warnings': warnings,
+            'crank_knuckles_ft': _unique_levels_ft(knuckles)}
 
 
 def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
@@ -2460,7 +2474,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 densify_at_nodes=False, include_starter_bars=False,
                                 starter_bar_length_mm=None, starter_bar_multiplier=40.0,
                                 use_cranked_laps=False, crank_offset_mm=None,
-                                crank_slope=6.0, include_crossties=False,
+                                crank_slope=CRANK_SLOPE, include_crossties=False,
                                 crosstie_layout='all', link_bend_diameter_mm=None,
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
                                 end_offset_mm=50.0, std=None, kicker_mm=0.0,
@@ -2750,6 +2764,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     split_elevations_ft = [e['top_ft'] for e in floor_entries]
 
     vertical_bars = []
+    knuckles = []
     vertical_bar_sets = []
     top = resolve_column_top(doc, host, axis, bar_diameter_mm, std, slab_top_mat_mm)
     base = axis.GetEndPoint(0)
@@ -2783,7 +2798,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             axis, offset0, split_elevations_ft, lap_mm, include_starter_bars,
             use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
             bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
-            foot_dir=foot_dir, warnings=warnings)
+            foot_dir=foot_dir, warnings=warnings, knuckles=knuckles)
 
         if len(positions) == 1:
             for chain in chains_per_segment:
@@ -2832,4 +2847,4 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             'bar_inset_mm': bar_inset_mm,
             'stirrup_sets': stirrup_sets, 'crosstie_sets': crosstie_sets,
             'interior_stirrup_sets': interior_stirrup_sets,
-            'warnings': warnings}
+            'warnings': warnings, 'crank_knuckles_ft': _unique_levels_ft(knuckles)}
