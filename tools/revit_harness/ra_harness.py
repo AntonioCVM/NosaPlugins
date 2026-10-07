@@ -16,6 +16,8 @@ Scope variables set by the launcher:
     ROLLBACK   optional bool: run inside a TransactionGroup and roll it back; Revit errors roll their
                transaction back instead of opening a dialog, and the new rebars per host are listed
     OUT        optional path: RESULT is also written there (runs longer than the 60 s call)
+    ASSIMILATE optional bool, with ROLLBACK: keep the run (assimilate the group) so an outer
+               TransactionGroup of the caller can go on with it and roll everything back itself
 Result: RESULT (unicode).
 """
 import sys
@@ -275,9 +277,17 @@ except Exception:
     import traceback
     _log.append(u'EXCEPTION:\n' + unicode(traceback.format_exc()))
 finally:
+    try:
+        _keep = bool(ASSIMILATE)
+    except NameError:
+        _keep = False
     if group is not None and group.HasStarted():
-        group.RollBack()
-        _log.append(u'rolled back')
+        if _keep:
+            group.Assimilate()
+            _log.append(u'kept for the caller (assimilated)')
+        else:
+            group.RollBack()
+            _log.append(u'rolled back')
     if revit_mod is not None:
         revit_mod.Transaction = original_tx
     sys.stdout = _old_stdout

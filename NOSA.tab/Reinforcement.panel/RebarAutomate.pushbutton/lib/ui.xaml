@@ -1491,6 +1491,9 @@
                                        Foreground="{DynamicResource TextColor}" Opacity="0.65" Margin="0,0,0,8"/>
                             <Button Name="BtnGenerateSchedule" Content="Generate Schedule..."
                                     HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
+                            <Button Name="BtnBarSchedules" Content="Create A4 Bar Schedules (5500 series)"
+                                    Click="BarSchedules_Click" HorizontalAlignment="Stretch" Margin="0,0,0,8"
+                                    ToolTip="IStructE SMDSC 4.5.1: separate A4 schedules for each reinforcement drawing, referenced drawing + schedule + revision (4002-01-A), members whole and level by level, status P until changed on the sheet. Run Create Views with sheets first."/>
                             <TextBlock Name="TxtScheduleSummary" Text="" FontSize="11"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.8"
                                        TextWrapping="Wrap" Margin="0,0,0,0"/>

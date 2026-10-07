@@ -19,7 +19,7 @@ LABEL_TYPE = u'2.0mm Century Gothic'
 VIEWPORT_TYPE = u'NOSA Manual title /No scale'
 
 # NOSA A1 QR titleblock, panel B: free strip right of the drawing area, above the revisions (mm)
-PANEL_B = (740.0, 135.0, 834.0, 588.0)
+PANEL_B = (740.0, 135.0, 830.0, 588.0)
 PANEL_GAP_MM = 8.0
 
 _FT = 304.8

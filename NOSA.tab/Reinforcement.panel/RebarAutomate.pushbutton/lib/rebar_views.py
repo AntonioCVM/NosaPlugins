@@ -498,6 +498,10 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
                                                 retag=_retag if tag else None, legends=legends)
+            if report['sheets']:
+                # SMDSC 4.5.1: the member's bar schedules belong to the drawing it is detailed on
+                import bar_schedules
+                bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))

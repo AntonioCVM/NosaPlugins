@@ -139,7 +139,16 @@ Weight (kg). Lengths and dimensions use the reinforcement rounding; unused dimen
 blank.
 
 **Generate Schedule…** exports the same BBS as **CSV** (opens in Excel), with varying sets
-split into 05A, 05B … rows.
+split into 05a, 05b … rows (Revit's own sub-mark letters), lengths rounded up to 25 mm and
+dimensions to 5 mm (BS 8666:2020).
+
+**Create A4 Bar Schedules (5500 series)** follows the IStructE SMDSC 4.5.1: each
+reinforcement drawing gets its own A4 schedules, referenced drawing + schedule + revision
+(`4002-01-A`), members kept whole and listed level by level. Run **Create Views** with sheets
+first: it records the drawing each member is detailed on. Each schedule is the template BBS
+filtered to its reference, on its own A4 sheet whose header (drawing, schedule ref, revision,
+status P/T/C) is filled from the sheet parameters `NOSA_BBS_*`. A new schedule starts as
+**P – Preliminary**; change the sheet's status or revision and run the button again.
 
 **Export BVBS (.abs)…** writes the BF2D file for the bending machine (BVBS Guideline 3.1),
 asking for the schedule number. Circular links and custom shapes go without bending

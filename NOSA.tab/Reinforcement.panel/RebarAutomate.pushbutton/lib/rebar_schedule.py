@@ -378,11 +378,26 @@ def _shape_dims(shape_params):
     return dims
 
 
+def bs8666_length_mm(length_mm):
+    """BS 8666:2020 / SMDSC Table 4.2: cut length in multiples of 25 mm, rounded up."""
+    import math
+    return int(25 * math.ceil(round(float(length_mm or 0), 3) / 25.0))
+
+
+def bs8666_dim(value):
+    """Bending dimensions in multiples of 5 mm (nearest); text left as it is."""
+    try:
+        return text_type(int(5 * round(float(value) / 5.0)))
+    except (TypeError, ValueError):
+        return value
+
+
 def bbs_rows(schedule_data):
     """Schedule rows in BS 8666:2020 column order (strings), one per bar mark."""
     rows = []
     for row in schedule_data:
-        dims = _shape_dims(row.get('shape_params'))
+        # A..F in multiples of 5 mm; r is the BS 8666 mandrel radius (24, 32 ...), kept as it is
+        dims = dict((k, v if k == u'R' else bs8666_dim(v)) for k, v in _shape_dims(row.get('shape_params')).items())
         count = int(row.get('count') or 0)
         members = max(1, int(row.get('members') or 1))
         rows.append([
@@ -390,7 +405,7 @@ def bbs_rows(schedule_data):
             row.get('mark') or u'',
             u'H{}'.format(int(row.get('diameter_mm') or 0)),
             text_type(members), text_type(count), text_type(members * count),
-            text_type(int(round(row.get('unit_length_mm') or 0))),
+            text_type(bs8666_length_mm(row.get('unit_length_mm'))),
             row.get('shape_code') or u'',
         ] + [dims.get(letter, u'') for letter in u'ABCDEFR'] + [
             u'{:.1f}'.format(row.get('total_weight_kg') or 0.0),

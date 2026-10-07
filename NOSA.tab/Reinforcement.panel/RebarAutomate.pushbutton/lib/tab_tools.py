@@ -620,6 +620,34 @@ class ToolsMixin(object):
         forms.alert(msg, title=u'NOSA — Auto Sections')
 
 
+    def BarSchedules_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._create_bar_schedules)
+
+    def _create_bar_schedules(self):
+        """T8.33/T8.34 — A4 bar schedules per drawing (IStructE SMDSC 4.5.1)."""
+        import bar_schedules
+        try:
+            bar_schedules.bind(self.doc)
+        except Exception as e:
+            forms.alert(u'The bar schedule sheet parameters could not be added:\n{}'.format(e),
+                        title=u'NOSA — Bar Schedules')
+            return
+        with nosa_tx.revit_transaction(u'NOSA — A4 Bar Schedules'):
+            report = bar_schedules.create(self.doc)
+        if not report['schedules'] and not report['errors']:
+            msg = (u'No bar has a drawing yet: run Create Views (with sheets) on the reinforced '
+                   u'elements first, then create their schedules.')
+        else:
+            msg = u'{} bar schedule(s): {}.\n{} new A4 sheet(s) in the {} series.'.format(
+                len(report['schedules']), u', '.join(report['schedules']),
+                len(report['new_sheets']), bar_schedules.SHEET_SERIES)
+        if report['errors']:
+            msg += u'\n\n{} issue(s):\n{}'.format(len(report['errors']), u'\n'.join(report['errors'][:10]))
+        self.TxtScheduleSummary.Text = msg
+        forms.alert(msg, title=u'NOSA — Bar Schedules')
+
     def RebarHub_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
             return
