@@ -626,6 +626,22 @@ class ColumnsMixin(object):
                     created_rebars.append(rebar)
 
         vertical_rebars = created_rebars[first_vertical:]
+        if bar_type_vert is not None:
+            for us in reinforcement.get('top_ubar_sets', []):
+                if us['count'] > 1:
+                    rebar = wrapper.create_rebar_set_fixed_number(
+                        host, us['curves'], bar_type_vert, us['count'], us['array_length_mm'],
+                        normal=us['normal'], transaction_name=u'NOSA — Create Column Top U-Bars')
+                else:
+                    rebar = wrapper.create_from_curves(
+                        host, us['curves'], bar_type_vert, normal=us['normal'],
+                        transaction_name=u'NOSA — Create Column Top U-Bar')
+                if rebar is None:
+                    errors.append(u'Column {}: top U-bars (SMDSC MC4) — {}'.format(
+                        get_id_value(host.Id), wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'top_ubar')
+                    created_rebars.append(rebar)
 
         bar_type_link = bar_types.get(values['link_dia'])
         link_rebars = []

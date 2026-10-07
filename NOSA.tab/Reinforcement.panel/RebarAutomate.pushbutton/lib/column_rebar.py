@@ -1532,6 +1532,13 @@ def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None,
     else:
         anchorage_mm = footing_mod.default_anchorage_length_mm(bar_diameter_mm)
     embedment_mm = max(0.0, (bend_ft - bbox.Min.Z) * _MM_PER_FT)
+    from nosa_utils import links
+    min_depth_mm = links.mc4_min_slab_depth_mm(bar_diameter_mm)
+    if slab_depth_mm < min_depth_mm - 1e-6:
+        # IStructE SMDSC MC4 detail B: the slab is too thin for an L, inverted U-bars lap the bars
+        return {'kind': 'u', 'bend_ft': bend_ft, 'slab_depth_mm': slab_depth_mm,
+                'min_depth_mm': min_depth_mm,
+                'lap_mm': default_lap_length_mm(bar_diameter_mm, std=std, in_compression=False)}
     return {'kind': 'l', 'bend_ft': bend_ft, 'face': face, 'side_cover_mm': side_cover_mm,
             'foot_mm': top_l_foot_mm(anchorage_mm, embedment_mm, bar_diameter_mm)}
 
@@ -1619,6 +1626,9 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
                            DB.Line.CreateBound(bend, bend + foot_dir.Multiply(
                                top['foot_mm'] / _MM_PER_FT))])
             continue
+        if top_kind == 'u':
+            chains.append([DB.Line.CreateBound(seg_start, at(top['bend_ft']))])
+            continue
         if top_kind not in ('lap', 'projection'):
             chains.append([DB.Line.CreateBound(seg_start, seg_end)])
             continue
@@ -1657,6 +1667,38 @@ def _edge_positions(lo, hi, n):
         return [(lo + hi) / 2.0]
     step = (hi - lo) / float(n - 1)
     return [lo + i * step for i in range(n)]
+
+
+def _mc4_ubar_sets(base, u_dir, v_dir, top, bar_dia_mm, faces):
+    """
+    IStructE SMDSC MC4 detail B: inverted U-bars of the bar size joining opposite bars, each leg
+    contact-lapped inside its bar for a tension lap; the U-bars across v run one bar lower so the
+    two directions never clash. One fixed-number Set per direction.
+    """
+    from nosa_utils import links
+    sets = []
+    contact = bar_dia_mm
+    for along, drop in (('u', 0.0), ('v', bar_dia_mm)):
+        positions = [p for f in faces if f['edge_dir'] == along for p in f['positions']]
+        pairs = links.mc4_pairs(positions, along)
+        if not pairs:
+            continue
+        a_dir, x_dir = (u_dir, v_dir) if along == 'u' else (v_dir, u_dir)
+        at, lo, hi = pairs[0]
+        z_back = top['bend_ft'] - drop / _MM_PER_FT
+        z_foot = z_back - top['lap_mm'] / _MM_PER_FT
+
+        def pt(x_mm, z_ft, at=at, a_dir=a_dir, x_dir=x_dir):
+            p = base + a_dir.Multiply(at / _MM_PER_FT) + x_dir.Multiply(x_mm / _MM_PER_FT)
+            return DB.XYZ(p.X, p.Y, z_ft)
+
+        x0, x1 = lo + contact, hi - contact
+        curves = [DB.Line.CreateBound(pt(x0, z_foot), pt(x0, z_back)),
+                  DB.Line.CreateBound(pt(x0, z_back), pt(x1, z_back)),
+                  DB.Line.CreateBound(pt(x1, z_back), pt(x1, z_foot))]
+        sets.append({'curves': curves, 'normal': a_dir, 'count': len(pairs),
+                     'array_length_mm': pairs[-1][0] - pairs[0][0], 'label': u'Column Top U-Bar'})
+    return sets
 
 
 def _face_groups(half_w_mm, half_d_mm, n_u, n_v):
@@ -2497,6 +2539,10 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
                                                        in_compression=False)},
         })
 
+    if top is not None and top['kind'] == 'u':
+        warnings.append(u'Top in a {:.0f} mm slab, under the {:.0f} mm an L needs for H{:.0f}: the bars stop '
+                        u'under the top mat; add inverted U-bars by hand (SMDSC MC4 detail B).'.format(
+                            top['slab_depth_mm'], top['min_depth_mm'], bar_diameter_mm))
     return {'vertical_bars': vertical_bars, 'vertical_bar_sets': [],
             'stirrup_sets': stirrup_sets, 'crosstie_sets': [],
             'interior_stirrup_sets': [], 'warnings': warnings,
@@ -2879,7 +2925,16 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
         crosstie_sets = crossties['crosstie_bars']
         interior_stirrup_sets = crossties['interior_stirrup_sets']
 
+    top_ubar_sets = []
+    if top is not None and top['kind'] == 'u':
+        top_ubar_sets = _mc4_ubar_sets(base, u_dir, v_dir, top, bar_diameter_mm,
+                                       _face_groups(bar_half_w_mm, bar_half_d_mm, n_u, n_v))
+        warnings.append(u'Top in a {:.0f} mm slab, under the {:.0f} mm an L needs for H{:.0f}: inverted '
+                        u'U-bars lapped {:.0f} mm with the bars (SMDSC MC4 detail B).'.format(
+                            top['slab_depth_mm'], top['min_depth_mm'], bar_diameter_mm, top['lap_mm']))
+
     return {'vertical_bars': vertical_bars, 'vertical_bar_sets': vertical_bar_sets,
+            'top_ubar_sets': top_ubar_sets,
             'bar_inset_mm': bar_inset_mm,
             'stirrup_sets': stirrup_sets, 'crosstie_sets': crosstie_sets,
             'interior_stirrup_sets': interior_stirrup_sets,

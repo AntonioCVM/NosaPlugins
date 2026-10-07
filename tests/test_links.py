@@ -69,3 +69,13 @@ def test_lap_link_pitch():
     assert laps.lap_link_pitch_mm(25.0, 1300.0, 8.0) == 200.0            # 2 H8 legs a link: 3 per third
     assert laps.lap_transverse_ok(25.0, 100.0, 1300.0, 8.0, 2, 200.0)
     assert not laps.lap_transverse_ok(25.0, 100.0, 1300.0, 8.0, 2, 225.0)
+
+
+def test_mc4_top_detail():
+    assert links.mc4_min_slab_depth_mm(16.0) == 200.0 and links.mc4_min_slab_depth_mm(25.0) == 250.0
+    assert links.mc4_min_slab_depth_mm(32.0) == 300.0 and links.mc4_min_slab_depth_mm(40.0) == 400.0
+    corners_and_mids = [(-150.0, 150.0), (0.0, 150.0), (150.0, 150.0), (-150.0, -150.0), (0.0, -150.0),
+                        (150.0, -150.0)]
+    assert links.mc4_pairs(corners_and_mids, 'u') == [(-150.0, -150.0, 150.0), (0.0, -150.0, 150.0),
+                                                       (150.0, -150.0, 150.0)]
+    assert links.mc4_pairs([(-150.0, 0.0), (150.0, 0.0)], 'v') == [(0.0, -150.0, 150.0)]

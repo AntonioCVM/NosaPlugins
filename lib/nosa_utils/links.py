@@ -100,6 +100,30 @@ COLUMN_MIN_BAR_MM = 16.0
 COLUMN_MIN_RATIO, COLUMN_MAX_RATIO, COLUMN_MAX_RATIO_LAPS = 0.002, 0.04, 0.08
 
 
+MC4_MIN_SLAB_MM = ((20.0, 200.0), (25.0, 250.0), (32.0, 300.0))
+
+
+def mc4_min_slab_depth_mm(bar_dia_mm):
+    """SMDSC MC4: the slab depth that lets column bars end in an L (detail A); thinner takes U-bars (B)."""
+    for dia, depth in MC4_MIN_SLAB_MM:
+        if bar_dia_mm <= dia + 1e-6:
+            return depth
+    return 10.0 * bar_dia_mm
+
+
+def mc4_pairs(positions, along):
+    """
+    Opposite bars a detail-B U-bar joins: positions [(u, v)] of the faces whose bars are spaced
+    along `along` ('u' or 'v'); returns sorted [(at, lo, hi)] — the position along that axis and the
+    two across it — for every position with a bar on both faces.
+    """
+    k = 0 if along == 'u' else 1
+    groups = {}
+    for p in positions:
+        groups.setdefault(round(p[k], 1), []).append(p[1 - k])
+    return sorted((at, min(xs), max(xs)) for at, xs in groups.items() if len(xs) >= 2 and max(xs) - min(xs) > 1.0)
+
+
 def column_link_dia_min_mm(bar_dia_mm, least_side_mm=None):
     """max(phi/4, 8) (6 for columns under 200 mm)."""
     floor = 6.0 if (least_side_mm is not None and least_side_mm < 200.0) else MIN_LINK_DIA_MM
