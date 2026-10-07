@@ -604,9 +604,13 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               horiz_lap_length_mm=None,
                               vert_is_outer=True,
                               ubar_lap_length_mm=None,
-                              anchorage_mm=None, stagger_laps=False, end_conditions=None):
+                              anchorage_mm=None, stagger_laps=False, end_conditions=None,
+                              earth_normal=None, earth_cover_mm=50.0):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
+    earth_normal (IStructE SMDSC MRW1/MRW2, retaining walls): the face looking this way is the earth
+    face — its verticals sit outside, at no less than earth_cover_mm; the other face keeps
+    vert_is_outer and cover_mm.
     end_conditions (IStructE SMDSC MW2, wall_joints.classify): per end, 'free' keeps the end
     U-bars; 'through' runs the horizontals on to the other wall's outer face; 'stop' ends the
     mesh at the other wall's inner face and closes it with U-bars of the horizontal size and
@@ -782,9 +786,15 @@ def build_wall_reinforcement(doc, host, cover_mm,
         foot_mm = 25.0 * math.ceil(max(anchor - embed_mm, 12.0 * vert_dia_mm) / 25.0 - 1e-9)
     for face in faces:
         face_normal = face.normal.Normalize()
-        cover_pt = engine.compute_cover_point(face, vert_inset_mm)
+        outer_v, v_inset, h_inset = vert_is_outer, vert_inset_mm, horiz_inset_mm
+        if earth_normal is not None and face_normal.DotProduct(earth_normal) > 0.5:
+            c = max(cover_mm, earth_cover_mm)          # earth face: verticals outside (MRW1)
+            outer_v = True
+            v_inset = c + vert_dia_mm / 2.0
+            h_inset = c + vert_dia_mm + horiz_dia_mm / 2.0
+        cover_pt = engine.compute_cover_point(face, v_inset)
         depth = (cover_pt - p0).DotProduct(face_normal)
-        horiz_cover_pt = engine.compute_cover_point(face, horiz_inset_mm)
+        horiz_cover_pt = engine.compute_cover_point(face, h_inset)
         horiz_depth = (horiz_cover_pt - p0).DotProduct(face_normal)
         face_depths[id(face)] = (face, face_normal, depth)
 
@@ -812,7 +822,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                 'normal': axis_dir,
                 'count': len(vert_positions),
                 'label': u'Wall Vertical Mesh',
-                'location': layer_code(locations.get(id(face)), vert_is_outer),
+                'location': layer_code(locations.get(id(face)), outer_v),
             })
 
         if horiz_positions:
@@ -837,7 +847,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     'normal': DB.XYZ.BasisZ,
                     'count': len(horiz_positions),
                     'label': u'Wall Horizontal Mesh',
-                    'location': layer_code(locations.get(id(face)), not vert_is_outer),
+                    'location': layer_code(locations.get(id(face)), not outer_v),
                 })
 
     # Ties — through-wall at intervals

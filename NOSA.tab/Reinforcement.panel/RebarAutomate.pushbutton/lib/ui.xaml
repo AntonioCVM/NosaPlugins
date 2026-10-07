@@ -1032,6 +1032,9 @@
                             <TextBlock Text="When unchecked, mesh is placed on the exterior face only."
                                        FontSize="10" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.55"/>
+                            <CheckBox Name="ChkWallRetaining" Content="Retaining wall: earth on the Revit exterior side (SMDSC MRW1/MRW2)" Margin="0,0,0,6"
+                                      ToolTip="Earth face: verticals outside at 50 mm cover at least; the other face keeps the option below. Bars at 200 mm at most, kicker 150 for the starters, joints at no more than 30 m reported."/>
+                            <CheckBox Name="ChkWallEarthInterior" Content="Earth on the interior side instead" Margin="16,0,0,6"/>
                             <CheckBox Name="ChkWallVertOuter" Content="Vertical bars in the outer layer (touching cover)"
                                       IsChecked="False" Margin="0,8,0,4"
                                       Click="WallPreview_Changed"

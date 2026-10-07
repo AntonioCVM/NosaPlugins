@@ -31,6 +31,28 @@ def mw1_nominal(thickness_mm):
     return None
 
 
+RETAINING_MAX_PITCH_MM = 200.0       # SMDSC 6.6 / MRW1-MRW3
+RETAINING_EARTH_COVER_MM = 50.0      # buried face (45 + delta c_dev)
+RETAINING_KICKER_MM = 150.0
+RETAINING_JOINT_MM = 30000.0         # contraction joints at no more than 30 m
+
+
+def retaining_review(length_mm, vert_spacing_mm, horiz_spacing_mm, earth_cover_mm, label=u'Wall'):
+    """SMDSC 6.6 for a retaining wall: pitches over 200 come down; covers and joint spacing reported."""
+    notes = []
+    vs = min(float(vert_spacing_mm), RETAINING_MAX_PITCH_MM)
+    hs = min(float(horiz_spacing_mm), RETAINING_MAX_PITCH_MM)
+    if vs < vert_spacing_mm or hs < horiz_spacing_mm:
+        notes.append(u'{}: retaining wall bars at {:.0f} / {:.0f} mm at most (SMDSC 6.6).'.format(label, vs, hs))
+    if earth_cover_mm < RETAINING_EARTH_COVER_MM - 1e-6:
+        notes.append(u'{}: earth face cover raised from {:.0f} to {:.0f} mm (SMDSC MRW1).'.format(
+            label, earth_cover_mm, RETAINING_EARTH_COVER_MM))
+    if length_mm > RETAINING_JOINT_MM + 1e-6:
+        notes.append(u'{}: {:.0f} m long — contraction joints at no more than 30 m (SMDSC 6.6).'.format(
+            label, length_mm / 1000.0))
+    return vs, hs, notes
+
+
 def max_pitch_mm(thickness_mm):
     """Vertical and horizontal bars: min(3 t, 400)."""
     return min(3.0 * thickness_mm, MAX_PITCH_MM)

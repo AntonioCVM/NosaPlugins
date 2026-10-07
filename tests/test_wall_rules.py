@@ -28,3 +28,11 @@ def test_review():
     assert u'150 mm' in joined and u'robust cage' in joined
     _v, _h, notes = wr.review(200, 32, 100, 12, 200)
     assert any(u'links are needed' in n for n in notes)            # 8 % vertical steel
+
+
+def test_retaining_review():
+    vs, hs, notes = wr.retaining_review(12000.0, 250.0, 200.0, 40.0, label=u'Wall 1')
+    assert (vs, hs) == (200.0, 200.0)
+    assert any(u'200' in n for n in notes) and any(u'50 mm' in n for n in notes)
+    _vs, _hs, notes = wr.retaining_review(35000.0, 150.0, 150.0, 50.0)
+    assert len(notes) == 1 and u'30 m' in notes[0]

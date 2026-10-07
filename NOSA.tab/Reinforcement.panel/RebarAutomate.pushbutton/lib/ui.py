@@ -1758,14 +1758,15 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                           u'the foundation; add H10-300 (3 at least, SMDSC MF1) by hand.'.format(
                               label, get_id_value(host.Id), skipped))
 
-    def _foundation_starter_mm(self, typed_mm, bar_dia_mm, host, errors):
+    def _foundation_starter_mm(self, typed_mm, bar_dia_mm, host, errors, min_kicker_mm=0.0):
         """Foundation starter projection (SMDSC MF1 / MC1 / MW1): lap + kicker + 150 level tolerance."""
         try:
             base_ft = host.get_BoundingBox(None).Min.Z
         except Exception:
             base_ft = None
         return (self._splice_mm(typed_mm, bar_dia_mm, host, errors, u'Starter splice')
-                + self._kicker_at_mm(base_ft, host, errors) + standards.FOUNDATION_LEVEL_TOLERANCE_MM)
+                + max(self._kicker_at_mm(base_ft, host, errors), min_kicker_mm)
+                + standards.FOUNDATION_LEVEL_TOLERANCE_MM)
 
     def _ground_level_ft(self):
         """Elevation of the project's ground level: the level named 'Ground…', else 0."""

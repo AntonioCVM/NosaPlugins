@@ -37,6 +37,8 @@ class WallsMixin(object):
         # main mesh) always assumed vertical = outer layer, no way to
         # flip it. This selector controls both.
         values['vert_is_outer'] = self.ChkWallVertOuter.IsChecked == True
+        values['retaining'] = self.ChkWallRetaining.IsChecked == True
+        values['earth_interior'] = self.ChkWallEarthInterior.IsChecked == True
         values['include_ties'] = self.ChkWallTies.IsChecked == True
         if values['include_ties']:
             values['tie_dia'] = self._read_number(
@@ -158,8 +160,24 @@ class WallsMixin(object):
         except Exception:
             horiz_lap_mm = max(40.0 * values['horiz_dia'], 15.0 * values['horiz_dia'], 300.0)
 
+        earth_normal = None
+        if values.get('retaining'):
+            from nosa_utils import wall_rules
+            try:
+                length_mm = host.Location.Curve.Length * 304.8
+                earth_normal = DB.XYZ(host.Orientation.X, host.Orientation.Y, 0.0).Normalize()
+                if values.get('earth_interior'):
+                    earth_normal = earth_normal.Negate()
+            except Exception:
+                length_mm = 0.0
+            vs, hs, notes = wall_rules.retaining_review(
+                length_mm, values['vert_spacing'], values['horiz_spacing'], cover_mm,
+                label=u'Wall {}'.format(get_id_value(host.Id)))
+            errors.extend(notes)
+            values = dict(values, vert_spacing=vs, horiz_spacing=hs)
         reinforcement = wall_rebar.build_wall_reinforcement(
             self.doc, host,
+            earth_normal=earth_normal,
             cover_mm=cover_mm,
             vert_dia_mm=values['vert_dia'],
             vert_spacing_mm=values['vert_spacing'],
@@ -317,7 +335,8 @@ class WallsMixin(object):
             starters = wall_rebar.build_wall_foundation_starters(
                 self.doc, host, points, values['vert_dia'], values['vert_dia'],
                 values['foundation_anchor_mm'],
-                self._foundation_starter_mm(values['foundation_splice_mm'], values['vert_dia'], host, errors),
+                self._foundation_starter_mm(values['foundation_splice_mm'], values['vert_dia'], host, errors,
+                                            min_kicker_mm=150.0 if values.get('retaining') else 0.0),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
