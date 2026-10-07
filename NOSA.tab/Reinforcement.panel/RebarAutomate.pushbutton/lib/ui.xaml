@@ -1551,7 +1551,7 @@
                             <TextBlock Text="Create Views" Style="{StaticResource RA_SectionTitle}"/>
                             <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.65" Margin="0,0,0,8"
                                        Foreground="{DynamicResource TextColor}"
-                                       Text="Select reinforced elements in the model, then create their views in one click: column section + two elevations; beam elevation + sections at mid-span and near the support (one elevation per line of spans); footing / slab plan + two sections; wall elevation + section; stair section per flight + plan. NOSA RC Section / RC PLAN templates, scale chosen to fit (details at 1:10, elevations and plans larger as needed), bars shown unobscured."/>
+                                       Text="Select reinforced elements in the model, then create their views in one click: column section + two elevations; beam elevation + sections at mid-span and near the support (one elevation per line of spans); footing / slab plan + two sections; wall elevation + section; stair section per flight + plan. NOSA RC Section / RC PLAN templates, IStructE SMDSC scales (sections 1:20, elevations and slabs 1:50, coarser only when a view does not fit), layer notation key and reinforcement notes on every sheet, bars shown unobscured."/>
                             <CheckBox Name="ChkViewsTags" Content="Tag the bars (no overlapping tags)" IsChecked="True" Margin="0,0,0,4"/>
                             <CheckBox Name="ChkViewsSheets" Content="Place on a new A1 sheet per element (4000 series)" IsChecked="True" Margin="0,0,0,8"/>
                             <Button Name="BtnCreateViews" Content="CREATE VIEWS FOR SELECTION"

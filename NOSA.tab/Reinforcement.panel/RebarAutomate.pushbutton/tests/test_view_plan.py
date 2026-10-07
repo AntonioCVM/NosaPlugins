@@ -14,16 +14,17 @@ if _lib not in sys.path:
 import view_plan as vp  # noqa: E402
 
 
-def test_member_sections_are_details_at_1_10():
-    assert vp.choose_scale('member_section', 600.0, 800.0) == 10
+def test_member_sections_at_smdsc_1_20():
+    assert vp.choose_scale('member_section', 600.0, 800.0) == 20
     assert vp.choose_scale('member_section', 1200.0, 3000.0) == 20
+    assert vp.choose_scale('member_section', 3000.0, 8000.0) == 50
 
 
-def test_a_tall_column_elevation_steps_up_the_scale():
-    assert vp.choose_scale('column_elevation', 1000.0, 3500.0) == 20
-    assert vp.choose_scale('column_elevation', 1000.0, 12000.0) == 25
+def test_elevations_at_smdsc_1_50_stepping_up_when_tall():
+    assert vp.choose_scale('column_elevation', 1000.0, 3500.0) == 50
     assert vp.choose_scale('column_elevation', 1000.0, 24000.0) == 50
     assert vp.choose_scale('column_elevation', 1000.0, 60000.0) == 100
+    assert vp.choose_scale('elevation', 9000.0, 900.0) == 50
 
 
 def test_slab_sections_and_plans():
@@ -62,7 +63,6 @@ def test_next_sheet_numbers_skip_the_taken_ones():
 
 
 def test_coarser_scale_steps_through_the_candidates():
-    assert vp.coarser_scale('elevation', 20) == 25
-    assert vp.coarser_scale('elevation', 25) == 50
+    assert vp.coarser_scale('elevation', 50) == 100
     assert vp.coarser_scale('elevation', 100) is None
-    assert vp.coarser_scale('member_section', 10) == 20
+    assert vp.coarser_scale('member_section', 20) == 50

@@ -2,21 +2,22 @@
 """
 NOSA.RebarAutomate — Create Views (T7.3): view scales and sheet layout. Pure, mm, no Revit.
 
-Scales (user brief 2026-10-03): member cross-sections are details at 1:10 where they fit;
-elevations, slab sections and plans take the smallest standard scale that fits the room the
-view has on an A1 sheet — a tall continuous column may end at 1:50 or 1:100.
+Scales (IStructE SMDSC 3.5, adopted 2026-10-07 over the 2026-10-03 brief): beam and column
+sections 1:20, beam/column/wall elevations and slab details 1:50, general plans 1:100; a view that
+does not fit its room on an A1 sheet takes the next preferred scale (BS 1192: 1:20, 1:50, 1:100,
+1:200). 1:10 / 1:5 are kept for hand-picked details.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 # kind -> (candidate scales, paper box (w, h) mm the view may take on the sheet)
 SCALES = {
-    'member_section': ((10, 20, 25), (200.0, 260.0)),
-    'elevation': ((20, 25, 50, 100), (660.0, 300.0)),
-    'column_elevation': ((20, 25, 50, 100), (300.0, 520.0)),
-    'footing_section': ((10, 20, 25, 50), (320.0, 220.0)),
+    'member_section': ((20, 50), (200.0, 260.0)),
+    'elevation': ((50, 100), (660.0, 300.0)),
+    'column_elevation': ((50, 100), (300.0, 520.0)),
+    'footing_section': ((20, 50), (320.0, 220.0)),
     'slab_section': ((50, 100), (660.0, 120.0)),
     'plan': ((50, 100, 200), (420.0, 360.0)),
-    'stair_section': ((20, 25, 50), (420.0, 300.0)),
+    'stair_section': ((20, 50), (420.0, 300.0)),
     'stair_plan': ((50, 100), (260.0, 300.0)),
 }
 
