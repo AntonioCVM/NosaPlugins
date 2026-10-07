@@ -121,6 +121,44 @@ def foundation_review(h_mm, cover_mm, dia_x, dia_y, spacing, fck_mpa, top=None, 
     return spacing, top_spacing, _unique(notes)
 
 
+BAND_FACTOR = 1.5          # SMDSC 6.7: a band under the column when l > 1.5 (c + 3d)
+BAND_SHARE = 2.0 / 3.0
+
+
+def footing_band_mm(l_mm, c_mm, d_mm):
+    """Width c + 3d of the band under the column for the bars spaced along l (SMDSC 6.7), else None."""
+    band = float(c_mm) + 3.0 * float(d_mm)
+    return band if float(l_mm) > BAND_FACTOR * band + 1e-6 else None
+
+
+def band_layout_mm(lo_mm, hi_mm, count, band_lo_mm, band_hi_mm, max_pitch_mm=300.0,
+                   min_pitch_mm=FOUNDATION_MIN_PITCH_MM):
+    """
+    Positions of `count` bars from lo to hi with at least two thirds of them in band_lo..band_hi (bars
+    on both band edges) and the rest evenly in the outer strips, never wider than max_pitch apart;
+    returns (band, left, right) position lists, or None if the band would be closer than min_pitch.
+    """
+    band_lo, band_hi = max(float(lo_mm), float(band_lo_mm)), min(float(hi_mm), float(band_hi_mm))
+    wl, wr, wb = band_lo - lo_mm, hi_mm - band_hi, band_hi - band_lo
+    if wb <= 0.0:
+        return None
+    n_out = count - int(math.ceil(BAND_SHARE * count - 1e-9))
+    if abs(wl - wr) < 1.0:
+        nl = nr = n_out // 2
+    else:
+        nl = int(math.floor(n_out * wl / (wl + wr) + 0.5))
+        nr = n_out - nl
+    nl = 0 if wl < 1.0 else max(nl, int(math.ceil(wl / max_pitch_mm - 1e-9)))
+    nr = 0 if wr < 1.0 else max(nr, int(math.ceil(wr / max_pitch_mm - 1e-9)))
+    nb = max(count - nl - nr, 2 * (nl + nr), 2)
+    if wb / (nb - 1) < min_pitch_mm - 1e-6:
+        return None
+    band = [band_lo + wb * k / (nb - 1) for k in range(nb)]
+    left = [band_lo - wl * k / nl for k in range(nl, 0, -1)] if nl else []
+    right = [band_hi + wr * k / nr for k in range(1, nr + 1)] if nr else []
+    return band, left, right
+
+
 def _unique(notes):
     out = []
     for n in notes:

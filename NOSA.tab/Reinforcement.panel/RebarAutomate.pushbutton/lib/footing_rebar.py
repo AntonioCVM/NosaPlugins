@@ -1513,6 +1513,82 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
 # topology versions as primary.
 # ══════════════════════════════════════════════════════════════════════════
 
+def _plan_extent_ft(bbox, direction):
+    """(min, max) of a bounding box's plan corners along a horizontal direction, ft."""
+    values = [DB.XYZ(x, y, 0.0).DotProduct(direction)
+              for x in (bbox.Min.X, bbox.Max.X) for y in (bbox.Min.Y, bbox.Max.Y)]
+    return min(values), max(values)
+
+
+def apply_column_band(doc, host, mat, cover_mm, dia_x_mm, dia_y_mm, max_pitch_mm=300.0):
+    """
+    IStructE SMDSC 6.7: where a footing is longer than 1.5 (c + 3d) across a mat direction, two thirds
+    of that direction's bars go in a band c + 3d wide centred on the column, the rest in the outer
+    strips (at most max_pitch apart). Only for one column on a plain rectangular mat (one Set per
+    direction); the mat dict is changed in place and a note added.
+    """
+    from nosa_utils import mesh_rules
+    from nosa_utils.revit_helpers import get_id_value
+    engine = _ensure_engine()
+    columns = engine.find_columns_above(doc, host)
+    own = engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
+    if len(columns) != 1 or own is None:
+        return
+    column_box = columns[0].get_BoundingBox(None)
+    if column_box is None:
+        return
+    thickness_mm = (own.Max.Z - own.Min.Z) * _MM_PER_FT
+    for key, dia_mm in (('along_x', dia_x_mm), ('along_y', dia_y_mm)):
+        grouped = mat.get(key) or {}
+        sets = grouped.get('sets') or []
+        if len(sets) != 1 or grouped.get('bars'):
+            continue
+        st = sets[0]
+        spacing_mm, length_mm = st.get('spacing_mm') or 0.0, st.get('array_length_mm') or 0.0
+        if spacing_mm <= 0.0 or length_mm <= 0.0:
+            continue
+        n = DB.XYZ(st['normal'].X, st['normal'].Y, 0.0)
+        if n.GetLength() < 1e-9:
+            continue
+        n = n.Normalize()
+        count = int(math.ceil(length_mm / spacing_mm - 1e-6)) + 1
+        start = st['curves'][0].GetEndPoint(0)
+        lo = DB.XYZ(start.X, start.Y, 0.0).DotProduct(n) * _MM_PER_FT
+        f0, f1 = _plan_extent_ft(own, n)
+        c0, c1 = _plan_extent_ft(column_box, n)
+        d_mm = thickness_mm - cover_mm - dia_mm
+        band = mesh_rules.footing_band_mm((f1 - f0) * _MM_PER_FT, (c1 - c0) * _MM_PER_FT, d_mm)
+        if band is None:
+            continue
+        centre = (c0 + c1) / 2.0 * _MM_PER_FT
+        layout = mesh_rules.band_layout_mm(lo, lo + length_mm, count, centre - band / 2.0,
+                                           centre + band / 2.0, max_pitch_mm)
+        notes = grouped.setdefault('notes', [])
+        if layout is None:
+            notes.append(u'Footing {}: SMDSC 6.7 asks for two thirds of the {} bars in a {:.0f} mm band '
+                         u'under the column: at this bar count they would be closer than 100 mm. Use a larger bar '
+                         u'size or detail the band by hand.'.format(get_id_value(host.Id), key.replace(u'_', u' '), band))
+            continue
+        new_sets, new_bars = [], []
+        for run in layout:
+            if not run:
+                continue
+            shift = DB.Transform.CreateTranslation(n.Multiply((run[0] - lo) / _MM_PER_FT))
+            curves = [c.CreateTransformed(shift) for c in st['curves']]
+            if len(run) == 1:
+                new_bars.append({'curves': curves, 'normal': st['normal']})
+                continue
+            piece = dict((k, v) for k, v in st.items() if k != 'materialized_bars')
+            piece.update({'curves': curves, 'spacing_mm': (run[1] - run[0]) + 0.01,
+                          'array_length_mm': run[-1] - run[0]})
+            new_sets.append(piece)
+        grouped['sets'], grouped['bars'] = new_sets, new_bars
+        notes.append(u'Footing {}: {} of {} {} bars in a {:.0f} mm band under the column '
+                     u'(SMDSC 6.7: footing {:.0f} mm > 1.5 (c + 3d)).'.format(
+                         get_id_value(host.Id), len(layout[0]), sum(len(r) for r in layout),
+                         key.replace(u'_', u' '), band, (f1 - f0) * _MM_PER_FT))
+
+
 def build_mat_bars_topology(doc, host, is_top, cover_mm, dia_x_mm, dia_y_mm,
                              spacing_x_mm, spacing_y_mm, max_stock_length_mm=12000.0,
                              target_z_mm=None, leg_direction=None):
@@ -1846,6 +1922,8 @@ def build_footing_reinforcement(doc, host,
         max_stock_length_mm=max_stock_length_mm,
         target_z_mm=bottom_target_z_mm,
         leg_direction=DB.XYZ.BasisZ if bottom_hooks else None)
+
+    apply_column_band(doc, host, bottom_mat, bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm)
 
     result = {'bottom_mat': bottom_mat, 'top_mat': None, 'dowels': None, 'side_rebar': None,
               'perimeter_closure_ubars': None}

@@ -39,3 +39,13 @@ def test_stair_review():
     m, d, t, notes = mr.stair_review(120, 25, 16, 400, 6, 500, 30, top_dia=10, top_spacing=500)
     assert m == 350 and d == 400 and t == 350                   # 3h = 360, 3.5h = 420
     assert any(u'20 %' in n for n in notes)                     # H6@400 = 71 < 0.2 x H16@350 = 115
+
+
+def test_footing_band():
+    assert mr.footing_band_mm(1500, 450, 430) is None              # 1500 < 1.5 x 1740
+    assert mr.footing_band_mm(3000, 450, 400) == 1650.0            # 3000 > 1.5 x 1650
+    band, left, right = mr.band_layout_mm(0, 3000, 16, 600, 2400)
+    assert len(band) == 12 and band[0] == 600 and band[-1] == 2400  # 12 of 16 >= 2/3 under the column
+    assert left == [0.0, 300.0] and right == [2700.0, 3000.0]       # outer strips at <= 300
+    assert len(band) >= 2 * (len(left) + len(right))
+    assert mr.band_layout_mm(0, 3000, 16, 1400, 1500) is None       # band closer than 100 mm
