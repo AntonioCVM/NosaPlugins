@@ -589,10 +589,25 @@ class BeamsMixin(object):
         try:
             # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
             import fit_checks
-            width_mm, _h = beam_rebar.get_beam_section_mm(self.doc, first, cover_mm, values['bar_dia'])
+            width_mm, height_mm = beam_rebar.get_beam_section_mm(self.doc, first, cover_mm, values['bar_dia'])
+            label = u'Beam {}'.format(get_id_value(first.Id))
             errors.extend(fit_checks.beam_notes(
                 width_mm, cover_mm, values['stirrup_dia'], values['bar_dia'], values['n_top'],
-                values.get('n_bottom', values['n_top']), label=u'Beam {}'.format(get_id_value(first.Id))))
+                values.get('n_bottom', values['n_top']), label=label))
+            # T8.37, SMDSC 6.3: link pitch, minimum shear ratio, legs across the width
+            from nosa_utils import links, standards
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(first))
+            except Exception:
+                fck = 30.0
+            legs = 4 if values.get('interior_ties') else 2
+            pitch, link_notes = links.beam_review(width_mm, height_mm, cover_mm, values['stirrup_dia'],
+                                                  values['bar_dia'], values['stirrup_spacing'], legs, fck,
+                                                  label=label)
+            errors.extend(link_notes)
+            if pitch != values['stirrup_spacing']:
+                values = dict(values, stirrup_spacing=pitch,
+                              dense_spacing=min(values.get('dense_spacing') or pitch, pitch))
         except Exception:
             log_swallowed(_LOG, u'beam fit check')
         lap_mm, anchorage_mm = self._beam_lap_anchorage(first, values['bar_dia'])
@@ -649,10 +664,25 @@ class BeamsMixin(object):
         try:
             # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
             import fit_checks
-            width_mm, _h = beam_rebar.get_beam_section_mm(self.doc, host, cover_mm, values['bar_dia'])
+            width_mm, height_mm = beam_rebar.get_beam_section_mm(self.doc, host, cover_mm, values['bar_dia'])
+            label = u'Beam {}'.format(get_id_value(host.Id))
             errors.extend(fit_checks.beam_notes(
                 width_mm, cover_mm, values['stirrup_dia'], values['bar_dia'], values['n_top'],
-                values.get('n_bottom', values['n_top']), label=u'Beam {}'.format(get_id_value(host.Id))))
+                values.get('n_bottom', values['n_top']), label=label))
+            # T8.37, SMDSC 6.3: link pitch, minimum shear ratio, legs across the width
+            from nosa_utils import links, standards
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            legs = 4 if values.get('interior_ties') else 2
+            pitch, link_notes = links.beam_review(width_mm, height_mm, cover_mm, values['stirrup_dia'],
+                                                  values['bar_dia'], values['stirrup_spacing'], legs, fck,
+                                                  label=label)
+            errors.extend(link_notes)
+            if pitch != values['stirrup_spacing']:
+                values = dict(values, stirrup_spacing=pitch,
+                              dense_spacing=min(values.get('dense_spacing') or pitch, pitch))
         except Exception:
             log_swallowed(_LOG, u'beam fit check')
         lap_mm = None
