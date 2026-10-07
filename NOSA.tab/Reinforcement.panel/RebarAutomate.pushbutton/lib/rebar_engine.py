@@ -1186,9 +1186,28 @@ def hook_orientation_left():
     return enum.Left
 
 
+def long_leg_last(curves):
+    """
+    An L bar of two straight legs with its longer leg last. Revit names the LAST segment A and the
+    first B (measured 2026-10-07): the same L drawn from either end got A and B swapped and two
+    bar marks; with the long leg last, every such L schedules as A = long, B = short.
+    """
+    items = list(curves)
+    if len(items) != 2 or not all(isinstance(c, DB.Line) for c in items):
+        return curves
+    if items[0].Length <= items[-1].Length + 1e-9:
+        return curves
+    out = List[DB.Curve]()
+    for c in reversed(items):
+        out.Add(DB.Line.CreateBound(c.GetEndPoint(1), c.GetEndPoint(0)))
+    return out
+
+
 def rebar_from_curves(doc, style, bar_type, start_hook, end_hook, host, normal, curves,
                       start_orientation, end_orientation, use_existing_shape, create_new_shape):
     """Rebar.CreateFromCurves across API versions (Revit 2027 takes a BarTerminationsData)."""
+    if start_hook is None and end_hook is None:
+        curves = long_leg_last(curves)
     if getattr(DBS, 'RebarHookOrientation', None) is not None:
         return DBS.Rebar.CreateFromCurves(
             doc, style, bar_type, start_hook, end_hook, host, normal, curves,
@@ -1306,6 +1325,7 @@ def find_rebar_shape(doc, name):
 
 def rebar_from_curves_and_shape(doc, shape, bar_type, host, normal, curves):
     """Rebar.CreateFromCurvesAndShape, no hooks, across API versions; raises if Revit rejects it."""
+    curves = long_leg_last(curves)
     if getattr(DBS, 'RebarHookOrientation', None) is not None:
         return DBS.Rebar.CreateFromCurvesAndShape(
             doc, shape, bar_type, None, None, host, normal, curves,

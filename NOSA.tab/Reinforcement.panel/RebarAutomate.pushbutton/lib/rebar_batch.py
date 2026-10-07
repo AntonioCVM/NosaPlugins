@@ -278,6 +278,11 @@ class RebarBatch(object):
                             shapes_str = u', '.join(u'{}×{}'.format(code, count) 
                                                     for code, count in sorted(shape_summary['shapes'].items()))
                             _log_info(u'rebarautomate', u'  Shapes: {}'.format(shapes_str))
+                        # BS 8666 shape 00: A is the cut length, rounded like it (25 mm up)
+                        import rebar_engine
+                        for elem in created_rebars:
+                            if shared_params.read(elem, u'NOSA_Rebar_Shape_Code', u'') == u'00':
+                                rebar_engine.round_straight_like_total(elem)
                     except Exception as shape_err:
                         stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))
 

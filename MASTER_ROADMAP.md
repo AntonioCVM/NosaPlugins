@@ -269,8 +269,9 @@ Hallazgos de la prueba de la viga continua (2026-10-07), para la oleada 2:
   interno de Revit, daba 01, 04, 02…) y cantidades sumadas por marca (antes una fila por conjunto: 06 con 13 y 15 cercos).
 - **Marcas únicas por planilla (D9)**: *Create A4 Bar Schedules* renumera cada planilla 01, 02… por miembros y plantas;
   barras idénticas de distintos miembros comparten marca (`bar_schedules.schedule_marks`). Volver a pulsarlo tras regenerar.
-- Barras en L iguales pero simétricas (vano 1 y vano 3) salen con A y B intercambiadas y marcas distintas: normalizar la
-  orientación de las formas simétricas en la clave de identidad o al crear la barra.
+- ~~Barras en L simétricas con A y B cambiadas~~ **Resuelto 2026-10-07**: Revit llama A al último tramo; las L de dos
+  tramos se crean con el tramo largo al final (`long_leg_last`), así A = largo siempre y comparten marca. Toda barra
+  recta (00) redondea A como la longitud (A = longitud, BS 8666), no solo los varying sets.
 - ~~Solape de superiores fuera del tercio central~~ **Resuelto 2026-10-07**: `lap_cuts` deja el solape entero en el
   tercio central y centrado en el vano cuando la barra comercial llega (8262–9738 en el ejemplo).
 - ~~*Continuous* desmarcado~~ **Resuelto 2026-10-07**: marcado por defecto; desmarcado, avisa cuando las vigas
