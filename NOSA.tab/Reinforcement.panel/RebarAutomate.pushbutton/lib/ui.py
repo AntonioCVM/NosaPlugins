@@ -1558,6 +1558,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 self.TxtYAnchorUBarSpacing.Text, u'Y-Bars Anchoring U-Bar spacing', errors)
 
         values['include_opening_diagonals'] = self.ChkOpeningDiagonals.IsChecked == True
+        values['corner_torsion'] = self.ChkCornerTorsion.IsChecked == True
         if values['include_opening_diagonals']:
             values['opening_diagonal_dia'] = self._read_number(
                 self.TxtOpeningDiagonalDia.Text, u'Opening corner diagonal bar diameter', errors)
@@ -2303,7 +2304,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             std=self._host_std(host),
             include_opening_diagonals=values.get('include_opening_diagonals', False),
             opening_diagonal_dia_mm=values.get('opening_diagonal_dia'),
-            stagger_laps=values.get('stagger_laps', False))
+            stagger_laps=values.get('stagger_laps', False),
+            corner_torsion=values.get('corner_torsion', False))
 
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(
@@ -2360,6 +2362,14 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                               u'opening for a 45° diagonal bar — detail by hand.'.format(
                                   get_id_value(host.Id), diagonals['n_skipped']))
 
+        for layer, dia, grouped in reinforcement.get('corner_torsion') or []:
+            if bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+            self._create_grouped_bars(
+                wrapper, host, grouped, bar_types.get(dia), errors, created_rebars,
+                u'Floor Corner Torsion Bar', layer=layer)
+        errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n)
+                      for n in reinforcement.get('torsion_notes') or [])
         for layer, dia, grouped in reinforcement.get('hole_trimmers') or []:
             if bar_types.get(dia) is None:
                 bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)

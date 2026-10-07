@@ -62,3 +62,15 @@ def test_slab_holes():
     assert mr.slab_hole_class(600, 300) == u'both' and mr.slab_hole_class(1200, 300) == u'design'
     assert mr.trimmers_per_side(300, 200) == 1 and mr.trimmers_per_side(600, 200) == 2
     assert mr.trimmers_per_side(1000, 150) == 4                     # 7 bars cut: 4 each side
+
+
+def test_corner_torsion():
+    assert mr.torsion_extra_spacing_mm(12, 200, 12, 200) is None          # top = bottom: 3/4 already there
+    assert mr.torsion_extra_spacing_mm(12, 200) == 250.0                  # 144/266 -> 250
+    assert mr.torsion_extra_spacing_mm(16, 150, 10, 200) == 325.0         # 1.28 - 0.5 = 0.78 -> 256/0.78 = 328
+    square = [(0, 0), (4000, 0), (4000, 3000), (0, 3000)]
+    assert sorted(mr.slab_corners(square)) == [(0, 0, 1.0, 1.0), (0, 3000, 1.0, -1.0),
+                                               (4000, 0, -1.0, 1.0), (4000, 3000, -1.0, -1.0)]
+    l_shape = [(0, 0), (4000, 0), (4000, 2000), (2000, 2000), (2000, 3000), (0, 3000)]
+    assert len(mr.slab_corners(l_shape)) == 5                             # the re-entrant one is skipped
+    assert len(mr.slab_corners(list(reversed(square)))) == 4

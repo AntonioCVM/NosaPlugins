@@ -251,6 +251,17 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ═══ CORNER TORSION (Floors only) ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkCornerTorsion" Content="Torsion bars at held-down outer corners (Floors only)"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                        <TextBlock Text="IStructE SMDSC Fig. 6.9 / EC2 9.3.1.3: at every right-angled outer corner, over a fifth of the shorter span, the top holds 3/4 of the bottom steel in both directions. Extra top bars of the bottom size are added under the top mat where it falls short. Tick only when the corners are held down."
+                                   FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.5"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- ═══ OPENING CORNER DIAGONALS (Floors only) ═══ -->
                 <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                     <StackPanel>

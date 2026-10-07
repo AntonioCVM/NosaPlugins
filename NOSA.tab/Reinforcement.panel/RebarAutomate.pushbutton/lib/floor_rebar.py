@@ -1457,6 +1457,56 @@ def opening_corner_diagonals_mm(topo, raw_holes, outer, large_holes, cover_mm, b
     return segments, skipped
 
 
+def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia_y, spacing,
+                    top_dia_x, top_dia_y, top_spacing, top_cover_mm):
+    """
+    IStructE SMDSC Fig. 6.9 / EC2 9.3.1.3 (corners held down, user option): over a fifth of the
+    shorter span from every outer right-angled corner, extra top bars in both directions so the
+    top holds 3/4 of the bottom steel; the bottom mat already runs through the corner. Placed
+    under the top mat (or at the top cover without one). Returns ([(layer, dia, grouped)], notes).
+    """
+    from nosa_utils import mesh_rules
+    xs = [p[0] for p in raw_outer]
+    ys = [p[1] for p in raw_outer]
+    reach = mesh_rules.TORSION_REACH * min(max(xs) - min(xs), max(ys) - min(ys))
+    corners = mesh_rules.slab_corners(raw_outer)
+    notes = []
+    groups = {}
+    if top_dia_x:
+        z_top = top_z_ft - (top_cover_mm + top_dia_x + top_dia_y) / _MM_PER_FT
+    else:
+        z_top = top_z_ft - cover_mm / _MM_PER_FT
+    z_x = z_top - dia_x / 2.0 / _MM_PER_FT
+    z_y = z_top - (dia_x + dia_y / 2.0) / _MM_PER_FT
+    for axis, dia, top_dia, z in ((u'x', dia_x, top_dia_x, z_x), (u'y', dia_y, top_dia_y, z_y)):
+        pitch = mesh_rules.torsion_extra_spacing_mm(dia, spacing, top_dia, top_spacing)
+        if pitch is None:
+            notes.append(u'corner torsion: the top {} bars already give 3/4 of the bottom ones — no extra '
+                         u'corner bars (SMDSC Fig. 6.9).'.format(axis.upper()))
+            continue
+        inset = side_cover_mm + dia / 2.0
+        if reach - inset < pitch:
+            continue
+        span = pitch * math.floor((reach - inset) / pitch + 1e-9)
+        for cx, cy, dx, dy in corners:
+            if axis == u'x':      # bars along X, spread along Y away from the corner
+                p = DB.XYZ((cx + dx * inset) / _MM_PER_FT, (cy + dy * inset) / _MM_PER_FT, z)
+                q = DB.XYZ((cx + dx * reach) / _MM_PER_FT, (cy + dy * inset) / _MM_PER_FT, z)
+                normal = DB.XYZ(0.0, dy, 0.0)
+            else:
+                p = DB.XYZ((cx + dx * inset) / _MM_PER_FT, (cy + dy * inset) / _MM_PER_FT, z)
+                q = DB.XYZ((cx + dx * inset) / _MM_PER_FT, (cy + dy * reach) / _MM_PER_FT, z)
+                normal = DB.XYZ(dx, 0.0, 0.0)
+            groups.setdefault((u'torsion_top', dia), {'sets': [], 'bars': []})['sets'].append({
+                'curves': [DB.Line.CreateBound(p, q)], 'normal': normal, 'spacing_mm': pitch + 0.01,
+                'array_length_mm': span, 'label': u'Floor Corner Torsion Bar'})
+    n_vertices = len(raw_outer) - (1 if raw_outer and raw_outer[0] == raw_outer[-1] else 0)
+    if corners and len(corners) < n_vertices:
+        notes.append(u'corner torsion: only the {} right-angled outer corner(s) along X/Y get bars — detail '
+                     u'any other held-down corner by hand.'.format(len(corners)))
+    return [(layer, dia, g) for (layer, dia), g in sorted(groups.items())], notes
+
+
 def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals):
     """
     IStructE SMDSC 6.2 (vi)-(vii): each hole over 150 mm is trimmed on all sides with bars of the
@@ -1545,7 +1595,7 @@ def build_floor_reinforcement(doc, host,
                                y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
                                max_stock_length_mm=12000.0, std=None,
                                include_opening_diagonals=False, opening_diagonal_dia_mm=None,
-                               stagger_laps=False):
+                               stagger_laps=False, corner_torsion=False):
     """
     Phase 2.3 pipeline for one floor/slab host. See module docstring
     for the four hardening fixes over Phase 2.2. Real cover is applied
@@ -1801,6 +1851,17 @@ def build_floor_reinforcement(doc, host,
                if include_top_mat else []),
             (top_z_ft - bottom_z_ft) * _MM_PER_FT if top_z_ft is not None else 0.0,
             include_opening_diagonals)
+
+    if corner_torsion:
+        if top_z_ft is None:
+            top_face = footing_mod.get_footing_top_face(cover_mgr)
+            top_z_ft = top_face.origin.Z if top_face is not None else None
+        if top_z_ft is not None:
+            result['corner_torsion'], result['torsion_notes'] = _corner_torsion(
+                DB, raw_outer, side_cover_mm, top_z_ft, bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm,
+                bottom_spacing_mm, top_dia_x_mm if include_top_mat else None,
+                top_dia_y_mm if include_top_mat else None, top_spacing_mm if include_top_mat else None,
+                top_cover_mm if include_top_mat else None)
 
     if include_opening_diagonals and raw_holes:
         if not opening_diagonal_dia_mm:

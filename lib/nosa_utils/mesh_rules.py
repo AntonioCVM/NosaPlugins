@@ -160,6 +160,50 @@ def trimmers_per_side(cut_extent_mm, spacing_mm):
     return max(1, int(math.ceil(cut / 2.0)))
 
 
+TORSION_SHARE = 0.75     # SMDSC Fig. 6.9 / EC2 9.3.1.3: each leg 3/4 of the mid-span steel
+TORSION_REACH = 0.2      # ... over a fifth of the shorter span from the corner
+
+
+def torsion_extra_spacing_mm(bottom_dia, bottom_spacing, top_dia=None, top_spacing=None, extra_dia=None):
+    """
+    Pitch of the extra top bars (extra_dia, default the bottom size) a held-down slab corner needs so
+    the top gives 3/4 of the bottom area (the bottom mat already runs through the corner); None
+    when the top mat already does. 25 mm steps down, never under 100.
+    """
+    need = TORSION_SHARE * float(bottom_dia) ** 2 / float(bottom_spacing)
+    have = float(top_dia) ** 2 / float(top_spacing) if top_dia and top_spacing else 0.0
+    if have >= need - 1e-9:
+        return None
+    dia = float(extra_dia or bottom_dia)
+    pitch = dia ** 2 / (need - have)
+    return max(FOUNDATION_MIN_PITCH_MM, 25.0 * math.floor(pitch / 25.0 + 1e-9))
+
+
+def slab_corners(polygon):
+    """
+    Convex right-angled corners of a plan polygon whose edges run along X and Y: [(x, y, dx, dy)],
+    (dx, dy) pointing into the slab along each edge.
+    """
+    pts = list(polygon)
+    if len(pts) > 1 and abs(pts[0][0] - pts[-1][0]) < 1e-6 and abs(pts[0][1] - pts[-1][1]) < 1e-6:
+        pts = pts[:-1]
+    n = len(pts)
+    area = sum(pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1] for i in range(n))
+    out = []
+    for i in range(n):
+        a, v, b = pts[i - 1], pts[i], pts[(i + 1) % n]
+        e1 = (v[0] - a[0], v[1] - a[1])
+        e2 = (b[0] - v[0], b[1] - v[1])
+        if (e1[0] * e2[1] - e1[1] * e2[0]) * area <= 0.0:
+            continue                                   # re-entrant (or straight) vertex
+        along_x = [p for p in (a, b) if abs(p[1] - v[1]) < 1.0 and abs(p[0] - v[0]) > 1.0]
+        along_y = [p for p in (a, b) if abs(p[0] - v[0]) < 1.0 and abs(p[1] - v[1]) > 1.0]
+        if len(along_x) != 1 or len(along_y) != 1:
+            continue
+        out.append((v[0], v[1], 1.0 if along_x[0][0] > v[0] else -1.0, 1.0 if along_y[0][1] > v[1] else -1.0))
+    return out
+
+
 BAND_FACTOR = 1.5          # SMDSC 6.7: a band under the column when l > 1.5 (c + 3d)
 BAND_SHARE = 2.0 / 3.0
 
