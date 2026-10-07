@@ -87,7 +87,7 @@ def beam_review(width_mm, height_mm, cover_mm, link_dia_mm, bar_dia_mm, spacing_
         notes.append(u'{}: {:.0f} mm wide: open links with a top locking link may be used '
                      u'(SMDSC 6.3, Fig. 6.21).'.format(label, width_mm))
     if height_mm >= SIDE_BARS_DEPTH_MM:
-        notes.append(u'{}: {:.0f} mm deep: side bars H16 at <= 250 mm inside the links are needed '
+        notes.append(u'{}: {:.0f} mm deep: side bars H16 at <= 250 mm added inside the links '
                      u'(SMDSC 6.3, EC2 7.3.3).'.format(label, height_mm))
     return pitch, notes
 

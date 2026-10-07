@@ -601,6 +601,14 @@ class BeamsMixin(object):
             except Exception:
                 fck = 30.0
             legs = 4 if values.get('interior_ties') else 2
+            d_mm = links.effective_depth_mm(height_mm, cover_mm, values['stirrup_dia'], values['bar_dia'])
+            if (legs < links.legs_needed(width_mm, cover_mm, values['stirrup_dia'], d_mm)
+                    and max(values['n_top'], values.get('n_bottom') or 0) > 2):
+                # SMDSC 6.3: legs at <= min(600, 0.75d) and every bar within 150 mm of one
+                values = dict(values, interior_ties=True)
+                legs = 4
+                errors.append(u'{}: interior links added: the width needs more than two legs '
+                              u'(SMDSC 6.3).'.format(label))
             pitch, link_notes = links.beam_review(width_mm, height_mm, cover_mm, values['stirrup_dia'],
                                                   values['bar_dia'], values['stirrup_spacing'], legs, fck,
                                                   label=label)
@@ -676,6 +684,14 @@ class BeamsMixin(object):
             except Exception:
                 fck = 30.0
             legs = 4 if values.get('interior_ties') else 2
+            d_mm = links.effective_depth_mm(height_mm, cover_mm, values['stirrup_dia'], values['bar_dia'])
+            if (legs < links.legs_needed(width_mm, cover_mm, values['stirrup_dia'], d_mm)
+                    and max(values['n_top'], values.get('n_bottom') or 0) > 2):
+                # SMDSC 6.3: legs at <= min(600, 0.75d) and every bar within 150 mm of one
+                values = dict(values, interior_ties=True)
+                legs = 4
+                errors.append(u'{}: interior links added: the width needs more than two legs '
+                              u'(SMDSC 6.3).'.format(label))
             pitch, link_notes = links.beam_review(width_mm, height_mm, cover_mm, values['stirrup_dia'],
                                                   values['bar_dia'], values['stirrup_spacing'], legs, fck,
                                                   label=label)
@@ -835,6 +851,17 @@ class BeamsMixin(object):
             for group in curves.get('span_bar_sets') or []:
                 self._create_long_group(wrapper, host, group, span_type, u'Beam Span Bar',
                                         u'bottom_span', errors, created_rebars)
+        side_groups = curves.get('side_bar_sets') or []
+        if side_groups:
+            # IStructE SMDSC 6.3: beams 1000 mm deep or more, H16 side bars at <= 250 mm
+            side_type = re_engine.get_bar_type_by_diameter(self.doc, side_groups[0]['diameter_mm'])
+            if side_type is None:
+                errors.append(u'Beam {}: no H{:.0f} bar type for the side bars.'.format(
+                    get_id_value(host.Id), float(side_groups[0]['diameter_mm'])))
+            else:
+                for group in side_groups:
+                    self._create_long_group(wrapper, host, group, side_type, u'Beam Side Bar',
+                                            u'side', errors, created_rebars)
         if len(curves.get('spans_mm') or []) > 1 and not values.get('n_support'):
             errors.append(u'Beam {}: runs over {} intermediate support(s) — links placed span by span; '
                           u'tick "Top support bars" for the hogging bars over them.'.format(

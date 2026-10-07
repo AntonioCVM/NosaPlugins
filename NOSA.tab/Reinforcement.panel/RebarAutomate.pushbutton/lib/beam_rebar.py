@@ -698,6 +698,52 @@ def _add_support_legs(chains, ext0_mm, ext1_mm, leg_dir, anchorage_mm, bar_diame
     return out
 
 
+def side_bar_rows_mm(clear_mm, pitch_mm=250.0):
+    """(rows, pitch) of side bars between a bottom and a top bar clear_mm apart, at <= pitch_mm."""
+    if clear_mm <= pitch_mm + 1e-6:
+        return 0, 0.0
+    gaps = int(math.ceil(clear_mm / pitch_mm - 1e-9))
+    return gaps - 1, clear_mm / gaps
+
+
+def build_side_bar_sets(axis, section_origin, width_dir, height_dir, half_width_mm, half_height_mm,
+                        link_dia_mm, bar_dia_mm, stirrup_sets, beam_height_mm, side_bar_dia_mm=None):
+    """
+    IStructE SMDSC 6.3 / EC2 7.3.3: a beam 1000 mm deep or more takes H16 side bars inside the links
+    at <= 250 mm up each side face, between the bottom and top bars, along the length the links
+    cover. side_bar_dia_mm: None = automatic (16 from 1000 mm), 0 = none. One Set per face, propagated
+    up from the lowest row. Returns groups for the tab's _create_long_group.
+    """
+    from nosa_utils import links
+    if side_bar_dia_mm is None:
+        side_bar_dia_mm = links.SIDE_BAR_DIA_MM if beam_height_mm >= links.SIDE_BARS_DEPTH_MM - 1e-6 else 0.0
+    positions = [p for s in stirrup_sets for p in (s.get('positions') or [])]
+    if not side_bar_dia_mm or not positions:
+        return []
+    bar_offset = link_dia_mm / 2.0 + bar_dia_mm / 2.0          # main bars inside the link centreline
+    bottom = -half_height_mm + bar_offset
+    top = half_height_mm - bar_offset
+    rows, pitch = side_bar_rows_mm(top - bottom, links.SIDE_BAR_PITCH_MM)
+    if rows < 1:
+        return []
+    across = half_width_mm - link_dia_mm / 2.0 - side_bar_dia_mm / 2.0
+    x0, x1 = min(positions), max(positions)
+    direction = axis.Direction.Normalize()
+    groups = []
+    for sign in (1.0, -1.0):
+        rows_curves = []
+        for k in range(rows):
+            z = bottom + pitch * (k + 1)
+            base = (section_origin + width_dir.Multiply(sign * across / _MM_PER_FT)
+                    + height_dir.Multiply(z / _MM_PER_FT))
+            rows_curves.append([DB.Line.CreateBound(base + direction.Multiply(x0 / _MM_PER_FT),
+                                                    base + direction.Multiply(x1 / _MM_PER_FT))])
+        groups.append({'curves': rows_curves[0], 'count': rows, 'spacing_mm': pitch + 0.01,
+                       'array_length_mm': pitch * (rows - 1), 'normal': height_dir.Normalize(),
+                       'label': u'Beam Side Bars', 'all_curves': rows_curves, 'diameter_mm': side_bar_dia_mm})
+    return groups
+
+
 def group_parallel_bar_chains_into_sets(chains, spacing_mm, normal, label):
     """
     Group N parallel, IDENTICALLY-SHAPED longitudinal bar chains (one
@@ -921,7 +967,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              link_bend_diameter_mm=None, continuous_ends=(False, False),
                              internal_bottom_ext_mm=(0.0, 0.0), include_top=True,
                              n_support_bars=0, support_bar_diameter_mm=None,
-                             n_span_bars=0, span_bar_diameter_mm=None):
+                             n_span_bars=0, span_bar_diameter_mm=None, side_bar_diameter_mm=None):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -1187,7 +1233,12 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                             u'the other row is not held at every leg.'.format(
                                 max(n_top_bars, n_bottom_bars), min(n_top_bars, n_bottom_bars)))
 
+    side_bar_sets = build_side_bar_sets(
+        axis, section_origin, width_dir, height_dir, half_width_mm, half_height_mm,
+        stirrup_bar_diameter_mm, bar_diameter_mm, stirrup_sets, beam_height_mm, side_bar_diameter_mm)
+
     return {
+        'side_bar_sets': side_bar_sets,
         'top_bars': top_chains,
         'bottom_bars': bottom_chains,
         'top_bar_sets': top_bar_sets,
