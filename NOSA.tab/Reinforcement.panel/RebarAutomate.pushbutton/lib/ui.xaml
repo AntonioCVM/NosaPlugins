@@ -550,6 +550,9 @@
                                        Foreground="{DynamicResource TextColor}" Opacity="0.5"/>
                         </StackPanel>
 
+                        <CheckBox Name="ChkColHelical" Content="Helical links in circular columns (SMDSC MC6)"
+                                  ToolTip="Circular columns get a helix (shape 77) at the link pitch of each zone instead of lapped circular links, in pieces of up to 12 m of bar lapped one turn."
+                                  Foreground="{DynamicResource TextColor}" Margin="0,10,0,0"/>
                         <CheckBox Name="ChkColCrossties" Content="Include Interior Crossties"
                                   Click="ColumnCrossties_Click"
                                   Foreground="{DynamicResource TextColor}" Margin="0,10,0,0"/>

@@ -1366,6 +1366,31 @@ def set_workshop_bent(rebar):
         return False
 
 
+def create_helix(doc, host, bar_type, shape, centre, radius_mm, height_mm, pitch_mm):
+    """
+    One helical bar (the project's spiral RebarShape, BS 8666 shape 77) round the vertical axis
+    through centre, from centre.Z up height_mm; r / Height / Pitch are its own instance parameters.
+    Revit drops the spiral at an offset from the given origin, so it is moved onto the centre after.
+    Call inside a Transaction. Returns the Rebar or None.
+    """
+    rebar = DBS.Rebar.CreateFromRebarShape(doc, shape, bar_type, host, centre, DB.XYZ.BasisX, DB.XYZ.BasisY)
+    if rebar is None:
+        return None
+    for name, value in ((u'r', radius_mm), (u'Height', height_mm), (u'Pitch', pitch_mm)):
+        param = rebar.LookupParameter(name)
+        if param is None or param.IsReadOnly:
+            return None
+        param.Set(value / _MM_PER_FT)
+    doc.Regenerate()
+    box = rebar.get_BoundingBox(None)
+    if box is not None:
+        here = DB.XYZ((box.Min.X + box.Max.X) / 2.0, (box.Min.Y + box.Max.Y) / 2.0, box.Min.Z)
+        bar_r = bar_type.BarModelDiameter / 2.0
+        target = DB.XYZ(centre.X, centre.Y, centre.Z - bar_r)
+        DB.ElementTransformUtils.MoveElement(doc, rebar.Id, target - here)
+    return rebar
+
+
 def find_rebar_shape(doc, name):
     """The project's RebarShape called `name` (e.g. u'26'), or None."""
     for shape in DB.FilteredElementCollector(doc).OfClass(DBS.RebarShape):

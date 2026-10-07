@@ -228,3 +228,23 @@ def starter_link_levels_mm(top_mm, bottom_mm, pitch_mm=STARTER_LINK_PITCH_MM, mi
     count = max(min_count, int(math.floor(span / pitch_mm + 1e-6)) + 1)
     step = min(float(pitch_mm), span / (count - 1))
     return [top_mm - k * step for k in range(count)]
+
+
+HELIX_STOCK_MM = 12000.0     # SMDSC MC6: helical binding in 12 m lengths, lapped
+
+
+def helix_pieces_mm(height_mm, pitch_mm, radius_mm, stock_mm=HELIX_STOCK_MM):
+    """
+    Helical binding of a circular column as [(start, height)] pieces, mm from the zone start: each
+    no longer than stock_mm of bar, the next starting one turn below the end of the last (the lap).
+    """
+    turn = math.hypot(2.0 * math.pi * radius_mm, pitch_mm)
+    turns = max(2, int(math.floor(stock_mm / turn)))
+    piece = (turns - 1) * pitch_mm            # rise of one piece (its last turn is the lap)
+    out, z = [], 0.0
+    while True:
+        h = min(piece, height_mm - z)
+        out.append((z, h))
+        if z + h >= height_mm - 1e-6:
+            return out
+        z += h - pitch_mm

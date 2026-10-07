@@ -444,6 +444,7 @@ class ColumnsMixin(object):
         values['starter_bars'] = self.ChkColStarterBars.IsChecked == True
         values['cranked_laps'] = self.ChkColCrankedLaps.IsChecked == True
         values['crossties'] = self.ChkColCrossties.IsChecked == True
+        values['helical'] = self.ChkColHelical.IsChecked == True
         values['crosstie_layout'] = ('alternate' if self.CboCrosstieLayout.SelectedIndex == 1
                                       else 'all')
 
@@ -650,6 +651,9 @@ class ColumnsMixin(object):
                 style = DBS.RebarStyle.StirrupTie if s.get('style') == 'StirrupTie' else None
                 rebar = None
                 circle = s.get('circle')
+                if circle and values.get('helical') and self._create_helix(
+                        host, bar_type_link, circle, s, errors, created_rebars, link_rebars):
+                    continue
                 if circle:
                     rebar = wrapper.create_lapped_circle_set(
                         host, bar_type_link, circle['centre'], circle['radius_mm'],
@@ -745,6 +749,40 @@ class ColumnsMixin(object):
                 wrapper, [{'bars': lines, 'hand': hand, 'foundation': foundation}
                           for foundation, lines in by_foundation.values()],
                 values['bar_dia'], cover_mm, errors, created_rebars, u'Column', host)
+
+    def _create_helix(self, host, bar_type, circle, zone, errors, created_rebars, link_rebars):
+        """IStructE SMDSC MC6: the zone's circular links as helical binding, 12 m pieces lapped one turn."""
+        from nosa_utils import links
+        shape = re_engine.find_rebar_shape(self.doc, u'77')
+        if shape is None:
+            errors.append(u'Column {}: no spiral shape 77 in the project — circular links used '
+                          u'instead of a helix.'.format(get_id_value(host.Id)))
+            return False
+        pieces = links.helix_pieces_mm(zone['array_length_mm'], zone['spacing_mm'], circle['radius_mm'])
+        made = []
+        try:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Create Helical Links')) as t:
+                t.Start()
+                for z0, height in pieces:
+                    centre = circle['centre'] + DB.XYZ(0.0, 0.0, z0 / 304.8)
+                    rebar = re_engine.create_helix(self.doc, host, bar_type, shape, centre,
+                                                   circle['radius_mm'], height, zone['spacing_mm'])
+                    if rebar is None:
+                        raise ValueError(u'the spiral shape would not take r / Height / Pitch')
+                    made.append(rebar)
+                t.Commit()
+        except Exception as e:
+            errors.append(u'Column {}: helical links — {}; circular links used instead.'.format(
+                get_id_value(host.Id), e))
+            return False
+        for rebar in made:
+            self._stamp_layer(rebar, u'stirrup')
+            created_rebars.append(rebar)
+            link_rebars.append(rebar)
+        if len(made) > 1:
+            errors.append(u'Column {}: helical links in {} pieces of up to 12 m of bar, lapped one turn '
+                          u'(SMDSC MC6).'.format(get_id_value(host.Id), len(made)))
+        return True
 
     def _crank_knuckle_links(self, host, reinforcement, bar_type_link, wrapper, errors, created_rebars):
         """IStructE SMDSC MC2: one more link at the knuckle of each crank, where the bars push outwards."""

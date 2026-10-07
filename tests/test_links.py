@@ -79,3 +79,11 @@ def test_mc4_top_detail():
     assert links.mc4_pairs(corners_and_mids, 'u') == [(-150.0, -150.0, 150.0), (0.0, -150.0, 150.0),
                                                        (150.0, -150.0, 150.0)]
     assert links.mc4_pairs([(-150.0, 0.0), (150.0, 0.0)], 'v') == [(0.0, -150.0, 150.0)]
+
+
+def test_helix_pieces():
+    one = links.helix_pieces_mm(2900.0, 100.0, 175.0, stock_mm=50000.0)
+    assert one == [(0.0, 2900.0)]
+    pieces = links.helix_pieces_mm(2900.0, 100.0, 175.0)          # 1.1 m a turn: 10 turns in 12 m
+    assert pieces[0] == (0.0, 900.0) and pieces[1][0] == 800.0    # next piece laps one turn
+    assert abs(pieces[-1][0] + pieces[-1][1] - 2900.0) < 1e-6
