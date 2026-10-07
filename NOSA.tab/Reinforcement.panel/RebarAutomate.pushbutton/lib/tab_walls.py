@@ -180,6 +180,7 @@ class WallsMixin(object):
             lap_length_mm=lap_mm,
             horiz_lap_length_mm=horiz_lap_mm,
             vert_is_outer=values.get('vert_is_outer', False),
+            end_conditions=(values.get('_wall_joints') or {}).get(get_id_value(host.Id)),
             ubar_lap_length_mm=self._splice_mm(
                 None, values.get('ubar_dia') or values['vert_dia'], host),
             anchorage_mm=self._anchorage_mm(host, values['vert_dia']),
@@ -189,11 +190,16 @@ class WallsMixin(object):
             errors.append(u'Wall {}: {}'.format(get_id_value(host.Id), w))
 
         def _create_curves(curves, bar_type, normal, label, style=None, layer=None,
-                           location=None):
+                           location=None, host_id=None):
             if bar_type is None or not curves:
                 return
+            bar_host = host
+            if host_id is not None:
+                # MW2 corner bars stand in the concrete of the wall met, not this one
+                from nosa_utils.revit_helpers import element_id_from_int
+                bar_host = self.doc.GetElement(element_id_from_int(host_id)) or host
             rebar = wrapper.create_from_curves(
-                host, curves, bar_type, normal=normal, style=style,
+                bar_host, curves, bar_type, normal=normal, style=style,
                 transaction_name=u'NOSA — Create {}'.format(label))
             if rebar is None:
                 errors.append(u'Wall {}: {} — {}'.format(
@@ -234,7 +240,7 @@ class WallsMixin(object):
                 else:
                     _create_curves(vs['curves'], bar_type_v, vs.get('normal'),
                                    vs.get('label', u'Wall Vertical'), layer=u'vertical',
-                                   location=vs.get('location'))
+                                   location=vs.get('location'), host_id=vs.get('host_id'))
 
         vertical_rebars = created_rebars[first_vertical:]
 
@@ -276,6 +282,12 @@ class WallsMixin(object):
         # — instead of always creating N loose individual elements.
         ubar_dia = values.get('ubar_dia') or values['vert_dia']
         bar_type_u = bar_types.get(ubar_dia)
+        corner = reinforcement.get('corner_ubars') or {'sets': [], 'bars': []}
+        if corner['sets'] or corner['bars']:
+            # IStructE SMDSC MW2: U-bars of the horizontal size and pitch round the corner
+            self._create_grouped_bars(
+                wrapper, host, corner, bar_types.get(values['horiz_dia']), errors, created_rebars,
+                u'Wall Corner U-Bar', layer=u'corner_ubar')
         if bar_type_u is not None:
             self._create_grouped_bars(
                 wrapper, host, reinforcement.get('end_ubars', {'sets': [], 'bars': []}),
@@ -307,6 +319,22 @@ class WallsMixin(object):
                 wrapper, host, starters, bar_type_v, hook_90, u'Wall',
                 errors, created_rebars)
 
+    def _wall_joints(self, walls):
+        """IStructE SMDSC MW2: how each end of the selected straight walls meets the others."""
+        import wall_joints
+        plan = []
+        for host in walls:
+            try:
+                line = host.Location.Curve
+                if not isinstance(line, DB.Line):
+                    continue
+                a, b = line.GetEndPoint(0), line.GetEndPoint(1)
+                plan.append({'id': get_id_value(host.Id), 'p0': (a.X * 304.8, a.Y * 304.8),
+                             'p1': (b.X * 304.8, b.Y * 304.8), 'thickness_mm': host.Width * 304.8})
+            except Exception:
+                log_swallowed(_LOG, u'RebarAutomateWindow._wall_joints')
+        return wall_joints.classify(plan)
+
     def _run_wall_reinforcement(self, walls, values):
         errors = []
         diameters = {values['vert_dia'], values['horiz_dia']}
@@ -324,6 +352,7 @@ class WallsMixin(object):
 
         wrapper = re_engine.RebarWrapper(self.doc)
         created_rebars = []
+        values = dict(values, _wall_joints=self._wall_joints(walls))
         for host in walls:
             try:
                 self._process_wall(host, values, wrapper, bar_types, errors, created_rebars)

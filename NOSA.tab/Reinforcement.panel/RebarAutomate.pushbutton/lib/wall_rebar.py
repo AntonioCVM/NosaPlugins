@@ -376,9 +376,14 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               horiz_lap_length_mm=None,
                               vert_is_outer=True,
                               ubar_lap_length_mm=None,
-                              anchorage_mm=None, stagger_laps=False):
+                              anchorage_mm=None, stagger_laps=False, end_conditions=None):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
+    end_conditions (IStructE SMDSC MW2, wall_joints.classify): per end, 'free' keeps the end
+    U-bars; 'through' runs the horizontals on to the other wall's outer face; 'stop' ends the
+    mesh at the other wall's inner face and closes it with U-bars of the horizontal size and
+    pitch looped round the corner (returned as 'corner_ubars'), two vertical bars inside the
+    loop (four over 300 mm thick).
     stagger_laps (user decision 2026-10-05, optional): alternate bars lapped 1.3 l0 apart (T7.6);
     off, every bar of a set laps in the same section and the caller sizes the lap for 100 %.
 
@@ -490,7 +495,17 @@ def build_wall_reinforcement(doc, host, cover_mm,
     if vert_top_z <= vert_bottom_z + 1.0 / _MM_PER_FT:
         raise ValueError(u'Wall is too short for the given cover and bar diameter.')
 
-    vert_positions = _evenly_spaced_mm(length_mm, vert_spacing_mm, end_clear_mm)
+    ends = list(end_conditions or (None, None))
+
+    def _mode(k):
+        return (ends[k] or {}).get('mode', u'free')
+
+    def _half(k):
+        return float((ends[k] or {}).get('other_half_mm') or 0.0)
+
+    stop_clear = [(_half(k) if _mode(k) == u'stop' else 0.0) for k in (0, 1)]
+    vert_positions = _evenly_spaced_mm(length_mm, vert_spacing_mm, end_clear_mm + stop_clear[0],
+                                       end_clear_mm + stop_clear[1])
     top_u_dia = ubar_dia_mm if ubar_dia_mm else vert_dia_mm
     # With coronation U-bars the top horizontal bar stays under the U-bar back.
     top_clear_mm = (cover_mm + top_u_dia + horiz_dia_mm / 2.0) if include_top_ubars else end_clear_mm
@@ -520,6 +535,14 @@ def build_wall_reinforcement(doc, host, cover_mm,
     else:
         horiz_inset_mm = cover_mm + horiz_dia_mm / 2.0
         vert_inset_mm = cover_mm + horiz_dia_mm + vert_dia_mm / 2.0
+
+    def _horiz_reach(k):
+        """Distance from the line end to the horizontals' end: negative runs past it (MW2)."""
+        if _mode(k) == u'through':
+            return -(_half(k) - cover_mm - horiz_dia_mm / 2.0)
+        if _mode(k) == u'stop':
+            return _half(k) + end_clear_mm
+        return end_clear_mm
 
     face_depths = {}
     locations = wall_face_codes(doc, host, faces, axis)
@@ -567,7 +590,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         if horiz_positions:
             h0_mm = horiz_positions[0]
             # whole 25 mm length, so the scheduled A and cut length agree (BS 8666)
-            lo_mm, hi_mm = _trim_to_step_mm(end_clear_mm, length_mm - end_clear_mm)
+            lo_mm, hi_mm = _trim_to_step_mm(_horiz_reach(0), length_mm - _horiz_reach(1))
             start = p0 + axis_dir.Multiply(lo_mm / _MM_PER_FT) + face_normal.Multiply(horiz_depth)
             end = p0 + axis_dir.Multiply(hi_mm / _MM_PER_FT) + face_normal.Multiply(horiz_depth)
             z = z0 + h0_mm / _MM_PER_FT
@@ -658,7 +681,9 @@ def build_wall_reinforcement(doc, host, cover_mm,
         u_heights = top_ubar_positions_mm(horiz_positions, top_limit_mm + end_clear_mm,
                                           horiz_dia_mm, u_dia, end_clear_mm)
         end_ubar_sets, end_ubar_bars = [], []
-        for d_end, inward in ((back_mm, axis_dir), (length_mm - back_mm, axis_dir.Multiply(-1.0))):
+        for k, (d_end, inward) in enumerate(((back_mm, axis_dir), (length_mm - back_mm, axis_dir.Multiply(-1.0)))):
+            if _mode(k) != u'free':
+                continue        # a wall end met by another wall: MW2 corner bars instead
             base = p0 + axis_dir.Multiply(d_end / _MM_PER_FT)
 
             def _u_at(h_mm, base=base, inward=inward):
@@ -688,6 +713,66 @@ def build_wall_reinforcement(doc, host, cover_mm,
         end_ubars = {'sets': end_ubar_sets, 'bars': end_ubar_bars}
     elif include_end_ubars and face_b is None:
         warnings.append(u'End U-bars require both wall faces — skipped.')
+
+    # IStructE SMDSC MW2 (Detail A): a wall end stopping against another wall is closed by U-bars
+    # of the horizontal size and pitch, their back inside the other wall's outer horizontals and
+    # their legs a full lap with this wall's horizontals; vertical bars stand inside the loop.
+    corner_ubars = {'sets': [], 'bars': []}
+    stop_ends = [k for k in (0, 1) if _mode(k) == u'stop']
+    if stop_ends and face_b is not None and len(faces) >= 2:
+        u_dia = horiz_dia_mm
+        fa, na, va = face_depths[id(face_a)]
+        fb, nb, vb = face_depths[id(face_b)]
+        da = (engine.compute_cover_point(fa, horiz_inset_mm) - p0).DotProduct(na)
+        db = (engine.compute_cover_point(fb, horiz_inset_mm) - p0).DotProduct(nb)
+        lap_mm = horiz_lap_length_mm if horiz_lap_length_mm else max(40.0 * u_dia, 15.0 * u_dia, 300.0)
+        top_limit_mm = height_mm - max(end_clear_mm, top_clear_mm)
+        u_heights = top_ubar_positions_mm(horiz_positions, top_limit_mm + end_clear_mm,
+                                          horiz_dia_mm, u_dia, end_clear_mm)
+        thickness_mm = abs(da - db) * _MM_PER_FT + horiz_dia_mm
+        for k in stop_ends:
+            back = _half(k) - (cover_mm + horiz_dia_mm + u_dia / 2.0)   # past the line end
+            if k == 0:
+                d_base, inward, bar_end = -back, axis_dir, _horiz_reach(0)
+            else:
+                d_base, inward, bar_end = length_mm + back, axis_dir.Multiply(-1.0), length_mm - _horiz_reach(1)
+            leg_mm = abs(bar_end - d_base) + lap_mm
+            base = p0 + axis_dir.Multiply(d_base / _MM_PER_FT)
+
+            def _corner_u(h_mm, base=base, inward=inward, leg_mm=leg_mm):
+                z = z0 + h_mm / _MM_PER_FT
+                pa = DB.XYZ((base + na.Multiply(da)).X, (base + na.Multiply(da)).Y, z)
+                pb = DB.XYZ((base + nb.Multiply(db)).X, (base + nb.Multiply(db)).Y, z)
+                return [DB.Line.CreateBound(pa + inward.Multiply(leg_mm / _MM_PER_FT), pa),
+                        DB.Line.CreateBound(pa, pb),
+                        DB.Line.CreateBound(pb, pb + inward.Multiply(leg_mm / _MM_PER_FT))]
+
+            for run in uniform_runs_mm(u_heights):
+                chains = [_corner_u(h) for h in run]
+                if len(chains) >= 2:
+                    corner_ubars['sets'].append({
+                        'curves': chains[0], 'normal': DB.XYZ.BasisZ,
+                        'array_length_mm': run[-1] - run[0], 'spacing_mm': (run[1] - run[0]) + 0.01,
+                        'materialized_bars': [{'curves': c, 'normal': DB.XYZ.BasisZ} for c in chains],
+                        'label': u'Wall Corner U-Bar'})
+                else:
+                    corner_ubars['bars'].extend({'curves': c, 'normal': DB.XYZ.BasisZ,
+                                                 'label': u'Wall Corner U-Bar'} for c in chains)
+            # bars inside the loop: at the U's back corners, two more half a thickness in if over 300
+            along = [d_base + (u_dia / 2.0 + vert_dia_mm / 2.0) * (1.0 if k == 0 else -1.0)]
+            if thickness_mm > 300.0:
+                along.append(along[0] + (thickness_mm / 2.0) * (1.0 if k == 0 else -1.0))
+            for d in along:
+                for face_k, depth_k, nk in ((fa, va, na), (fb, vb, nb)):
+                    pt = p0 + axis_dir.Multiply(d / _MM_PER_FT) + nk.Multiply(depth_k)
+                    vertical_sets.append({
+                        'curves': [DB.Line.CreateBound(DB.XYZ(pt.X, pt.Y, vert_bottom_z),
+                                                       DB.XYZ(pt.X, pt.Y, vert_top_z))],
+                        'spacing_mm': vert_spacing_mm, 'array_length_mm': 0.0, 'normal': axis_dir,
+                        'count': 1, 'label': u'Wall Corner Bar', 'host_id': (ends[k] or {}).get('other_id'),
+                        'location': layer_code(locations.get(id(face_k)), vert_is_outer)})
+    elif stop_ends:
+        warnings.append(u'Corner U-bars (SMDSC MW2) need both wall faces: skipped.')
 
     # Top U-bars — horizontal closure at wall head (both faces).
     # BUG FIX (2026-09-01) — reported live: End U-bars (capa vertical)
@@ -841,6 +926,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         'horizontal_sets': horizontal_sets,
         'ties': ties,
         'end_ubars': end_ubars,
+        'corner_ubars': corner_ubars,
         'top_ubars': top_ubars,
         'starter_bars': starter_bars,
         'starter_length_mm': starter_mm,
