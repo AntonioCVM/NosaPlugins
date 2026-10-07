@@ -2243,6 +2243,20 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 values = dict(values, spacing=spacing)
                 if top:
                     values['top_spacing'] = top_spacing
+            if not foundation and values.get('include_perimeter_ubars'):
+                # SMDSC MS2: the edge U-bars carry half the area of the bottom bars they close
+                for axis in (u'x', u'y'):
+                    key, sp_key = u'{}_anchor_ubar_dia'.format(axis), u'{}_anchor_ubar_spacing'.format(axis)
+                    if not values.get(key) or not values.get(sp_key):
+                        continue
+                    need = mesh_rules.edge_ubar_dia_mm(values[key], values[sp_key], values[u'dia_' + axis],
+                                                       values['spacing'])
+                    if need > values[key]:
+                        errors.append(u'{}: {} edge U-bars H{:g} raised to H{:g} — SMDSC MS2 asks for half the '
+                                      u'area of the bottom bars (H{:g} at {:g}).'.format(
+                                          label, axis.upper(), values[key], need, values[u'dia_' + axis],
+                                          values['spacing']))
+                        values = dict(values, **{key: need})
         except Exception:
             log_swallowed(_LOG, u'RebarAutomateWindow._smdsc_mesh_review')
         return values
@@ -2264,6 +2278,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                             self.doc, host, u'Top', self._standard_default_cover_mm(u'slab'))
                         if values['include_top_mat'] else None)
         values = self._smdsc_mesh_review(host, values, bottom_cover_mm, top_cover_mm, errors, foundation=False)
+        for dia in (values.get('x_anchor_ubar_dia'), values.get('y_anchor_ubar_dia')):
+            if dia and bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
         reinforcement = floor_rebar.build_floor_reinforcement(
             self.doc, host,
             bottom_cover_mm=bottom_cover_mm,

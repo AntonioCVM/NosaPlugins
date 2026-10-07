@@ -23,7 +23,6 @@ MIN_STARTER_FOOT_MM = 450.0
 A_MIN_MM = 500.0                 # SMDSC MST1: 'A' = max(0.1 design span, tension anchorage, 500)
 NO_FINISH_TOP_COVER_MM = 10.0    # SMDSC 6.8: 10 mm more top cover where the stair has no finish
 UBAR_AREA_SHARE = 0.5            # SMDSC MST1: landing U-bars 50 % of the main bottom area
-BAR_SIZES_MM = (8, 10, 12, 16, 20, 25, 32, 40)
 
 
 def a_length_mm(span_mm, anchorage_mm):
@@ -34,11 +33,8 @@ def a_length_mm(span_mm, anchorage_mm):
 
 def landing_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing):
     """The smallest bar from u_dia up whose U-bars at u_spacing give 50 % of the main bottom area (MST1)."""
-    need = UBAR_AREA_SHARE * main_dia ** 2 / float(main_spacing)
-    for size in BAR_SIZES_MM:
-        if size >= u_dia - 1e-6 and size ** 2 / float(u_spacing) >= need - 1e-9:
-            return float(size)
-    return float(BAR_SIZES_MM[-1])
+    from nosa_utils import mesh_rules
+    return mesh_rules.edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, UBAR_AREA_SHARE)
 
 
 def lower_tops(runs, landings, extra_mm):

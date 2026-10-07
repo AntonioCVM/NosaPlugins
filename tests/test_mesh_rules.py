@@ -49,3 +49,9 @@ def test_footing_band():
     assert left == [0.0, 300.0] and right == [2700.0, 3000.0]       # outer strips at <= 300
     assert len(band) >= 2 * (len(left) + len(right))
     assert mr.band_layout_mm(0, 3000, 16, 1400, 1500) is None       # band closer than 100 mm
+
+
+def test_edge_ubars_carry_half_the_bottom_area():
+    assert mr.edge_ubar_dia_mm(10, 200, 12, 200) == 10.0          # 100 >= 0.5 x 144
+    assert mr.edge_ubar_dia_mm(10, 200, 16, 150) == 16.0          # 0.5 x 256/150 = 0.85 > 144/200
+    assert mr.edge_ubar_dia_mm(10, 300, 20, 150) == 20.0          # 400/300 = 0.5 x 400/150 exactly

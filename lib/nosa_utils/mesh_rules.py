@@ -121,6 +121,19 @@ def foundation_review(h_mm, cover_mm, dia_x, dia_y, spacing, fck_mpa, top=None, 
     return spacing, top_spacing, _unique(notes)
 
 
+BAR_SIZES_MM = (8, 10, 12, 16, 20, 25, 32, 40)
+EDGE_UBAR_SHARE = 0.5      # SMDSC MS2 / MST1: edge U-bars carry half the area of the main bottom bars
+
+
+def edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, share=EDGE_UBAR_SHARE):
+    """The smallest bar from u_dia up whose U-bars at u_spacing give `share` of the main bottom area."""
+    need = share * float(main_dia) ** 2 / float(main_spacing)
+    for size in BAR_SIZES_MM:
+        if size >= u_dia - 1e-6 and size ** 2 / float(u_spacing) >= need - 1e-9:
+            return float(size)
+    return float(BAR_SIZES_MM[-1])
+
+
 BAND_FACTOR = 1.5          # SMDSC 6.7: a band under the column when l > 1.5 (c + 3d)
 BAND_SHARE = 2.0 / 3.0
 
