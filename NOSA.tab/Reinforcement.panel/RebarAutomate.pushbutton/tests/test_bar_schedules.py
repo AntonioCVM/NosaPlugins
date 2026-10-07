@@ -31,6 +31,15 @@ def test_plan_numbers_schedules_per_drawing_level_by_level():
     print(u'[PASS] test_plan_numbers_schedules_per_drawing_level_by_level')
 
 
+def test_marks_unique_within_a_schedule_identical_bars_shared():
+    bars = [((0, u'B1-1'), 1, u'top', u'a'), ((0, u'B1-1'), 2, u'link', u'b'),
+            ((0, u'B1-2'), 1, u'mid', u'c'), ((0, u'B1-2'), 2, u'link', u'd'),
+            ((0, u'B1-3'), 1, u'top', u'e')]
+    marks = bs.schedule_marks(bars)
+    assert marks == {u'a': 1, u'b': 2, u'c': 3, u'd': 2, u'e': 1}
+    print(u'[PASS] test_marks_unique_within_a_schedule_identical_bars_shared')
+
+
 def test_natural_order_of_members():
     assert sorted([u'C10', u'C9', u'C1'], key=bs.natural_key) == [u'C1', u'C9', u'C10']
     print(u'[PASS] test_natural_order_of_members')
@@ -52,5 +61,6 @@ if __name__ == '__main__':
     test_schedule_reference_is_drawing_schedule_revision()
     test_members_stay_whole_and_pages_fill_in_order()
     test_plan_numbers_schedules_per_drawing_level_by_level()
+    test_marks_unique_within_a_schedule_identical_bars_shared()
     test_natural_order_of_members()
     test_bs8666_rounding()

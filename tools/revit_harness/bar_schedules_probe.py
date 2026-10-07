@@ -23,6 +23,7 @@ import rebar_detailing
 import view_plan
 import rebar_views
 import bar_schedules
+import beam_rebar
 from nosa_utils.revit_helpers import element_id_from_int, element_name
 from nosa_utils import transactions as nosa_tx
 
@@ -32,7 +33,7 @@ try:
     existing = [s.SheetNumber for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet)]
     numbers = view_plan.next_sheet_numbers(existing, 10)
     report = rebar_views.build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, numbers,
-                                             place_on_sheets=True, tag=False)
+                                             beam_rebar=beam_rebar, place_on_sheets=True, tag=False)
     _log.append(u'views {} sheets {} errors {}'.format(report['views'], report['sheets'], report['errors']))
     rebars = rebar_views.host_rebars(hosts[0])
     _log.append(u'drawing on rebars: {}'.format(sorted(set(bar_schedules._text(r, bar_schedules.DRAWING_PARAM) for r in rebars))))
@@ -43,7 +44,7 @@ try:
         if element_name(view).startswith(u'BBS '):
             body = view.GetTableData().GetSectionData(DB.SectionType.Body)
             _log.append(u'== {} rows {}'.format(element_name(view), body.NumberOfRows))
-            for row in range(min(body.NumberOfRows, 8)):
+            for row in range(min(body.NumberOfRows, 40)):
                 _log.append(u'  ' + u'|'.join(u' '.join(view.GetCellText(DB.SectionType.Body, row, c).split())
                                               for c in range(body.NumberOfColumns)))
     for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):

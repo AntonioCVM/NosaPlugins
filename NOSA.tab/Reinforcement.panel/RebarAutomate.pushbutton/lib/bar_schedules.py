@@ -21,7 +21,7 @@ TITLEBLOCK = u'NOSA_TitleBlock_A4 for Rebar Schedule'
 DRAWING_PARAM = u'NOSA_Rebar_Group'       # on rebars: the drawing the member is detailed on
 SCHEDULE_PARAM = u'NOSA_Rebar_Assembly'   # on rebars: the schedule key 4002-01
 SHEET_PARAMS = (u'NOSA_BBS_Drawing', u'NOSA_BBS_Ref', u'NOSA_BBS_Revision', u'NOSA_BBS_Status')
-SCHEDULE_ORIGIN_MM = (12.0, 255.0)       # top-left of the template BBS (183 mm wide) inside the A4 frame
+SCHEDULE_ORIGIN_MM = (7.8, 261.9)        # top-left corner of the A4 frame; the template BBS is 199 mm, its full width
 
 
 def schedule_key(drawing, number):
@@ -69,6 +69,20 @@ def plan(drawings, capacity=ROWS_PER_A4):
         for n, members in enumerate(pack([(m[1], m[2]) for m in ordered], capacity), start=1):
             for member in members:
                 out[member] = schedule_key(drawing, n)
+    return out
+
+
+def schedule_marks(bars):
+    """
+    SMDSC 4.5.1 / D9: marks unique within a schedule. bars: [(member order, old mark number,
+    identity key, bar id)] of ONE schedule -> {bar id: new number}: 1, 2 ... in member order then
+    old mark order; identical bars (same identity key) share a number across members.
+    """
+    numbers, out = {}, {}
+    for _order, _old, key, bar in sorted(bars, key=lambda b: (b[0], b[1])):
+        if key not in numbers:
+            numbers[key] = len(numbers) + 1
+        out[bar] = numbers[key]
     return out
 
 
@@ -143,6 +157,39 @@ def _rows_per_member(doc):
     for row in rebar_schedule.generate_schedule_data(doc):
         rows[row.get('member') or u''] = rows.get(row.get('member') or u'', 0) + 1
     return rows
+
+
+def _renumber(doc, members, keys, order):
+    """Give each schedule's bars marks unique within it (rebar_marking keeps per-member ones before)."""
+    from Autodesk.Revit import DB  # Lazy import
+    import rebar_marking
+    from nosa_utils.revit_helpers import get_id_value
+    per_schedule = {}
+    for found in members.values():
+        for name, entry in found.items():
+            for rebar in entry[2]:
+                varying = _text(rebar, u'NOSA_Rebar_Mark_Suffix') != u''
+                try:
+                    identity = rebar_marking._dedup_key(doc, rebar, 5.0, varying)
+                except Exception:  # nosa-lint: disable=NOSA006 - unreadable bar: a mark of its own
+                    identity = ('bar', get_id_value(rebar.Id))
+                per_schedule.setdefault(keys[name], []).append(
+                    (order[name], rebar_marking.mark_number(_text(rebar, u'NOSA_Rebar_Mark')), identity, rebar))
+    changed = 0
+    for bars in per_schedule.values():
+        for rebar, number in schedule_marks(bars).items():
+            mark = rebar_marking.format_mark(number)
+            if _text(rebar, u'NOSA_Rebar_Mark') == mark:
+                continue
+            _set(rebar, u'NOSA_Rebar_Mark', mark)
+            p = rebar.LookupParameter(u'NOSA_Rebar_Number')
+            if p is not None and not p.IsReadOnly:
+                p.Set(number)
+            native = rebar.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK)
+            if native is not None and not native.IsReadOnly:
+                native.Set(mark)
+            changed += 1
+    return changed
 
 
 def _schedulable_field(definition, doc, name):
@@ -241,6 +288,9 @@ def create(doc, capacity=ROWS_PER_A4):
         for name, entry in found.items():
             for rebar in entry[2]:
                 _set(rebar, SCHEDULE_PARAM, keys[name])
+    order = dict((name, (m[0], natural_key(name))) for found in drawings.values() for m in found
+                 for name in [m[1]])
+    report['renumbered'] = _renumber(doc, members, keys, order)
     taken = set()
     for key in sorted(set(keys.values()), key=natural_key):
         drawing = key.rsplit(u'-', 1)[0]
