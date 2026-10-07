@@ -15,7 +15,7 @@ BVBS file for the bending machine.
 
 | Item | Why it matters |
 |---|---|
-| `NOSA Rebar Tag` 1.0.0 (Full label / Mark only × Arrow / Dot) | Bar labels such as `12H16-03-200 B1` |
+| `NOSA Rebar Tag` 1.1.0 (Full label / No centres / Mark only × Arrow / Dot) | Bar labels such as `12H16-03-200 B1`, `4H25-05` for beam and column main bars, `8H20-01(a to h)-150` for varying sets |
 | Multi-Rebar Annotation types *Zone label - Dots / No dots / Mark only* | Zone labels |
 | Rebar shapes 00–98 | BS 8666 shape codes; each shape only carries its own dimensions, so unused BBS columns stay blank |
 | `BBS` schedule | BS 8666 columns, sorted by Member (Partition) and Bar mark |

@@ -97,6 +97,13 @@ def variant_suffix(index):
     return out
 
 
+def suffix_range(variants):
+    """Label text after the mark of a varying set, '(a to h)' (SMDSC 4.5.1); '' for one length."""
+    if variants < 2:
+        return u''
+    return u'({} to {})'.format(variant_suffix(0), variant_suffix(variants - 1))
+
+
 def mark_number(mark):
     """Sequential number of a bar mark ('05', '05b' -> 5); 0 when there is none."""
     digits = u''
@@ -131,11 +138,16 @@ def _partition(rebar):
         return u''
 
 
-def _is_varying(doc, rebar):
-    """True if the bars of this Rebar element differ in shape or length (a varying set)."""
+def _variant_count(doc, rebar):
+    """How many different bars (shape or length) this Rebar element holds; > 1 is a varying set."""
     import rebar_bending
     bars = rebar_bending.bar_variants(rebar, _bar_diameter_mm(doc, rebar))
-    return len(set(rebar_bending.variant_key(geometry, length) for geometry, length in bars)) > 1
+    return len(set(rebar_bending.variant_key(geometry, length) for geometry, length in bars))
+
+
+def _is_varying(doc, rebar):
+    """True if the bars of this Rebar element differ in shape or length (a varying set)."""
+    return _variant_count(doc, rebar) > 1
 
 
 def _dedup_key(doc, rebar, tolerance_mm, is_varying):
@@ -200,8 +212,11 @@ def deduplicate_and_mark(doc, rebars, ctx):
 
     clusters = {}
     varying_ids = set()
+    suffixes = {}
     for rebar in elements:
-        varying = _is_varying(doc, rebar)
+        variants = _variant_count(doc, rebar)
+        varying = variants > 1
+        suffixes[get_id_value(rebar.Id)] = suffix_range(variants)
         if varying:
             varying_ids.add(get_id_value(rebar.Id))
         clusters.setdefault(_dedup_key(doc, rebar, tolerance_mm, varying), []).append(rebar)
@@ -240,6 +255,8 @@ def deduplicate_and_mark(doc, rebars, ctx):
             _write(doc, rebar.Id, "NOSA_Rebar_Position_In_Host", pos_idx)
             _write(doc, rebar.Id, "NOSA_Rebar_Is_Variable",
                    1 if get_id_value(rebar.Id) in varying_ids else 0)
+            # NOSA Rebar Tag 1.1.0 prints it right after the mark: 8H20-01(a to h)-150
+            _write(doc, rebar.Id, "NOSA_Rebar_Mark_Suffix", suffixes.get(get_id_value(rebar.Id), u''))
             for bip, value in ((DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, mark),
                                (DB.BuiltInParameter.NUMBER_PARTITION_PARAM, partition)):
                 try:

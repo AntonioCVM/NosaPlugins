@@ -12,7 +12,7 @@ if _LIB_ROOT not in sys.path:
 
 # Importar helpers internos de rebar_marking sin Revit
 sys.path.insert(0, os.path.join(_HERE, '..', 'lib'))
-from rebar_marking import _round_to_tolerance, _parse_shape_params, format_mark, variant_suffix
+from rebar_marking import _round_to_tolerance, _parse_shape_params, format_mark, variant_suffix, suffix_range
 
 
 def test_round_to_tolerance():
@@ -146,9 +146,18 @@ def test_variant_suffix_skips_i_o_q_and_rolls_over():
     assert u'05' + variant_suffix(0) == u'05a'
     print(u"[PASS] test_variant_suffix_skips_i_o_q_and_rolls_over")
 
+def test_suffix_range_for_the_tag():
+    """SMDSC 4.5.1: 8H20-01(a to h)-150; nothing for a set of one length."""
+    assert suffix_range(8) == u'(a to h)'
+    assert suffix_range(2) == u'(a to b)'
+    assert suffix_range(1) == u'' and suffix_range(0) == u''
+    print(u"[PASS] test_suffix_range_for_the_tag")
+
+
 if __name__ == "__main__":
     test_format_mark_is_plain_sequential_number()
     test_variant_suffix_skips_i_o_q_and_rolls_over()
+    test_suffix_range_for_the_tag()
     test_round_to_tolerance()
     test_parse_shape_params()
     test_mark_format_tokens()

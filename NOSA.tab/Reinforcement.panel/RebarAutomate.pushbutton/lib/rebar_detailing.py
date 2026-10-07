@@ -149,9 +149,41 @@ def create_rebar_tag(doc, view, rebar, offset_mm=(0.0, 0.0, 0.0),
         raise ValueError(u'IndependentTag.Create returned None for rebar {}.'.format(rebar.Id))
 
     if tag_type_id is not None:
-        tag.ChangeTypeId(tag_type_id)
+        tag.ChangeTypeId(_tag_type_for_bar(doc, rebar, tag_type_id))
 
     return tag
+
+
+def _host_kind(doc, rebar):
+    from nosa_utils.revit_helpers import get_id_value
+    try:
+        host = doc.GetElement(rebar.GetHostId())
+        cat = get_id_value(host.Category.Id) if host is not None and host.Category else None
+    except Exception:
+        return u''
+    if cat == int(DB.BuiltInCategory.OST_StructuralColumns):
+        return u'column'
+    if cat == int(DB.BuiltInCategory.OST_StructuralFraming):
+        return u'beam'
+    return u''
+
+
+def _tag_type_for_bar(doc, rebar, tag_type_id):
+    """The view's NOSA Rebar Tag type, switched to No centres for beam/column main bars."""
+    try:
+        chosen = doc.GetElement(tag_type_id)
+        name = DB.Element.Name.GetValue(chosen)
+        kind = name.split(u' - ')[0]
+        param = rebar.LookupParameter(u'NOSA_Rebar_Layer')
+        layer = param.AsString() if param is not None else u''
+        wanted = swap_label_kind(name, label_kind_for_bar(_host_kind(doc, rebar), layer, kind))
+        if wanted and wanted != name:
+            for t in list_rebar_tag_types(doc):
+                if DB.Element.Name.GetValue(t) == wanted:
+                    return t.Id
+    except Exception:
+        log_swallowed(_LOG, u'_tag_type_for_bar')
+    return tag_type_id
 
 
 def create_rebar_tags(doc, view, rebars, offset_mm=(0.0, 0.0, 0.0),
@@ -528,6 +560,8 @@ def list_rebar_tag_types(doc):
 
 FULL_LABEL = u'Full label'
 MARK_ONLY = u'Mark only'
+NO_CENTRES = u'No centres'   # NOSA Rebar Tag 1.1.0: number, size and mark only (SMDSC 4.2.1)
+_LINK_LAYER_WORDS = (u'stirrup', u'tie', u'link')
 _CUT_VIEW_TYPES = (u'Section', u'Detail')
 
 
@@ -536,9 +570,23 @@ def label_kind_for_view_type(view_type_name):
     return MARK_ONLY if view_type_name in _CUT_VIEW_TYPES else FULL_LABEL
 
 
+def label_kind_for_bar(host_kind, layer, view_kind):
+    """
+    SMDSC 4.2.1: beam and column main bars are labelled without centres or layer (4H25-03);
+    their links, and every slab or wall bar, keep the full label. view_kind wins when it is
+    not the full label (Mark only in sections).
+    """
+    if view_kind != FULL_LABEL or host_kind not in (u'beam', u'column'):
+        return view_kind
+    layer = (layer or u'').lower()
+    if any(word in layer for word in _LINK_LAYER_WORDS):
+        return view_kind
+    return NO_CENTRES
+
+
 def swap_label_kind(type_name, kind):
     """'Full label - Arrow' -> 'Mark only - Arrow' (keeps the leader end); None if not a NOSA name."""
-    for prefix in (FULL_LABEL, MARK_ONLY):
+    for prefix in (FULL_LABEL, MARK_ONLY, NO_CENTRES):
         if type_name.startswith(prefix + u' - '):
             return kind + type_name[len(prefix):]
     return None

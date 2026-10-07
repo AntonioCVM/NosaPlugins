@@ -45,6 +45,16 @@ check('plans and elevations get the full label',
 check('swapping keeps the leader end', rd.swap_label_kind('Full label - Arrow', 'Mark only') == 'Mark only - Arrow'
       and rd.swap_label_kind('Mark only - Dot', 'Full label') == 'Full label - Dot')
 check('a non-NOSA tag type is left alone', rd.swap_label_kind('Rebar Tag 1', 'Mark only') is None)
+check('SMDSC 4.2.1: beam and column main bars lose centres and layer, their links keep them',
+      rd.label_kind_for_bar('beam', 'top_support', 'Full label') == 'No centres'
+      and rd.label_kind_for_bar('column', 'vertical', 'Full label') == 'No centres'
+      and rd.label_kind_for_bar('beam', 'stirrup', 'Full label') == 'Full label'
+      and rd.label_kind_for_bar('column', 'tie', 'Full label') == 'Full label'
+      and rd.label_kind_for_bar('', 'bottom_x', 'Full label') == 'Full label'
+      and rd.label_kind_for_bar('beam', 'bottom', 'Mark only') == 'Mark only')
+check('No centres swaps like the other NOSA kinds',
+      rd.swap_label_kind('Full label - Dot', 'No centres') == 'No centres - Dot'
+      and rd.swap_label_kind('No centres - Arrow', 'Full label') == 'Full label - Arrow')
 print('\nALL TAG TYPE CHECKS PASSED')
 
 import wall_rebar as wr
