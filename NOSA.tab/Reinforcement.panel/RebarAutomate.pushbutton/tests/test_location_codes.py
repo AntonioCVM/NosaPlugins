@@ -116,3 +116,10 @@ check('wall verticals: whole 25 mm, never ending within the snap distance of the
       wr.whole_step_length_mm(2620.0) == 2600.0 and wr.whole_step_length_mm(2606.0) == 2575.0
       and wr.whole_step_length_mm(2600.0) == 2600.0)
 print('\nALL WALL LENGTH CHECKS PASSED')
+
+check('MW4: trimmers one size up, one bar of the area of two in thin walls',
+      wr.next_bar_size_mm(12) == 16 and wr.next_bar_size_mm(16) == 20 and wr.single_bar_for_pair_mm(16) == 25)
+check('MW4: a hole cuts a bar into the pieces each side, short stubs dropped',
+      wr.cut_interval_mm(0, 3000, [(1000, 2000)]) == [(0, 1000), (2000, 3000)]
+      and wr.cut_interval_mm(0, 3000, [(-50, 1000)]) == [(1000, 3000)]
+      and wr.cut_interval_mm(0, 3000, [(50, 2950)]) == [])

@@ -282,6 +282,16 @@ class WallsMixin(object):
         # — instead of always creating N loose individual elements.
         ubar_dia = values.get('ubar_dia') or values['vert_dia']
         bar_type_u = bar_types.get(ubar_dia)
+        holes = reinforcement.get('opening_bars') or {}
+        # IStructE SMDSC MW4: U-bars of the horizontal size and trimmer bars one size up
+        hole_ubars = holes.get('ubars') or {'sets': [], 'bars': []}
+        if hole_ubars['sets'] or hole_ubars['bars']:
+            self._create_grouped_bars(
+                wrapper, host, hole_ubars, bar_types.get(values['horiz_dia']), errors, created_rebars,
+                u'Wall Hole U-Bar', layer=u'opening_ubar')
+        for bar in holes.get('trimmers', []):
+            _create_curves(bar['curves'], re_engine.get_bar_type_by_diameter(self.doc, bar['dia_mm']),
+                           bar['normal'], u'Wall Trimmer Bar', layer=u'trimmer')
         corner = reinforcement.get('corner_ubars') or {'sets': [], 'bars': []}
         if corner['sets'] or corner['bars']:
             # IStructE SMDSC MW2: U-bars of the horizontal size and pitch round the corner
