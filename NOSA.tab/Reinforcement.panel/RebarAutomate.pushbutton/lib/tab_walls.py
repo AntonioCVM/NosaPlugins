@@ -128,6 +128,18 @@ class WallsMixin(object):
     def _process_wall(self, host, values, wrapper, bar_types, errors, created_rebars):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'wall'))
+        try:
+            # T8.40, IStructE SMDSC 6.5: pitches within min(3t, 400), minimum steel, links over 2 %
+            from nosa_utils import wall_rules
+            vs, hs, wall_notes = wall_rules.review(
+                host.Width * 304.8, values['vert_dia'], values['vert_spacing'], values['horiz_dia'],
+                values['horiz_spacing'], values.get('both_faces', True), values.get('include_ties'),
+                values.get('tie_spacing'), label=u'Wall {}'.format(get_id_value(host.Id)))
+            errors.extend(wall_notes)
+            if vs != values['vert_spacing'] or hs != values['horiz_spacing']:
+                values = dict(values, vert_spacing=vs, horiz_spacing=hs)
+        except Exception:
+            log_swallowed(_LOG, u'wall SMDSC review')
         lap_mm = None
         # staggered laps: half the bars lapped at a section (alpha6 1.4); otherwise all (1.5)
         pct_lapped = wall_rebar.STAGGERED_PCT_LAPPED if values.get('stagger_laps') else 100.0
@@ -167,7 +179,7 @@ class WallsMixin(object):
             stock_length_mm=values.get('stock_length', 12000.0),
             lap_length_mm=lap_mm,
             horiz_lap_length_mm=horiz_lap_mm,
-            vert_is_outer=values.get('vert_is_outer', True),
+            vert_is_outer=values.get('vert_is_outer', False),
             ubar_lap_length_mm=self._splice_mm(
                 None, values.get('ubar_dia') or values['vert_dia'], host),
             anchorage_mm=self._anchorage_mm(host, values['vert_dia']),

@@ -1008,10 +1008,10 @@
                                        FontSize="10" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.55"/>
                             <CheckBox Name="ChkWallVertOuter" Content="Vertical bars in the outer layer (touching cover)"
-                                      IsChecked="True" Margin="0,8,0,4"
+                                      IsChecked="False" Margin="0,8,0,4"
                                       Click="WallPreview_Changed"
                                       Foreground="{DynamicResource TextColor}"/>
-                            <TextBlock Text="When unchecked, horizontal bars sit in the outer layer instead (vertical goes behind). End/Top U-bars follow the same layer assignment as the mesh they anchor."
+                            <TextBlock Text="Unchecked (IStructE SMDSC 6.5 default): horizontal bars sit in the outer layer and cover is measured to them, verticals behind. End/Top U-bars follow the same layer assignment as the mesh they anchor."
                                        FontSize="10" TextWrapping="Wrap"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.55"/>
                         </StackPanel>
