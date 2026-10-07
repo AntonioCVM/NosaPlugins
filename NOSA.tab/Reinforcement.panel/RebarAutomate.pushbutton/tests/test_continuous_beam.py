@@ -125,3 +125,11 @@ def test_top_lap_lies_wholly_in_the_central_third_at_mid_span():
     lap = (segments[1][0], segments[0][1])
     assert abs((lap[0] + lap[1]) / 2.0 - 9000.0) < 1e-6
     assert lap[0] >= 6225.0 + 5550.0 / 3.0 and lap[1] <= 11775.0 - 5550.0 / 3.0
+
+
+def test_flexible_detailing_runs_and_splices():
+    supports = [{'x0': 5000.0, 'x1': 5400.0, 'continuous': True},
+                {'x0': 10400.0, 'x1': 10800.0, 'continuous': True}]
+    runs = cb.flexible_hanger_runs(-300.0, 16100.0, supports)
+    assert runs == [(-300.0, 4950.0), (5450.0, 10350.0), (10850.0, 16100.0)]   # 50 short of each face
+    assert cb.splice_bar_count(2) == 2 and cb.splice_bar_count(8) == 3 and cb.splice_bar_count(10) == 3

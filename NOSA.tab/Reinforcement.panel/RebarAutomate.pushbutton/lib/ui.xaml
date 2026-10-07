@@ -817,6 +817,8 @@
                             <CheckBox Name="ChkBeamContinuous" Content="Continuous beam over several spans" IsChecked="True"
                                       FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"
                                       ToolTip="Select every span of the line: beams on one straight line, end to end across their supports."/>
+                            <CheckBox Name="ChkBeamFlexible" Content="Flexible detailing at internal supports (SMDSC MB1)" Margin="0,6,0,0"
+                                      ToolTip="Span bottom bars stop 25 mm and hanger bars 50 mm short of the internal supports; bottom splice bars (30 %, at least two) lap them across the support and the support bars give the top continuity. Prefabricated cages, no clash with the column bars."/>
                             <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
                                        Foreground="{DynamicResource TextColor}"
                                        Text="The top bars become continuous hanger bars along the whole line, lapped in the central third of a span; each span's bottom bars run straight 10 phi into the intermediate supports (EC2 9.2.1.5) and keep their legs at the end columns. Links and densified zones stay per span."/>

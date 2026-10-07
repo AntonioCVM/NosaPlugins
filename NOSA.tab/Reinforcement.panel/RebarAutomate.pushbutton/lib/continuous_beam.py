@@ -187,6 +187,27 @@ def sagging_range_mm(x0, x1, start_kind, end_kind, d_mm=0.0):
     return (a, b) if b - a > 1.0 else None
 
 
+FLEX_BOTTOM_GAP_MM = 25.0     # SMDSC 4.2.3 / MB1 flexible detailing: span bottom bars stop 25 from the face
+FLEX_TOP_GAP_MM = 50.0        # ... hanger bars 50 from it
+FLEX_SPLICE_SHARE = 0.30      # bottom splice bars over an internal support: 30 % of the span bars
+
+
+def splice_bar_count(n_bottom):
+    """Bottom splice bars over an internal support (SMDSC MB1): 30 % of the span bars, at least two."""
+    return max(2, int(-(-FLEX_SPLICE_SHARE * n_bottom // 1)))
+
+
+def flexible_hanger_runs(x_start, x_end, supports):
+    """Hanger bar runs that stop FLEX_TOP_GAP_MM short of every continuous support (SMDSC MB1)."""
+    runs, a = [], x_start
+    for sup in supports:
+        if sup.get('continuous'):
+            runs.append((a, sup['x0'] - FLEX_TOP_GAP_MM))
+            a = sup['x1'] + FLEX_TOP_GAP_MM
+    runs.append((a, x_end))
+    return [(p, q) for p, q in runs if q - p > 100.0]
+
+
 def simplified_rules_warnings(spans_mm):
     """Why the SMDSC simplified curtailment may not apply to these clear spans (designer to confirm)."""
     out = []

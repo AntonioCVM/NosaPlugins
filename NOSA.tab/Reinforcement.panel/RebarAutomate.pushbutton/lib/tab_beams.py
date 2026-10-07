@@ -67,6 +67,7 @@ class BeamsMixin(object):
         if values.get('n_top') == 0 and values.get('n_bottom') == 0:
             errors.append(u'At least one top or bottom bar is required.')
         values['continuous'] = self.ChkBeamContinuous.IsChecked == True
+        values['flexible'] = self.ChkBeamFlexible.IsChecked == True
         if values['continuous'] and values.get('n_top', 0) < 2:
             errors.append(u'A continuous beam needs at least 2 top (hanger) bars.')
         # additional bars (2026-10-05): hogging over the supports, sagging in the spans
@@ -625,7 +626,8 @@ class BeamsMixin(object):
         data = beam_rebar.build_continuous_line(
             self.doc, line, cover_mm, values['bar_dia'], values['n_top'], values['stirrup_dia'],
             values.get('support_dia') or values['bar_dia'], values.get('n_support', 0),
-            values['stock_length'], lap_mm, anchorage_mm)
+            values['stock_length'], lap_mm, anchorage_mm, flexible=values.get('flexible', False),
+            n_bottom_bars=values.get('n_bottom') or values['n_top'])
         name = u'Beams {}'.format(u', '.join(str(get_id_value(h.Id)) for h in line))
         errors.extend(u'{}: {}'.format(name, w) for w in data['warnings'])
         if len(data['hanger_sets']) > 1:
@@ -649,6 +651,18 @@ class BeamsMixin(object):
             for host, group in data['support_sets']:
                 self._create_long_group(wrapper, host, group, support_type, u'Beam Support Bar',
                                         u'top_support', errors, created_rebars)
+        if bar_type is not None:
+            for host, group in data.get('splice_sets', []):
+                # a FreeForm group: a shape-driven set in the second layer is re-seated by Revit
+                # onto the first layer's line whenever it regenerates (measured 2026-10-07)
+                chains = group.get('all_curves') or [group['curves']]
+                rebar = wrapper.create_freeform_group(host, chains, bar_type,
+                                                      transaction_name=u'NOSA — Create Beam Bottom Splice Bars')
+                if rebar is None:
+                    errors.append(u'Beam {}: bottom splice bars — {}'.format(get_id_value(host.Id), wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'bottom_splice')
+                    created_rebars.append(rebar)
         for host in line:      # the line's bars exist now: a failing span must not redo them
             ends = data['spans'].get(get_id_value(host.Id), {})
             try:

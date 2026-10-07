@@ -1315,11 +1315,14 @@ def group_beam_lines(hosts, max_gap_mm=1500.0, tol_mm=10.0):
 
 def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, stirrup_bar_diameter_mm,
                           support_bar_diameter_mm, n_support_bars, stock_length_mm, lap_length_mm,
-                          anchorage_mm):
+                          anchorage_mm, flexible=False, n_bottom_bars=2):
     """
     Hanger (continuous top) bars and support bars of one line of spans, plus how each span's
     own bars must end (continuous_beam's rules — see that module).
-    Returns {'hanger_sets': [(host, group)], 'support_sets': [(host, group)],
+    flexible (IStructE SMDSC 4.2.3 / MB1): span bottom bars stop 25 short of the internal supports and
+    lap with bottom splice bars across them (30 %, at least two, second layer); hanger bars stop 50
+    short of them, the support bars giving the continuity.
+    Returns {'hanger_sets': [(host, group)], 'support_sets': [(host, group)], 'splice_sets': [...],
              'spans': {host id value: {'continuous_ends', 'internal_bottom_ext_mm'}},
              'warnings': [...]} — group dicts as group_parallel_bar_chains_into_sets returns.
     """
@@ -1387,19 +1390,32 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
                 return span['host']
         return last
 
-    segments, lap_notes = cb.lap_cuts(x_start, x_end, ordered, stock_length_mm, lap_length_mm)
-    warnings.extend(lap_notes)
+    if flexible:
+        segments = []
+        for a, b in cb.flexible_hanger_runs(x_start, x_end, supports):
+            segs, lap_notes = cb.lap_cuts(a, b, ordered, stock_length_mm, lap_length_mm)
+            warnings.extend(lap_notes)
+            segments.extend(segs)
+        if not n_support_bars:
+            warnings.append(u'flexible detailing: the hanger bars stop at the supports — give support bars '
+                            u'for the continuity over them.')
+    else:
+        segments, lap_notes = cb.lap_cuts(x_start, x_end, ordered, stock_length_mm, lap_length_mm)
+        warnings.extend(lap_notes)
     down = height.Negate().Multiply(bar_diameter_mm / _MM_PER_FT)     # contact lap under the bar
     leg0 = support_leg_mm(anchorage_mm, ext0, bar_diameter_mm, clear_mm) / _MM_PER_FT if ext0 else 0.0
     leg1 = support_leg_mm(anchorage_mm, ext1, bar_diameter_mm, clear_mm) / _MM_PER_FT if ext1 else 0.0
     spacing = (top_lines[1].GetEndPoint(0).DistanceTo(top_lines[0].GetEndPoint(0)) * _MM_PER_FT
                if len(top_lines) > 1 else 0.0)
     hanger_sets = []
+    lowered = False
     for j, (a, b) in enumerate(segments):
+        # a run that laps the previous one sits under it; a fresh run starts back in the top layer
+        lowered = (not lowered) if j and a < segments[j - 1][1] - 1.0 else False
         chains = []
         for line in top_lines:
             p, q = at(line, a), at(line, b)
-            if j % 2:
+            if lowered:
                 p, q = p + down, q + down
             curves = [DB.Line.CreateBound(p, q)]
             if j == 0 and leg0:
@@ -1442,7 +1458,9 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         ext_b = [0.0, 0.0]
         for k, (cont, sup) in enumerate(((cont0, supports[i - 1] if i > 0 else None),
                                          (cont1, supports[i] if i < len(supports) else None))):
-            if cont:
+            if cont and flexible:
+                ext_b[k] = -cb.FLEX_BOTTOM_GAP_MM
+            elif cont:
                 ext_b[k], note = cb.bottom_anchor_into_support(bar_diameter_mm, sup['width'])
                 if note and k == 1:
                     warnings.append(note)
@@ -1450,5 +1468,22 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         ends = (cont0, cont1) if own else (cont1, cont0)
         exts = tuple(ext_b) if own else (ext_b[1], ext_b[0])
         span_ends[span['id']] = {'continuous_ends': ends, 'internal_bottom_ext_mm': exts}
+    splice_sets = []
+    if flexible:
+        n_splice = cb.splice_bar_count(n_bottom_bars)
+        up = height.Multiply(bar_diameter_mm / _MM_PER_FT)          # second layer, on the span bars
+        splice_lines = compute_longitudinal_bar_lines(axis0, bottom, side_a, side_b, cover_mm, n_splice,
+                                                      bar_diameter_mm, stirrup_bar_diameter_mm,
+                                                      seed_side_normal=normal)
+        sp = (splice_lines[1].GetEndPoint(0).DistanceTo(splice_lines[0].GetEndPoint(0)) * _MM_PER_FT
+              if len(splice_lines) > 1 else 0.0)
+        for support in supports:
+            if not support['continuous']:
+                continue
+            xa = support['x0'] - cb.FLEX_BOTTOM_GAP_MM - lap_length_mm
+            xb = support['x1'] + cb.FLEX_BOTTOM_GAP_MM + lap_length_mm
+            chains = [[[DB.Line.CreateBound(at(l, xa) + up, at(l, xb) + up)]] for l in splice_lines]
+            for group in group_parallel_bar_chains_into_sets(chains, sp, normal, u'Beam Bottom Splice Bars'):
+                splice_sets.append((by_id[support['left']]['host'], group))
     return {'hanger_sets': hanger_sets, 'support_sets': support_sets, 'spans': span_ends,
-            'warnings': warnings}
+            'splice_sets': splice_sets, 'warnings': warnings}
