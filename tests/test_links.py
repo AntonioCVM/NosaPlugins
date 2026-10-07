@@ -32,3 +32,24 @@ def test_beam_review():
     joined = u' '.join(notes)
     assert u'vertical legs' in joined and u'open links' in joined and u'side bars' in joined
     assert u'under the minimum' in joined                       # H8 x2 at 300 on 700 wide
+
+
+def test_column_rules():
+    assert links.column_link_dia_min_mm(32.0, 400.0) == 8.0 and links.column_link_dia_min_mm(40.0, 500.0) == 10.0
+    assert links.column_max_pitch_mm(16.0, 300.0) == 300.0 and links.column_max_pitch_mm(12.0, 450.0) == 240.0
+    small = {'shape': 'rect', 'width_mm': 400.0, 'depth_mm': 400.0}
+    pitch, dense, notes = links.column_review(small, 40, 8, 16, 8, (3, 3), 300, 150, True, False)
+    assert pitch == 300 and dense == 150 and notes == []          # middle bar 144 mm from a corner
+    rect = {'shape': 'rect', 'width_mm': 450.0, 'depth_mm': 450.0}
+    _p, _d, notes = links.column_review(rect, 40, 8, 16, 8, (3, 3), 300, 150, True, False)
+    assert len(notes) == 1 and u'169 mm' in notes[0]              # SMDSC Fig. 6.24: tie it
+    pitch, dense, notes = links.column_review(rect, 40, 8, 16, 12, (4, 4), 400, 300, True, False)
+    assert pitch == 300 and dense == 175                         # 0.6 x 300 = 180 -> 175
+    big = {'shape': 'rect', 'width_mm': 600.0, 'depth_mm': 600.0}
+    _p, _d, notes = links.column_review(big, 40, 8, 16, 16, (5, 5), 300, 150, True, False)
+    assert any(u'restrained' in n for n in notes)               # middle bar 244 mm from a corner
+    _p, _d, notes = links.column_review(big, 40, 8, 16, 16, (5, 5), 300, 150, True, True)
+    assert not any(u'restrained' in n for n in notes)            # alternate bars tied
+    circle = {'shape': 'circle', 'diameter_mm': 400.0}
+    _p, _d, notes = links.column_review(circle, 40, 8, 16, 4, (0, 0), 250, 150, True, False)
+    assert any(u'at least 6' in n for n in notes)

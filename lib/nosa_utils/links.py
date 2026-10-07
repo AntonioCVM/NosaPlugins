@@ -90,3 +90,102 @@ def beam_review(width_mm, height_mm, cover_mm, link_dia_mm, bar_dia_mm, spacing_
         notes.append(u'{}: {:.0f} mm deep: side bars H16 at <= 250 mm inside the links are needed '
                      u'(SMDSC 6.3, EC2 7.3.3).'.format(label, height_mm))
     return pitch, notes
+
+
+# ── Columns: IStructE SMDSC 6.4 / EC2 9.5 ────────────────────────────────────────────────────────
+
+COLUMN_MAX_PITCH_MM = 400.0
+COLUMN_REDUCTION = 0.6          # within the larger column dimension of a beam or slab, and at laps
+COLUMN_MIN_BAR_MM = 16.0
+COLUMN_MIN_RATIO, COLUMN_MAX_RATIO, COLUMN_MAX_RATIO_LAPS = 0.002, 0.04, 0.08
+
+
+def column_link_dia_min_mm(bar_dia_mm, least_side_mm=None):
+    """max(phi/4, 8) (6 for columns under 200 mm)."""
+    floor = 6.0 if (least_side_mm is not None and least_side_mm < 200.0) else MIN_LINK_DIA_MM
+    return max(bar_dia_mm / 4.0, floor)
+
+
+def column_max_pitch_mm(bar_dia_mm, least_side_mm):
+    """min(20 phi, least side, 400); the dense zones take 0.6 of it."""
+    return min(20.0 * bar_dia_mm, least_side_mm, COLUMN_MAX_PITCH_MM)
+
+
+def farthest_from_restraint_mm(n_bars_on_face, face_bar_pitch_mm, alternate_restrained):
+    """How far the worst bar of a face is from a restrained one (corners always are)."""
+    if n_bars_on_face <= 2:
+        return 0.0
+    if alternate_restrained:
+        return face_bar_pitch_mm
+    return ((n_bars_on_face - 1) // 2) * face_bar_pitch_mm
+
+
+def column_review(geometry, cover_mm, link_dia_mm, bar_dia_mm, bar_count, per_face, spacing_mm,
+                  dense_spacing_mm, densify, crossties, label=u'Column'):
+    """
+    SMDSC 6.4 review of a column. Returns (pitch, dense pitch, notes): pitches over the maxima are
+    brought down to them (25 mm steps) and said so; the rest is reported for the designer.
+    """
+    notes = []
+    if not geometry:
+        return spacing_mm, dense_spacing_mm, notes
+    cover_mm, link_dia_mm, bar_dia_mm = float(cover_mm), float(link_dia_mm), float(bar_dia_mm)
+    spacing_mm, dense_spacing_mm = float(spacing_mm), float(dense_spacing_mm or spacing_mm)
+    circle = geometry.get('shape') == 'circle'
+    if circle:
+        least = float(geometry['diameter_mm'])
+        area = math.pi * least ** 2 / 4.0
+    else:
+        least = min(float(geometry['width_mm']), float(geometry['depth_mm']))
+        area = float(geometry['width_mm']) * float(geometry['depth_mm'])
+    most = column_max_pitch_mm(bar_dia_mm, least)
+    dense_most = COLUMN_REDUCTION * most
+    pitch, dense = spacing_mm, dense_spacing_mm
+    if pitch > most + 1e-6:
+        pitch = 25.0 * math.floor(most / 25.0)
+        notes.append(u'{}: link pitch {:.0f} over the SMDSC 6.4 maximum min(20 phi, {:.0f}, 400) = {:.0f}: '
+                     u'{:.0f} mm used.'.format(label, spacing_mm, least, most, pitch))
+    if densify and dense > dense_most + 1e-6:
+        dense = 25.0 * math.floor(dense_most / 25.0)
+        notes.append(u'{}: link pitch next to beams and slabs {:.0f} over 0.6 x {:.0f}: {:.0f} mm used '
+                     u'(SMDSC 6.4).'.format(label, dense_spacing_mm, most, dense))
+    elif not densify:
+        notes.append(u'{}: links at 0.6 x the pitch ({:.0f} mm) are needed within {:.0f} mm of beams '
+                     u'and slabs and at laps (SMDSC 6.4): tick the dense zones.'.format(
+                         label, dense_most, max(geometry.get('width_mm', least), geometry.get('depth_mm', least))))
+    need_link = column_link_dia_min_mm(bar_dia_mm, least)
+    if link_dia_mm < need_link - 1e-6:
+        notes.append(u'{}: H{:.0f} links under max(phi/4, 8) = {:.0f} mm (SMDSC 6.4).'.format(
+            label, link_dia_mm, need_link))
+    if bar_dia_mm < (8.0 if least < 200.0 else COLUMN_MIN_BAR_MM):
+        notes.append(u'{}: H{:.0f} main bars under the recommended H16 (SMDSC 6.4).'.format(label, bar_dia_mm))
+    if bar_count < (6 if circle and least >= 200.0 else 4):
+        notes.append(u'{}: {} bars: at least {} in a {} column (SMDSC 6.4).'.format(
+            label, bar_count, 6 if circle else 4, u'circular' if circle else u'rectangular'))
+    ratio = bar_count * math.pi * bar_dia_mm ** 2 / 4.0 / area
+    if ratio < COLUMN_MIN_RATIO - 1e-9:
+        notes.append(u'{}: {:.2f} % of steel, under 0.2 % of the section (plain column, EC2 12).'.format(
+            label, 100 * ratio))
+    elif ratio > COLUMN_MAX_RATIO + 1e-9:
+        notes.append(u'{}: {:.2f} % of steel, over 4 % ({:.2f} % at laps against 8 %): check '
+                     u'congestion or use couplers (SMDSC 6.4).'.format(label, 100 * ratio, 200 * ratio))
+    if not circle:
+        for face_mm, n in ((float(geometry['width_mm']), per_face[0]), (float(geometry['depth_mm']), per_face[1])):
+            if n < 2:
+                continue
+            bar_pitch = (face_mm - 2.0 * (cover_mm + link_dia_mm) - bar_dia_mm) / (n - 1)
+            worst = farthest_from_restraint_mm(n, bar_pitch, crossties)
+            if worst > MAX_BAR_TO_LEG_MM + 1e-6:
+                notes.append(u'{}: a bar on the {:.0f} mm face is {:.0f} mm from a restrained bar (> 150, '
+                             u'SMDSC 6.4, Fig. 6.24): {}.'.format(
+                                 label, face_mm, worst,
+                                 u'restrain alternate bars with links' if not crossties else
+                                 u'restrain every bar or close the bars up'))
+            if bar_pitch > 300.0 + 1e-6:
+                notes.append(u'{}: bars {:.0f} mm apart on the {:.0f} mm face, over the 300 mm preferred '
+                             u'maximum (SMDSC 6.4).'.format(label, bar_pitch, face_mm))
+    unique = []
+    for n in notes:
+        if n not in unique:
+            unique.append(n)
+    return pitch, dense, unique

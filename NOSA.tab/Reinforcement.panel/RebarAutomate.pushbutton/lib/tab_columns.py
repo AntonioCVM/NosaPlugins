@@ -520,6 +520,24 @@ class ColumnsMixin(object):
             errors.extend(fit_checks.column_notes(
                 geom, cover_mm, values['link_dia'], values['bar_dia'], values['bar_count'], per_face,
                 label=u'Column {}'.format(get_id_value(host.Id))))
+            # T8.38, SMDSC 6.4: link pitch (x 0.6 next to beams, slabs and laps), sizes, restraint
+            from nosa_utils import links
+            pitch, dense, link_notes = links.column_review(
+                geom, cover_mm, values['link_dia'], values['bar_dia'], values['bar_count'], per_face,
+                values['link_spacing'], values.get('dense_spacing'), values.get('densify'),
+                values.get('crossties'), label=u'Column {}'.format(get_id_value(host.Id)))
+            errors.extend(link_notes)
+            # SMDSC 6.4 / 5.4.3: links against bursting at laps of H20 and over (sum Ast >= As)
+            from nosa_utils import laps
+            lap_mm = column_rebar.default_lap_length_mm(values['bar_dia'], std=self._host_std(host))
+            lap_pitch = dense if values.get('densify') else pitch
+            if not laps.lap_transverse_ok(values['bar_dia'], 100.0, lap_mm, values['link_dia'], 2, lap_pitch):
+                errors.append(u'Column {}: the H{:.0f} laps ({:.0f} mm) need links of at least the area of one '
+                              u'bar in each outer third (SMDSC 6.4, Fig. 6.25); H{:.0f} at {:.0f} do not give '
+                              u'it.'.format(get_id_value(host.Id), float(values['bar_dia']), float(lap_mm),
+                                            float(values['link_dia']), float(lap_pitch)))
+            if pitch != values['link_spacing'] or dense != values.get('dense_spacing'):
+                values = dict(values, link_spacing=pitch, dense_spacing=dense)
         except Exception:
             log_swallowed(_LOG, u'column fit check')
         try:
