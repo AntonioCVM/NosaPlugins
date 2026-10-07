@@ -1457,6 +1457,123 @@ def opening_corner_diagonals_mm(topo, raw_holes, outer, large_holes, cover_mm, b
     return segments, skipped
 
 
+def _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft, tol_mm=50.0):
+    """
+    Walls and beams under the slab along X or Y: (x positions of the supports running along Y,
+    y positions of those running along X), mm, merged within 50 mm.
+    """
+    xmin, xmax, ymin, ymax = bounds_mm
+    tol_ft = tol_mm / _MM_PER_FT
+    along_y, along_x = [], []
+    for cat in (DB.BuiltInCategory.OST_Walls, DB.BuiltInCategory.OST_StructuralFraming):
+        for el in DB.FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType():
+            try:
+                box = el.get_BoundingBox(None)
+                curve = el.Location.Curve
+            except Exception:
+                continue
+            if box is None or not isinstance(curve, DB.Line):
+                continue
+            if not (box.Min.Z < bottom_z_ft - tol_ft and box.Max.Z >= bottom_z_ft - tol_ft):
+                continue
+            p0, p1 = curve.GetEndPoint(0), curve.GetEndPoint(1)
+            x0, x1 = sorted((p0.X * _MM_PER_FT, p1.X * _MM_PER_FT))
+            y0, y1 = sorted((p0.Y * _MM_PER_FT, p1.Y * _MM_PER_FT))
+            if x1 < xmin - tol_mm or x0 > xmax + tol_mm or y1 < ymin - tol_mm or y0 > ymax + tol_mm:
+                continue
+            d = curve.Direction
+            if abs(d.Y) > 0.99:
+                along_y.append((x0 + x1) / 2.0)
+            elif abs(d.X) > 0.99:
+                along_x.append((y0 + y1) / 2.0)
+
+    def _merge(values):
+        out = []
+        for v in sorted(values):
+            if not out or v - out[-1] > tol_mm:
+                out.append(v)
+        return out
+    return _merge(along_y), _merge(along_x)
+
+
+def _top_over_supports(doc, DB, top_mat, bounds_mm, bottom_z_ft):
+    """
+    IStructE SMDSC MS1/MS2 (user option): the top mat only over the supports — the bars across a
+    support reach 0.3 x span either side (to the edge past the end supports), the bars along it
+    stay in that band. Plain straight Sets and bars only; the mat dict changes in place.
+    """
+    from nosa_utils import mesh_rules
+    xmin, xmax, ymin, ymax = bounds_mm
+    sup_x, sup_y = _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft)
+    if not sup_x and not sup_y:
+        return [u'top bars over supports: no wall or beam along X/Y found under the slab — the full '
+                u'top mat is kept.']
+    x_bands = mesh_rules.support_strips_mm(sup_x, xmin, xmax)      # across supports running along Y
+    y_bands = mesh_rules.support_strips_mm(sup_y, ymin, ymax)
+    kept_whole = 0
+    for key, along, main_bands, dist_bands in ((u'along_x', 0, x_bands, y_bands),
+                                               (u'along_y', 1, y_bands, x_bands)):
+        grouped = top_mat.get(key) or {}
+        new_sets, new_bars = [], []
+
+        def _clip(line, k_shift):
+            p, q = line.GetEndPoint(0), line.GetEndPoint(1)
+            lo, hi = sorted(((p.X, p.Y)[along] * _MM_PER_FT, (q.X, q.Y)[along] * _MM_PER_FT))
+            out = []
+            for a, b in main_bands:
+                s0, s1 = max(lo, a), min(hi, b)
+                if s1 - s0 < 100.0:
+                    continue
+                if along == 0:
+                    out.append(DB.Line.CreateBound(DB.XYZ(s0 / _MM_PER_FT, p.Y, p.Z), DB.XYZ(s1 / _MM_PER_FT, p.Y, p.Z)))
+                else:
+                    out.append(DB.Line.CreateBound(DB.XYZ(p.X, s0 / _MM_PER_FT, p.Z), DB.XYZ(p.X, s1 / _MM_PER_FT, p.Z)))
+            return [c.CreateTransformed(k_shift) for c in out]
+
+        for st in grouped.get('sets') or []:
+            curves = st['curves']
+            spacing, length = st.get('spacing_mm') or 0.0, st.get('array_length_mm') or 0.0
+            if len(curves) != 1 or not isinstance(curves[0], DB.Line) or spacing <= 0.0:
+                new_sets.append(st)
+                kept_whole += 1
+                continue
+            n = st['normal'].Normalize()
+            count = int(math.ceil(length / spacing - 1e-6)) + 1 if length > 0 else 1
+            pitch = length / (count - 1) if count > 1 else 0.0
+            start = curves[0].GetEndPoint(0)
+            t0 = (start.X * n.X + start.Y * n.Y) * _MM_PER_FT
+            sign = n.X + n.Y                 # +1 / -1 along the row axis
+            bands_t = [tuple(sorted((sign * a, sign * b))) for a, b in dist_bands]
+            for inside, k0, k1 in mesh_rules.row_runs(t0, pitch, count, bands_t):
+                shift = DB.Transform.CreateTranslation(n.Multiply(k0 * pitch / _MM_PER_FT))
+                pieces = [curves[0].CreateTransformed(shift)] if inside else _clip(curves[0], shift)
+                for c in pieces:
+                    if k1 > k0:
+                        piece = dict((k, v) for k, v in st.items() if k != 'materialized_bars')
+                        piece.update({'curves': [c], 'spacing_mm': pitch + 0.01,
+                                      'array_length_mm': (k1 - k0) * pitch})
+                        new_sets.append(piece)
+                    else:
+                        new_bars.append({'curves': [c], 'normal': st['normal']})
+        for bar in grouped.get('bars') or []:
+            curves = bar['curves']
+            if len(curves) != 1 or not isinstance(curves[0], DB.Line):
+                new_bars.append(bar)
+                continue
+            p = curves[0].GetEndPoint(0)
+            row = (p.Y, p.X)[along] * _MM_PER_FT
+            if any(a <= row <= b for a, b in dist_bands):
+                new_bars.append(bar)
+            else:
+                new_bars.extend(dict(bar, curves=[c]) for c in _clip(curves[0], DB.Transform.Identity))
+        grouped['sets'], grouped['bars'] = new_sets, new_bars
+    notes = [u'top bars over {} support line(s) only, 0.3 x span either side (SMDSC MS1/MS2); the bottom '
+             u'mat stays continuous.'.format(len(sup_x) + len(sup_y))]
+    if kept_whole:
+        notes.append(u'top bars over supports: {} set(s) with legs kept whole.'.format(kept_whole))
+    return notes
+
+
 def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia_y, spacing,
                     top_dia_x, top_dia_y, top_spacing, top_cover_mm):
     """
@@ -1595,7 +1712,7 @@ def build_floor_reinforcement(doc, host,
                                y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
                                max_stock_length_mm=12000.0, std=None,
                                include_opening_diagonals=False, opening_diagonal_dia_mm=None,
-                               stagger_laps=False, corner_torsion=False):
+                               stagger_laps=False, corner_torsion=False, top_over_supports=False):
     """
     Phase 2.3 pipeline for one floor/slab host. See module docstring
     for the four hardening fixes over Phase 2.2. Real cover is applied
@@ -1819,6 +1936,10 @@ def build_floor_reinforcement(doc, host,
             std=std, stagger_laps=stagger_laps,
             good_bond=footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT))
         result['top_mat'] = {'along_x': along_x_top, 'along_y': along_y_top}
+        if top_over_supports:
+            result['top_notes'] = _top_over_supports(
+                doc, DB, result['top_mat'], (top_xmin_mm, top_xmax_mm, top_ymin_mm, top_ymax_mm),
+                bottom_z_ft)
 
     if include_perimeter_closure_ubars:
         # Closure U-bars sit at the ALREADY cover-offset boundary (bottom

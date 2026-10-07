@@ -204,6 +204,43 @@ def slab_corners(polygon):
     return out
 
 
+TOP_BAR_SPAN_SHARE = 0.3   # SMDSC MS1/MS2: top bars reach 0.3 x span from each support
+
+
+def support_strips_mm(positions_mm, lo_mm, hi_mm, share=TOP_BAR_SPAN_SHARE):
+    """
+    Bands lo..hi (one coordinate) holding the top bars over supports at positions_mm: share x the span
+    either side of each support; past the end supports they run on to the slab edge (edge support or
+    cantilever). Overlapping bands merge. [] with no support.
+    """
+    sup = sorted(p for p in positions_mm if lo_mm - 1e-6 <= p <= hi_mm + 1e-6)
+    bands = []
+    for i, p in enumerate(sup):
+        a = p - share * (p - sup[i - 1]) if i > 0 else lo_mm
+        b = p + share * (sup[i + 1] - p) if i + 1 < len(sup) else hi_mm
+        bands.append((max(lo_mm, a), min(hi_mm, b)))
+    merged = []
+    for a, b in sorted(bands):
+        if merged and a <= merged[-1][1] + 1e-6:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+        else:
+            merged.append((a, b))
+    return merged
+
+
+def row_runs(first_mm, pitch_mm, count, bands_mm):
+    """Consecutive rows (first + k pitch) grouped by whether they lie in a band: [(inside, k0, k1)]."""
+    runs = []
+    for k in range(count):
+        x = first_mm + k * pitch_mm
+        inside = any(a - 1e-6 <= x <= b + 1e-6 for a, b in bands_mm)
+        if runs and runs[-1][0] == inside:
+            runs[-1] = (inside, runs[-1][1], k)
+        else:
+            runs.append((inside, k, k))
+    return runs
+
+
 BAND_FACTOR = 1.5          # SMDSC 6.7: a band under the column when l > 1.5 (c + 3d)
 BAND_SHARE = 2.0 / 3.0
 

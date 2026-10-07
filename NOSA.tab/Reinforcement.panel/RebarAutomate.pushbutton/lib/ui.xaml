@@ -251,6 +251,17 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ═══ TOP BARS OVER SUPPORTS (Floors only) ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkTopOverSupports" Content="Top bars only over supports (Floors only)"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,6"/>
+                        <TextBlock Text="IStructE SMDSC MS1/MS2 simplified curtailment: walls and beams under the slab along X/Y are found; the top bars across each reach 0.3 x the span either side (to the edge past the end supports) and the top bars along it stay in that band. The bottom mat stays continuous. Untick for a full top mat."
+                                   FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.5"/>
+                    </StackPanel>
+                </Border>
+
                 <!-- ═══ CORNER TORSION (Floors only) ═══ -->
                 <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                     <StackPanel>

@@ -1559,6 +1559,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
         values['include_opening_diagonals'] = self.ChkOpeningDiagonals.IsChecked == True
         values['corner_torsion'] = self.ChkCornerTorsion.IsChecked == True
+        values['top_over_supports'] = self.ChkTopOverSupports.IsChecked == True
         if values['include_opening_diagonals']:
             values['opening_diagonal_dia'] = self._read_number(
                 self.TxtOpeningDiagonalDia.Text, u'Opening corner diagonal bar diameter', errors)
@@ -2305,7 +2306,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             include_opening_diagonals=values.get('include_opening_diagonals', False),
             opening_diagonal_dia_mm=values.get('opening_diagonal_dia'),
             stagger_laps=values.get('stagger_laps', False),
-            corner_torsion=values.get('corner_torsion', False))
+            corner_torsion=values.get('corner_torsion', False),
+            top_over_supports=values.get('top_over_supports', False))
 
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(
@@ -2369,7 +2371,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 wrapper, host, grouped, bar_types.get(dia), errors, created_rebars,
                 u'Floor Corner Torsion Bar', layer=layer)
         errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n)
-                      for n in reinforcement.get('torsion_notes') or [])
+                      for n in (reinforcement.get('torsion_notes') or []) + (reinforcement.get('top_notes') or []))
         for layer, dia, grouped in reinforcement.get('hole_trimmers') or []:
             if bar_types.get(dia) is None:
                 bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)

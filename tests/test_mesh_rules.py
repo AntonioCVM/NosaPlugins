@@ -74,3 +74,12 @@ def test_corner_torsion():
     l_shape = [(0, 0), (4000, 0), (4000, 2000), (2000, 2000), (2000, 3000), (0, 3000)]
     assert len(mr.slab_corners(l_shape)) == 5                             # the re-entrant one is skipped
     assert len(mr.slab_corners(list(reversed(square)))) == 4
+
+
+def test_top_bars_over_supports():
+    # walls at 0, 5000 and 9000 under a 9000 slab: edge, internal, edge
+    assert mr.support_strips_mm([0.0, 5000.0, 9000.0], 0.0, 9000.0) == [(0.0, 1500.0), (3500.0, 6200.0),
+                                                                         (7800.0, 9000.0)]
+    assert mr.support_strips_mm([2000.0], 0.0, 6000.0) == [(0.0, 6000.0)]     # a lone support: cantilevers
+    assert mr.support_strips_mm([], 0.0, 6000.0) == []
+    assert mr.row_runs(0.0, 200.0, 6, [(300.0, 700.0)]) == [(False, 0, 1), (True, 2, 3), (False, 4, 5)]
