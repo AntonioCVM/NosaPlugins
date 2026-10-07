@@ -261,8 +261,8 @@ Hallazgos de la prueba en vivo (losa trapezoidal, 2026-10-07), para más adelant
   (`trim_to_step_mm`) y la tolerancia de 5 mm las rechazaba; ahora se aceptan hasta un paso (30 mm) y los extremos se
   meten 12,5 mm (`inset_bar_ends`) para que el redondeo hacia arriba de Revit no invada el recubrimiento; en barras
   rectas el tramo A se redondea como la longitud (`round_straight_like_total`, BS 8666: A = longitud).
-- Barras muy cortas en la esquina aguda (H16 de 250 mm): falta una longitud mínima (anclaje) por debajo de la cual no
-  se coloca la barra (SMDSC 5.x / detalle de esquina).
+- ~~Barras muy cortas en esquinas agudas~~ **Resuelto 2026-10-07** (decisión del usuario): en losas y cimentaciones no
+  se coloca una barra más corta que su longitud de anclaje lbd; el resultado avisa del número omitido.
 
 Hallazgos de la prueba de la viga continua (2026-10-07), para la oleada 2:
 - **BBS de la plantilla corregido** (sin guardar): orden Member → Schedule Mark → sufijo (antes Rebar Number, el número

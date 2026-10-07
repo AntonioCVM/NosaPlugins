@@ -1884,6 +1884,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         sub-mark in the BBS); FreeForm is left for what no varying set
         can follow.
         """
+        errors.extend(grouped.get('notes') or [])
         if bar_type is None:
             return
         style_map = {'StirrupTie': DBS.RebarStyle.StirrupTie}

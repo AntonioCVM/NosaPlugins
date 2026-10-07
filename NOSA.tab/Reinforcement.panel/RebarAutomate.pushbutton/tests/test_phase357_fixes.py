@@ -332,7 +332,7 @@ mat = footing_rebar.build_mat_bars_topology(
     doc, cap_host, is_top=False, cover_mm=50.0, dia_x_mm=16.0, dia_y_mm=16.0,
     spacing_x_mm=200.0, spacing_y_mm=200.0)
 assert 'along_x' in mat and 'along_y' in mat
-assert set(mat['along_x'].keys()) == {'sets', 'bars'}
+assert set(mat['along_x'].keys()) == {'sets', 'bars', 'notes'}
 total_x_items = len(mat['along_x']['sets']) + len(mat['along_x']['bars'])
 assert total_x_items > 0, "expected at least some along_x reinforcement around the hole"
 print("build_mat_bars_topology: returns the same {'sets','bars'} shape floors use "

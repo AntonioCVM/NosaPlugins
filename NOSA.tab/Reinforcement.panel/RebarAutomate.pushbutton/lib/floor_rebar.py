@@ -509,9 +509,16 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     normal = engine.compute_vertical_hook_plane_normal(
         bar_direction, propagation_reference=propagation_reference)
 
+    # A bar shorter than its anchorage length cannot develop its stress: in the acute corner of a
+    # skewed edge it is left out and reported (user decision 2026-10-07).
+    min_bar_mm = footing_mod.default_anchorage_length_mm(own_dia_mm, std=std, good_bond=good_bond)
+    dropped_short = 0
     rows_with_ivs = []
     for row in rows_mm:
         ivs = topo.material_intervals(outer, large_holes, row, axis=own_axis, inset_mm=own_inset_mm)
+        kept = [iv for iv in ivs if (iv[1] - iv[0]) >= min_bar_mm]
+        dropped_short += len(ivs) - len(kept)
+        ivs = kept
         # BUG FIX — ALWAYS drop an interval Revit's own Rebar API could
         # never build a shape from, not just when Perimeter Closure
         # U-Bars is on (that check is a SEPARATE, usually-larger
@@ -599,7 +606,12 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
                                  'array_length_mm': abs(rows[-1] - rows[0]),
                                  'spacing_mm': abs(rows[1] - rows[0]) + 0.01,  # no extra bar from rounding
                                  'materialized_bars': materialized})
-    return {'sets': sets, 'bars': bars}
+    notes = []
+    if dropped_short:
+        notes.append(u'{} H{:.0f} bar(s) along {} shorter than their anchorage length ({:.0f} mm) left '
+                     u'out in an acute corner; check the corner needs no trimming bars.'.format(
+                         dropped_short, own_dia_mm, own_axis.upper(), min_bar_mm))
+    return {'sets': sets, 'bars': bars, 'notes': notes}
 
 
 # ══════════════════════════════════════════════════════════════════════════
