@@ -5,7 +5,7 @@ NOSA.RebarAutomate — bar marking (BS 8666:2020).
 Identical bars (diameter, shape code, outer dimensions, hooks, cut length) share one
 plain sequential mark per partition — 01, 02 ... — reused across batches. A varying
 set keeps one mark; its lengths are told apart in the schedule and the BVBS file by
-lower-case letter suffixes (05a, 05b ... without i, o, q; SMDSC 4.5.1). Host ids never enter the mark.
+lower-case letter suffixes (05a, 05b ... z, aa, ab; SMDSC 4.5.1), in Revit's own sequence. Host ids never enter the mark.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 import sys, os
@@ -84,7 +84,9 @@ def _parse_shape_params(shape_params_str, tolerance_mm):
     return tuple(_round_to_tolerance(params[k], tolerance_mm) for k in sorted_keys)
 
 
-_SUFFIX_LETTERS = u'abcdefghjklmnprstuvwxyz'   # i, o and q left out: read as 1 and 0 on site
+# Revit numbers varying-set bars a..z, aa, ab ... with every letter (checked live 2026-10-07):
+# the Excel BBS, BVBS and the tag's (a to h) follow it so all three agree with Revit's BBS
+_SUFFIX_LETTERS = u'abcdefghijklmnopqrstuvwxyz'
 
 
 def variant_suffix(index):

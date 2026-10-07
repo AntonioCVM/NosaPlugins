@@ -250,9 +250,12 @@ try:
                         kind += u' shape ' + element_name(doc.GetElement(r.GetShapeId()))
                     except Exception:
                         kind += u' multi-shape'
-                    _log.append(u'  {} [{}] n{} x {:.0f}..{:.0f} y {:.0f}..{:.0f} z {:.0f}..{:.0f}'.format(
-                        layer, kind, r.NumberOfBarPositions, *[f(getattr(p, ax) for p in pts) * 304.8
-                                                         for ax in ('X', 'Y', 'Z') for f in (min, max)]))
+                    mark = u'{}{}'.format(
+                        r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK).AsString() or u'',  # nosa-lint: disable=NOSA002 - harness script, runs inside Revit
+                        shared_params.read(r, u'NOSA_Rebar_Mark_Suffix', u'') or u'')
+                    _log.append(u'  {} [{}] {} n{} x {:.0f}..{:.0f} y {:.0f}..{:.0f} z {:.0f}..{:.0f}'.format(
+                        layer, kind, mark, r.NumberOfBarPositions, *[f(getattr(p, ax) for p in pts) * 304.8
+                                                                for ax in ('X', 'Y', 'Z') for f in (min, max)]))
         _log.append(u'host {}: new rebars by layer {}'.format(i, sorted(layers.items())))
     try:
         bbs = BBS

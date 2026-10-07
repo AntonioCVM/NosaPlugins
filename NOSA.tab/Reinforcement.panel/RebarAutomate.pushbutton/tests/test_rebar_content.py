@@ -11,7 +11,7 @@ import rebar_content as rc  # noqa: E402
 def test_manifest_lists_the_tag_family():
     families = rc.load_manifest()
     assert [f['name'] for f in families] == [u'NOSA Rebar Tag']
-    assert rc.parse_version(families[0]['version']) == (1, 0, 0)
+    assert rc.parse_version(families[0]['version']) == (1, 1, 0)
     assert families[0]['file'].startswith(u'content/')
 
 

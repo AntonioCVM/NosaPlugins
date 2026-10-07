@@ -137,12 +137,11 @@ def test_format_mark_is_plain_sequential_number():
     print(u"[PASS] test_format_mark_is_plain_sequential_number")
 
 
-def test_variant_suffix_skips_i_o_q_and_rolls_over():
-    """Varying sets: 05a, 05b ... no i, o or q; after z comes aa, ab ..."""
-    letters = [variant_suffix(i) for i in range(23)]
-    assert letters == list(u'abcdefghjklmnprstuvwxyz')
-    assert not set(u'ioq') & set(u''.join(variant_suffix(i) for i in range(600)))
-    assert [variant_suffix(i) for i in (23, 24, 45, 46)] == [u'aa', u'ab', u'az', u'ba']
+def test_variant_suffix_follows_revit_and_rolls_over():
+    """Varying sets: 05a, 05b ... as Revit numbers them, every letter; after z comes aa, ab ..."""
+    letters = [variant_suffix(i) for i in range(26)]
+    assert letters == list(u'abcdefghijklmnopqrstuvwxyz')
+    assert [variant_suffix(i) for i in (26, 27, 39, 51, 52)] == [u'aa', u'ab', u'an', u'az', u'ba']
     assert u'05' + variant_suffix(0) == u'05a'
     print(u"[PASS] test_variant_suffix_skips_i_o_q_and_rolls_over")
 
@@ -150,13 +149,14 @@ def test_suffix_range_for_the_tag():
     """SMDSC 4.5.1: 8H20-01(a to h)-150; nothing for a set of one length."""
     assert suffix_range(8) == u'(a to h)'
     assert suffix_range(2) == u'(a to b)'
+    assert suffix_range(10) == u'(a to j)' and suffix_range(40) == u'(a to an)'   # live BBS 2026-10-07
     assert suffix_range(1) == u'' and suffix_range(0) == u''
     print(u"[PASS] test_suffix_range_for_the_tag")
 
 
 if __name__ == "__main__":
     test_format_mark_is_plain_sequential_number()
-    test_variant_suffix_skips_i_o_q_and_rolls_over()
+    test_variant_suffix_follows_revit_and_rolls_over()
     test_suffix_range_for_the_tag()
     test_round_to_tolerance()
     test_parse_shape_params()
