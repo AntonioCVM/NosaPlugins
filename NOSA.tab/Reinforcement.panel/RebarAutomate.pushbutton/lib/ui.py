@@ -2073,6 +2073,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         top_cover_mm = (re_engine.get_native_cover_mm(
                             self.doc, host, u'Top', self._standard_default_cover_mm(u'foundation'))
                         if values['include_top_mat'] else None)
+        values = self._smdsc_mesh_review(host, values, bottom_cover_mm, top_cover_mm, errors, foundation=True)
         reinforcement = footing_rebar.build_footing_reinforcement(
             self.doc, host,
             bottom_cover_mm=bottom_cover_mm,
@@ -2162,6 +2163,55 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 bar_types.get(values.get('dowel_diameter')),
                 hook_type, errors, created_rebars)
 
+    def _smdsc_mesh_review(self, host, values, bottom_cover_mm, top_cover_mm, errors, foundation):
+        """
+        T8.39/T8.41 — IStructE SMDSC 6.2 (slabs) / 6.7 (foundations) for this host's mats: pitches
+        over the maxima come down (values copied, never the shared dict), the rest is reported.
+        """
+        try:
+            from nosa_utils import mesh_rules, standards
+            # the structural layers of a layered type (a foundation slab carries blinding and
+            # hardcore layers that are no concrete to reinforce), else the host's own solid
+            h_mm = 0.0
+            try:
+                structure = self.doc.GetElement(host.GetTypeId()).GetCompoundStructure()
+                h_mm = sum(layer.Width for layer in structure.GetLayers()
+                           if layer.Function == DB.MaterialFunctionAssignment.Structure) * 304.8
+            except Exception:
+                h_mm = 0.0
+            if h_mm <= 0.0:
+                box = re_engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
+                h_mm = (box.Max.Z - box.Min.Z) * 304.8
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            top = None
+            if values.get('include_top_mat'):
+                top = (values['top_dia_x'], values['top_dia_y'], values['top_spacing'], top_cover_mm)
+            label = u'{} {}'.format(u'Foundation' if foundation else u'Slab', get_id_value(host.Id))
+            if foundation:
+                name = u''
+                try:
+                    name = host.Symbol.FamilyName.lower()
+                except Exception:
+                    name = u''
+                spacing, top_spacing, notes = mesh_rules.foundation_review(
+                    h_mm, bottom_cover_mm, values['dia_x'], values['dia_y'], values['spacing'], fck, top=top,
+                    piled=u'pile' in name, label=label)
+            else:
+                spacing, top_spacing, notes = mesh_rules.slab_review(
+                    h_mm, bottom_cover_mm, values['dia_x'], values['dia_y'], values['spacing'], fck, top=top,
+                    label=label)
+            errors.extend(notes)
+            if spacing != values['spacing'] or (top and top_spacing != values['top_spacing']):
+                values = dict(values, spacing=spacing)
+                if top:
+                    values['top_spacing'] = top_spacing
+        except Exception:
+            log_swallowed(_LOG, u'RebarAutomateWindow._smdsc_mesh_review')
+        return values
+
     def _process_floor(self, host, values, wrapper, bar_types, errors, created_rebars):
         """
         Floor pipeline for one host (Phase 2.2 — see floor_rebar.py's
@@ -2178,6 +2228,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         top_cover_mm = (re_engine.get_native_cover_mm(
                             self.doc, host, u'Top', self._standard_default_cover_mm(u'slab'))
                         if values['include_top_mat'] else None)
+        values = self._smdsc_mesh_review(host, values, bottom_cover_mm, top_cover_mm, errors, foundation=False)
         reinforcement = floor_rebar.build_floor_reinforcement(
             self.doc, host,
             bottom_cover_mm=bottom_cover_mm,
