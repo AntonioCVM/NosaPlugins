@@ -510,6 +510,19 @@ class ColumnsMixin(object):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'column'))
         try:
+            # T8.47, SMDSC 5.2/5.3: do the bars fit inside the links at their actual size?
+            import fit_checks
+            geom = column_rebar.detect_column_geometry(self.doc, host)
+            per_face = (0, 0)
+            if geom and geom.get('shape') == 'rect':
+                per_face = column_rebar.distribute_bar_count(
+                    values['bar_count'], geom['width_mm'] / 2.0, geom['depth_mm'] / 2.0)
+            errors.extend(fit_checks.column_notes(
+                geom, cover_mm, values['link_dia'], values['bar_dia'], values['bar_count'], per_face,
+                label=u'Column {}'.format(get_id_value(host.Id))))
+        except Exception:
+            log_swallowed(_LOG, u'column fit check')
+        try:
             link_bend_mm = bar_types[values['link_dia']].StirrupTieBendDiameter * 304.8
         except Exception:
             link_bend_mm = None

@@ -176,6 +176,7 @@ def lap_transverse_ok(bar_dia_mm, pct_lapped, lap_length_mm, link_dia_mm, link_l
 def large_bar_notes(bar_dia_mm, min_section_mm):
     """SMDSC 5.4.4 / EC2 8.8: bars over 40 mm are not lapped unless the section is at least 1 m."""
     notes = []
+    bar_dia_mm = float(bar_dia_mm)
     if bar_dia_mm > 40.0:
         notes.append(u'H{:.0f} is a large bar: prefer mechanical anchorages, add confining links '
                      u'(EC2 8.8).'.format(bar_dia_mm))

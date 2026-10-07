@@ -257,7 +257,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
-                    summary['errors'] = batch_result.errors
+                    import fit_checks   # T8.47, SMDSC 5.2: clear gaps and pitch of the meshes
+                    summary['errors'] = list(batch_result.errors) + fit_checks.mesh_notes('walls', values)
                 except Exception as e:
                     forms.alert(u'Wall reinforcement generation failed:\n{}'.format(e))
                     return
@@ -316,7 +317,9 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
                     summary = dict(batch_result.summary)
-                    summary['errors'] = batch_result.errors
+                    import fit_checks   # T8.47, SMDSC 5.2: clear gaps and pitch of the meshes
+                    summary['errors'] = (list(batch_result.errors)
+                                         + fit_checks.mesh_notes('footings_floors', values))
                 except Exception as e:
                     forms.alert(u'Reinforcement generation failed:\n{}'.format(e))
                     return

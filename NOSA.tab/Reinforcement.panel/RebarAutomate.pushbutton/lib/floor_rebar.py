@@ -612,7 +612,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
     if dropped_short:
         notes.append(u'{} H{:.0f} bar(s) along {} shorter than their anchorage length ({:.0f} mm) left '
                      u'out in an acute corner; check the corner needs no trimming bars.'.format(
-                         dropped_short, own_dia_mm, own_axis.upper(), min_bar_mm))
+                         dropped_short, float(own_dia_mm), own_axis.upper(), float(min_bar_mm)))
     return {'sets': sets, 'bars': bars, 'notes': notes}
 
 

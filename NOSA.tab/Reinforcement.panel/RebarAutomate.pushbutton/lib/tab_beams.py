@@ -586,6 +586,15 @@ class BeamsMixin(object):
         first = line[0]
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, first, u'Other', self._standard_default_cover_mm(u'beam'))
+        try:
+            # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
+            import fit_checks
+            width_mm, _h = beam_rebar.get_beam_section_mm(self.doc, first, cover_mm, values['bar_dia'])
+            errors.extend(fit_checks.beam_notes(
+                width_mm, cover_mm, values['stirrup_dia'], values['bar_dia'], values['n_top'],
+                values.get('n_bottom', values['n_top']), label=u'Beam {}'.format(get_id_value(first.Id))))
+        except Exception:
+            log_swallowed(_LOG, u'beam fit check')
         lap_mm, anchorage_mm = self._beam_lap_anchorage(first, values['bar_dia'])
         data = beam_rebar.build_continuous_line(
             self.doc, line, cover_mm, values['bar_dia'], values['n_top'], values['stirrup_dia'],
@@ -602,8 +611,8 @@ class BeamsMixin(object):
                 errors.append(u'{}: the H{:.0f} top-bar laps ({:.0f} mm) need links of at least the area of '
                               u'one lapped bar in each outer third (SMDSC 5.4.3); the H{:.0f} links at '
                               u'{:.0f} mm do not give it: close them up over the laps.'.format(
-                                  name, values['bar_dia'], lap_mm, values['stirrup_dia'],
-                                  values['stirrup_spacing']))
+                                  name, float(values['bar_dia']), float(lap_mm), float(values['stirrup_dia']),
+                                  float(values['stirrup_spacing'])))
         bar_type = bar_types.get(values['bar_dia'])
         support_type = bar_types.get(values.get('support_dia'))
         if bar_type is not None:
@@ -637,6 +646,15 @@ class BeamsMixin(object):
             log_swallowed(_LOG, u'RebarAutomateWindow._process_beam')
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
+        try:
+            # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
+            import fit_checks
+            width_mm, _h = beam_rebar.get_beam_section_mm(self.doc, host, cover_mm, values['bar_dia'])
+            errors.extend(fit_checks.beam_notes(
+                width_mm, cover_mm, values['stirrup_dia'], values['bar_dia'], values['n_top'],
+                values.get('n_bottom', values['n_top']), label=u'Beam {}'.format(get_id_value(host.Id))))
+        except Exception:
+            log_swallowed(_LOG, u'beam fit check')
         lap_mm = None
         try:
             # Top bars of beams deeper than 250 mm are in poor bond (EC2 Fig. 8.2): the
