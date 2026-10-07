@@ -249,3 +249,35 @@ def test_quarter_landing_of_an_l_stair_covers_its_whole_area():
     assert top['first'] < -400.0 and top['first'] + top['array'] > 500.0
     assert any(s.get('points_vz') for s in sets if s['layer'] == u'stair_landing_ubar')
     assert any(s.get('points') for s in sets if s['layer'] == u'stair_landing_ubar')
+
+
+def test_smdsc_mst1_top_bars_stop_at_a_from_each_knee():
+    assert sr.a_length_mm(3520.0, 480.0) == 500.0                    # max(352, 480, 500)
+    assert sr.a_length_mm(6000.0, 610.0) == 625.0                    # 610 up to 625
+    run = second_flight()
+    sets = sr.build_flight(run, COVER, 12.0, 200.0, 8.0, 200.0, anchorage=480.0, a_mm=500.0)
+    tops = _by_label(sets, u'Stair Flight Top')
+    assert len(tops) == 2                                           # one from each knee
+    c = sr._cos(SLOPE)
+    lower, upper = tops[0]['points'], tops[1]['points']
+    assert abs(lower[-1][0] - lower[-2][0] - 500.0 * c) < 1e-6        # 'A' along the slope
+    assert abs(upper[1][0] - upper[0][0] - 500.0 * c) < 1e-6
+    dist_top = _by_label(sets, u'Stair Flight Distribution Top')
+    assert len(dist_top) == 2                                       # only where the top bars are
+    for st in sets:
+        if st['axis'] == 'v':
+            for s, z in st['points']:
+                if s > run['length']:
+                    continue
+                assert inside(run, s, z), (st['label'], s, z)
+    short = sr.build_flight(run, COVER, 12.0, 200.0, 8.0, 200.0, anchorage=480.0, a_mm=2000.0)
+    assert len(_by_label(short, u'Stair Flight Top')) == 1          # the two would meet: continuous
+
+
+def test_landing_ubars_carry_half_the_main_bottom_area():
+    assert sr.landing_ubar_dia_mm(10, 200, 12, 200) == 10.0           # 100 >= 72
+    assert sr.landing_ubar_dia_mm(8, 200, 16, 150) == 16.0            # H12 at 200 = 0.72 < 0.5 x 256/150 = 0.85
+    runs, landings = sr.lower_tops([first_flight()], [{'top': 1765.0, 'bottom': 1615.0}], 10.0)
+    assert runs[0]['upper']['top'] == 1755.0 and landings[0]['top'] == 1755.0
+    assert abs(runs[0]['pitch_z0'] + 10.0 / sr._cos(SLOPE)) < 1e-9
+    assert first_flight()['upper']['top'] == 1765.0                  # the originals are untouched

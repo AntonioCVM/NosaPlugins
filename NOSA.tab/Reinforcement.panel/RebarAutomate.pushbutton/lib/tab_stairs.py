@@ -42,6 +42,8 @@ class StairsMixin(object):
             'starters': self.ChkStairStarters.IsChecked == True,
             'starter_mode': 'post' if self.CboStairStarterType.SelectedIndex == 1 else 'cast',
             'landing_ubars': self.ChkStairLandingUBars.IsChecked == True,
+            'curtail_top': self.ChkStairCurtailTop.IsChecked == True,
+            'no_finish': self.ChkStairNoFinish.IsChecked == True,
         }
         if values['starters']:
             values['starter_dia'] = self._read_number(self.TxtStairStarterDia.Text, u'Starter diameter', errors)
@@ -111,6 +113,11 @@ class StairsMixin(object):
             ubar_dia = self._preview_number(self.TxtStairUBarDia, 10.0)
         if self.ChkStairStarters.IsChecked == True:
             starter_dia = self._preview_number(self.TxtStairStarterDia, main_dia)
+        a_mm = None
+        if self.ChkStairCurtailTop.IsChecked == True:
+            lo = run['lower']['s_far'] if run['lower']['kind'] == 'landing' else 0.0
+            hi = run['upper']['s_far'] if run['upper']['kind'] == 'landing' else run['length']
+            a_mm = stair_rebar.a_length_mm(abs(hi - lo), self._anchorage_mm(None, top_dia))
         try:
             shapes = preview_shapes.stair_section_shapes(
                 run, cover, main_dia, main_spacing, top_dia, top_spacing, dist_dia, dist_spacing,
@@ -118,7 +125,7 @@ class StairsMixin(object):
                 slab_anchor=self.ChkStairSlabAnchor.IsChecked == True, ubar_dia=ubar_dia,
                 starter_dia=starter_dia,
                 starter_mode='post' if self.CboStairStarterType.SelectedIndex == 1 else 'cast',
-                starter_lap=self._splice_mm(None, starter_dia or main_dia, None))
+                starter_lap=self._splice_mm(None, starter_dia or main_dia, None), a_mm=a_mm)
         except Exception:
             log_swallowed(_LOG, u'_update_stair_preview shapes')
             return
@@ -156,6 +163,14 @@ class StairsMixin(object):
     def _run_stair_reinforcement(self, stairs, values):
         errors = []
         bar_types = {}
+        if values['landing_ubars']:
+            u_dia = stair_rebar.landing_ubar_dia_mm(values['ubar_dia'], values['top_spacing'],
+                                                    values['main_dia'], values['main_spacing'])
+            if u_dia > values['ubar_dia']:
+                errors.append(u'Landing U-bars H{:g} raised to H{:g}: SMDSC MST1 asks for 50 % of the area '
+                              u'of the main bottom bars (H{:g} at {:g}).'.format(
+                                  values['ubar_dia'], u_dia, values['main_dia'], values['main_spacing']))
+                values = dict(values, ubar_dia=u_dia)
         diameters = {values['main_dia'], values['top_dia'], values['dist_dia']}
         if values['starters']:
             diameters.add(values['starter_dia'])
@@ -177,18 +192,29 @@ class StairsMixin(object):
             errors.extend(u'Stair {}: {}'.format(hid, w) for w in data['warnings'])
             cover = stair_host.host_cover_mm(host, self._standard_default_cover_mm(u'slab'))
             anchorage = self._anchorage_mm(host, values['main_dia'])
+            if values.get('no_finish'):
+                data['runs'], data['landings'] = stair_rebar.lower_tops(
+                    data['runs'], data['landings'], stair_rebar.NO_FINISH_TOP_COVER_MM)
+                errors.append(u'Stair {}: no finish — top cover {:.0f} + {:.0f} mm (SMDSC 6.8).'.format(
+                    hid, cover, stair_rebar.NO_FINISH_TOP_COVER_MM))
             if values['landing_ubars']:
                 errors.extend(u'Stair {}: {}'.format(hid, note) for note in stair_host.apply_landing_ubars(
                     data, values['ubar_dia'], cover, values['main_dia']))
             jobs = []
             for run in data['runs']:
                 run_values = self._smdsc_stair_review(host, run, cover, values, errors)
+                a_mm = None
+                if values.get('curtail_top'):
+                    lo = run['lower']['s_far'] if run['lower']['kind'] == 'landing' else 0.0
+                    hi = run['upper']['s_far'] if run['upper']['kind'] == 'landing' else run['length']
+                    a_mm = stair_rebar.a_length_mm(
+                        abs(hi - lo), self._anchorage_mm(host, run_values['top_dia']))
                 starters, starter_host = self._stair_starters(host, run, cover, anchorage, values, errors)
                 for bar_set in stair_rebar.build_flight(
                         run, cover, run_values['main_dia'], run_values['main_spacing'], run_values['dist_dia'],
                         run_values['dist_spacing'], anchorage, top_dia=run_values['top_dia'],
                         top_spacing=run_values['top_spacing'], slab_anchor=values['slab_anchor'],
-                        starters=starters):
+                        starters=starters, a_mm=a_mm):
                     jobs.append((run['frame'], bar_set,
                                  starter_host if bar_set['layer'] == u'stair_starter' else host))
                 if run['upper']['kind'] == 'floor' and values['slab_anchor']:

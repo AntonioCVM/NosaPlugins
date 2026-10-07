@@ -1351,6 +1351,10 @@
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Ends" Style="{StaticResource RA_SectionTitle}"/>
+                            <CheckBox Name="ChkStairCurtailTop" Content="Top bars stop at 'A' from each knee (SMDSC MST1)" IsChecked="True" Margin="0,0,0,6"
+                                      ToolTip="'A' = the greatest of 0.1 x the design span, a tension anchorage and 500 mm, measured along the flight from each knee. Untick to run the top bars over the whole flight."/>
+                            <CheckBox Name="ChkStairNoFinish" Content="No finish: 10 mm more top cover (SMDSC 6.8)" Margin="0,0,0,6"
+                                      ToolTip="For stairs left as cast concrete: the top bars of flights and landings move 10 mm down."/>
                             <CheckBox Name="ChkStairSlabAnchor" Content="Lap into the floor slab where a flight ends without a landing" IsChecked="True"
                                       ToolTip="The flight bars run on into the slab by a tension anchorage length (they leave the stair). Untick when the slab is reinforced to receive the flight."/>
                             <TextBlock TextWrapping="Wrap" FontSize="9" FontStyle="Italic" Opacity="0.5" Margin="0,8,0,0"
