@@ -48,15 +48,18 @@ check('a non-NOSA tag type is left alone', rd.swap_label_kind('Rebar Tag 1', 'Ma
 print('\nALL TAG TYPE CHECKS PASSED')
 
 import wall_rebar as wr
-check('the face with the slab beside it is NF, the other FF',
-      wr.face_codes([True, False], [False, True]) == ['NF', 'FF']
-      and wr.face_codes([False, True], [False, True]) == ['FF', 'NF'])
-check('no slab on either side: Revit exterior side is FF',
-      wr.face_codes([False, False], [True, False]) == ['FF', 'NF'])
-check('slab on both sides: Revit exterior side is FF',
-      wr.face_codes([True, True], [False, True]) == ['NF', 'FF'])
-check('a single face beside a slab is NF, a lone outer face FF',
-      wr.face_codes([True], [True]) == ['NF'] and wr.face_codes([False], [True]) == ['FF'])
+check('the face with the slab beside it is N, the other F',
+      wr.face_codes([True, False], [False, True]) == ['N', 'F']
+      and wr.face_codes([False, True], [False, True]) == ['F', 'N'])
+check('no slab on either side: Revit exterior side is F',
+      wr.face_codes([False, False], [True, False]) == ['F', 'N'])
+check('slab on both sides: Revit exterior side is F',
+      wr.face_codes([True, True], [False, True]) == ['N', 'F'])
+check('a single face beside a slab is N, a lone outer face F',
+      wr.face_codes([True], [True]) == ['N'] and wr.face_codes([False], [True]) == ['F'])
+check('SMDSC 4.2.1 layer codes: N1/N2 near face, F1/F2 far face, 1 = outer layer',
+      wr.layer_code('N', True) == 'N1' and wr.layer_code('F', False) == 'F2'
+      and wr.layer_code(None, True) is None)
 print('\nALL WALL FACE CHECKS PASSED')
 
 import rebar_marking as rm

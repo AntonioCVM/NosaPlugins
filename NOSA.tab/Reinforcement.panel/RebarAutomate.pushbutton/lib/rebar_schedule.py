@@ -285,7 +285,7 @@ def group_by_position(doc, rebar_ids):
 
 def _variant_rows(pos):
     """
-    A varying set: one row per bar, marks 05A, 05B ... in the order of the set, as Revit numbers
+    A varying set: one row per bar, marks 05a, 05b ... in the order of the set, as Revit numbers
     the bars of a varying set as a whole (template v30, 2026-10-05) so the Excel BBS and the
     Revit one carry the same sub-marks. Identical elements of the mark multiply each row.
     """

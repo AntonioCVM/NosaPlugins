@@ -138,12 +138,12 @@ def test_format_mark_is_plain_sequential_number():
 
 
 def test_variant_suffix_skips_i_o_q_and_rolls_over():
-    """Varying sets: 05A, 05B ... no I, O or Q; after Z comes AA, AB ..."""
+    """Varying sets: 05a, 05b ... no i, o or q; after z comes aa, ab ..."""
     letters = [variant_suffix(i) for i in range(23)]
-    assert letters == list(u'ABCDEFGHJKLMNPRSTUVWXYZ')
-    assert not set(u'IOQ') & set(u''.join(variant_suffix(i) for i in range(600)))
-    assert [variant_suffix(i) for i in (23, 24, 45, 46)] == [u'AA', u'AB', u'AZ', u'BA']
-    assert u'05' + variant_suffix(0) == u'05A'
+    assert letters == list(u'abcdefghjklmnprstuvwxyz')
+    assert not set(u'ioq') & set(u''.join(variant_suffix(i) for i in range(600)))
+    assert [variant_suffix(i) for i in (23, 24, 45, 46)] == [u'aa', u'ab', u'az', u'ba']
+    assert u'05' + variant_suffix(0) == u'05a'
     print(u"[PASS] test_variant_suffix_skips_i_o_q_and_rolls_over")
 
 if __name__ == "__main__":

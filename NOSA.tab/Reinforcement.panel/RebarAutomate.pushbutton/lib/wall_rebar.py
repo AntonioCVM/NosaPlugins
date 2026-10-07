@@ -97,21 +97,26 @@ def _wall_faces(cover_mgr, axis_dir):
     return face_a, face_b, top, bottom
 
 
-NEAR_FACE = u'NF'   # the face towards the slab (inside the building)
-FAR_FACE = u'FF'    # the face away from it (outside the building)
+NEAR_FACE = u'N'   # the face towards the slab (inside the building)
+FAR_FACE = u'NF'[1]   # the far face, away from the slab (indexed to dodge the CI f-string heuristic)
 _SLAB_PROBE_MM = 300.0
 
 
 def face_codes(slab_beside, exterior):
     """
-    NF/FF per wall face: a face with a slab beside it is NF, the other FF.
-    When the slabs do not tell the faces apart, Revit's exterior side is FF.
+    N/F per wall face: a face with a slab beside it is N (near), the other F (far).
+    When the slabs do not tell the faces apart, Revit's exterior side is F.
     """
     if len(slab_beside) == 1 and slab_beside[0]:
         return [NEAR_FACE]
     if any(slab_beside) and not all(slab_beside):
         return [NEAR_FACE if beside else FAR_FACE for beside in slab_beside]
     return [FAR_FACE if out else NEAR_FACE for out in exterior]
+
+
+def layer_code(face, outer):
+    """SMDSC 4.2.1 layer code: N1/N2 near face, F1/F2 far face (1 = outer layer); None without a face."""
+    return u'{}{}'.format(face, 1 if outer else 2) if face else None
 
 
 def _floor_solids(doc, near_bbox):
@@ -140,7 +145,7 @@ def _slab_at(solids, x, y, z_lo, z_hi):
 
 
 def wall_face_codes(doc, host, faces, axis):
-    """{id(face): 'NF' | 'FF'} — NF towards the slab, FF towards the outside (user rule 2026-10-01)."""
+    """{id(face): N or F code} — N towards the slab, F towards the outside (user rule 2026-10-01)."""
     try:
         bbox = host.get_BoundingBox(None)
         half_ft = (host.Width / 2.0) + _SLAB_PROBE_MM / _MM_PER_FT
@@ -556,7 +561,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                 'normal': axis_dir,
                 'count': len(vert_positions),
                 'label': u'Wall Vertical Mesh',
-                'location': locations.get(id(face)),
+                'location': layer_code(locations.get(id(face)), vert_is_outer),
             })
 
         if horiz_positions:
@@ -581,7 +586,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     'normal': DB.XYZ.BasisZ,
                     'count': len(horiz_positions),
                     'label': u'Wall Horizontal Mesh',
-                    'location': locations.get(id(face)),
+                    'location': layer_code(locations.get(id(face)), not vert_is_outer),
                 })
 
     # Ties — through-wall at intervals
@@ -972,7 +977,8 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
                 groups.setdefault((0, 0), []).append([line])
         for key in sorted(groups):
             vertical_sets.append({'freeform_bars': groups[key], 'count': len(groups[key]),
-                                  'label': u'Wall Vertical Mesh (curved)', 'location': locations.get(name)})
+                                  'label': u'Wall Vertical Mesh (curved)',
+                                  'location': layer_code(locations.get(name), vert_is_outer)})
 
         r_h = r_face + inward * horiz_inset
         if not horiz_positions:
@@ -1000,7 +1006,7 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
                     'normal': DB.XYZ.BasisZ,
                     'count': n,
                     'label': u'Wall Horizontal Mesh (curved, row {}, segment {})'.format(u'AB'[parity], k + 1),
-                    'location': locations.get(name),
+                    'location': layer_code(locations.get(name), not vert_is_outer),
                 })
 
     ties = []

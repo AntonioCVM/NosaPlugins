@@ -5,7 +5,7 @@ NOSA.RebarAutomate — bar marking (BS 8666:2020).
 Identical bars (diameter, shape code, outer dimensions, hooks, cut length) share one
 plain sequential mark per partition — 01, 02 ... — reused across batches. A varying
 set keeps one mark; its lengths are told apart in the schedule and the BVBS file by
-letter suffixes (05A, 05B ... without I, O, Q). Host ids never enter the mark.
+lower-case letter suffixes (05a, 05b ... without i, o, q; SMDSC 4.5.1). Host ids never enter the mark.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 import sys, os
@@ -84,11 +84,11 @@ def _parse_shape_params(shape_params_str, tolerance_mm):
     return tuple(_round_to_tolerance(params[k], tolerance_mm) for k in sorted_keys)
 
 
-_SUFFIX_LETTERS = u'ABCDEFGHJKLMNPRSTUVWXYZ'   # I, O and Q left out: read as 1 and 0 on site
+_SUFFIX_LETTERS = u'abcdefghjklmnprstuvwxyz'   # i, o and q left out: read as 1 and 0 on site
 
 
 def variant_suffix(index):
-    """Letter suffix of the index-th bar length of a varying set: A..Z, then AA, AB ..."""
+    """Letter suffix of the index-th bar length of a varying set: a..z, then aa, ab ..."""
     n = index + 1
     out = u''
     while n > 0:
@@ -98,7 +98,7 @@ def variant_suffix(index):
 
 
 def mark_number(mark):
-    """Sequential number of a bar mark ('05', '05B' -> 5); 0 when there is none."""
+    """Sequential number of a bar mark ('05', '05b' -> 5); 0 when there is none."""
     digits = u''
     for ch in (mark or u''):
         if not ch.isdigit():

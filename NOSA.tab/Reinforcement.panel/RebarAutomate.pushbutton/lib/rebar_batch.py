@@ -55,7 +55,9 @@ _OST_REBAR_LIKE_CATEGORY_NAMES = (
 
 # IStructE / BS 8666 bar location shown on the bar label (read from Comments).
 LOCATION_CODES = {u'bottom_x': u'B1', u'bottom_y': u'B2', u'top_x': u'T1', u'top_y': u'T2'}
-WALL_FACE_CODES = (u'NF', u'FF')   # near face = towards the slab, far face = outside the building
+# near face = towards the slab, far face = outside the building; 1 = outer layer (SMDSC 4.2.1)
+WALL_FACE_CODES = (u'N1', u'N2', u'F1', u'F2')
+_LEGACY_FACE_CODES = (u'NF', u'FF')   # before 2026-10-07: replaced on the next generation
 
 
 def location_code(layer):
@@ -73,7 +75,8 @@ def stamp_location(elem, layer, code=None):
     if param is None or param.IsReadOnly:
         return False
     current = param.AsString() or u''
-    if current and current not in LOCATION_CODES.values() and current not in WALL_FACE_CODES:
+    known = set(LOCATION_CODES.values()) | set(WALL_FACE_CODES) | set(_LEGACY_FACE_CODES)
+    if current and current not in known:
         return True
     return bool(param.Set(code))
 
@@ -162,11 +165,15 @@ class BatchResult(object):
         self.summary = summary    # the raw dict generate_fn() returned, untouched
 
 
+# lower-case sub-marks 1a, 1b ... (IStructE SMDSC 4.5.1, decision D8 2026-10-07)
+SUBMARK_SUFFIX = u'a'
+
+
 def ensure_varying_submarks(doc):
     """
-    Varying rebar sets numbered as a whole, bars suffixed A, B, C ... (template v30, 2026-10-05):
-    the BBS then lists every bar of a set cut by a chamfer as its own sub-mark (05A, 05B) with its
-    real dimensions. In a transaction; True when the project setting had to change.
+    Varying rebar sets numbered as a whole, bars suffixed a, b, c ... (SMDSC 4.5.1): the BBS then
+    lists every bar of a set cut by a chamfer as its own sub-mark (01a, 01b) with its real
+    dimensions. In a transaction; True when the project setting had to change.
     """
     from Autodesk.Revit.DB import Structure as DBS
     try:
@@ -175,8 +182,8 @@ def ensure_varying_submarks(doc):
         if settings.NumberVaryingLengthRebarsIndividually:
             settings.NumberVaryingLengthRebarsIndividually = False
             changed = True
-        if settings.RebarVaryingLengthNumberSuffix != u'A':
-            settings.RebarVaryingLengthNumberSuffix = u'A'
+        if settings.RebarVaryingLengthNumberSuffix != SUBMARK_SUFFIX:
+            settings.RebarVaryingLengthNumberSuffix = SUBMARK_SUFFIX
             changed = True
         return changed
     except Exception:

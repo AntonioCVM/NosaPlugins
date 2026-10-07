@@ -11,6 +11,8 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.DB import Structure as DBS
 from System.Collections.Generic import List
 
+SUBMARK_SUFFIX = u'a'  # IStructE SMDSC 4.5.1 (D8)
+
 _log = []
 if u'template' not in doc.Title:
     raise RuntimeError(u'not the template: ' + doc.Title)
@@ -34,8 +36,8 @@ try:
     if settings.NumberVaryingLengthRebarsIndividually:
         settings.NumberVaryingLengthRebarsIndividually = False
         _log.append(u'varying sets numbered as a whole')
-    if settings.RebarVaryingLengthNumberSuffix != u'A':
-        settings.RebarVaryingLengthNumberSuffix = u'A'
+    if settings.RebarVaryingLengthNumberSuffix != SUBMARK_SUFFIX:
+        settings.RebarVaryingLengthNumberSuffix = SUBMARK_SUFFIX
         _log.append(u'suffix A, B, C ...')
 
     _i, suffix = field_named(u'Rebar Number Suffix')

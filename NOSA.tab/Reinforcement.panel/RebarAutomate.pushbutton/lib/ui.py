@@ -1792,7 +1792,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         self._pending_layers[get_id_value(rebar.Id)] = layer
 
     def _stamp_location(self, rebar, location):
-        """Record a label location code (NF/FF) that the layer alone cannot tell."""
+        """Record a label location code (N1/N2/F1/F2) that the layer alone cannot tell."""
         if rebar is not None and location:
             self._pending_locations[get_id_value(rebar.Id)] = location
 

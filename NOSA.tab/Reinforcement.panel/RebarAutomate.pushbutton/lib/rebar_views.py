@@ -357,12 +357,13 @@ def _new_sheet(doc, titleblock, number, name):
     return sheet
 
 
-def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None):
+def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None, legends=()):
     """
     Two passes: drop every view on the first sheet, read its real viewport size (tags and the
     view title included), then pack them. One sheet per element (user brief): while the views
     need a second sheet, the largest one that can goes to its next coarser scale (tags re-laid
-    out by `retag`); only then does a view move to another sheet.
+    out by `retag`); only then does a view move to another sheet. Every sheet gets the legends
+    (layer notation, reinforcement notes) down panel B (IStructE SMDSC 3.7, 4.2.1).
     """
     from Autodesk.Revit import DB  # Lazy import
     sheets = [_new_sheet(doc, titleblock, sheet_numbers.pop(0), name)]
@@ -406,6 +407,10 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
             view_id = ports[i].ViewId
             doc.Delete(ports[i].Id)
             ports[i] = DB.Viewport.Create(doc, sheets[sheet_index].Id, view_id, centre)
+    if legends:
+        import rc_legends
+        for sheet in sheets:
+            rc_legends.place(doc, sheet, legends)
     return [s.SheetNumber for s in sheets]
 
 
@@ -483,13 +488,16 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 rebar_detailing.resolve_tag_overlaps(doc, view, tags)
                 report['tags'] += len(tags)
         if place_on_sheets and created and titleblock is not None:
+            import rc_legends
+            legends = rc_legends.ensure(doc)
+
             def _retag(view):
                 tags = [x for x in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag)]
                 if tags:
                     rebar_detailing.resolve_tag_overlaps(doc, view, tags)
             report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
-                                                retag=_retag if tag else None)
+                                                retag=_retag if tag else None, legends=legends)
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))
