@@ -826,6 +826,60 @@ def build_contact_starters(doc, bar_points, inward_dirs, base_z_ft, main_dia_mm,
     return result
 
 
+def starter_link_set(bar_lines, hand, foundation, link_dia_mm, bar_dia_mm, cover_mm):
+    """
+    IStructE SMDSC MF1 / MC1: one Set of closed links (H10-300, at least 3) round a rectangular cage
+    of column starters, inside the foundation from below its top cover down to above the feet.
+    bar_lines run from the foot (start) up; hand is the column's width direction. None when the
+    cage is not rectangular (a circular cage) or the foundation leaves no room.
+    """
+    from nosa_utils import links
+    if len(bar_lines) < 4 or foundation is None:
+        return None
+    u = DB.XYZ(hand.X, hand.Y, 0.0)
+    if u.GetLength() < 1e-9:
+        u = DB.XYZ.BasisX
+    u = u.Normalize()
+    v = DB.XYZ.BasisZ.CrossProduct(u)
+    origin = bar_lines[0].GetEndPoint(1)
+    origin = DB.XYZ(origin.X, origin.Y, 0.0)
+    uv = []
+    for line in bar_lines:
+        p = line.GetEndPoint(1)
+        d = DB.XYZ(p.X, p.Y, 0.0) - origin
+        uv.append((d.DotProduct(u) * _MM_PER_FT, d.DotProduct(v) * _MM_PER_FT))
+    u0, u1 = min(a for a, _b in uv), max(a for a, _b in uv)
+    v0, v1 = min(b for _a, b in uv), max(b for _a, b in uv)
+    tol = max(bar_dia_mm, 10.0)
+    if u1 - u0 < 2.0 * tol or v1 - v0 < 2.0 * tol:
+        return None
+    if not all(min(abs(a - u0), abs(a - u1), abs(b - v0), abs(b - v1)) <= tol for a, b in uv):
+        return None
+    bbox = get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
+    if bbox is None:
+        return None
+    top_mm = bbox.Max.Z * _MM_PER_FT - cover_mm - link_dia_mm / 2.0
+    feet_mm = min(line.GetEndPoint(0).Z for line in bar_lines) * _MM_PER_FT
+    levels = links.starter_link_levels_mm(top_mm, feet_mm + 2.0 * bar_dia_mm + link_dia_mm / 2.0)
+    if not levels:
+        return None
+    e = bar_dia_mm / 2.0 + link_dia_mm / 2.0
+    corners_uv = ((u0 - e, v0 - e), (u1 + e, v0 - e), (u1 + e, v1 + e), (u0 - e, v1 + e))
+
+    def _loop(z_mm):
+        pts = [origin + u.Multiply(a / _MM_PER_FT) + v.Multiply(b / _MM_PER_FT) for a, b in corners_uv]
+        pts = [DB.XYZ(p.X, p.Y, z_mm / _MM_PER_FT) for p in pts]
+        return [DB.Line.CreateBound(pts[k], pts[(k + 1) % 4]) for k in range(4)]
+
+    rising = sorted(levels)
+    step = rising[1] - rising[0]
+    return {'curves': _loop(rising[0]), 'normal': DB.XYZ.BasisZ, 'style': 'StirrupTie',
+            'array_length_mm': rising[-1] - rising[0], 'spacing_mm': step + 0.01,
+            'label': u'Starter Link',
+            'materialized_bars': [{'curves': _loop(z), 'normal': DB.XYZ.BasisZ, 'style': 'StirrupTie'}
+                                  for z in rising]}
+
+
 def _curves_min_corner(curves):
     xs, ys, zs = [], [], []
     for curve in curves:

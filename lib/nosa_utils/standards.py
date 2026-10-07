@@ -255,6 +255,10 @@ def transportable(width_mm, height_mm):
 # IStructE SMDSC Tables 6.4/6.5: beams and columns, confined by their links, take alpha3 = 0.9
 CONFINED_ALPHA3 = 0.9
 
+# IStructE SMDSC MF1 / MC1 / MW1: foundation starters project a compression lap plus 150 mm above the
+# kicker, for foundation level tolerance
+FOUNDATION_LEVEL_TOLERANCE_MM = 150.0
+
 
 def lap_length_mm(std, bar_diameter_mm, in_compression=False, pct_lapped=100.0, good_bond=True, alpha3=1.0):
     return round_up_mm(_lap_length_mm(std, bar_diameter_mm, in_compression, pct_lapped, good_bond, alpha3))

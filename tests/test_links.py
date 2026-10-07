@@ -53,3 +53,11 @@ def test_column_rules():
     circle = {'shape': 'circle', 'diameter_mm': 400.0}
     _p, _d, notes = links.column_review(circle, 40, 8, 16, 4, (0, 0), 250, 150, True, False)
     assert any(u'at least 6' in n for n in notes)
+
+
+def test_starter_links():
+    assert links.starter_link_levels_mm(1000.0, 100.0) == [1000.0, 700.0, 400.0, 100.0]   # H10-300
+    assert links.starter_link_levels_mm(500.0, 100.0) == [500.0, 300.0, 100.0]            # 3 at least
+    assert links.starter_link_levels_mm(150.0, 100.0) == []                               # no room
+    from nosa_utils import standards
+    assert standards.FOUNDATION_LEVEL_TOLERANCE_MM == 150.0

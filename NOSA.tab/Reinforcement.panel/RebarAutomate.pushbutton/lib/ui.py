@@ -1693,6 +1693,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             else:
                 self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
+        self._create_starter_links(
+            wrapper, [dict(g, foundation=host) for g in dowels.get('groups', [])], bar_dia_mm, cover_mm,
+            errors, created_rebars, u'Footing', host)
         if short_feet:
             errors.append(u'Footing {}: {} dowel foot/feet shortened to {:.0f} mm to stay inside the '
                           u'footing (450 mm recommended).'.format(
@@ -1713,6 +1716,38 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             errors.append(u'Footing {}: dowels embedded only {:.0f} mm, less than the {:.0f} mm '
                           u'anchorage asked for — check the footing depth.'.format(
                               get_id_value(host.Id), embedded, dowels['anchor_length_mm']))
+
+    def _create_starter_links(self, wrapper, groups, bar_dia_mm, cover_mm, errors, created_rebars,
+                              label, host):
+        """IStructE SMDSC MF1 / MC1: H10-300 links (3 at least) round each rectangular cage of starters."""
+        from nosa_utils import links
+        if not groups:
+            return
+        bar_type = re_engine.get_bar_type_by_diameter(self.doc, links.STARTER_LINK_DIA_MM)
+        if bar_type is None:
+            errors.append(u'{} {}: no H10 bar type in the project — starter links (SMDSC MF1) '
+                          u'not created.'.format(label, get_id_value(host.Id)))
+            return
+        skipped = 0
+        for group in groups:
+            top_cover = re_engine.get_native_cover_mm(self.doc, group['foundation'], u'Top', cover_mm)
+            link_set = re_engine.starter_link_set(group['bars'], group['hand'], group['foundation'],
+                                                  links.STARTER_LINK_DIA_MM, bar_dia_mm, top_cover)
+            if link_set is None:
+                skipped += 1
+                continue
+            self._create_grouped_bars(wrapper, group['foundation'], {'sets': [link_set], 'bars': []},
+                                      bar_type, errors, created_rebars, u'Starter Link',
+                                      layer=u'starter_link')
+        if skipped:
+            errors.append(u'{} {}: {} starter cage(s) without links — not rectangular or no room in '
+                          u'the foundation; add H10-300 (3 at least, SMDSC MF1) by hand.'.format(
+                              label, get_id_value(host.Id), skipped))
+
+    def _foundation_starter_mm(self, typed_mm, bar_dia_mm, host, errors):
+        """Foundation starter projection (SMDSC MF1 / MC1 / MW1): lap + kicker + 150 level tolerance."""
+        return (self._splice_mm(typed_mm, bar_dia_mm, host, errors, u'Starter splice')
+                + self._kicker_mm() + standards.FOUNDATION_LEVEL_TOLERANCE_MM)
 
     def _create_foundation_starter_bars(self, wrapper, host, starters, bar_type, hook_type,
                                          label, errors, created_rebars):
@@ -2093,7 +2128,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             dowel_anchor_length_mm=values.get('dowel_anchor'),
             dowel_splice_length_mm=self._splice_mm(
                 values.get('dowel_splice'), values.get('dowel_diameter') or 16.0, host, errors,
-                u'Dowel splice') + self._kicker_mm(),
+                u'Dowel splice') + self._kicker_mm() + standards.FOUNDATION_LEVEL_TOLERANCE_MM,
             dowel_column_width_mm=values.get('dowel_col_width', 400.0),
             dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
             dowel_column_bar_count=values.get('dowel_col_bar_count'),

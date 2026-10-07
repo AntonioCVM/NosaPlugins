@@ -700,8 +700,7 @@ class ColumnsMixin(object):
             starters = column_rebar.build_column_foundation_starters(
                 self.doc, host, points, values['bar_dia'], values['bar_dia'],
                 values['foundation_anchor_mm'],
-                self._splice_mm(values['foundation_splice_mm'], values['bar_dia'], host, errors,
-                                u'Starter splice') + self._kicker_mm(),
+                self._foundation_starter_mm(values['foundation_splice_mm'], values['bar_dia'], host, errors),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
@@ -711,6 +710,17 @@ class ColumnsMixin(object):
             self._create_foundation_starter_bars(
                 wrapper, host, starters, bar_type_vert, hook_90, u'Column',
                 errors, created_rebars)
+            try:
+                hand = DB.XYZ(host.HandOrientation.X, host.HandOrientation.Y, 0.0)
+            except Exception:
+                hand = DB.XYZ.BasisX
+            by_foundation = {}
+            for line, foundation in zip(starters.get('bars', []), starters.get('hosts', [])):
+                by_foundation.setdefault(get_id_value(foundation.Id), (foundation, []))[1].append(line)
+            self._create_starter_links(
+                wrapper, [{'bars': lines, 'hand': hand, 'foundation': foundation}
+                          for foundation, lines in by_foundation.values()],
+                values['bar_dia'], cover_mm, errors, created_rebars, u'Column', host)
 
     def _run_column_reinforcement(self, columns, values):
         """

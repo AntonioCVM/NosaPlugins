@@ -189,3 +189,18 @@ def column_review(geometry, cover_mm, link_dia_mm, bar_dia_mm, bar_count, per_fa
         if n not in unique:
             unique.append(n)
     return pitch, dense, unique
+
+
+STARTER_LINK_DIA_MM = 10.0       # SMDSC MF1 / MC1: H10-300, at least 3, round the starters in the base
+STARTER_LINK_PITCH_MM = 300.0
+STARTER_LINK_MIN_COUNT = 3
+
+
+def starter_link_levels_mm(top_mm, bottom_mm, pitch_mm=STARTER_LINK_PITCH_MM, min_count=STARTER_LINK_MIN_COUNT):
+    """Heights of the links holding column starters in a foundation, from the top down; [] if no room."""
+    span = float(top_mm) - float(bottom_mm)
+    if span < 50.0 * (min_count - 1):
+        return []
+    count = max(min_count, int(math.floor(span / pitch_mm + 1e-6)) + 1)
+    step = min(float(pitch_mm), span / (count - 1))
+    return [top_mm - k * step for k in range(count)]

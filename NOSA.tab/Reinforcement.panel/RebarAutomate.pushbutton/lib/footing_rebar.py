@@ -1425,6 +1425,7 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
 
     cages = []
     contact = []
+    groups = []
     skipped_columns = []
     fallback_columns = []
     columns = engine.find_columns_above(doc, host)
@@ -1440,7 +1441,11 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
                 lap_ft = (column_bar_dia_mm + bar_diameter_mm) / 2.0 / _MM_PER_FT
                 points = [p + d.Multiply(lap_ft) for p, d in zip(layout['points'], layout['inward'])]
                 outward = [d.Negate() for d in layout['inward']]
-                contact.append((points, outward))
+                try:
+                    col_hand = DB.XYZ(column.HandOrientation.X, column.HandOrientation.Y, 0.0).Normalize()
+                except Exception:
+                    col_hand = DB.XYZ.BasisX
+                contact.append((points, outward, col_hand))
                 continue
             except Exception:
                 fallback_columns.append(column.Id)
@@ -1470,16 +1475,20 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     bars = []
     normals = []
     for centre, hand, facing, offsets in cages:
+        first = len(bars)
         for du_mm, dv_mm in offsets:
             p = centre + hand.Multiply(du_mm / _MM_PER_FT) + facing.Multiply(dv_mm / _MM_PER_FT)
             bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
             normals.append(engine.starter_hook_plane_normal(DB.XYZ(p.X - centre.X, p.Y - centre.Y, 0.0)))
-    for points, outward in contact:
+        groups.append({'bars': bars[first:], 'hand': hand})
+    for points, outward, col_hand in contact:
+        first = len(bars)
         for p, hook_dir in zip(points, outward):
             bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
             normals.append(engine.starter_hook_plane_normal(hook_dir))
+        groups.append({'bars': bars[first:], 'hand': col_hand})
 
-    return {'bars': bars, 'normals': normals,
+    return {'bars': bars, 'normals': normals, 'groups': groups,
             'embedded_mm': (own.Max.Z - bottom_z_ft) * _MM_PER_FT,
             'anchor_length_mm': anchor_length_mm,
             'columns': len(columns), 'skipped_columns': skipped_columns,

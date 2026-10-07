@@ -317,8 +317,7 @@ class WallsMixin(object):
             starters = wall_rebar.build_wall_foundation_starters(
                 self.doc, host, points, values['vert_dia'], values['vert_dia'],
                 values['foundation_anchor_mm'],
-                self._splice_mm(values['foundation_splice_mm'], values['vert_dia'], host, errors,
-                                u'Starter splice') + self._kicker_mm(),
+                self._foundation_starter_mm(values['foundation_splice_mm'], values['vert_dia'], host, errors),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
