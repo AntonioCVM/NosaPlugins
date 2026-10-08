@@ -420,6 +420,15 @@ def _column_faces(cover_mgr, axis_dir):
     """
     # a beam or floor running through the column cuts its solid: one face per plane
     sides = [f for f in _ensure_engine().merge_coplanar_faces(cover_mgr.faces) if abs(f.normal.Z) < 0.3]
+    if len(sides) > 4:
+        # chamfered arrises add narrow faces at 45 degrees: drop them when they are small beside the
+        # four faces square to the largest one (a faceted circle keeps all its faces and is refused)
+        area = lambda f: getattr(f.face, 'Area', 0.0) or 0.0
+        ref = max(sides, key=area).normal
+        square = [f for f in sides if abs(f.normal.DotProduct(ref)) > 0.99 or abs(f.normal.DotProduct(ref)) < 0.01]
+        others = [f for f in sides if f not in square]
+        if len(square) == 4 and others and max(area(f) for f in others) < 0.2 * min(area(f) for f in square):
+            sides = square
     if len(sides) != 4:
         raise ValueError(
             u'Expected exactly 4 vertical side faces for a rectangular '

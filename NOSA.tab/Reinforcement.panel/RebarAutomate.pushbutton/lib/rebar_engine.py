@@ -2232,7 +2232,7 @@ class RebarWrapper(object):
             return None
 
     def create_freeform_group(self, host, curve_groups, bar_type,
-                               transaction_name=u'NOSA — Create FreeForm Rebar Group'):
+                               transaction_name=u'NOSA — Create FreeForm Rebar Group', bent=True):
         """
         PHASE 2.4 (signature corrected in Phase 2.5 from a live error) —
         groups several DISTINCT, independently-shaped bar curve chains
@@ -2343,7 +2343,7 @@ class RebarWrapper(object):
                     rebar, validation = result, None
                 # no Bent for arc chains: Revit finds no shape for them and stops on an error
                 # dialog (curved-wall end U-bars, 2026-10-03)
-                if rebar is not None and all(len(chain) > 1 for chain in curve_groups) and not any(
+                if bent and rebar is not None and all(len(chain) > 1 for chain in curve_groups) and not any(
                         isinstance(c, DB.Arc) for chain in curve_groups for c in chain):
                     set_workshop_bent(rebar)
             if rebar is None:

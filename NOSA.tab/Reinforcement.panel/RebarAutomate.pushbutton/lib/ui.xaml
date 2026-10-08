@@ -553,6 +553,41 @@
                         <CheckBox Name="ChkColHelical" Content="Helical links in circular columns (SMDSC MC6)"
                                   ToolTip="Circular columns get a helix (shape 77) at the link pitch of each zone instead of lapped circular links, in pieces of up to 12 m of bar lapped one turn."
                                   Foreground="{DynamicResource TextColor}" Margin="0,10,0,0"/>
+                        <CheckBox Name="ChkColCorbels" Content="Reinforce corbels (SMDSC MCB1)"
+                                  ToolTip="Every corbel of the column, read from its geometry: horizontal main loops round the corbel face turning down a tension lap in the column, secondary U-bars (half the main area), compression bars along the soffit (1000 mm2 per metre width) and two links close to the corbel top."
+                                  Foreground="{DynamicResource TextColor}" Margin="0,10,0,0"/>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Corbel main loop diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtCorbelMainDia" Text="16" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Corbel main loops (layers)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtCorbelMainLoops" Text="2" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Corbel secondary U-bar diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtCorbelSecDia" Text="10" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Corbel compression bar diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtCorbelCompDia" Text="12" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
                         <CheckBox Name="ChkColCrossties" Content="Include Interior Crossties"
                                   Click="ColumnCrossties_Click"
                                   Foreground="{DynamicResource TextColor}" Margin="0,10,0,0"/>
