@@ -443,6 +443,7 @@ class ColumnsMixin(object):
                 self.TxtColDenseSpacing.Text, u'Densified spacing at nodes', errors)
         values['starter_bars'] = self.ChkColStarterBars.IsChecked == True
         values['cranked_laps'] = self.ChkColCrankedLaps.IsChecked == True
+        values['couplers'] = self.ChkColCouplers.IsChecked == True
         values['crossties'] = self.ChkColCrossties.IsChecked == True
         values['helical'] = self.ChkColHelical.IsChecked == True
         values['corbels'] = self.ChkColCorbels.IsChecked == True
@@ -491,6 +492,29 @@ class ColumnsMixin(object):
             # BUG FIX (2026-09-01) — same fix as _show_reinforcement_result.
             lines.extend(summary['errors'])
         self.TxtColumnResult.Text = u'\n'.join(lines)
+
+    def _coupler_joint_mm(self, values):
+        """T8.52: how far above the kicker the storeys' bars meet for a coupler, or None to lap them."""
+        if not values.get('couplers'):
+            return None
+        from nosa_utils import couplers
+        return couplers.JOINT_ABOVE_SLAB_MM
+
+    def _couple_columns(self, host, vertical_rebars, errors):
+        """T8.52, SMDSC 5.5: a coupler at each joint where the storeys' bars meet end to end."""
+        import coupler_rebar
+        from nosa_utils import couplers
+        try:
+            with nosa_tx.revit_transaction(u'NOSA — Column Couplers'):
+                made, notes = coupler_rebar.couple(self.doc, vertical_rebars)
+        except Exception as e:
+            errors.append(u'Column {}: couplers not made — {}'.format(get_id_value(host.Id), e))
+            return
+        errors.extend(u'Column {}: {}'.format(get_id_value(host.Id), n) for n in notes)
+        if made:
+            errors.append(u'Column {}: {} coupler joint(s) instead of laps, {:.0f} mm above the kicker; the coupled '
+                          u'bars are marked E (SMDSC 5.5).'.format(get_id_value(host.Id), made,
+                                                                   couplers.JOINT_ABOVE_SLAB_MM))
 
     def _process_column(self, host, values, wrapper, bar_types, errors, created_rebars):
         """
@@ -571,7 +595,8 @@ class ColumnsMixin(object):
             std=self._host_std(host), kicker_mm=self._kicker_mm(),
             lap_link_spacing_mm=values.get('lap_link_spacing'),
             slab_top_mat_mm=self._preview_number(self.TxtTopDiaX, 12.0)
-            + self._preview_number(self.TxtTopDiaY, 12.0))
+            + self._preview_number(self.TxtTopDiaY, 12.0),
+            coupler_joint_mm=self._coupler_joint_mm(values))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))
@@ -633,6 +658,8 @@ class ColumnsMixin(object):
                     created_rebars.append(rebar)
 
         vertical_rebars = created_rebars[first_vertical:]
+        if values.get('couplers') and len(vertical_rebars) > 1:
+            self._couple_columns(host, vertical_rebars, errors)
         if bar_type_vert is not None:
             for us in reinforcement.get('top_ubar_sets', []):
                 if us['count'] > 1:

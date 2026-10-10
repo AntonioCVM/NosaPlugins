@@ -689,6 +689,9 @@
                         <CheckBox Name="ChkColCrankedLaps" Content="Crank laps at floors (1:10, SMDSC MC2)" IsChecked="True"
                                   Foreground="{DynamicResource TextColor}"
                                   Checked="ColumnPreview_Changed" Unchecked="ColumnPreview_Changed"/>
+                        <CheckBox Name="ChkColCouplers" Content="Couplers instead of laps at the floors (congested columns, SMDSC 5.5)"
+                                  Margin="0,6,0,0" Foreground="{DynamicResource TextColor}"
+                                  ToolTip="The bars of each storey meet end to end 500 mm above the kicker and are joined with a NOSA Rebar Coupler (parallel threaded, type 1); their marks take the E of SMDSC 5.5."/>
                         <TextBlock Text="Bars of 20 mm and over crank one diameter inward at 1:6, finishing just below the slab's top face, so the bar above starts straight at its cover; 16 mm and under lap straight, side by side. A smaller column above always cranks by the reduction. The lap is measured above the kicker. At the top of the last column the bars end in an L foot inside the slab, turned into the slab at edges and corners."
                                    FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextColor}" Opacity="0.5" Margin="0,6,0,0"/>

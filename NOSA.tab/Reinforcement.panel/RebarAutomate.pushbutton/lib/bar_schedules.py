@@ -193,7 +193,8 @@ def _renumber(doc, members, keys, order):
                 p.Set(number)
             native = rebar.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK)
             if native is not None and not native.IsReadOnly:
-                native.Set(mark)
+                from nosa_utils import couplers
+                native.Set(couplers.schedule_mark(rebar, mark))      # 'E' before a coupled bar's mark (T8.52)
             changed += 1
     return changed
 

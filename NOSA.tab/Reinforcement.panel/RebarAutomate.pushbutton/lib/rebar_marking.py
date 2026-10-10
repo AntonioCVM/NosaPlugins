@@ -259,7 +259,9 @@ def deduplicate_and_mark(doc, rebars, ctx):
                    1 if get_id_value(rebar.Id) in varying_ids else 0)
             # NOSA Rebar Tag 1.1.0 prints it right after the mark: 8H20-01(a to h)-150
             _write(doc, rebar.Id, "NOSA_Rebar_Mark_Suffix", suffixes.get(get_id_value(rebar.Id), u''))
-            for bip, value in ((DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, mark),
+            from nosa_utils import couplers
+            # SMDSC 5.5: 'E' just before the mark of a coupled bar (T8.52)
+            for bip, value in ((DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, couplers.schedule_mark(rebar, mark)),
                                (DB.BuiltInParameter.NUMBER_PARTITION_PARAM, partition)):
                 try:
                     param = rebar.get_Parameter(bip)

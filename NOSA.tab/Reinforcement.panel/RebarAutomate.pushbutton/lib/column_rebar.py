@@ -1600,7 +1600,7 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
                                 include_starter_bars, use_cranked_laps,
                                 inward_dir, crank_offset_fn, crank_slope=CRANK_SLOPE,
                                 bar_diameter_mm=0.0, kicker_mm=0.0, top=None,
-                                foot_dir=None, warnings=None, knuckles=None):
+                                foot_dir=None, warnings=None, knuckles=None, coupler_joint_mm=None):
     """
     One vertical bar position, one curve chain per storey segment. At every splice (a
     floor the column crosses, or its own top when a column continues above) the bar laps
@@ -1622,8 +1622,10 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
 
     chains = []
     n_segments = len(points) - 1
+    start_at = None
     for i in range(n_segments):
-        seg_start, seg_end = points[i], points[i + 1]
+        seg_start, seg_end = (start_at or points[i]), points[i + 1]
+        start_at = None
         is_last = (i == n_segments - 1)
         top_kind = (top or {}).get('kind') if is_last else 'lap'
         if is_last and top_kind != 'lap' and include_starter_bars:
@@ -1643,6 +1645,12 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
             continue
 
         slab_top_ft = elevations_ft[i + 1]
+        if coupler_joint_mm is not None and top_kind == 'lap' and not is_last:
+            # T8.52, SMDSC 5.5: within the column the bars meet end to end above the kicker, for a coupler
+            joint = at(slab_top_ft + (kicker_mm + coupler_joint_mm) / _MM_PER_FT)
+            chains.append([DB.Line.CreateBound(seg_start, joint)])
+            start_at = joint
+            continue
         lap_top_ft = slab_top_ft + (kicker_mm + lap_length_mm) / _MM_PER_FT
         offset_mm = 0.0
         if use_cranked_laps and top_kind == 'lap':
@@ -2384,7 +2392,8 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
                                           use_cranked_laps, crank_offset_mm, crank_slope,
                                           joint_zone_length_mm, start_offset_mm, end_offset_mm,
                                           std=None, kicker_mm=0.0,
-                                          slab_top_mat_mm=DEFAULT_TOP_MAT_MM, lap_link_spacing_mm=None):
+                                          slab_top_mat_mm=DEFAULT_TOP_MAT_MM, lap_link_spacing_mm=None,
+                                          coupler_joint_mm=None):
     """
     PHASE 3.5.7 item 1 — circular column reinforcement: radial vertical
     bars (pure trigonometry — DB.XYZ(cos, sin)) and circular ties.
@@ -2500,7 +2509,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
             axis, offset, split_elevations_ft, lap_mm, include_starter_bars,
             use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
             bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
-            foot_dir=foot_dir, warnings=warnings, knuckles=knuckles)
+            foot_dir=foot_dir, warnings=warnings, knuckles=knuckles, coupler_joint_mm=coupler_joint_mm)
         for chain in chains_per_segment:
             vertical_bars.append({'curves': chain, 'normal': tangent_dir,
                                   'shape': _chain_shape(chain)})
@@ -2567,7 +2576,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
                                 crosstie_layout='all', link_bend_diameter_mm=None,
                                 joint_zone_length_mm=None, start_offset_mm=50.0,
                                 end_offset_mm=50.0, std=None, kicker_mm=0.0, lap_link_spacing_mm=None,
-                                slab_top_mat_mm=DEFAULT_TOP_MAT_MM):
+                                slab_top_mat_mm=DEFAULT_TOP_MAT_MM, coupler_joint_mm=None):
     """
     PHASE 3 (multi-story + Rebar-Set verticals — PHASE 3.2) — the
     ui.py-facing pipeline for one rectangular column host, matching the
@@ -2787,7 +2796,8 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             include_starter_bars, starter_bar_length_mm, starter_bar_multiplier,
             use_cranked_laps, crank_offset_mm, crank_slope,
             joint_zone_length_mm, start_offset_mm, end_offset_mm, std=std, kicker_mm=kicker_mm,
-            slab_top_mat_mm=slab_top_mat_mm, lap_link_spacing_mm=lap_link_spacing_mm)
+            slab_top_mat_mm=slab_top_mat_mm, lap_link_spacing_mm=lap_link_spacing_mm,
+            coupler_joint_mm=coupler_joint_mm)
 
     engine = _ensure_engine()
     cover_mgr = engine.CoverGeometryManager(doc, host)
@@ -2887,7 +2897,7 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
             axis, offset0, split_elevations_ft, lap_mm, include_starter_bars,
             use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
             bar_diameter_mm=bar_diameter_mm, kicker_mm=kicker_mm, top=top,
-            foot_dir=foot_dir, warnings=warnings, knuckles=knuckles)
+            foot_dir=foot_dir, warnings=warnings, knuckles=knuckles, coupler_joint_mm=coupler_joint_mm)
 
         if len(positions) == 1:
             for chain in chains_per_segment:
