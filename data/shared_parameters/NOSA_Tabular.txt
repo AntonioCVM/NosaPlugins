@@ -1,0 +1,13 @@
+# This is a Revit shared parameter file.
+# NOSA tabular method (T8.54, 2026-10-11): IStructE SMDSC 4.1.1 / 6.4.4 / 6.7.4 column and base schedules, written by RebarAutomate on Structural Columns and Foundations.
+# GUIDs are FINAL - never regenerate. A retired parameter keeps its GUID burned.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Tabular
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	6490ad53-f363-40e4-b1fc-39bf4569fe81	NOSA_Tab_Refs	TEXT		1	1	The members alike, listed together (A1, A3, A5)	1	0
+PARAM	425dae35-5357-400a-9401-0567a8445258	NOSA_Tab_Main_Bars	TEXT		1	1	Main bars of a column (8H25-01)	1	0
+PARAM	4685e93e-3c36-428f-9d3a-73fe1f7332ee	NOSA_Tab_Links	TEXT		1	1	Links of a column (14H8-07-200)	1	0
+PARAM	46e85b8b-655c-4146-bc06-0a1bd7ebc0e8	NOSA_Tab_Base_Steel	TEXT		1	1	Bottom steel of a base, both ways (15H25-01-200 / 15H25-02-200)	1	0
+PARAM	f8bbf884-e3b1-40b4-a570-074e8a9509b0	NOSA_Tab_Starters	TEXT		1	1	Starters and their links from a base (6H32-10 + 3H10-12-300)	1	0
