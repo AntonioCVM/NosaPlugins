@@ -28,7 +28,8 @@ def test_elevations_at_smdsc_1_50_stepping_up_when_tall():
 
 
 def test_slab_sections_and_plans():
-    assert vp.choose_scale('slab_section', 8000.0, 600.0) == 50
+    assert vp.choose_scale('slab_section', 8000.0, 600.0) == 25
+    assert vp.choose_scale('slab_section', 20000.0, 600.0) == 50
     assert vp.choose_scale('slab_section', 40000.0, 600.0) == 100
     assert vp.choose_scale('plan', 15000.0, 12000.0) == 50
     assert vp.choose_scale('plan', 60000.0, 30000.0) == 200

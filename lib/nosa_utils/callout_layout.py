@@ -106,24 +106,56 @@ def side_of(anchor, box):
     return min(d, key=d.get)
 
 
-def place_pointers(items, box, gap, outside_gap):
+def footprint(item):
+    """(width, height) in the view of a mark's text: 'length' along it, 'height' across, turned when 'vertical'."""
+    if item.get('vertical'):
+        return item['height'], item['length']
+    return item['length'], item['height']
+
+
+def crowded(positions, size, gap):
+    """True when marks of `size` along a row, wanted at `positions`, cannot sit side by side over their bars."""
+    p = sorted(positions)
+    return any(b - a < size + gap for a, b in zip(p, p[1:]))
+
+
+def place_pointers(items, box, gap, outside_gap, edges=None):
     """
     Marks of bars in a section or elevation: items [{'id', 'anchor' (x, y) on the bar, 'length', 'height',
-    'side' (optional: 'top' | 'bottom' | 'left' | 'right')}]. Each goes in a row beyond its side of the member,
-    packed along it. Returns {id: {'centre', 'side'}}.
+    'vertical' (optional: the text turned to run up the sheet), 'side' (optional: 'top' | 'bottom' | 'left' |
+    'right')}]. Each goes in a row beyond its side of the member, packed along it, its near end a fixed distance
+    from the member so the texts of a row line up (SMDSC 6.2.2); a row too tight for its marks (bars at close
+    centres) takes every other one a row further out. edges: {side: coordinate} where a row starts
+    instead of the box's edge. Returns {id: {'centre', 'side', 'box'}}.
     """
     rows = {}
     for it in items:
         rows.setdefault(it.get('side') or side_of(it['anchor'], box), []).append(it)
+    start = {'top': box[3], 'bottom': box[1], 'right': box[2], 'left': box[0]}
+    start.update(edges or {})
     out = {}
     for side, row in rows.items():
         horizontal = side in ('top', 'bottom')
         desired = [it['anchor'][0] if horizontal else it['anchor'][1] for it in row]
-        widths = [it['length'] if horizontal else it['height'] for it in row]
-        across = max((it['height'] if horizontal else it['length']) for it in row)
+        sizes = [footprint(it) for it in row]
+        widths = [w if horizontal else h for w, h in sizes]
         pos = pack(desired, widths, gap)
-        level = {'top': box[3] + outside_gap + across / 2.0, 'bottom': box[1] - outside_gap - across / 2.0,
-                 'right': box[2] + outside_gap + across / 2.0, 'left': box[0] - outside_gap - across / 2.0}[side]
-        for it, p in zip(row, pos):
-            out[it['id']] = {'centre': (p, level) if horizontal else (level, p), 'side': side}
+        tier = [0] * len(row)
+        if len(row) > 2 and max(abs(p - d) for p, d in zip(pos, desired)) > 1.5 * max(widths):
+            # too tight for one row (bars at close centres): every other mark one row further out
+            order = sorted(range(len(row)), key=lambda i: desired[i])
+            for k, i in enumerate(order):
+                tier[i] = k % 2
+            for t in (0, 1):
+                ids = [i for i in order if tier[i] == t]
+                for i, p in zip(ids, pack([desired[i] for i in ids], [widths[i] for i in ids], gap)):
+                    pos[i] = p
+        sign = 1.0 if side in ('top', 'right') else -1.0
+        deep = max((h if horizontal else w) for w, h in sizes) + gap
+        for it, p, (w, h), t in zip(row, pos, sizes, tier):
+            across = h if horizontal else w
+            level = start[side] + sign * (outside_gap + t * deep + across / 2.0)
+            c = (p, level) if horizontal else (level, p)
+            out[it['id']] = {'centre': c, 'side': side,
+                             'box': (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)}
     return out

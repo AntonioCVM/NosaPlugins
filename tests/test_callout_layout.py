@@ -58,3 +58,29 @@ def test_pointers_rows_outside_the_member():
     assert all(out[i]['centre'][1] < 0.0 for i in (1, 2, 3)) and out[4]['centre'][1] > 600.0
     xs = sorted(out[i]['centre'][0] for i in (1, 2, 3))
     assert xs[1] - xs[0] >= 80.0 - 1e-6 and xs[2] - xs[1] >= 80.0 - 1e-6
+
+
+def test_pointers_line_up_their_near_ends():
+    beam = (0.0, 0.0, 1000.0, 300.0)
+    items = [{'id': 1, 'anchor': (100.0, 280.0), 'length': 400.0, 'height': 100.0, 'vertical': True},
+             {'id': 2, 'anchor': (600.0, 280.0), 'length': 200.0, 'height': 100.0, 'vertical': True}]
+    out = cl.place_pointers(items, beam, 20.0, 50.0)
+    assert abs(out[1]['box'][1] - 350.0) < 1e-6 and abs(out[2]['box'][1] - 350.0) < 1e-6
+    assert abs((out[1]['box'][2] - out[1]['box'][0]) - 100.0) < 1e-6      # turned: as wide as the text is high
+    lower = cl.place_pointers(items, beam, 20.0, 50.0, edges={'top': 500.0})
+    assert abs(lower[1]['box'][1] - 550.0) < 1e-6
+
+
+def test_crowded_rows():
+    assert cl.crowded([0.0, 150.0, 300.0], 140.0, 20.0)
+    assert not cl.crowded([0.0, 200.0, 400.0], 140.0, 20.0)
+
+
+def test_tight_rows_stagger():
+    slab = (0.0, 0.0, 2000.0, 250.0)
+    items = [{'id': i, 'anchor': (500.0 + 50.0 * i, 40.0), 'length': 80.0, 'height': 80.0, 'vertical': True}
+             for i in range(10)]
+    out = cl.place_pointers(items, slab, 20.0, 100.0)
+    levels = sorted(set(round(out[i]['centre'][1]) for i in range(10)))
+    assert len(levels) == 2
+    assert max(abs(out[i]['centre'][0] - items[i]['anchor'][0]) for i in range(10)) < 200.0

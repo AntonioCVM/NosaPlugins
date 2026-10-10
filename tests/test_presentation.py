@@ -59,3 +59,14 @@ def test_layer_slots_spread_coincident_sets():
     c = dict(_set(3, u'03', 9000, 5, 150), layer=u'B1')            # its own zone
     slots = pr.layer_slots([b, a, c])
     assert slots[1] == 1.0 / 3.0 and slots[2] == 2.0 / 3.0 and slots[3] == 0.5
+
+
+def test_face_of_a_bar():
+    assert pr.face(180.0, 0.0, 250.0) == u'top' and pr.face(40.0, 0.0, 250.0) == u'bottom'
+
+
+def test_link_zone_texts():
+    assert pr.zone_quantity(17, 194.5) in (u'17/194', u'17/195')
+    assert pr.zone_quantity(13, 100.0) == u'13/100'
+    assert pr.total_callout(u'26H8-06', 43, links=True) == u'43H8-06 LINKS'
+    assert pr.total_callout(u'20H16-01 B1', 39) == u'39H16-01 B1'

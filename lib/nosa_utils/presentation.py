@@ -7,6 +7,7 @@ short 30 degree obliques at curtailed bar ends. Sets are described in the view's
  'ends': ((x, y), (x, y)), 'spacing'}.
 """
 import math
+import re
 
 TICK_ANGLE_DEG = 30.0
 TICK_PAPER_MM = 3.0
@@ -137,3 +138,22 @@ def layer_slots(sets):
         for k, s in enumerate(g):
             out[s['id']] = (k + 1.0) / (len(g) + 1.0)
     return out
+
+
+def face(z_mm, lo_mm, hi_mm):
+    """'top' or 'bottom': the face of a member (lo..hi through its depth) a bar at z_mm lies nearer."""
+    return u'top' if z_mm > (lo_mm + hi_mm) / 2.0 else u'bottom'
+
+
+def zone_quantity(count, spacing_mm):
+    """A link zone under a beam elevation (SMDSC 6.2.3): 'n/pitch', the pitch rounded to the mm."""
+    return u'{}/{:.0f}'.format(count, spacing_mm)
+
+
+def total_callout(label, total, links=False):
+    """
+    The one calling-up of a mark drawn in several zones: its label without centres ('26H8-06'), the count
+    the total of the zones ('43H8-06'); ' LINKS' after the links of a beam (SMDSC 6.2.3).
+    """
+    text = re.sub(u'^\d+', u'{}'.format(total), (label or u'').strip())
+    return text + u' LINKS' if links else text

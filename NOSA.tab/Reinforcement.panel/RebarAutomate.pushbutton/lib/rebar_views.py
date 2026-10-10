@@ -184,7 +184,16 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         centre = (box.Min + box.Max).Multiply(0.5)
         level = _level_of(doc, host)
         section_kind = 'footing_section' if kind == 'foundation' else 'slab_section'
-        specs.append(_plan(u'Plan', 'plan', level, box, _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0))
+        faces = set(rebar_face(r, box) for r in host_rebars(host)) if kind == 'floor' else set()
+        if len(faces) > 1:
+            # a slab with bars in both faces: one plan each (SMDSC 6.2.4, user 2026-10-10: one plan of both
+            # mats is hard to read)
+            for face, title in ((u'bottom', u'Bottom reinforcement'), (u'top', u'Top reinforcement')):
+                spec = _plan(title, 'plan', level, box, _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0)
+                spec['face'] = face
+                specs.append(spec)
+        else:
+            specs.append(_plan(u'Plan', 'plan', level, box, _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0))
         thick = _mm(box.Max.Z - box.Min.Z)
         for name, right, other in ((u'Section A', x, y), (u'Section B', y, x)):
             lo, hi = _extent(box, right)
@@ -223,6 +232,33 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
             specs.append(_plan(u'Plan', 'stair_plan', _level_of(doc, host), box,
                                _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0, margin=400.0))
     return specs
+
+
+def rebar_face(rebar, box):
+    """'top' or 'bottom': the face of the host (its box) a set's first bar lies nearer."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils import presentation
+    try:
+        curves = [c for c in rebar.GetTransformedCenterlineCurves(
+            False, False, False, DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves, 0)]
+        z = sum(c.Evaluate(0.5, True).Z for c in curves) / float(len(curves))
+    except Exception:  # nosa-lint: disable=NOSA006 - no centreline: drawn with the bottom bars
+        return u'bottom'
+    return presentation.face(z, box.Min.Z, box.Max.Z)
+
+
+def _show_face(doc, view, rebars, hosts, face):
+    """Hide in a slab plan the bars of the other face."""
+    from Autodesk.Revit import DB  # Lazy import
+    from System.Collections.Generic import List
+    boxes = dict((h.Id.ToString(), h.get_BoundingBox(None)) for h in hosts)
+    other = List[DB.ElementId]()
+    for rebar in rebars:
+        box = boxes.get(rebar.GetHostId().ToString())
+        if box is not None and rebar_face(rebar, box) != face:
+            other.Add(rebar.Id)
+    if other.Count:
+        view.HideElements(other)
 
 
 def _view_family_type(doc, family):
@@ -500,6 +536,8 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                     continue
                 view = _create_plan(doc, plan_vft, spec)
                 _apply_template_and_scale(view, plan_template, scale)
+                if spec.get('face'):
+                    _show_face(doc, view, rebars, hosts, spec['face'])
             else:
                 if detail_vft is None:
                     report['errors'].append(u'No detail view type in this project.')
@@ -522,8 +560,9 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             import rebar_presentation
             from nosa_utils import tag_engine
             mra_type_id = tag_engine.mra_type_id(doc)
-            for view, _spec, _scale in created:
-                rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts)
+            for view, spec, _scale in created:
+                rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
+                                         kind=spec['kind'])
         if place_on_sheets and created and titleblock is not None:
             import rc_legends
             legends = rc_legends.ensure(doc)
