@@ -662,5 +662,18 @@ class ToolsMixin(object):
         hub = load_module('rebarhub_ui', os.path.join(hub_lib, 'ui.py'))
         launch_nosa_window(hub.RebarHubWindow, self.doc, self.uidoc)
 
+    def RebarQA_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._open_rebar_qa)
+
+    def _open_rebar_qa(self):
+        """T8.48 — the QA Hub's Rebar QA window (SMDSC 4.4 / 4.6 checks), shared with the hub."""
+        from nosa_utils.base_window import launch_nosa_window
+        path = os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'QAHub.pushbutton', 'lib', 'rebar_qa',
+                            'ui.py')
+        qa = load_module('rebarqa_ui', os.path.abspath(path))
+        launch_nosa_window(qa.RebarQAWindow, self.doc)
+
 
 _OWN = set(globals())
