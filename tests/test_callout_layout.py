@@ -76,11 +76,26 @@ def test_crowded_rows():
     assert not cl.crowded([0.0, 200.0, 400.0], 140.0, 20.0)
 
 
-def test_tight_rows_stagger():
+def test_tiers_only_where_bars_are_close():
+    desired = [0.0, 150.0, 300.0, 450.0, 500.0, 550.0, 600.0, 900.0]
+    t = cl.tiers(desired, [80.0] * 8, 20.0)
+    assert t[0] == t[1] == t[2] == t[7] == 0
+    assert len(set(t[3:7])) == 2                     # 50 apart, 100 needed: two rows
+
+
+def test_pointers_go_beyond_free_marks():
     slab = (0.0, 0.0, 2000.0, 250.0)
-    items = [{'id': i, 'anchor': (500.0 + 50.0 * i, 40.0), 'length': 80.0, 'height': 80.0, 'vertical': True}
-             for i in range(10)]
+    items = [{'id': 1, 'anchor': (500.0, 40.0), 'length': 80.0, 'height': 80.0, 'vertical': True, 'free': True,
+              'outside': 30.0},
+             {'id': 2, 'anchor': (505.0, 40.0), 'length': 300.0, 'height': 80.0, 'vertical': True}]
     out = cl.place_pointers(items, slab, 20.0, 100.0)
-    levels = sorted(set(round(out[i]['centre'][1]) for i in range(10)))
-    assert len(levels) == 2
-    assert max(abs(out[i]['centre'][0] - items[i]['anchor'][0]) for i in range(10)) < 200.0
+    assert out[2]['box'][3] <= out[1]['box'][1] + 1e-6 or out[2]['box'][2] <= out[1]['box'][0] + 1e-6 or         out[2]['box'][0] >= out[1]['box'][2] - 1e-6
+
+
+def test_free_marks_stand_over_their_bars():
+    slab = (0.0, 0.0, 2000.0, 250.0)
+    items = [{'id': i, 'anchor': (500.0 + 50.0 * i, 40.0), 'length': 80.0, 'height': 80.0, 'vertical': True,
+              'free': True, 'outside': 30.0} for i in range(12)]
+    out = cl.place_pointers(items, slab, 20.0, 100.0)
+    assert max(abs(out[i]['centre'][0] - items[i]['anchor'][0]) for i in range(12)) <= 40.0 + 1e-6
+    assert max(out[i]['box'][3] for i in range(12)) <= -30.0 + 1e-6

@@ -130,6 +130,7 @@ def _note(doc, view, point, text, type_id):
 
 GAP_PAPER_MM = 1.5           # between texts
 OUTSIDE_PAPER_MM = 6.0       # a calling-up past the member's edge
+CUT_OUTSIDE_PAPER_MM = 2.0   # a cut bar's mark, no pointer, next to the member's face
 CROP_MARGIN_PAPER_MM = 4.0   # the view's crop round its calling-up
 ROW_PAPER_MM = 7.0           # between rows of indicator lines under a beam
 ZONE_TAG = u'Full label - Dot'
@@ -917,13 +918,15 @@ def _cut_bars(view, d, frame):
 def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, report, mode):
     """
     Bar marks of a section or elevation (SMDSC 6.2.3, 6.4.4, user 2026-10-10): its own mark over every bar the
-    view cuts ('Mark only - Dot', one per bar), one mark per set lying in the view plane (in an elevation its
+    view cuts ('Mark only - Dot', one per bar, no pointer: it stands just past the face in line with its bar,
+    rows split when the bars are close), one mark per set lying in the view plane (in an elevation its
     calling-up without centres, 'Full label - Arrow'), all in rows beyond the member's nearest face, their near
     ends lined up, turned up the sheet when a row is too tight for them side by side, each pointing straight at
     its bar. mode: 'beam' (beam elevation: rows above and below only, texts always turned), True (another
     elevation), False (a section).
     """
     from nosa_utils import callout_layout
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
     entries = []
     base = tag_types.get(ELEVATION_TAG if mode else POINTER_TAG) or det.tag_type_for_view(doc, view)
     fractions = _pointer_fractions(items)
@@ -963,7 +966,11 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             side = 'top' if a[1] > (member[1] + member[3]) / 2.0 else 'bottom'
         else:
             side = callout_layout.side_of(a, member)
-        layout.append({'id': key, 'anchor': a, 'length': w, 'height': h, 'side': side})
+        item = {'id': key, 'anchor': a, 'length': w, 'height': h, 'side': side}
+        if isinstance(key, tuple):
+            # a cut bar's mark stands next to the member over its bar, no pointer (SMDSC 6.2.3 sections)
+            item['free'], item['outside'] = True, CUT_OUTSIDE_PAPER_MM * scale
+        layout.append(item)
     for side in ('top', 'bottom'):
         row = [it for it in layout if it['side'] == side]
         if row and (mode == 'beam' or callout_layout.crowded([it['anchor'][0] for it in row],
@@ -989,6 +996,14 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
         if key not in places or not tag.IsValidObject:
             continue
         _move_head(view, tag, places[key]['centre'], offsets[key])
+        if isinstance(key, tuple):
+            try:
+                tag.HasLeader = False
+            except Exception:
+                pass
+            placed.append(places[key]['box'])
+            report['marks'] += 1
+            continue
         try:
             tag.HasLeader = True
             tag.LeaderEndCondition = DB.LeaderEndCondition.Free

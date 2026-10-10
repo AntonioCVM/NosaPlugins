@@ -119,14 +119,45 @@ def crowded(positions, size, gap):
     return any(b - a < size + gap for a, b in zip(p, p[1:]))
 
 
+MAX_TIERS = 3
+
+
+def tiers(desired, widths, gap, most=MAX_TIERS):
+    """
+    Row of each mark (0 nearest the member): marks whose bars are too close for them side by side form runs, and
+    within a run mark k takes row k mod n, n the fewest rows (up to `most`) that give each its room; a mark with
+    room of its own stays in row 0.
+    """
+    order = sorted(range(len(desired)), key=lambda i: desired[i])
+    out = [0] * len(desired)
+    run = []
+
+    def close(run):
+        if len(run) < 2:
+            return
+        need = max(widths[i] for i in run) + gap
+        pitch = min(desired[b] - desired[a] for a, b in zip(run, run[1:])) or 1e-6
+        n = min(most, max(1, int(-(-need // pitch))))
+        for k, i in enumerate(run):
+            out[i] = k % n
+    for i in order:
+        if run and desired[i] - desired[run[-1]] >= (widths[i] + widths[run[-1]]) / 2.0 + gap:
+            close(run)
+            run = []
+        run.append(i)
+    close(run)
+    return out
+
+
 def place_pointers(items, box, gap, outside_gap, edges=None):
     """
     Marks of bars in a section or elevation: items [{'id', 'anchor' (x, y) on the bar, 'length', 'height',
     'vertical' (optional: the text turned to run up the sheet), 'side' (optional: 'top' | 'bottom' | 'left' |
-    'right')}]. Each goes in a row beyond its side of the member, packed along it, its near end a fixed distance
-    from the member so the texts of a row line up (SMDSC 6.2.2); a row too tight for its marks (bars at close
-    centres) takes every other one a row further out. edges: {side: coordinate} where a row starts
-    instead of the box's edge. Returns {id: {'centre', 'side', 'box'}}.
+    'right'), 'outside' (optional: its own distance from the member), 'free' (optional: no pointer, so it stands
+    over its bar)}]. Each goes in a row beyond its side of the member, packed along it, its near end a fixed
+    distance from the member so the texts of a row line up (SMDSC 6.2.2). Free marks of bars too close for them
+    side by side split into up to MAX_TIERS rows (tiers); marks with pointers go in a row beyond them.
+    edges: {side: coordinate} where a row starts instead of the box's edge. Returns {id: {'centre', 'side', 'box'}}.
     """
     rows = {}
     for it in items:
@@ -139,23 +170,33 @@ def place_pointers(items, box, gap, outside_gap, edges=None):
         desired = [it['anchor'][0] if horizontal else it['anchor'][1] for it in row]
         sizes = [footprint(it) for it in row]
         widths = [w if horizontal else h for w, h in sizes]
-        pos = pack(desired, widths, gap)
+        across = [h if horizontal else w for w, h in sizes]
+        free = [i for i, it in enumerate(row) if it.get('free')]
         tier = [0] * len(row)
-        if len(row) > 2 and max(abs(p - d) for p, d in zip(pos, desired)) > 1.5 * max(widths):
-            # too tight for one row (bars at close centres): every other mark one row further out
-            order = sorted(range(len(row)), key=lambda i: desired[i])
-            for k, i in enumerate(order):
-                tier[i] = k % 2
-            for t in (0, 1):
-                ids = [i for i in order if tier[i] == t]
-                for i, p in zip(ids, pack([desired[i] for i in ids], [widths[i] for i in ids], gap)):
-                    pos[i] = p
+        for i, t in zip(free, tiers([desired[i] for i in free], [widths[i] for i in free], gap)):
+            tier[i] = t
+        outer = max([tier[i] for i in free]) + 1 if free else 0
+        for i, it in enumerate(row):
+            if not it.get('free'):
+                tier[i] = outer
+        pos = [0.0] * len(row)
+        for t in set(tier):
+            ids = [i for i in range(len(row)) if tier[i] == t]
+            for i, p in zip(ids, pack([desired[i] for i in ids], [widths[i] for i in ids], gap)):
+                pos[i] = p
+        deep = (max(across[i] for i in free) + gap) if free else 0.0
+        base = min(row[i].get('outside', outside_gap) for i in free) if free else None
         sign = 1.0 if side in ('top', 'right') else -1.0
-        deep = max((h if horizontal else w) for w, h in sizes) + gap
-        for it, p, (w, h), t in zip(row, pos, sizes, tier):
-            across = h if horizontal else w
-            level = start[side] + sign * (outside_gap + t * deep + across / 2.0)
-            c = (p, level) if horizontal else (level, p)
+        for i, it in enumerate(row):
+            w, h = sizes[i]
+            if free:
+                level = start[side] + sign * (base + tier[i] * deep + across[i] / 2.0)
+                if not it.get('free'):
+                    level = start[side] + sign * (max(base + outer * deep, it.get('outside', outside_gap)) +
+                                                  across[i] / 2.0)
+            else:
+                level = start[side] + sign * (it.get('outside', outside_gap) + across[i] / 2.0)
+            c = (pos[i], level) if horizontal else (level, pos[i])
             out[it['id']] = {'centre': c, 'side': side,
                              'box': (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)}
     return out
