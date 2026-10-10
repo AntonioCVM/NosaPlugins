@@ -302,6 +302,24 @@
                         <TextBlock Text="IStructE SMDSC 6.2, Fig. 6.6 and Table 6.2: the pitches given are the averages. Over the columns under the slab the top bars put 75 % in the column strips (half the shorter panel), two thirds of it in their central half; the bottom bars 55 %. At least two bottom bars must pass through each column."
                                    FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
                                    Foreground="{DynamicResource TextColor}" Opacity="0.5"/>
+                        <CheckBox Name="ChkFabric" Content="Welded fabric (BS 4483) instead of a bar mat (Floors only)"
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,10,0,6"/>
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="Auto"/><ColumnDefinition Width="70"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Fabric:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource TextColor}"/>
+                            <ComboBox Grid.Column="1" Name="CmbFabricRef" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="2" Text="Face:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource TextColor}"/>
+                            <ComboBox Grid.Column="3" Name="CmbFabricFace" Margin="0,0,12,0"/>
+                            <TextBlock Grid.Column="4" Text="Main wires:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="{DynamicResource TextColor}"/>
+                            <ComboBox Grid.Column="5" Name="CmbFabricDir"/>
+                        </Grid>
+                        <TextBlock Text="IStructE SMDSC 4.2.5 / 5.4.6: 4.8 x 2.4 m sheets laid by Revit over the floor and its openings, main wires lapped a full tension lap, secondary wires to Table 5.8. A193 for ground-bearing slabs. The fabric replaces the bar mat of that face; the other face keeps its bars."
+                                   FontSize="9" FontStyle="Italic" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource TextColor}" Opacity="0.5"/>
                     </StackPanel>
                 </Border>
 

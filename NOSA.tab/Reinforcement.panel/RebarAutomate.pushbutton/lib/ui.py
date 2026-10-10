@@ -632,6 +632,17 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         for label in _STAIR_STARTER_TYPES:
             self.CboStairStarterType.Items.Add(label)
         self.CboStairStarterType.SelectedIndex = 0
+        # T8.51 welded fabric (wired here, never in the XAML: see the ComboBox load crash note)
+        from nosa_utils import fabric as _fabric
+        self.CmbFabricRef.Items.Clear()
+        for ref in _fabric.references():
+            self.CmbFabricRef.Items.Add(ref)
+        self.CmbFabricRef.SelectedItem = _fabric.GROUND_SLAB_FABRIC
+        for combo, items in ((self.CmbFabricFace, (u'Bottom', u'Top')), (self.CmbFabricDir, (u'X', u'Y'))):
+            combo.Items.Clear()
+            for item in items:
+                combo.Items.Add(item)
+            combo.SelectedIndex = 0
         current_status = self.ra_project.get('status', u'Design')
         if current_status in statuses:
             self.CmbProjectStatus.SelectedItem = current_status
@@ -1580,6 +1591,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         values['corner_torsion'] = self.ChkCornerTorsion.IsChecked == True
         values['top_over_supports'] = self.ChkTopOverSupports.IsChecked == True
         values['flat_slab'] = self.ChkFlatSlab.IsChecked == True
+        values['fabric'] = self.ChkFabric.IsChecked == True
+        values['fabric_ref'] = u'{}'.format(self.CmbFabricRef.SelectedItem or u'A193')
+        values['fabric_face'] = u'{}'.format(self.CmbFabricFace.SelectedItem or u'Bottom').lower()
+        values['fabric_dir'] = u'{}'.format(self.CmbFabricDir.SelectedItem or u'X').lower()
         values['alternate_bottom'] = self.ChkAlternateBottom.IsChecked == True
         if values['include_opening_diagonals']:
             values['opening_diagonal_dia'] = self._read_number(
@@ -2467,15 +2482,34 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             flat_slab=values.get('flat_slab', False),
             alternate_bottom=values.get('alternate_bottom', False))
 
-        bottom = reinforcement['bottom_mat']
-        self._create_grouped_bars(
-            wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
-            errors, created_rebars, u'Floor Bottom Mat (B1)', layer=u'bottom_x')
-        self._create_grouped_bars(
-            wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
-            errors, created_rebars, u'Floor Bottom Mat (B2)', layer=u'bottom_y')
+        fabric_face = values.get('fabric_face') if values.get('fabric') else None
+        if fabric_face:
+            # T8.51: welded fabric (BS 4483) in place of that face's bar mat
+            import fabric_rebar
+            from nosa_utils import standards
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            try:
+                with nosa_tx.revit_transaction(u'NOSA — Welded Fabric'):
+                    _area, notes = fabric_rebar.place(self.doc, host, values['fabric_ref'], fabric_face,
+                                                      values.get('fabric_dir', u'x'), fck)
+                    fabric_rebar.ensure_schedule(self.doc)       # SMDSC Table 4.3
+                errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n) for n in notes)
+            except Exception as e:
+                errors.append(u'Floor {}: welded fabric not placed — {}'.format(get_id_value(host.Id), e))
 
-        if reinforcement['top_mat'] is not None:
+        bottom = reinforcement['bottom_mat']
+        if fabric_face != u'bottom':
+            self._create_grouped_bars(
+                wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
+                errors, created_rebars, u'Floor Bottom Mat (B1)', layer=u'bottom_x')
+            self._create_grouped_bars(
+                wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
+                errors, created_rebars, u'Floor Bottom Mat (B2)', layer=u'bottom_y')
+
+        if reinforcement['top_mat'] is not None and fabric_face != u'top':
             top = reinforcement['top_mat']
             self._create_grouped_bars(
                 wrapper, host, top['along_x'], bar_types.get(values['top_dia_x']),
