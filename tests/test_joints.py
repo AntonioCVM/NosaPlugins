@@ -30,3 +30,10 @@ def test_beam_bars_between_column_bars():
     assert joints.bars_between(cols, [-75.0, 75.0], 25.0, 20.0) == []
     hits = joints.bars_between(cols, [-140.0, 75.0], 25.0, 20.0)
     assert len(hits) == 1 and hits[0][0] == -140.0
+
+
+def test_inner_leg_stays_under_the_bend():
+    assert joints.bend_radius_mm(20.0) == 80.0 and joints.bend_radius_mm(12.0) == 30.0
+    room = joints.nested_leg_room_mm(480.0, 48.0, 20.0, 20.0)     # bend 80, 32 in from its centre: 7 mm lower
+    assert 452.0 < room < 454.0
+    assert joints.nested_leg_room_mm(480.0, 100.0, 20.0, 20.0) == 460.0

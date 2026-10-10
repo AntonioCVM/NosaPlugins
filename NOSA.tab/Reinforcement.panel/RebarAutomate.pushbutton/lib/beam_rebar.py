@@ -413,6 +413,14 @@ def _area(face_info):
     return getattr(face_info, 'area', 0.0) or 0.0
 
 
+def lowered_top(engine, top, drop_mm):
+    """The top face moved down drop_mm: the links and top bars measured from it go that much lower (T8.49)."""
+    if not drop_mm:
+        return top
+    n = top.normal.Normalize()
+    return engine.HostFaceInfo(top.face, top.normal, top.origin - n.Multiply(drop_mm / _MM_PER_FT))
+
+
 def _beam_faces(cover_mgr, axis_dir):
     """
     Classify a beam host's planar faces into (top, bottom, side_a,
@@ -1015,7 +1023,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              internal_bottom_ext_mm=(0.0, 0.0), bottom_stop_mm=(None, None),
                              bottom_stop_leg=(False, False), include_top=True,
                              n_support_bars=0, support_bar_diameter_mm=None,
-                             n_span_bars=0, span_bar_diameter_mm=None, side_bar_diameter_mm=None):
+                             n_span_bars=0, span_bar_diameter_mm=None, side_bar_diameter_mm=None,
+                             top_drop_mm=0.0):
     """
     High-level pipeline for one beam host:
       1. Read the beam's straight centreline (get_beam_axis).
@@ -1060,6 +1069,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     warnings = []
     cover_mgr = engine.CoverGeometryManager(doc, host)
     top, bottom, side_a, side_b = _beam_faces(cover_mgr, axis.Direction)
+    top = lowered_top(engine, top, top_drop_mm)       # T8.49: under a slab's top mat / a main beam's top bars
     spans_mm = beam_spans_mm(host, axis)
 
     # Computed here (not after, as before the round-4 fix) so BOTH the
@@ -1162,8 +1172,13 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                             max(clear_mm - bar_diameter_mm, 0.0), clear_mm))
     top_chains = _add_support_legs(top_chains, ext0_mm, ext1_mm, height_dir_legs.Negate(),
                                    anchor_mm, bar_diameter_mm, clear_mm)
+    # the inner (bottom) legs rise only to under the top bars' bends they stand inside (T8.49)
+    bottom_clear = clear_mm
+    if clear_mm and insets['bottom'] and (ext0_mm or ext1_mm):
+        room = joints.nested_leg_room_mm(clear_mm, insets['bottom'], bar_diameter_mm, bar_diameter_mm)
+        bottom_clear = room + bar_diameter_mm          # support_leg_mm takes the bar size off again
     bottom_chains = _add_support_legs(bottom_chains, b_leg0, b_leg1, height_dir_legs,
-                                      anchor_mm, bar_diameter_mm, clear_mm)
+                                      anchor_mm, bar_diameter_mm, bottom_clear)
     if not include_top:
         top_chains = []
 
@@ -1317,6 +1332,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'confine_length_mm': confine_length_mm if densify_ends else 0.0,
         'long_bar_normal': width_dir,
         'bar_inset_mm': bar_inset,
+        'top_drop_mm': top_drop_mm,
         'interior_tie_sets': interior_tie_sets,
         'spans_mm': spans_mm,
         'support_bar_sets': support_bar_sets,
@@ -1422,7 +1438,7 @@ def _end_ubar_sets(axis0, top, bottom, side_a, side_b, cover_mm, bar_dia_mm, lin
 
 def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, stirrup_bar_diameter_mm,
                           support_bar_diameter_mm, n_support_bars, stock_length_mm, lap_length_mm,
-                          anchorage_mm, flexible=False, n_bottom_bars=2):
+                          anchorage_mm, flexible=False, n_bottom_bars=2, top_drop_mm=0.0):
     """
     Hanger (continuous top) bars and support bars of one line of spans, plus how each span's
     own bars must end (continuous_beam's rules — see that module).
@@ -1453,7 +1469,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
     faces = {}
     for span in ordered:
         top, bottom, side_a, side_b = _beam_faces(engine.CoverGeometryManager(doc, span['host']), direction)
-        faces[span['id']] = (top, bottom, side_a, side_b)
+        faces[span['id']] = (lowered_top(engine, top, top_drop_mm), bottom, side_a, side_b)
     top, bottom, side_a, side_b = faces[ordered[0]['id']]
     normal = direction.CrossProduct(top.normal.Normalize()).Normalize()
     axis0 = axes[first.Id]

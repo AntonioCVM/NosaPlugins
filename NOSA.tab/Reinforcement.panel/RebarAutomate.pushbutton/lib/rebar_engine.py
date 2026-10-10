@@ -1186,7 +1186,7 @@ def inset_bar_ends(doc, rebar, margin_mm):
     return False
 
 
-def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
+def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=(), top_extra_mm=0.0):
     """
     Replace Revit's snaps of this rebar to other bars with a fixed distance
     (inset_mm, to the bar centreline) from the nearest host face. Call inside
@@ -1200,6 +1200,8 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
     beam's side cover, 20 mm inside the column's (2026-10-05).
     foreign_handles: the handle types re-pinned when they target another element — ('Edge',)
     for column links; never for beam bars, whose legs rightly sit in the column they anchor in.
+    top_extra_mm: the top bars of a beam sit that much lower (T8.49, under a slab or a main beam): a handle
+    nearer that design distance than the plain inset is pinned to it.
     Returns the number of handles re-pinned.
     """
     foreign = [getattr(DBS.RebarHandleType, name) for name in foreign_handles]
@@ -1225,7 +1227,11 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
         if not candidates:
             continue
         nearest = min(candidates, key=lambda cand: abs(cand.GetDistanceToTargetHostFace()))
-        nearest.SetDistanceToTargetHostFace(-inset_mm / _MM_PER_FT)
+        target = inset_mm
+        if top_extra_mm:
+            now = abs(nearest.GetDistanceToTargetHostFace()) * _MM_PER_FT
+            target = min((inset_mm, inset_mm + top_extra_mm), key=lambda o: abs(o - now))
+        nearest.SetDistanceToTargetHostFace(-target / _MM_PER_FT)
         if hasattr(mgr, 'SetPreferredConstraint'):
             mgr.SetPreferredConstraint(nearest)
         else:

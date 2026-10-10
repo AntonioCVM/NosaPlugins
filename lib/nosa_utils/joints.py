@@ -61,3 +61,19 @@ def bars_between(column_bars_mm, beam_bars_mm, column_dia_mm, beam_dia_mm,
         if clear < need - 0.5:
             out.append((b, c, clear))
     return out
+
+
+def bend_radius_mm(dia_mm):
+    """Centreline radius of a standard bend (SMDSC Table B1 mandrels: 2d up to H16, 3.5d from H20)."""
+    return (2.0 if dia_mm <= 16.0 else 3.5) * dia_mm + dia_mm / 2.0
+
+
+def nested_leg_room_mm(clear_mm, inset_mm, top_dia_mm, bottom_dia_mm):
+    """
+    How high an inner (bottom bar) leg may rise, from the bottom bar's centre, inside the bend of the top bar's
+    leg it stands inset_mm within: under the bend's arc there, bars not touching.
+    """
+    r = bend_radius_mm(top_dia_mm)
+    e = r - inset_mm
+    rise = r - math.sqrt(r * r - e * e) if 0.0 < e < r else 0.0
+    return clear_mm - rise - (top_dia_mm + bottom_dia_mm) / 2.0

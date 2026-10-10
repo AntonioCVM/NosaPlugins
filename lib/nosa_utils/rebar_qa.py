@@ -41,7 +41,7 @@ def min_clear_mm(dia_mm, aggregate_mm=AGGREGATE_MM):
 
 
 def cover_issues(cover_mm, dia_mm, nominal_mm=None, aggregate_mm=AGGREGATE_MM):
-    """[(severity, text)]: the cover to a bar under its size or the aggregate, or under the nominal less the deviation."""
+    """[(severity, text)]: cover to a bar under its size or the aggregate, or under the nominal less the deviation."""
     out = []
     if cover_mm < dia_mm - 0.5:
         out.append((ERROR, u'cover {:.0f} mm under the bar size {:.0f} (SMDSC 5.2.2)'.format(cover_mm, dia_mm)))
@@ -290,28 +290,71 @@ def audit(doc, host_ids=None, fck_mpa=32.0, aggregate_mm=AGGREGATE_MM):
     from Autodesk.Revit import DB
     from Autodesk.Revit.DB.Structure import Rebar
     from nosa_utils.revit_helpers import get_id_value, element_name
+    from nosa_utils.revit_helpers import element_id_from_int
     wanted = set(get_id_value(i) for i in host_ids) if host_ids else None
     by_host = {}
     for r in DB.FilteredElementCollector(doc).OfClass(Rebar):
-        hid = get_id_value(r.GetHostId())
-        if wanted is None or hid in wanted:
-            by_host.setdefault(hid, []).append(r)
+        by_host.setdefault(get_id_value(r.GetHostId()), []).append(r)
+    hosts = dict((hid, doc.GetElement(element_id_from_int(hid))) for hid in by_host)
+    hosts = dict((hid, h) for hid, h in hosts.items() if h is not None and h.get_BoundingBox(None) is not None)
+    checked = set(hosts) if wanted is None else set(hosts) & wanted
+    # T8.49: the members meeting the checked ones (a beam's columns, the slab on it) for the joint check
+    tol = JOINT_REACH_MM / _MM
+    around = set(checked)
+    for hid in checked:
+        a = hosts[hid].get_BoundingBox(None)
+        for other, h in hosts.items():
+            if other not in around and _touch(a, h.get_BoundingBox(None), tol):
+                around.add(other)
+    out, parts = [], {}
+    for hid in sorted(around):
+        found, samples, label = _audit_host(doc, DB, hosts[hid], by_host[hid], fck_mpa, aggregate_mm, element_name,
+                                            get_id_value)
+        if hid in checked:
+            out.extend(found)
+        parts[hid] = (samples, label)
+    out.extend(_joint_pairs(hosts, parts, checked, aggregate_mm, get_id_value))
+    return out
+
+
+JOINT_REACH_MM = 50.0
+
+
+def _touch(a, b, tol):
+    """Two bounding boxes within tol (ft) of each other."""
+    return (a.Min.X - tol <= b.Max.X and b.Min.X - tol <= a.Max.X and a.Min.Y - tol <= b.Max.Y and
+            b.Min.Y - tol <= a.Max.Y and a.Min.Z - tol <= b.Max.Z and b.Min.Z - tol <= a.Max.Z)
+
+
+def _joint_pairs(hosts, parts, checked, aggregate_mm, get_id_value):
+    """Bars of two members that meet (beam and column, slab and beam) clashing or crowding each other."""
     out = []
-    for hid, rebars in sorted(by_host.items()):
-        from nosa_utils.revit_helpers import element_id_from_int
-        host = doc.GetElement(element_id_from_int(hid))
-        if host is None:
-            continue
-        out.extend(_audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_id_value))
+    ids = sorted(parts)
+    tol = JOINT_REACH_MM / _MM
+    for i, a in enumerate(ids):
+        ba = hosts[a].get_BoundingBox(None)
+        for b in ids[i + 1:]:
+            if a not in checked and b not in checked:
+                continue
+            if not _touch(ba, hosts[b].get_BoundingBox(None), tol):
+                continue
+            owner = dict((get_id_value(r.Id), a) for r, _d, _c, _m in parts[a][0])
+            owner.update((get_id_value(r.Id), b) for r, _d, _c, _m in parts[b][0])
+            found = _pairs(parts[a][0] + parts[b][0], u'{} / {}'.format(parts[a][1], parts[b][1]), aggregate_mm,
+                           get_id_value, owner)
+            for f in found:
+                f.Check = u'Joint ' + f.Check.lower()
+            out.extend(found)
     return out
 
 
 def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_id_value):
+    """([Finding], the bar samples for the clash checks, the host's label)."""
     out = []
     kind = _kind(DB, host)
     box = host.get_BoundingBox(None)
     if box is None:
-        return out
+        return out, [], u''
     try:
         label = u'{} {}'.format(element_name(doc.GetElement(host.GetTypeId())), get_id_value(host.Id))
     except Exception:
@@ -420,11 +463,14 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
         if issue:
             out.append(Finding(u'', label, u'', u'Vibrator gap', WARNING, issue, host.Id))
     out.extend(_pairs(samples, label, aggregate_mm, get_id_value))
-    return out
+    return out, samples, label
 
 
-def _pairs(samples, label, aggregate_mm, get_id_value):
-    """Clashes and crowding between bars of different sets of one host, one finding per pair of sets."""
+def _pairs(samples, label, aggregate_mm, get_id_value, owner=None):
+    """
+    Clashes and crowding between bars of different sets, one finding per pair of sets; owner {rebar id: host}:
+    only pairs of bars of different members (a joint).
+    """
     segs = []
     for rebar, dia, chain, mark in samples:
         for a, b, bend in chain:
@@ -440,7 +486,7 @@ def _pairs(samples, label, aggregate_mm, get_id_value):
         si = segs[i]
         for j in range(i + 1, len(segs)):
             sj = segs[j]
-            if si[0] == sj[0]:
+            if si[0] == sj[0] or owner is not None and owner.get(si[0]) == owner.get(sj[0]):
                 continue
             pair = (min(si[0], sj[0]), max(si[0], sj[0]))
             if pair in seen:

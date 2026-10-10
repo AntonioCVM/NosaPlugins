@@ -573,6 +573,22 @@ class BeamsMixin(object):
             self._create_long_group(wrapper, host, group, bar_type, u'Beam Spacer Bar', u'spacer', errors,
                                     created_rebars)
 
+    def _top_drop(self, hosts, cover_mm, values, errors):
+        """T8.49: how much lower the links and top bars of these beams go (a slab on top, a main beam)."""
+        import beam_joints
+        drop = 0.0
+        for host in hosts:
+            try:
+                d, notes = beam_joints.top_drop_mm(self.doc, host, beam_rebar.get_beam_axis(host), cover_mm,
+                                                   values['bar_dia'], re_engine)
+            except Exception:
+                log_swallowed(_LOG, u'top drop')
+                continue
+            if d > drop:
+                drop = d
+            errors.extend(u'Beam {}: {}'.format(get_id_value(host.Id), n) for n in notes)
+        return drop
+
     def _create_long_group(self, wrapper, host, group, bar_type, label, layer, errors, created_rebars):
         """One grouped set of longitudinal bars (one Rebar Set, else bar by bar)."""
         hid = get_id_value(host.Id)
@@ -634,10 +650,13 @@ class BeamsMixin(object):
         except Exception:
             log_swallowed(_LOG, u'beam fit check')
         lap_mm, anchorage_mm = self._beam_lap_anchorage(first, values['bar_dia'])
+        drop_mm = self._top_drop(line, cover_mm, values, errors)
+        values = dict(values, top_drop=drop_mm)
         data = beam_rebar.build_continuous_line(
             self.doc, line, cover_mm, values['bar_dia'], values['n_top'], values['stirrup_dia'],
             values.get('support_dia') or values['bar_dia'], values.get('n_support', 0),
             values['stock_length'], lap_mm, anchorage_mm, flexible=values.get('flexible', False),
+            top_drop_mm=drop_mm,
             n_bottom_bars=values.get('n_bottom') or values['n_top'])
         name = u'Beams {}'.format(u', '.join(str(get_id_value(h.Id)) for h in line))
         errors.extend(u'{}: {}'.format(name, w) for w in data['warnings'])
@@ -805,7 +824,9 @@ class BeamsMixin(object):
             n_support_bars=values.get('n_support', 0),
             support_bar_diameter_mm=values.get('support_dia'),
             n_span_bars=values.get('n_span', 0),
-            span_bar_diameter_mm=values.get('span_dia'))
+            span_bar_diameter_mm=values.get('span_dia'),
+            top_drop_mm=values['top_drop'] if 'top_drop' in values else self._top_drop([host], cover_mm, values,
+                                                                                         errors))
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -996,7 +1017,8 @@ class BeamsMixin(object):
                 with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pin Beam Longitudinal Bars')) as t:
                     t.Start()
                     for rebar in long_rebars:
-                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, curves['bar_inset_mm'])
+                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, curves['bar_inset_mm'],
+                                                          top_extra_mm=curves.get('top_drop_mm') or 0.0)
                     t.Commit()
             except Exception as e:
                 errors.append(u'Beam {}: longitudinal bars left where Revit snapped them '
