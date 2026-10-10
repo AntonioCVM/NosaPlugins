@@ -2200,10 +2200,22 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                                   u'BS 8666 standard {:.0f}); specify it (shape 99) or check the bar stress.'.format(
                                       get_id_value(host.Id), axis.upper(), 25.0 * math.ceil(need / 25.0), dia,
                                       values['spacing'], standards.standard_mandrel_mm(dia)))
-            errors.extend(u'Pile cap {}: {}'.format(get_id_value(host.Id), n)
-                          for n in footing_rebar.pile_cap_anchorage_notes(
-                              host, side_cover_mm, bottom_cover_mm, top_cover_mm, values['dia_x'], values['dia_y'],
-                              self._anchorage_mm(host, values['dia_x']), self._anchorage_mm(host, values['dia_y'])))
+            bands = footing_rebar.build_pile_cap_bands(
+                self.doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm, values['dia_x'], values['spacing'],
+                values.get('side_diameter') or 12.0, values.get('side_spacing') or 10000.0)
+            if bands is not None:
+                reinforcement = self._pile_cap_band_mats(host, reinforcement, bands, values, bottom_cover_mm,
+                                                         top_cover_mm, bar_types, errors)
+                need = self._anchorage_mm(host, values['dia_x'])
+                if bands['reach_mm'] + bands['leg_mm'] < need - 1.0:
+                    errors.append(u'Pile cap {}: tie bars {:.0f} mm from the edge pile centre to the bar end, under '
+                                  u'the {:.0f} mm tension anchorage SMDSC MF2 asks for — larger bends or a bigger '
+                                  u'cap.'.format(get_id_value(host.Id), bands['reach_mm'] + bands['leg_mm'], need))
+            else:
+                errors.extend(u'Pile cap {}: {}'.format(get_id_value(host.Id), n)
+                              for n in footing_rebar.pile_cap_anchorage_notes(
+                                  host, side_cover_mm, bottom_cover_mm, top_cover_mm, values['dia_x'], values['dia_y'],
+                                  self._anchorage_mm(host, values['dia_x']), self._anchorage_mm(host, values['dia_y'])))
 
         # PHASE 3.5.7 item 3 — bottom_mat/top_mat/perimeter_closure_ubars
         # now come from footing_rebar's topology-aware builders (real
@@ -2214,12 +2226,22 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         # single-Set _create_mat_bar_set/_create_perimeter_closure_ubars
         # (which assumed one uniform Set spans the whole rectangular
         # footing with no holes).
+        for k, chains in enumerate(reinforcement.get('tie_bands') or []):
+            rebar = wrapper.create_freeform_group(host, chains, bar_types.get(values['dia_x']),
+                                                  transaction_name=u'NOSA — Create Pile Cap Tie Bars')
+            if rebar is None:
+                errors.append(u'Pile cap {}: tie bars, layer {} — {}'.format(get_id_value(host.Id), k + 1,
+                                                                             wrapper.last_error))
+            else:
+                self._stamp_layer(rebar, u'tie_band')
+                created_rebars.append(rebar)
         bottom = reinforcement['bottom_mat']
+        mat_dia = reinforcement.get('mat_dia') or {}
         self._create_grouped_bars(
-            wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
+            wrapper, host, bottom['along_x'], bar_types.get(mat_dia.get('x', values['dia_x'])),
             errors, created_rebars, u'Footing Bottom Mat (B1)', layer=u'bottom_x')
         self._create_grouped_bars(
-            wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
+            wrapper, host, bottom['along_y'], bar_types.get(mat_dia.get('y', values['dia_y'])),
             errors, created_rebars, u'Footing Bottom Mat (B2)', layer=u'bottom_y')
 
         if reinforcement['top_mat'] is not None:
@@ -2257,6 +2279,32 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 wrapper, host, reinforcement['dowels'],
                 bar_types.get(values.get('dowel_diameter')),
                 hook_type, errors, created_rebars)
+
+    def _pile_cap_band_mats(self, host, reinforcement, bands, values, bottom_cover_mm, top_cover_mm, bar_types,
+                            errors):
+        """
+        IStructE SMDSC Table 6.10, 3- and 7-pile caps: the design bars go in the tie bands over the pile
+        lines; the mat above them is nominal H16 at 200 and the lacers follow the cap's outline.
+        """
+        from nosa_utils import pile_caps
+        nominal = pile_caps.NOMINAL_DIA_MM
+        if bar_types.get(nominal) is None:
+            bar_types[nominal] = re_engine.get_bar_type_by_diameter(self.doc, nominal)
+        box = footing_rebar._footing_bbox(host)
+        target = box.Max.Z * 304.8 - (top_cover_mm or bottom_cover_mm) - values['dia_x']
+        reinforcement = dict(reinforcement)
+        reinforcement['bottom_mat'] = footing_rebar.build_mat_bars_topology(
+            self.doc, host, False, bands['nominal_cover_mm'], nominal, nominal, pile_caps.NOMINAL_PITCH_MM,
+            pile_caps.NOMINAL_PITCH_MM, values['max_stock_length'], target_z_mm=target, leg_direction=DB.XYZ.BasisZ)
+        reinforcement['mat_dia'] = {'x': nominal, 'y': nominal}
+        reinforcement['tie_bands'] = bands['bands']
+        if bands['lacers'] is not None:
+            reinforcement['side_rebar'] = bands['lacers']
+        errors.append(u'Pile cap {}: {} piles — H{:.0f} tie bars at {:.0f} in bands over the pile lines ({} layers, '
+                      u'bent up at both ends), nominal H16 at 200 above them and lacers round the cap '
+                      u'(SMDSC Table 6.10).'.format(get_id_value(host.Id), len(footing_rebar.pile_centres_ft(host)),
+                                                   float(values['dia_x']), float(values['spacing']), bands['layers']))
+        return reinforcement
 
     def _is_pile_cap(self, host):
         try:

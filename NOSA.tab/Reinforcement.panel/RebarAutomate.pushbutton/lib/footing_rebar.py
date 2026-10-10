@@ -1579,6 +1579,67 @@ def pile_cap_anchorage_notes(host, side_cover_mm, cover_mm, top_cover_mm, dia_x_
     return notes
 
 
+def pile_size_mm(host, default_mm=300.0):
+    """Plan size of the nested piles (the narrower side of their boxes), mm."""
+    sizes = []
+    try:
+        for sid in host.GetSubComponentIds():
+            box = host.Document.GetElement(sid).get_BoundingBox(None)
+            if box is not None:
+                sizes.append(min(box.Max.X - box.Min.X, box.Max.Y - box.Min.Y) * _MM_PER_FT)
+    except Exception:
+        sizes = []
+    return min(sizes) if sizes else default_mm
+
+
+def build_pile_cap_bands(doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm, bar_dia_mm, pitch_mm,
+                         lacer_dia_mm, lacer_spacing_mm):
+    """
+    IStructE SMDSC Table 6.10, 3- and 7-pile caps: design bars in bands over the lines joining the piles
+    (nosa_utils.pile_caps), one layer per direction, bent up at both ends (shape 21), and lacers round
+    the cap's own outline above the nominal mat. None for any other cap.
+    Returns {'bands': [[chain]], 'layers': n, 'reach_mm', 'leg_mm', 'nominal_cover_mm', 'lacers'}.
+    """
+    from nosa_utils import pile_caps
+    piles = pile_centres_ft(host)
+    if not pile_caps.uses_tie_bands(len(piles)):
+        return None
+    engine = _ensure_engine()
+    topo = _ensure_topology()
+    bottom_face = get_footing_bottom_face(engine.CoverGeometryManager(doc, host))
+    box = _footing_bbox(host)
+    if bottom_face is None or box is None:
+        return None
+    outer, _holes, _n = topo.classify_loops(topo.extract_loops_mm(bottom_face.face))
+    poly = topo.offset_polygon_mm(outer, side_cover_mm + bar_dia_mm / 2.0)
+    piles_mm = [(x * _MM_PER_FT, y * _MM_PER_FT) for x, y in piles]
+    layers = pile_caps.layout(poly, piles_mm, pitch_mm, pile_size_mm(host))
+    face_z = bottom_face.origin.Z * _MM_PER_FT
+    top_z = box.Max.Z * _MM_PER_FT - (top_cover_mm or bottom_cover_mm) - bar_dia_mm / 2.0
+    bands = []
+    for k, layer in enumerate(layers):
+        z = face_z + bottom_cover_mm + bar_dia_mm / 2.0 + k * bar_dia_mm
+        chains = []
+        for (x0, y0), (x1, y1) in layer['bars']:
+            a, b = DB.XYZ(x0 / _MM_PER_FT, y0 / _MM_PER_FT, z / _MM_PER_FT), DB.XYZ(x1 / _MM_PER_FT, y1 / _MM_PER_FT, z / _MM_PER_FT)
+            up = DB.XYZ(0.0, 0.0, (top_z - z) / _MM_PER_FT)
+            chains.append([DB.Line.CreateBound(a + up, a), DB.Line.CreateBound(a, b), DB.Line.CreateBound(b, b + up)])
+        bands.append(chains)
+    nominal_cover = bottom_cover_mm + len(layers) * bar_dia_mm
+    # lacers inside the bent ends, between the nominal mat and the top (SMDSC MF2)
+    loop = topo.offset_polygon_mm(outer, side_cover_mm + bar_dia_mm + lacer_dia_mm / 2.0)
+    z0 = face_z + nominal_cover + 2.0 * pile_caps.NOMINAL_DIA_MM + lacer_dia_mm / 2.0
+    z1 = box.Max.Z * _MM_PER_FT - (top_cover_mm or bottom_cover_mm) - bar_dia_mm - lacer_dia_mm / 2.0
+    pts = [DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, z0 / _MM_PER_FT) for x, y in loop]
+    lacers = None
+    if z1 > z0:
+        lacers = {'curves': [DB.Line.CreateBound(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))],
+                  'array_length_mm': z1 - z0, 'spacing_mm': lacer_spacing_mm, 'face_normal': DB.XYZ.BasisZ}
+    reach = min(l['reach_mm'] for l in layers) if layers else 0.0
+    return {'bands': bands, 'layers': len(layers), 'reach_mm': reach, 'leg_mm': top_z - face_z - bottom_cover_mm,
+            'nominal_cover_mm': nominal_cover, 'lacers': lacers}
+
+
 def _plan_extent_ft(bbox, direction):
     """(min, max) of a bounding box's plan corners along a horizontal direction, ft."""
     values = [DB.XYZ(x, y, 0.0).DotProduct(direction)
