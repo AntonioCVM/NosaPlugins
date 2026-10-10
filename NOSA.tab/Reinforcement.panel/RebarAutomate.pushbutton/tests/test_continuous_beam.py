@@ -133,3 +133,22 @@ def test_flexible_detailing_runs_and_splices():
     runs = cb.flexible_hanger_runs(-300.0, 16100.0, supports)
     assert runs == [(-300.0, 4950.0), (5450.0, 10350.0), (10850.0, 16100.0)]   # 50 short of each face
     assert cb.splice_bar_count(2) == 2 and cb.splice_bar_count(8) == 3 and cb.splice_bar_count(10) == 3
+
+
+def test_support_bars_leave_the_vibrator_gap_free():
+    # SMDSC MB1: the central gap between hangers stays empty, the bars go round it or below
+    assert cb.support_bar_slots(3, 2, keep_free=1) == [('between', 1), ('second', 0)]
+    assert cb.support_bar_slots(2, 2, keep_free=1) == [('second', 0), ('second', 1)]
+    assert cb.support_bar_slots(4, 1, keep_free=1)[0][0] == 'between'
+    assert ('between', 1) not in cb.support_bar_slots(4, 3, keep_free=1)
+
+
+def test_mb1_end_ubars_vibrator_and_spacers():
+    assert cb.end_ubar_count(4) == 2 and cb.end_ubar_count(8) == 3
+    assert cb.end_ubar_count(4, simple=True) == 2 and cb.end_ubar_count(6, simple=True) == 3
+    assert cb.vibrator_gaps_needed(250) == 1 and cb.vibrator_gaps_needed(600) == 2
+    assert cb.spacer_dia_mm(20) == 25.0 and cb.spacer_dia_mm(32) == 32.0
+    pos = cb.spacer_positions_mm(0.0, 3200.0)
+    assert pos[0] == 100.0 and pos[-1] == 3100.0 and len(pos) == 4
+    assert max(b - a for a, b in zip(pos, pos[1:])) <= 1000.0
+    assert cb.spacer_positions_mm(0.0, 150.0) == [75.0]

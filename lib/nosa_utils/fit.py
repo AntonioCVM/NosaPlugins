@@ -81,6 +81,26 @@ def mesh_spacing_notes(spacing_mm, bar_dia_mm, aggregate_mm=DEFAULT_AGGREGATE_MM
     return notes
 
 
+VIBRATOR_GAP_MM = 75.0          # SMDSC 4.2 / MB1: a 75 mm space for the poker for every 300 mm of width
+VIBRATOR_WIDTH_MM = 300.0
+
+
+def vibrator_notes(width_mm, cover_mm, link_dia_mm, n_bars, bar_dia_mm, label=u'top layer'):
+    """Note when an evenly spaced top layer leaves fewer 75 mm gaps than one per 300 mm of width."""
+    n_bars = int(n_bars or 0)
+    if n_bars < 2:
+        return []
+    width_mm = float(width_mm)
+    space = space_inside_links_mm(width_mm, cover_mm, link_dia_mm)
+    clear = (space - n_bars * actual_size_mm(bar_dia_mm)) / (n_bars - 1)
+    needed = max(1, int(width_mm // VIBRATOR_WIDTH_MM))
+    if clear + 1e-6 >= VIBRATOR_GAP_MM and n_bars - 1 >= needed:
+        return []
+    return [u'{}: {}H{:.0f} leave {:.0f} mm between bars; SMDSC 4.2/MB1 asks for {} clear space(s) of 75 mm '
+            u'for the poker vibrator in a {:.0f} mm member: pair the bars (pitch 100) or use fewer, larger '
+            u'ones.'.format(label, n_bars, float(bar_dia_mm), max(clear, 0.0), needed, width_mm)]
+
+
 def layer_notes(width_mm, cover_mm, link_dia_mm, n_bars, bar_dia_mm, aggregate_mm=DEFAULT_AGGREGATE_MM,
                 label=u'bars'):
     """Notes when n_bars of a layer do not fit inside the links of a member width_mm wide."""

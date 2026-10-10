@@ -46,6 +46,8 @@ def beam_notes(width_mm, cover_mm, link_dia_mm, bar_dia_mm, n_top, n_bottom, lab
     for name, n in ((u'top', n_top), (u'bottom', n_bottom)):
         notes.extend(fit.layer_notes(width_mm, cover_mm, link_dia_mm, int(n or 0), bar_dia_mm,
                                      label=u'{} {}'.format(label, name)))
+    notes.extend(fit.vibrator_notes(width_mm, cover_mm, link_dia_mm, n_top, bar_dia_mm,
+                                    label=u'{} top layer'.format(label)))
     return notes
 
 

@@ -34,3 +34,13 @@ def test_layer_notes_and_capacity():
     notes = fit.layer_notes(300.0, 40.0, 8.0, 5, 25.0)
     assert notes and u'at most 4 per layer' in notes[0], notes
     assert fit.max_bars_in(fit.space_inside_links_mm(300.0, 40.0, 8.0), 25.0) == 4
+
+
+def test_vibrator_gap_one_per_300_of_width():
+    # 300 beam, 2H20: plenty of room
+    assert fit.vibrator_notes(300, 35, 10, 2, 20) == []
+    # 300 beam, 4H25: 40 mm gaps, no 75 mm space for the poker
+    assert fit.vibrator_notes(300, 35, 10, 4, 25)
+    # 600 beam, 3H20: two gaps over 75 mm, two needed
+    assert fit.vibrator_notes(600, 35, 10, 3, 20) == []
+    assert fit.vibrator_notes(300, 35, 10, 1, 20) == []

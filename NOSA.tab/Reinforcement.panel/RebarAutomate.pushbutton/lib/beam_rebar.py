@@ -224,11 +224,24 @@ def cb_rules():
     return continuous_beam
 
 
-def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir):
+def _vibrator_gaps_to_keep(base_lines, bar_dia_mm):
+    """Gaps of a top row to leave empty for the poker vibrator (SMDSC MB1): one per 300 mm of width, if 75 mm clear."""
+    import continuous_beam as cb
+    if len(base_lines) < 2:
+        return 0
+    pitch = base_lines[1].GetEndPoint(0).DistanceTo(base_lines[0].GetEndPoint(0)) * _MM_PER_FT
+    if pitch - 1.1 * bar_dia_mm < cb.VIBRATOR_GAP_MM:
+        return 0
+    width = (len(base_lines) - 1) * pitch + bar_dia_mm + 2.0 * 45.0     # about the member width
+    return min(cb.vibrator_gaps_needed(width), len(base_lines) - 1)
+
+
+def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir, vibrator=False):
     """
     [(kind, point at x_mm)] for n extra bars beside a row of main bars (base_lines, axis order):
     between two main bars with their outer faces level, then in a second layer behind the row.
     to_face: unit vector from the bars towards their face (up for top bars, down for bottom).
+    vibrator: a top row, which keeps its central gap(s) free for the poker (SMDSC MB1).
     """
     import continuous_beam as cb
     drop = (bar_dia_mm / 2.0 + max(bar_dia_mm, 25.0) + dia_mm / 2.0) / _MM_PER_FT
@@ -237,13 +250,43 @@ def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir
     def at(line, x):
         return line.GetEndPoint(0) + axis_dir.Multiply(x / _MM_PER_FT)
     out = []
-    for kind, i in cb.support_bar_slots(len(base_lines), n_bars):
+    keep = _vibrator_gaps_to_keep(base_lines, bar_dia_mm) if vibrator else 0
+    for kind, i in cb.support_bar_slots(len(base_lines), n_bars, keep):
         if kind == 'between':
             p = (at(base_lines[i], x_mm) + at(base_lines[i + 1], x_mm)).Multiply(0.5) + to_face.Multiply(lift)
         else:
             p = at(base_lines[i], x_mm) - to_face.Multiply(drop)
         out.append((kind, p))
     return out
+
+
+def _spacer_groups(chains_by_key, base_lines, bar_dia_mm, to_face, axis_dir, label=u'Beam Spacer Bars'):
+    """
+    Spacer bars (SMDSC MB1 / Fig. 4.2) under every second layer of chains_by_key ((kind, ...) keys,
+    kind 'second'): across the row from outer bar to outer bar, in the gap between the layers, at
+    1 m centres. Groups as group_parallel_bar_chains_into_sets, plus 'diameter_mm'.
+    """
+    import continuous_beam as cb
+    second = [c for key, cs in chains_by_key.items() if key[0] == 'second' for c in cs]
+    if not second or len(base_lines) < 2:
+        return []
+    o = base_lines[0].GetEndPoint(0)
+    xs = [(pt - o).DotProduct(axis_dir) * _MM_PER_FT
+          for chain in second for seg in chain for crv in seg for pt in (crv.GetEndPoint(0), crv.GetEndPoint(1))]
+    s = cb.spacer_dia_mm(bar_dia_mm)
+    inward = to_face.Negate().Multiply((bar_dia_mm / 2.0 + s / 2.0) / _MM_PER_FT)
+
+    def at(line, x):
+        x_line = (line.GetEndPoint(0) - o).DotProduct(axis_dir) * _MM_PER_FT
+        return line.GetEndPoint(0) + axis_dir.Multiply((x - x_line) / _MM_PER_FT)
+    positions = cb.spacer_positions_mm(min(xs), max(xs))
+    chains = [[[DB.Line.CreateBound(at(base_lines[0], x) + inward, at(base_lines[-1], x) + inward)]]
+              for x in positions]
+    pitch = positions[1] - positions[0] if len(positions) > 1 else 0.0
+    groups = group_parallel_bar_chains_into_sets(chains, pitch, axis_dir, label)
+    for g in groups:
+        g['diameter_mm'] = s
+    return groups
 
 
 def _grouped(chains_by_key, normal, label):
@@ -271,7 +314,7 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
     (monolithic) one and 0.08 L from a simple support. Returns {'support': [...], 'span': [...]}.
     """
     import continuous_beam as cb
-    out = {'support': [], 'span': []}
+    out = {'support': [], 'span': [], 'spacer': []}
     direction = axis.Direction
     length = axis.Length * _MM_PER_FT
 
@@ -296,7 +339,8 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
 
         for (la, lb), (ra, rb) in zip(spans_mm[:-1], spans_mm[1:]):
             left, right = cb.hogging_reaches_mm(eff((la, lb)), dia), cb.hogging_reaches_mm(eff((ra, rb)), dia)
-            for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction)):
+            for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction,
+                                                       vibrator=True)):
                 reach = 1 if k < n_long else 0
                 add((kind, reach, 'internal'), p, max(lb - left[reach], 0.0), min(ra + right[reach], length))
         for end in (0, 1):
@@ -306,13 +350,15 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
             span = spans_mm[0] if end == 0 else spans_mm[-1]
             reaches = cb.hogging_reaches_mm(eff(span), dia)
             leg = support_leg_mm(lbd, ext, dia, clear_mm)
-            for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction)):
+            for k, (kind, p) in enumerate(_slot_points(base, n_support, dia, bar_dia_mm, up, 0.0, direction,
+                                                       vibrator=True)):
                 g = 1 if k < n_long else 0
                 if end == 0:
                     add((kind, g, 'start'), p, -ext, min(span[0] + reaches[g], length), leg0=leg)
                 else:
                     add((kind, g, 'end'), p, max(span[1] - reaches[g], 0.0), length + ext, leg1=leg)
         out['support'] = _grouped(chains, normal, u'Beam Support Bars')
+        out['spacer'].extend(_spacer_groups(chains, base, bar_dia_mm, up, direction))
     if n_span and bottom_lines:
         dia = span_dia_mm or bar_dia_mm
         base = [_extend_line(l, -bottom_ext_mm[0], -bottom_ext_mm[1]) if any(bottom_ext_mm) else l
@@ -333,6 +379,7 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
                 chains.setdefault((kind, k), []).append(
                     [[DB.Line.CreateBound(q0, p + direction.Multiply(rng[1] / _MM_PER_FT))]])
         out['span'] = _grouped(chains, normal, u'Beam Span Bars')
+        out['spacer'].extend(_spacer_groups(chains, base, bar_dia_mm, up.Negate(), direction))
     return out
 
 
@@ -965,7 +1012,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              confine_length_mm=None, anchorage_mm=None,
                              include_interior_ties=False, tie_layout='all',
                              link_bend_diameter_mm=None, continuous_ends=(False, False),
-                             internal_bottom_ext_mm=(0.0, 0.0), include_top=True,
+                             internal_bottom_ext_mm=(0.0, 0.0), bottom_stop_mm=(None, None), include_top=True,
                              n_support_bars=0, support_bar_diameter_mm=None,
                              n_span_bars=0, span_bar_diameter_mm=None, side_bar_diameter_mm=None):
     """
@@ -1039,6 +1086,12 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     # straight into it (no leg) and the top bars are the line's own continuous hanger bars.
     b_ext0 = internal_bottom_ext_mm[0] if continuous_ends[0] else ext0_mm
     b_ext1 = internal_bottom_ext_mm[1] if continuous_ends[1] else ext1_mm
+    # SMDSC MB1 flexible detailing: at an end column the bottom bars stop short, lapping the end U-bars
+    b_leg0, b_leg1 = (0.0 if continuous_ends[0] else ext0_mm), (0.0 if continuous_ends[1] else ext1_mm)
+    if bottom_stop_mm[0] is not None:
+        b_ext0, b_leg0 = bottom_stop_mm[0], 0.0
+    if bottom_stop_mm[1] is not None:
+        b_ext1, b_leg1 = bottom_stop_mm[1], 0.0
     if ext0_mm or ext1_mm:
         top_lines = [_extend_line(l, ext0_mm, ext1_mm) for l in top_lines]
     if b_ext0 or b_ext1:
@@ -1094,9 +1147,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                             max(clear_mm - bar_diameter_mm, 0.0), clear_mm))
     top_chains = _add_support_legs(top_chains, ext0_mm, ext1_mm, height_dir_legs.Negate(),
                                    anchor_mm, bar_diameter_mm, clear_mm)
-    bottom_chains = _add_support_legs(bottom_chains,
-                                      0.0 if continuous_ends[0] else ext0_mm,
-                                      0.0 if continuous_ends[1] else ext1_mm, height_dir_legs,
+    bottom_chains = _add_support_legs(bottom_chains, b_leg0, b_leg1, height_dir_legs,
                                       anchor_mm, bar_diameter_mm, clear_mm)
     if not include_top:
         top_chains = []
@@ -1254,6 +1305,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
         'spans_mm': spans_mm,
         'support_bar_sets': support_bar_sets,
         'span_bar_sets': span_bar_sets,
+        'spacer_sets': extra.get('spacer', []),
         'warnings': warnings,
     }
 
@@ -1311,6 +1363,45 @@ def group_beam_lines(hosts, max_gap_mm=1500.0, tol_mm=10.0):
     for host in hosts:
         lines.setdefault(find(host.Id), []).append(host)
     return list(lines.values())
+
+
+def _end_ubar_sets(axis0, top, bottom, side_a, side_b, cover_mm, bar_dia_mm, link_dia_mm, normal, height,
+                   at, ordered, exts, n_bottom, lap_mm, warnings):
+    """
+    End U-bars of the flexible detailing (SMDSC MB1): in the elevation plane, round the far face of
+    each end column, the bottom leg lapping the span bottom bars (which stop 25 short of it) and the
+    top leg the hanger bars (which stop 50 short); 30 % of the span bottom bars, at least two.
+    [(host, group)].
+    """
+    import continuous_beam as cb
+    n_u = cb.end_ubar_count(n_bottom)
+    tops = compute_longitudinal_bar_lines(axis0, top, side_a, side_b, cover_mm, n_u, bar_dia_mm, link_dia_mm,
+                                          seed_side_normal=normal)
+    bots = compute_longitudinal_bar_lines(axis0, bottom, side_a, side_b, cover_mm, n_u, bar_dia_mm, link_dia_mm,
+                                          seed_side_normal=normal)
+    down = height.Negate().Multiply(bar_dia_mm / _MM_PER_FT)
+    up = height.Multiply(bar_dia_mm / _MM_PER_FT)
+    sp = tops[1].GetEndPoint(0).DistanceTo(tops[0].GetEndPoint(0)) * _MM_PER_FT if len(tops) > 1 else 0.0
+    out = []
+    for end, ext in enumerate(exts):
+        if not ext:
+            warnings.append(u'flexible detailing: no column found at the {} end, so no end U-bars there '
+                            u'(SMDSC MB1: 50 % of the span bottom bars at a simple support).'.format(
+                                u'start' if end == 0 else u'finish'))
+            continue
+        sign = 1.0 if end == 0 else -1.0
+        face = ordered[0]['x0'] if end == 0 else ordered[-1]['x1']
+        far = face - sign * ext
+        top_in = face + sign * (cb.FLEX_TOP_GAP_MM + lap_mm)
+        bot_in = face + sign * (cb.FLEX_BOTTOM_GAP_MM + lap_mm)
+        chains = []
+        for t, b in zip(tops, bots):
+            pts = [at(t, top_in) + down, at(t, far) + down, at(b, far) + up, at(b, bot_in) + up]
+            chains.append([[DB.Line.CreateBound(p, q) for p, q in zip(pts[:-1], pts[1:])]])
+        host = ordered[0]['host'] if end == 0 else ordered[-1]['host']
+        for group in group_parallel_bar_chains_into_sets(chains, sp, normal, u'Beam End U-Bars'):
+            out.append((host, group))
+    return out
 
 
 def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, stirrup_bar_diameter_mm,
@@ -1391,6 +1482,12 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         return last
 
     if flexible:
+        # SMDSC MB1: at an end support with a column the hangers stop 50 short of it too, the
+        # end U-bars giving the continuity into the column
+        if ext0:
+            x_start = ordered[0]['x0'] + cb.FLEX_TOP_GAP_MM
+        if ext1:
+            x_end = ordered[-1]['x1'] - cb.FLEX_TOP_GAP_MM
         segments = []
         for a, b in cb.flexible_hanger_runs(x_start, x_end, supports):
             segs, lap_notes = cb.lap_cuts(a, b, ordered, stock_length_mm, lap_length_mm)
@@ -1403,8 +1500,8 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         segments, lap_notes = cb.lap_cuts(x_start, x_end, ordered, stock_length_mm, lap_length_mm)
         warnings.extend(lap_notes)
     down = height.Negate().Multiply(bar_diameter_mm / _MM_PER_FT)     # contact lap under the bar
-    leg0 = support_leg_mm(anchorage_mm, ext0, bar_diameter_mm, clear_mm) / _MM_PER_FT if ext0 else 0.0
-    leg1 = support_leg_mm(anchorage_mm, ext1, bar_diameter_mm, clear_mm) / _MM_PER_FT if ext1 else 0.0
+    leg0 = support_leg_mm(anchorage_mm, ext0, bar_diameter_mm, clear_mm) / _MM_PER_FT if ext0 and not flexible else 0.0
+    leg1 = support_leg_mm(anchorage_mm, ext1, bar_diameter_mm, clear_mm) / _MM_PER_FT if ext1 and not flexible else 0.0
     spacing = (top_lines[1].GetEndPoint(0).DistanceTo(top_lines[0].GetEndPoint(0)) * _MM_PER_FT
                if len(top_lines) > 1 else 0.0)
     hanger_sets = []
@@ -1427,7 +1524,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         for group in group_parallel_bar_chains_into_sets(chains, spacing, normal, label):
             hanger_sets.append((host_at((a + b) / 2.0), group))
 
-    support_sets = []
+    support_sets, spacer_sets = [], []
     # support bars over the line's supports, SMDSC 6.3.2: at least 60 % to 0.25 L, none shorter than
     # max(0.15 L, 45 diameters), each side by its own span, L = clear span + d (user decision 2026-10-06)
     d_mm = clear_mm + longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
@@ -1442,7 +1539,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         reach_r = cb.hogging_reaches_mm(cb.effective_span_mm(right['x1'] - right['x0'], d_mm), support_bar_diameter_mm)
         rows = {}
         for k, (kind, p) in enumerate(_slot_points(top_lines, n_support_bars, support_bar_diameter_mm,
-                                                   bar_diameter_mm, height, 0.0, direction)):
+                                                   bar_diameter_mm, height, 0.0, direction, vibrator=True)):
             g = 1 if k < n_long else 0
             xa, xb = support['x0'] - reach_l[g], support['x1'] + reach_r[g]
             q = at_point(p, xa)
@@ -1450,6 +1547,8 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
                 [[DB.Line.CreateBound(q, q + direction.Multiply((xb - xa) / _MM_PER_FT))]])
         for group in _grouped(rows, normal, u'Beam Support Bars'):
             support_sets.append((left['host'], group))
+        for group in _spacer_groups(rows, top_lines, bar_diameter_mm, height, direction):
+            spacer_sets.append((left['host'], group))
 
     span_ends = {}
     for i, span in enumerate(ordered):
@@ -1467,7 +1566,14 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         own = get_beam_axis(span['host']).Direction.DotProduct(direction) >= 0
         ends = (cont0, cont1) if own else (cont1, cont0)
         exts = tuple(ext_b) if own else (ext_b[1], ext_b[0])
-        span_ends[span['id']] = {'continuous_ends': ends, 'internal_bottom_ext_mm': exts}
+        stop = [None, None]
+        if flexible and i == 0 and ext0:
+            stop[0] = -cb.FLEX_BOTTOM_GAP_MM
+        if flexible and i == len(ordered) - 1 and ext1:
+            stop[1] = -cb.FLEX_BOTTOM_GAP_MM
+        stops = tuple(stop) if own else (stop[1], stop[0])
+        span_ends[span['id']] = {'continuous_ends': ends, 'internal_bottom_ext_mm': exts,
+                                 'bottom_stop_mm': stops}
     splice_sets = []
     if flexible:
         n_splice = cb.splice_bar_count(n_bottom_bars)
@@ -1485,5 +1591,11 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
             chains = [[[DB.Line.CreateBound(at(l, xa) + up, at(l, xb) + up)]] for l in splice_lines]
             for group in group_parallel_bar_chains_into_sets(chains, sp, normal, u'Beam Bottom Splice Bars'):
                 splice_sets.append((by_id[support['left']]['host'], group))
+        end_u_sets = _end_ubar_sets(axis0, top, bottom, side_a, side_b, cover_mm, bar_diameter_mm,
+                                    stirrup_bar_diameter_mm, normal, height, at, ordered, (ext0, ext1),
+                                    n_bottom_bars, lap_length_mm, warnings)
+    else:
+        end_u_sets = []
     return {'hanger_sets': hanger_sets, 'support_sets': support_sets, 'spans': span_ends,
-            'splice_sets': splice_sets, 'warnings': warnings}
+            'splice_sets': splice_sets, 'end_u_sets': end_u_sets, 'spacer_sets': spacer_sets,
+            'warnings': warnings}

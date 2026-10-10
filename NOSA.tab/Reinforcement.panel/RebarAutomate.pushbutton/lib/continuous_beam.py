@@ -100,16 +100,18 @@ def lap_cuts(x_start, x_end, spans, stock_mm, lap_mm):
     return segments, warnings
 
 
-def support_bar_slots(n_hangers, n_extra):
+def support_bar_slots(n_hangers, n_extra, keep_free=0):
     """
     Where the extra support bars go across the width: ('between', i) = midway between hanger
     bars i and i+1 in the top layer; ('second', i) = under hanger bar i in a second layer.
+    keep_free: gaps between hangers left empty for the poker vibrator (SMDSC MB1), central first.
     """
     slots = []
     between = list(range(max(n_hangers - 1, 0)))
     # fill from the middle outwards so a short list stays symmetrical
     middle = (len(between) - 1) / 2.0
     between.sort(key=lambda i: (abs(i - middle), i))
+    between = between[keep_free:]
     for i in between[:n_extra]:
         slots.append(('between', i))
     remaining = n_extra - len(slots)
@@ -195,6 +197,38 @@ FLEX_SPLICE_SHARE = 0.30      # bottom splice bars over an internal support: 30 
 def splice_bar_count(n_bottom):
     """Bottom splice bars over an internal support (SMDSC MB1): 30 % of the span bars, at least two."""
     return max(2, int(-(-FLEX_SPLICE_SHARE * n_bottom // 1)))
+
+
+END_UBAR_SHARE = 0.30         # SMDSC MB1: end U-bars, 30 % of the span bottom bars ...
+END_UBAR_SHARE_SIMPLE = 0.50  # ... 50 % at a simple support
+VIBRATOR_GAP_MM = 75.0        # SMDSC 4.2 / MB1: a 75 mm space for the poker for every 300 mm of width
+VIBRATOR_WIDTH_MM = 300.0
+SPACER_PITCH_MM = 1000.0      # SMDSC MB1 / Fig. 4.2: spacer bars between layers
+
+
+def end_ubar_count(n_bottom, simple=False):
+    """End U-bars of the flexible detailing (SMDSC MB1): 30 % of the span bottom bars (50 % on a simple support), at least two."""
+    share = END_UBAR_SHARE_SIMPLE if simple else END_UBAR_SHARE
+    return max(2, int(-(-share * n_bottom // 1)))
+
+
+def vibrator_gaps_needed(width_mm):
+    """75 mm gaps the top layer must leave for the poker vibrator: one for every 300 mm of width, at least one."""
+    return max(1, int(width_mm // VIBRATOR_WIDTH_MM))
+
+
+def spacer_dia_mm(bar_dia_mm):
+    """Spacer bar between two layers of main bars: 25 mm or the main bar size, whichever is greater."""
+    return max(25.0, float(bar_dia_mm))
+
+
+def spacer_positions_mm(lo, hi, pitch=SPACER_PITCH_MM, end=100.0):
+    """Positions of the spacer bars along a second layer from lo to hi: at most `pitch` apart, `end` in from each end."""
+    a, b = lo + end, hi - end
+    if b - a < 1.0:
+        return [(lo + hi) / 2.0]
+    n = int(-(-(b - a) // pitch)) + 1
+    return [a + (b - a) * k / (n - 1) for k in range(n)]
 
 
 def flexible_hanger_runs(x_start, x_end, supports):

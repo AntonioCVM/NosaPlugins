@@ -562,6 +562,17 @@ class BeamsMixin(object):
             anchorage = 40.0 * bar_dia
         return lap, anchorage
 
+    def _create_spacers(self, wrapper, host_groups, errors, created_rebars):
+        """Spacer bars between two layers of main bars at 1 m centres (SMDSC MB1), listed in the BBS."""
+        for host, group in host_groups:
+            bar_type = re_engine.get_bar_type_by_diameter(self.doc, group['diameter_mm'])
+            if bar_type is None:
+                errors.append(u'Beam {}: no H{:.0f} bar type for the spacer bars between layers.'.format(
+                    get_id_value(host.Id), float(group['diameter_mm'])))
+                continue
+            self._create_long_group(wrapper, host, group, bar_type, u'Beam Spacer Bar', u'spacer', errors,
+                                    created_rebars)
+
     def _create_long_group(self, wrapper, host, group, bar_type, label, layer, errors, created_rebars):
         """One grouped set of longitudinal bars (one Rebar Set, else bar by bar)."""
         hid = get_id_value(host.Id)
@@ -663,6 +674,17 @@ class BeamsMixin(object):
                 else:
                     self._stamp_layer(rebar, u'bottom_splice')
                     created_rebars.append(rebar)
+            for host, group in data.get('end_u_sets', []):
+                # FreeForm like the splice bars: both legs sit in a second layer
+                chains = group.get('all_curves') or [group['curves']]
+                rebar = wrapper.create_freeform_group(host, chains, bar_type,
+                                                      transaction_name=u'NOSA — Create Beam End U-Bars')
+                if rebar is None:
+                    errors.append(u'Beam {}: end U-bars — {}'.format(get_id_value(host.Id), wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'end_ubar')
+                    created_rebars.append(rebar)
+        self._create_spacers(wrapper, data.get('spacer_sets', []), errors, created_rebars)
         for host in line:      # the line's bars exist now: a failing span must not redo them
             ends = data['spans'].get(get_id_value(host.Id), {})
             try:
@@ -763,6 +785,7 @@ class BeamsMixin(object):
             link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])),
             continuous_ends=(span or {}).get('continuous_ends', (False, False)),
             internal_bottom_ext_mm=(span or {}).get('internal_bottom_ext_mm', (0.0, 0.0)),
+            bottom_stop_mm=(span or {}).get('bottom_stop_mm', (None, None)),
             include_top=span is None,
             n_support_bars=values.get('n_support', 0),
             support_bar_diameter_mm=values.get('support_dia'),
@@ -874,6 +897,7 @@ class BeamsMixin(object):
             for group in curves.get('span_bar_sets') or []:
                 self._create_long_group(wrapper, host, group, span_type, u'Beam Span Bar',
                                         u'bottom_span', errors, created_rebars)
+        self._create_spacers(wrapper, [(host, g) for g in curves.get('spacer_sets') or []], errors, created_rebars)
         side_groups = curves.get('side_bar_sets') or []
         if side_groups:
             # IStructE SMDSC 6.3: beams 1000 mm deep or more, H16 side bars at <= 250 mm
