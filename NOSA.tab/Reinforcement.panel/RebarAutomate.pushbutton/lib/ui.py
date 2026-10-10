@@ -1579,6 +1579,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         values['include_opening_diagonals'] = self.ChkOpeningDiagonals.IsChecked == True
         values['corner_torsion'] = self.ChkCornerTorsion.IsChecked == True
         values['top_over_supports'] = self.ChkTopOverSupports.IsChecked == True
+        values['flat_slab'] = self.ChkFlatSlab.IsChecked == True
+        values['alternate_bottom'] = self.ChkAlternateBottom.IsChecked == True
         if values['include_opening_diagonals']:
             values['opening_diagonal_dia'] = self._read_number(
                 self.TxtOpeningDiagonalDia.Text, u'Opening corner diagonal bar diameter', errors)
@@ -2461,7 +2463,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             opening_diagonal_dia_mm=values.get('opening_diagonal_dia'),
             stagger_laps=values.get('stagger_laps', False),
             corner_torsion=values.get('corner_torsion', False),
-            top_over_supports=values.get('top_over_supports', False))
+            top_over_supports=values.get('top_over_supports', False),
+            flat_slab=values.get('flat_slab', False),
+            alternate_bottom=values.get('alternate_bottom', False))
 
         bottom = reinforcement['bottom_mat']
         self._create_grouped_bars(
@@ -2506,7 +2510,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
         diagonals = reinforcement.get('opening_diagonals')
         if diagonals is not None:
-            diagonal_type = bar_types.get(values.get('opening_diagonal_dia'))
+            diagonal_dia = reinforcement.get('opening_diagonal_dia_mm') or values.get('opening_diagonal_dia')
+            if bar_types.get(diagonal_dia) is None:
+                bar_types[diagonal_dia] = re_engine.get_bar_type_by_diameter(self.doc, diagonal_dia)
+            diagonal_type = bar_types.get(diagonal_dia)
             for mat, layer in (('bottom', u'diagonal_bottom'), ('top', u'diagonal_top')):
                 if diagonals.get(mat) is not None:
                     self._create_grouped_bars(

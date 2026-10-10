@@ -83,3 +83,29 @@ def test_top_bars_over_supports():
     assert mr.support_strips_mm([2000.0], 0.0, 6000.0) == [(0.0, 6000.0)]     # a lone support: cantilevers
     assert mr.support_strips_mm([], 0.0, 6000.0) == []
     assert mr.row_runs(0.0, 200.0, 6, [(300.0, 700.0)]) == [(False, 0, 1), (True, 2, 3), (False, 4, 5)]
+
+
+def test_ms1_alternate_bottom_bars():
+    odd, even = mr.alternate_bottom_mm(0.0, 10000.0, [5000.0], 600.0)
+    assert odd == [(0.0, 4000.0), (4700.0, 9000.0)]
+    assert even == [(1000.0, 5300.0), (6000.0, 10000.0)]
+    assert mr.alternate_bottom_mm(0.0, 5000.0, [], 600.0) == ([], [])
+
+
+def test_flat_slab_strips_share_the_steel():
+    strips = mr.flat_slab_strips_mm(0.0, 12000.0, [0.0, 6000.0, 12000.0], 6000.0, 200.0)
+    # column line at 6000: central half +-750 at 100, outer halves to +-1500 at 200, middle strip 400
+    assert (5250.0, 6750.0, 100.0) in strips
+    assert (4500.0, 5250.0, 200.0) in strips and (6750.0, 7500.0, 200.0) in strips
+    assert (1500.0, 4500.0, 400.0) in strips
+    # the average stays the user's pitch: bars over one panel 0..6000
+    n = sum((min(b, 6000.0) - max(a, 0.0)) / p for a, b, p in strips if b > 0.0 and a < 6000.0)
+    assert abs(n - 6000.0 / 200.0) < 0.5
+    bottom = mr.flat_slab_strips_mm(0.0, 12000.0, [6000.0], 6000.0, 200.0, top=False)
+    assert (4500.0, 7500.0, 180.0) in bottom and bottom[0][2] == 220.0
+
+
+def test_strip_rows_and_bars_through():
+    runs = mr.strip_rows_mm(0.0, 1000.0, [(0.0, 400.0, 200.0), (400.0, 1000.0, 100.0)])
+    assert runs[0] == (0.0, 200.0, 3) and runs[1] == (500.0, 100.0, 6)
+    assert mr.bars_through([0.0, 100.0, 200.0, 300.0], 150.0, 150.0) == 2

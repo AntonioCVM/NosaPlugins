@@ -241,6 +241,109 @@ def row_runs(first_mm, pitch_mm, count, bands_mm):
     return runs
 
 
+BOTTOM_BAR_SPAN_SHARE = 0.8   # SMDSC MS1: bottom bars 0.8 x span + 0.5 x tension lap, alternately reversed
+
+
+def alternate_bottom_mm(lo_mm, hi_mm, supports_mm, lap_mm, share=BOTTOM_BAR_SPAN_SHARE, min_mm=100.0):
+    """
+    SMDSC MS1 bottom bars of a continuous slab, along one coordinate lo..hi with interior supports: in each
+    span every other bar runs from its left support (half a tension lap past it) to 0.8 x span, the others
+    reversed from the right one, so both overlap over the middle 0.6 span. Over an end support the bars run
+    on to the slab edge. Returns (pieces of the odd bars, pieces of the even bars): [(a, b)]; ([], []) when
+    there is no interior support (one span: the bars stay continuous).
+    """
+    inner = sorted(p for p in supports_mm if lo_mm + min_mm < p < hi_mm - min_mm)
+    if not inner:
+        return [], []
+    edges = [lo_mm] + inner + [hi_mm]
+    odd, even = [], []
+    for i in range(len(edges) - 1):
+        s0, s1 = edges[i], edges[i + 1]
+        span = s1 - s0
+        a0 = s0 - 0.5 * lap_mm if i > 0 else lo_mm
+        b1 = s1 + 0.5 * lap_mm if i + 2 < len(edges) else hi_mm
+        for out, (a, b) in ((odd, (a0, s0 + share * span)), (even, (s1 - share * span, b1))):
+            a, b = max(lo_mm, a), min(hi_mm, b)
+            if b - a >= min_mm:
+                out.append((a, b))
+    return odd, even
+
+
+FLAT_SLAB_NEGATIVE = (0.75, 2.0 / 3.0)   # SMDSC Table 6.2: column strip 75 %, 2/3 of it in its central half
+FLAT_SLAB_POSITIVE = 0.55                # ... and 55 % of the positive moment
+
+
+def _floor_to(value, step):
+    return step * math.floor(value / step + 1e-9)
+
+
+def flat_slab_strips_mm(lo_mm, hi_mm, lines_mm, short_span_mm, pitch_mm, top=True, min_pitch_mm=100.0,
+                        max_pitch_mm=400.0):
+    """
+    SMDSC 6.2 / Fig. 6.6 / Table 6.2 for the bars spaced across column lines lines_mm (one coordinate
+    lo..hi): the column strip is half the shorter panel either side ... a quarter each side of the line, the
+    rest the middle strip. The uniform pitch the user gave is the average: top (negative moment) 75 % in the
+    column strip, 2/3 of that in its central half (pitch / 2 there, the pitch in its outer halves, twice the
+    pitch in the middle strip); bottom 55 / 45 % (pitch / 1.1 and / 0.9). Pitches floor to 5 mm, kept within
+    min..max. Returns [(a, b, pitch)] covering lo..hi in order.
+    """
+    q = float(short_span_mm) / 4.0
+    if top:
+        bands = [(1.0 / 8.0, pitch_mm / 2.0), (1.0 / 4.0, pitch_mm)]
+        middle = 2.0 * pitch_mm
+    else:
+        bands = [(1.0 / 4.0, pitch_mm / (2.0 * FLAT_SLAB_POSITIVE))]
+        middle = pitch_mm / (2.0 * (1.0 - FLAT_SLAB_POSITIVE))
+
+    def clamp(p):
+        return min(max_pitch_mm, max(min_pitch_mm, _floor_to(p, 5.0)))
+    cuts = []                                   # (a, b, pitch, rank) rank 0 = densest
+    for c in sorted(lines_mm):
+        prev = 0.0
+        for rank, (half, p) in enumerate(bands):
+            w = half * 4.0 * q
+            for a, b in ((c - w, c - prev), (c + prev, c + w)):
+                if b > a:
+                    cuts.append((a, b, clamp(p), rank))
+            prev = w
+    points = sorted(set([lo_mm, hi_mm] + [x for a, b, _p, _r in cuts for x in (a, b) if lo_mm < x < hi_mm]))
+    out = []
+    for a, b in zip(points, points[1:]):
+        m = (a + b) / 2.0
+        hit = [c for c in cuts if c[0] <= m <= c[1]]
+        p = min(hit, key=lambda c: c[3])[2] if hit else clamp(middle)
+        if out and abs(out[-1][2] - p) < 1e-6:
+            out[-1] = (out[-1][0], b, p)
+        else:
+            out.append((a, b, p))
+    return out
+
+
+def strip_rows_mm(first_mm, last_mm, strips):
+    """Bar positions first..last laid at each strip's pitch: [(start, pitch, count)] runs, in order."""
+    lo, hi = min(first_mm, last_mm), max(first_mm, last_mm)
+    runs, last = [], None
+    for a, b, p in strips:
+        s, e = max(a, lo), min(b, hi)
+        if e < s - 1e-6:
+            continue
+        x = s if last is None else max(s, last + p)
+        xs = []
+        while x <= e + 1e-6:
+            xs.append(x)
+            x += p
+        if not xs:
+            continue
+        runs.append((xs[0], p, len(xs)))
+        last = xs[-1]
+    return runs
+
+
+def bars_through(rows_mm, centre_mm, width_mm):
+    """How many bars at rows_mm pass through a column of width_mm centred at centre_mm (SMDSC: at least 2)."""
+    return sum(1 for r in rows_mm if abs(r - centre_mm) <= width_mm / 2.0 + 1e-6)
+
+
 BAND_FACTOR = 1.5          # SMDSC 6.7: a band under the column when l > 1.5 (c + 3d)
 BAND_SHARE = 2.0 / 3.0
 

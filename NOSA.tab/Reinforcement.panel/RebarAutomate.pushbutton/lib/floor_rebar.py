@@ -1496,6 +1496,160 @@ def _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft, tol_mm=50.0):
     return _merge(along_y), _merge(along_x)
 
 
+def _merge_lines(values, tol_mm=300.0):
+    out = []
+    for v in sorted(values):
+        if out and v - out[-1][-1] <= tol_mm:
+            out[-1].append(v)
+        else:
+            out.append([v])
+    return [sum(g) / float(len(g)) for g in out]
+
+
+def _slab_columns_mm(doc, DB, bounds_mm, bottom_z_ft, tol_mm=50.0):
+    """Columns standing under the slab: [(x, y, width_x, width_y)] mm."""
+    xmin, xmax, ymin, ymax = bounds_mm
+    tol_ft = tol_mm / _MM_PER_FT
+    out = []
+    for col in DB.FilteredElementCollector(doc).OfCategory(
+            DB.BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType():
+        box = col.get_BoundingBox(None)
+        if box is None or not (box.Min.Z < bottom_z_ft - tol_ft and box.Max.Z >= bottom_z_ft - tol_ft):
+            continue
+        cx = (box.Min.X + box.Max.X) / 2.0 * _MM_PER_FT
+        cy = (box.Min.Y + box.Max.Y) / 2.0 * _MM_PER_FT
+        if xmin - tol_mm <= cx <= xmax + tol_mm and ymin - tol_mm <= cy <= ymax + tol_mm:
+            out.append((cx, cy, (box.Max.X - box.Min.X) * _MM_PER_FT, (box.Max.Y - box.Min.Y) * _MM_PER_FT))
+    return out
+
+
+def _set_rows(DB, st):
+    """(curve, unit normal, count, pitch mm) of a plain straight Set, else None."""
+    curves = st.get('curves') or []
+    spacing, length = st.get('spacing_mm') or 0.0, st.get('array_length_mm') or 0.0
+    if len(curves) != 1 or not isinstance(curves[0], DB.Line) or spacing <= 0.0:
+        return None
+    count = int(math.ceil(length / spacing - 1e-6)) + 1 if length > 0 else 1
+    pitch = length / (count - 1) if count > 1 else spacing
+    return curves[0], st['normal'].Normalize(), count, pitch
+
+
+def _restrip(DB, grouped, across, strips):
+    """Re-lay the plain straight Sets of one direction at the pitch of the strip each row falls in."""
+    from nosa_utils import mesh_rules
+    new_sets, bars = [], list(grouped.get('bars') or [])
+    for st in grouped.get('sets') or []:
+        rows = _set_rows(DB, st)
+        if rows is None:
+            new_sets.append(st)
+            continue
+        curve, n, count, pitch = rows
+        c0 = (curve.GetEndPoint(0).X, curve.GetEndPoint(0).Y)[across] * _MM_PER_FT
+        c1 = c0 + (n.X, n.Y)[across] * (count - 1) * pitch
+        axis = DB.XYZ.BasisX if across == 0 else DB.XYZ.BasisY
+        for x0, q, k in mesh_rules.strip_rows_mm(c0, c1, strips):
+            moved = curve.CreateTransformed(DB.Transform.CreateTranslation(axis.Multiply((x0 - c0) / _MM_PER_FT)))
+            if k > 1:
+                piece = dict((key, v) for key, v in st.items() if key != 'materialized_bars')
+                piece.update({'curves': [moved], 'normal': axis, 'spacing_mm': q + 0.01,
+                              'array_length_mm': (k - 1) * q})
+                new_sets.append(piece)
+            else:
+                bars.append({'curves': [moved], 'normal': st['normal']})
+    grouped['sets'], grouped['bars'] = new_sets, bars
+
+
+def _flat_slab(doc, DB, mats, bounds_mm, bottom_z_ft, max_pitch_mm):
+    """
+    IStructE SMDSC 6.2 / Fig. 6.6 / Table 6.2 (user option): over the columns standing under the slab, each mat
+    direction re-laid in column and middle strips at its share of the user's average pitch (top 75 % in the
+    column strip, 2/3 of that in its central half; bottom 55 %). mats: [(mat dict, is top, pitch)].
+    Returns (notes, column lines x, column lines y).
+    """
+    from nosa_utils import mesh_rules
+    xmin, xmax, ymin, ymax = bounds_mm
+    cols = _slab_columns_mm(doc, DB, bounds_mm, bottom_z_ft)
+    if not cols:
+        return [u'flat slab strips: no column found under the slab - the mats stay uniform.'], [], []
+    xs = _merge_lines([c[0] for c in cols])
+    ys = _merge_lines([c[1] for c in cols])
+    spans = [b - a for line in (xs, ys) for a, b in zip(line, line[1:])]
+    short = min(spans) if spans else min(xmax - xmin, ymax - ymin)
+    notes = [u'flat slab: {} column(s), column strips {:.0f} mm wide (half the {:.0f} mm shorter panel), '
+             u'pitches from the averages given by SMDSC Table 6.2.'.format(len(cols), short / 2.0, short)]
+    for mat, top, pitch in mats:
+        if mat is None or not pitch:
+            continue
+        for key, across, lines, lo, hi in ((u'along_x', 1, ys, ymin, ymax), (u'along_y', 0, xs, xmin, xmax)):
+            strips = mesh_rules.flat_slab_strips_mm(lo, hi, lines, short, pitch, top=top,
+                                                    max_pitch_mm=max_pitch_mm)
+            _restrip(DB, mat.get(key) or {}, across, strips)
+            if not top:
+                p_col = min(q for a, b, q in strips)
+                thin = [c for c in cols if min(c[2], c[3]) / p_col < 2.0]
+                if thin:
+                    notes.append(u'flat slab: {} column(s) narrower than two bottom bars at {:.0f} mm - SMDSC '
+                                 u'asks for at least two bottom bars through each column.'.format(len(thin), p_col))
+    return notes, xs, ys
+
+
+def _alternate_bottom(doc, DB, bottom_mat, bounds_mm, bottom_z_ft, laps_mm, extra=((), ())):
+    """
+    IStructE SMDSC MS1 (user option): the bottom bars of a continuous slab 0.8 x span + 0.5 x tension lap,
+    every other bar reversed, over the walls and beams under the slab (and the column lines of a flat slab).
+    Returns notes.
+    """
+    from nosa_utils import mesh_rules
+    xmin, xmax, ymin, ymax = bounds_mm
+    sup_x, sup_y = _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft)
+    sup_x, sup_y = list(sup_x) + list(extra[0]), list(sup_y) + list(extra[1])
+    done = 0
+    for key, along, sups, lap, lo, hi in ((u'along_x', 0, sup_x, laps_mm[0], xmin, xmax),
+                                          (u'along_y', 1, sup_y, laps_mm[1], ymin, ymax)):
+        odd, even = mesh_rules.alternate_bottom_mm(lo, hi, sups, lap)
+        grouped = bottom_mat.get(key) or {}
+        if not odd:
+            continue
+        new_sets, bars = [], list(grouped.get('bars') or [])
+        for st in grouped.get('sets') or []:
+            rows = _set_rows(DB, st)
+            if rows is None:
+                new_sets.append(st)
+                continue
+            curve, n, count, pitch = rows
+            p, q = curve.GetEndPoint(0), curve.GetEndPoint(1)
+            l0, l1 = sorted(((p.X, p.Y)[along] * _MM_PER_FT, (q.X, q.Y)[along] * _MM_PER_FT))
+            for parity, pieces in ((0, odd), (1, even)):
+                k = len(range(parity, count, 2))
+                if not k:
+                    continue
+                base = p + n.Multiply(parity * pitch / _MM_PER_FT)
+                for a, b in pieces:
+                    a, b = max(a, l0), min(b, l1)
+                    if b - a < 100.0:
+                        continue
+                    if along == 0:
+                        line = DB.Line.CreateBound(DB.XYZ(a / _MM_PER_FT, base.Y, base.Z),
+                                                   DB.XYZ(b / _MM_PER_FT, base.Y, base.Z))
+                    else:
+                        line = DB.Line.CreateBound(DB.XYZ(base.X, a / _MM_PER_FT, base.Z),
+                                                   DB.XYZ(base.X, b / _MM_PER_FT, base.Z))
+                    if k > 1:
+                        piece = dict((key2, v) for key2, v in st.items() if key2 != 'materialized_bars')
+                        piece.update({'curves': [line], 'spacing_mm': 2.0 * pitch + 0.01,
+                                      'array_length_mm': (k - 1) * 2.0 * pitch})
+                        new_sets.append(piece)
+                    else:
+                        bars.append({'curves': [line], 'normal': st['normal']})
+            done += 1
+        grouped['sets'], grouped['bars'] = new_sets, bars
+    if not done:
+        return [u'bottom bars 0.8 x span: no interior wall, beam or column line under the slab - the bottom mat '
+                u'stays continuous.']
+    return [u'bottom bars 0.8 x span + 0.5 lap, alternately reversed over {} support line(s) (SMDSC MS1).'.format(
+        len(sup_x) + len(sup_y))]
+
+
 def _top_over_supports(doc, DB, top_mat, bounds_mm, bottom_z_ft):
     """
     IStructE SMDSC MS1/MS2 (user option): the top mat only over the supports — the bars across a
@@ -1683,6 +1837,11 @@ def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, d
     return [(layer, dia, g) for (layer, dia), g in sorted(groups.items())], notes
 
 
+def _mm_depth(footing_mod, cover_mgr, bottom_z_ft):
+    top_face = footing_mod.get_footing_top_face(cover_mgr)
+    return (top_face.origin.Z - bottom_z_ft) * _MM_PER_FT if top_face is not None else 0.0
+
+
 def _hole_bbox(points):
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
@@ -1712,7 +1871,8 @@ def build_floor_reinforcement(doc, host,
                                y_anchor_ubar_dia_mm=None, y_anchor_ubar_spacing_mm=None,
                                max_stock_length_mm=12000.0, std=None,
                                include_opening_diagonals=False, opening_diagonal_dia_mm=None,
-                               stagger_laps=False, corner_torsion=False, top_over_supports=False):
+                               stagger_laps=False, corner_torsion=False, top_over_supports=False,
+                               flat_slab=False, alternate_bottom=False):
     """
     Phase 2.3 pipeline for one floor/slab host. See module docstring
     for the four hardening fixes over Phase 2.2. Real cover is applied
@@ -1941,6 +2101,21 @@ def build_floor_reinforcement(doc, host,
                 doc, DB, result['top_mat'], (top_xmin_mm, top_xmax_mm, top_ymin_mm, top_ymax_mm),
                 bottom_z_ft)
 
+    column_lines = ((), ())
+    if flat_slab:
+        notes, xs, ys = _flat_slab(
+            doc, DB, [(result['bottom_mat'], False, bottom_spacing_mm),
+                      (result['top_mat'], True, top_spacing_mm)],
+            (xmin_mm, xmax_mm, ymin_mm, ymax_mm), bottom_z_ft,
+            mesh_rules.slab_max_pitch_mm(_mm_depth(footing_mod, cover_mgr, bottom_z_ft)))
+        column_lines = (xs, ys)
+        result['top_notes'] = (result.get('top_notes') or []) + notes
+    if alternate_bottom:
+        laps = tuple(footing_mod.default_lap_mm(d, std=std, good_bond=True)
+                     for d in (bottom_dia_x_mm, bottom_dia_y_mm))
+        result['top_notes'] = (result.get('top_notes') or []) + _alternate_bottom(
+            doc, DB, result['bottom_mat'], (xmin_mm, xmax_mm, ymin_mm, ymax_mm), bottom_z_ft, laps, column_lines)
+
     if include_perimeter_closure_ubars:
         # Closure U-bars sit at the ALREADY cover-offset boundary (bottom
         # mat's own offset polygons are the reference here, since a
@@ -1963,6 +2138,13 @@ def build_floor_reinforcement(doc, host,
             y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
             raw_holes=raw_holes, mat_rows=rows)
 
+    # SMDSC 6.2 (vii): openings of 500-1000 mm in slabs over 250 mm get corner diagonals top and bottom
+    auto_diagonal_holes = []
+    if raw_holes and not include_opening_diagonals and _mm_depth(footing_mod, cover_mgr, bottom_z_ft) > 250.0:
+        for hole in raw_holes:
+            hx0, hx1, hy0, hy1 = _hole_bbox(hole)
+            if mesh_rules.slab_hole_class(hx1 - hx0, hy1 - hy0) == u'both':
+                auto_diagonal_holes.append(hole)
     if raw_holes:
         result['hole_trimmers'], result['hole_notes'] = _hole_trimmers(
             DB, raw_holes, (xmin_mm, xmax_mm, ymin_mm, ymax_mm), side_cover_mm,
@@ -1971,7 +2153,7 @@ def build_floor_reinforcement(doc, host,
             + ([(u'trimmer_top', top_dia_x_mm, top_dia_y_mm, top_spacing_mm, t1_z_ft, t2_z_ft)]
                if include_top_mat else []),
             (top_z_ft - bottom_z_ft) * _MM_PER_FT if top_z_ft is not None else 0.0,
-            include_opening_diagonals)
+            include_opening_diagonals or bool(auto_diagonal_holes))
 
     if corner_torsion:
         if top_z_ft is None:
@@ -1984,13 +2166,19 @@ def build_floor_reinforcement(doc, host,
                 top_dia_y_mm if include_top_mat else None, top_spacing_mm if include_top_mat else None,
                 top_cover_mm if include_top_mat else None)
 
-    if include_opening_diagonals and raw_holes:
-        if not opening_diagonal_dia_mm:
+    if (include_opening_diagonals and raw_holes) or auto_diagonal_holes:
+        if include_opening_diagonals and not opening_diagonal_dia_mm:
             raise ValueError(u'include_opening_diagonals requires opening_diagonal_dia_mm.')
-        dia = opening_diagonal_dia_mm
+        dia = opening_diagonal_dia_mm if include_opening_diagonals else max(bottom_dia_x_mm, bottom_dia_y_mm)
+        result['opening_diagonal_dia_mm'] = dia
         half_mm = footing_mod.default_anchorage_length_mm(dia, std=std)
         segments, n_skipped = opening_corner_diagonals_mm(
-            topo, raw_holes, bottom_outer, bottom_holes, side_cover_mm, dia, half_mm)
+            topo, raw_holes if include_opening_diagonals else auto_diagonal_holes, bottom_outer, bottom_holes,
+            side_cover_mm, dia, half_mm)
+        if not include_opening_diagonals:
+            result['hole_notes'] = (result.get('hole_notes') or []) + [
+                u'{} opening(s) of 500-1000 mm in a slab over 250 mm: corner diagonals H{:.0f} added top and bottom '
+                u'(SMDSC 6.2).'.format(len(auto_diagonal_holes), dia)]
         # Each diagonal sits on the inner face of its mat, clear of both layers.
         diag_bottom_z = b2_z_ft + (bottom_dia_y_mm + dia) / 2.0 / _MM_PER_FT
         diagonals = {'bottom': _diagonal_bars(engine, DB, segments, diag_bottom_z),
