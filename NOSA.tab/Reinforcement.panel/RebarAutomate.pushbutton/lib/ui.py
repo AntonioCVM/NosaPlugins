@@ -125,12 +125,9 @@ class _CategorySelectionFilter(ISelectionFilter):
 
 
 def is_ground_beam(element):
-    """A line-based Structural Foundation (the NOSA 'RC Ground Beam' tie beam): reinforced as a beam."""
-    try:
-        return (get_id_value(element.Category.Id) == _cat_id('OST_StructuralFoundation')
-                and isinstance(element.Location, DB.LocationCurve))
-    except Exception:
-        return False
+    """The NOSA 'RC Ground Beam' tie beam (nosa_utils.revit_helpers): reinforced as a beam."""
+    from nosa_utils.revit_helpers import is_ground_beam as _is_ground_beam
+    return _is_ground_beam(element)
 
 
 def _is_valid_rebar_host(element):

@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 """
+SUPERSEDED 2026-10-10: Revit leaves a line-based Structural Foundation at the origin; the v30
+"RC Ground Beam" is now a Structural Framing copy of "RC Beam". Kept for the record.
+
 "RC Ground Beam": line-based Structural Foundation family (user 2026-10-05) so tie beams land in the
 foundation and concrete schedules. Width (centred, EQ) and Depth (down from the placement level) drive a
 prism locked to the Left/Right ends; geometry material = Structural Material (Concrete - Generic).

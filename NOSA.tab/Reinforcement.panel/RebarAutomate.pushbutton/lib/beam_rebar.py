@@ -685,11 +685,17 @@ def _as_curves(segment):
     return list(segment) if isinstance(segment, (list, tuple)) else [segment]
 
 
-def support_extensions_mm(doc, axis, end_inset_mm):
+def support_extensions_mm(doc, axis, end_inset_mm, foundations=False):
     """
     (start, end) mm a beam bar runs on past each end of `axis` to reach the far face of the
     structural column it frames into, less end_inset_mm; 0 where no column is found.
+    foundations: a ground beam, whose supports are also the pile caps and pads it runs into; its
+    main bars then continue right across them (IStructE SMDSC 6.7).
     """
+    from nosa_utils.revit_helpers import is_ground_beam
+    categories = [DB.BuiltInCategory.OST_StructuralColumns]
+    if foundations:
+        categories.append(DB.BuiltInCategory.OST_StructuralFoundation)
     exts = []
     direction = axis.Direction
     for point, outward in ((axis.GetEndPoint(0), direction.Negate()), (axis.GetEndPoint(1), direction)):
@@ -697,9 +703,10 @@ def support_extensions_mm(doc, axis, end_inset_mm):
         reach = DB.XYZ(30.0 / _MM_PER_FT, 30.0 / _MM_PER_FT, 300.0 / _MM_PER_FT)
         ext = 0.0
         try:
-            columns = DB.FilteredElementCollector(doc).OfCategory(
-                DB.BuiltInCategory.OST_StructuralColumns).WhereElementIsNotElementType().WherePasses(
-                DB.BoundingBoxIntersectsFilter(DB.Outline(probe - reach, probe + reach)))
+            columns = [e for cat in categories for e in DB.FilteredElementCollector(doc).OfCategory(cat)
+                       .WhereElementIsNotElementType().WherePasses(
+                           DB.BoundingBoxIntersectsFilter(DB.Outline(probe - reach, probe + reach)))
+                       if not is_ground_beam(e)]
             for column in columns:
                 bbox = column.get_BoundingBox(None)
                 corners = [DB.XYZ(x, y, z) for x in (bbox.Min.X, bbox.Max.X)
@@ -1081,7 +1088,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     # Anchorage into the supporting columns (user decision 2026-10-01): through the
     # column to its far face, then a 90 degree leg back into the beam.
     end_inset_mm = cover_mm + stirrup_bar_diameter_mm
-    ext0_mm, ext1_mm = support_extensions_mm(doc, axis, end_inset_mm)
+    from nosa_utils.revit_helpers import is_ground_beam
+    ext0_mm, ext1_mm = support_extensions_mm(doc, axis, end_inset_mm, foundations=is_ground_beam(host))
     # T7.2 — a span of a continuous beam: at an intermediate support the bottom bars only run
     # straight into it (no leg) and the top bars are the line's own continuous hanger bars.
     b_ext0 = internal_bottom_ext_mm[0] if continuous_ends[0] else ext0_mm
@@ -1462,8 +1470,10 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
     height = top.normal.Normalize()
     clear_mm = abs((top_lines[0].GetEndPoint(0) - bottom_lines[0].GetEndPoint(0)).DotProduct(height)) * _MM_PER_FT
     end_inset = cover_mm + stirrup_bar_diameter_mm
-    ext0, _e = support_extensions_mm(doc, axis0, end_inset)
-    _e, ext1 = support_extensions_mm(doc, axes[last.Id], end_inset)
+    from nosa_utils.revit_helpers import is_ground_beam
+    ground = is_ground_beam(first)
+    ext0, _e = support_extensions_mm(doc, axis0, end_inset, foundations=ground)
+    _e, ext1 = support_extensions_mm(doc, axes[last.Id], end_inset, foundations=ground)
     x_start, x_end = ordered[0]['x0'] - ext0, ordered[-1]['x1'] + ext1
 
     def at(line, x):

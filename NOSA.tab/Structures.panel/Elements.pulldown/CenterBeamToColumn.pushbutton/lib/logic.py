@@ -43,13 +43,9 @@ def _category_value(element):
 
 
 def is_ground_beam(element):
-    """Structural foundation with a LocationCurve (behaves like a beam)."""
-    try:
-        if _category_value(element) != int(DB.BuiltInCategory.OST_StructuralFoundation):
-            return False
-        return isinstance(element.Location, DB.LocationCurve)
-    except Exception:
-        return False
+    """The NOSA 'RC Ground Beam' (framing named Ground Beam, or a line-based foundation)."""
+    from nosa_utils.revit_helpers import is_ground_beam as _is_ground_beam
+    return _is_ground_beam(element)
 
 
 def is_pilecap(element):
@@ -76,7 +72,7 @@ def classify_selection(elements):
             continue
         cat = _category_value(el)
         if cat == framing:
-            sel['beams'].append(el)
+            sel['ground_beams' if is_ground_beam(el) else 'beams'].append(el)
         elif cat == columns:
             sel['columns'].append(el)
         elif cat == foundation:
