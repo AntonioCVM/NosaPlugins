@@ -248,3 +248,32 @@ def helix_pieces_mm(height_mm, pitch_mm, radius_mm, stock_mm=HELIX_STOCK_MM):
         if z + h >= height_mm - 1e-6:
             return out
         z += h - pitch_mm
+
+
+def exact_pitch_positions(lo_mm, hi_mm, pitch_mm):
+    """
+    Links lo..hi at exactly `pitch` (round spacings on the drawing, user 2026-10-10: 200, not 194), the run
+    centred so the remainder under one pitch is shared by its two ends; the middle when shorter than a pitch.
+    """
+    span = hi_mm - lo_mm
+    if span <= 0:
+        return []
+    if span < pitch_mm:
+        return [(lo_mm + hi_mm) / 2.0]
+    n = int(math.floor(span / pitch_mm + 1e-9))
+    start = lo_mm + (span - n * pitch_mm) / 2.0
+    return [start + k * pitch_mm for k in range(n + 1)]
+
+
+def interior_exact_positions(a_mm, b_mm, pitch_mm):
+    """
+    Links between two links already at a and b (the ends of the zones either side), at exactly `pitch`: the
+    remainder goes to the two gaps next to a and b, each between half a pitch and a pitch.
+    """
+    span = b_mm - a_mm
+    n = int(math.floor(span / pitch_mm + 1e-9))
+    rem = span - n * pitch_mm
+    if rem < 1.0:
+        return [a_mm + k * pitch_mm for k in range(1, n)]
+    edge = (rem + pitch_mm) / 2.0
+    return [a_mm + edge + k * pitch_mm for k in range(n)]

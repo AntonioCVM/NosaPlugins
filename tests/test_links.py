@@ -87,3 +87,14 @@ def test_helix_pieces():
     pieces = links.helix_pieces_mm(2900.0, 100.0, 175.0)          # 1.1 m a turn: 10 turns in 12 m
     assert pieces[0] == (0.0, 900.0) and pieces[1][0] == 800.0    # next piece laps one turn
     assert abs(pieces[-1][0] + pieces[-1][1] - 2900.0) < 1e-6
+
+
+def test_round_link_pitches():
+    from nosa_utils import links as lk
+    pts = lk.exact_pitch_positions(0.0, 1050.0, 200.0)
+    assert pts == [25.0, 225.0, 425.0, 625.0, 825.0, 1025.0]
+    assert lk.exact_pitch_positions(0.0, 150.0, 200.0) == [75.0]
+    mid = lk.interior_exact_positions(1200.0, 4312.0, 200.0)          # 3112 = 15 x 200 + 112
+    assert all(abs((b - a) - 200.0) < 1e-6 for a, b in zip(mid, mid[1:]))
+    assert 100.0 <= mid[0] - 1200.0 <= 200.0 and 100.0 <= 4312.0 - mid[-1] <= 200.0
+    assert lk.interior_exact_positions(0.0, 1000.0, 200.0) == [200.0, 400.0, 600.0, 800.0]

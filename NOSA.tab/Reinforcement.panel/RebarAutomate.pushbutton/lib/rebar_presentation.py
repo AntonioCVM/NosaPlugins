@@ -131,6 +131,7 @@ def _note(doc, view, point, text, type_id):
 GAP_PAPER_MM = 1.5           # between texts
 OUTSIDE_PAPER_MM = 6.0       # a calling-up past the member's edge
 CUT_OUTSIDE_PAPER_MM = 2.0   # a cut bar's mark, no pointer, next to the member's face
+FREE_GAP_PAPER_MM = 0.5      # between the marks of cut bars side by side
 CROP_MARGIN_PAPER_MM = 4.0   # the view's crop round its calling-up
 ROW_PAPER_MM = 7.0           # between rows of indicator lines under a beam
 ZONE_TAG = u'Full label - Dot'
@@ -144,6 +145,8 @@ CALLOUT_TAG = u'Callout - Dot'          # NOSA Rebar Tag 1.3.0
 ZONE_QTY_TAG = u'Zone quantity - Dot'
 CALLOUT_PARAM = u'NOSA_Rebar_Callout'
 ZONE_QTY_PARAM = u'NOSA_Rebar_Zone_Qty'
+LINK_RUN_GAP_MM = 1000.0     # zones of one mark further apart get their own total line under a beam
+NOTE_PARAM = u'NOSA_Rebar_Note'          # L-BARS, U-BARS, LINKS ... after the calling-up
 MAX_TAG_TRIES = 6
 
 
@@ -227,26 +230,45 @@ def _outline(view, elements):
     return (min(xs), min(ys), max(xs), max(ys)) if xs else None
 
 
-def _size(view, tag):
-    """(width, height, offset of the box centre from the head) of a tag in view mm."""
-    bb = tag.get_BoundingBox(view)
-    if bb is None:
-        return None
-    a, b = _xy(view, bb.Min), _xy(view, bb.Max)
-    x0, x1, y0, y1 = min(a[0], b[0]), max(a[0], b[0]), min(a[1], b[1]), max(a[1], b[1])
-    head = _xy(view, tag.TagHeadPosition)
-    return x1 - x0, y1 - y0, ((x0 + x1) / 2.0 - head[0], (y0 + y1) / 2.0 - head[1])
+def _size(view, tag, text=None):
+    """
+    (width, height across the view, offset of the text centre from the head) of a tag's text in view mm. From its
+    text at the drawing's lettering size, not Revit's box: the NOSA Rebar Tag labels are boxes far wider than
+    their text (some 50 mm on paper, measured 2026-10-10) and a Multi-Rebar Annotation's tag does not give its
+    text; the text of every NOSA tag is centred on its head.
+    """
+    return _estimate(view, tag, text)
 
 
-def _estimate(view, tag):
-    """(width, height, offset) of a tag Revit gives no box for, from its text at the drawing's lettering size."""
+def _estimate(view, tag, text=None):
+    """(width, height, offset) of a tag's text at the drawing's lettering size (Century Gothic, 2.5 mm)."""
     scale = max(1, int(getattr(view, 'Scale', 50) or 50))
-    try:
-        text = tag.TagText or u''
-    except Exception:
-        text = u''
+    if text is None:
+        try:
+            text = tag.TagText or u''
+        except Exception:
+            text = u''
     h = TEXT_PAPER_MM * scale
-    return (max(len(text), 2) * 0.75 + 0.5) * h, 1.3 * h, (0.0, 0.0)
+    w, t = (max(len(text), 2) * 0.58 + 0.2) * h, 1.3 * h     # Century Gothic: 0.57 h a character, measured
+    try:
+        if tag.TagOrientation == DB.TagOrientation.Vertical:
+            return t, w, (0.0, 0.0)
+    except Exception:
+        pass
+    return w, t, (0.0, 0.0)
+
+
+def _zone_text(doc, d):
+    """The calling-up an indicator line's tag writes (a Multi-Rebar Annotation's tag does not say), for its size."""
+    rebar = d['rebar']
+    qty = _text(rebar, ZONE_QTY_PARAM)
+    try:
+        dia = doc.GetElement(rebar.GetTypeId()).BarNominalDiameter * _MM_PER_FT
+    except Exception:
+        dia = 16.0
+    full = u'{}H{:.0f}-{}-{:.0f} B1 {}'.format(d['count'], dia, d['mark'], d.get('spacing') or 0.0,
+                                                _text(rebar, NOTE_PARAM)).strip()
+    return qty, full
 
 
 def _move_head(view, tag, centre, offset):
@@ -330,6 +352,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if d['view_dot'] < 0.5 and hosts is not None:
             report['ticks'] += _ticks(doc, view, d, hosts, cover_mm, scale, style)
         pointers.append(d)
+    _notes(doc, visible)
     elevation = kind in ELEVATION_KINDS
     beam_elevation = not plan and kind in (None, 'elevation') and any(
         m is not None and m.Category is not None and
@@ -346,6 +369,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report)
         else:
             _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, elevation)
+    if not plan:
+        _end_marks(doc, view, [d for d in pointers if d['view_dot'] < 0.5], tag_types, gap, placed, report)
     for a, _b, label in presentation.relations(zones):
         bx = made.get(a)
         if bx is None:
@@ -355,6 +380,112 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             report['notes'] += 1
     _fit_crop(view, [box] + placed, CROP_MARGIN_PAPER_MM * scale)
     return report
+
+
+def _strip_note(text, note):
+    """A tag's text without the bar note at its end (the label may carry NOSA_Rebar_Note already)."""
+    text = (text or u'').strip()
+    if note and text.endswith(note):
+        text = text[:-len(note)].strip()
+    return text
+
+
+def _notes(doc, rebars):
+    """
+    NOSA_Rebar_Note of each set from its shape (user 2026-10-10): L-BARS, U-BARS, LINKS, LINKS IN 2s where two
+    links of a host stand at each position; blank for straight bars.
+    """
+    shapes, links = {}, {}
+    for r in rebars:
+        try:
+            code = DB.Element.Name.GetValue(doc.GetElement(r.GetShapeId()))
+        except Exception:
+            code = _text(r, u'NOSA_Rebar_Shape_Code')
+        shapes[get_id_value(r.Id)] = code
+        if presentation.bar_note(code) == u'LINKS':
+            line = _main_line(r, 0)
+            if line is not None:
+                links.setdefault(get_id_value(r.GetHostId()), []).append((r, line.Evaluate(0.5, True)))
+    twos = set()
+    for sets in links.values():
+        for i, (a, pa) in enumerate(sets):
+            for b, pb in sets[i + 1:]:
+                if a.NumberOfBarPositions == b.NumberOfBarPositions and _same_station(a, pa, b, pb):
+                    twos.update((get_id_value(a.Id), get_id_value(b.Id)))
+    for r in rebars:
+        rid = get_id_value(r.Id)
+        p = r.LookupParameter(NOTE_PARAM)
+        if p is not None and not p.IsReadOnly:
+            p.Set(presentation.bar_note(shapes.get(rid), rid in twos))
+
+
+def _same_station(a, pa, b, pb, tol_mm=30.0):
+    """Two link sets whose first links stand at the same place along the member (links in 2s)."""
+    try:
+        n = a.GetShapeDrivenAccessor().Normal
+    except Exception:
+        return False
+    return abs((pa - pb).DotProduct(n)) * _MM_PER_FT <= tol_mm
+
+
+def _end_marks(doc, view, items, tag_types, gap, placed, report):
+    """
+    The mark at each end of a bar lying in a section or elevation, with an arrow to where it stops (user
+    2026-10-10, SMDSC beam on grid line 6, E to F), so a reader can tell which bar ends there. Closed links
+    have no ends. The text goes just past the end, clear of what is already drawn.
+    """
+    from nosa_utils import callout_layout
+    type_id = tag_types.get(POINTER_TAG)
+    if type_id is None:
+        return
+    for d in items:
+        rebar = d['rebar']
+        index = _shown_bar(view, rebar, d['count'])
+        chain = _centreline(rebar, index) or d['chain']
+        if not chain or chain[0].GetEndPoint(0).IsAlmostEqualTo(chain[-1].GetEndPoint(1), 60.0 / _MM_PER_FT):
+            continue
+        ends = ((chain[0].GetEndPoint(0), chain[0].GetEndPoint(0) - chain[0].Evaluate(0.1, True)),
+                (chain[-1].GetEndPoint(1), chain[-1].GetEndPoint(1) - chain[-1].Evaluate(0.9, True)))
+        for end, outward in ends:
+            o = _xy(view, outward)
+            n = (o[0] ** 2 + o[1] ** 2) ** 0.5
+            if n < 1e-6:
+                continue                                   # the bar runs towards the viewer there
+            o = (o[0] / n, o[1] / n)
+            perp = (-o[1], o[0])
+            try:
+                tag, _i = _tag_bar(doc, view, rebar, index, type_id)
+            except Exception:
+                tag = None
+            if tag is None:
+                continue
+            w, h, offset = _estimate(view, tag)
+            e = _xy(view, end)
+            spot = None
+            for k in (1.0, 2.0, 3.0, 4.0):
+                for side in (1.0, -1.0):
+                    c = (e[0] + o[0] * (2.0 * gap + w / 2.0) + perp[0] * side * k * (h / 2.0 + gap),
+                         e[1] + o[1] * (2.0 * gap + w / 2.0) + perp[1] * side * k * (h / 2.0 + gap))
+                    bx = (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)
+                    if not any(callout_layout.overlap(bx, q, gap / 2.0) for q in placed):
+                        spot = (c, bx)
+                        break
+                if spot:
+                    break
+            if spot is None:
+                doc.Delete(tag.Id)
+                continue
+            _move_head(view, tag, spot[0], offset)
+            try:
+                tag.HasLeader = True
+                tag.LeaderEndCondition = DB.LeaderEndCondition.Free
+                refs = list(tag.GetTaggedReferences())
+                if refs:
+                    tag.SetLeaderEnd(refs[0], end)
+            except Exception:
+                pass
+            placed.append(spot[1])
+            report['marks'] += 1
 
 
 def _fit_crop(view, boxes, margin):
@@ -433,9 +564,10 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
     doc.Regenerate()
     for d, mra, a3, b3, origin in pending:
         tag = doc.GetElement(mra.TagId)
-        size = _size(view, tag) if tag is not None else None
-        if size is None:
+        if tag is None:
             continue
+        qty_text, full_text = _zone_text(doc, d)
+        size = _size(view, tag, qty_text if d['id'] in qty else full_text)
         w, h, offset = size
         a, b = _xy(view, a3), _xy(view, b3)
         if d['id'] in qty:
@@ -527,11 +659,23 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
     top = min([box[1]] + [q[1] for q in placed]) - outside
     groups = {}
     for d in zones:
-        groups.setdefault((d['mark'], get_id_value(d['rebar'].GetTypeId())), []).append(d)
+        groups.setdefault((d['mark'], get_id_value(d['rebar'].GetTypeId()), _text(d['rebar'], u'NOSA_Rebar_Layer')),
+                          []).append(d)
     spans = []
     for key, group in groups.items():
-        xs = [x for d in group for x in (d['first'][0], d['last'][0])]
-        spans.append([min(xs), max(xs), key, group])
+        # a mark's zones next to each other share one total line; the same mark again further along (an
+        # identical beam beyond another span) gets its own (user 2026-10-10)
+        run, runs = [], []
+        for d in sorted(group, key=lambda z: min(z['first'][0], z['last'][0])):
+            reach = max(max(z['first'][0], z['last'][0]) for z in run) if run else None
+            if run and min(d['first'][0], d['last'][0]) - reach > LINK_RUN_GAP_MM:
+                runs.append(run)
+                run = []
+            run.append(d)
+        runs.append(run)
+        for run in runs:
+            xs = [x for d in run for x in (d['first'][0], d['last'][0])]
+            spans.append([min(xs), max(xs), key, run])
     rows_used = []
     made = {}
     for x0, x1, key, group in sorted(spans, key=lambda s: (s[0], s[1])):
@@ -560,10 +704,11 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
             pending.append((d, mra, a, b))
         if not pending:
             continue
-        links = any(_text(d['rebar'], u'NOSA_Rebar_Layer').startswith(u'stirrup') for d, _m, _a, _b in pending)
         main = max(pending, key=lambda e: (e[0]['count'], -e[0]['id']))[0]
-        callout = presentation.total_callout(_full_label(doc, view, main, short_type),
-                                             sum(e[0]['count'] for e in pending), links)
+        note = _text(main['rebar'], NOTE_PARAM) or (u'LINKS' if _text(main['rebar'], u'NOSA_Rebar_Layer')
+                                                       .startswith(u'stirrup') else u'')
+        callout = presentation.total_callout(_strip_note(_full_label(doc, view, main, short_type), note),
+                                             sum(e[0]['count'] for e in pending), note)
         for d, mra, a, b in pending:
             ok = _set(d['rebar'], ZONE_QTY_PARAM, presentation.zone_quantity(d['count'], d['spacing']))
             _set(d['rebar'], CALLOUT_PARAM, callout)
@@ -576,9 +721,9 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
         doc.Regenerate()
         for d, mra, a, b in pending:
             tag = doc.GetElement(mra.TagId)
-            size = _size(view, tag) if tag is not None else None
-            if size is None:
+            if tag is None:
                 continue
+            size = _size(view, tag, _text(d['rebar'], ZONE_QTY_PARAM))
             w, h, offset = size
             centre = ((a + b) / 2.0, y_zone + gap / 2.0 + h / 2.0)
             _move_head(view, tag, centre, offset)
@@ -669,7 +814,10 @@ def _strict_zones(doc, view, pending):
     groups = {}
     for entry in pending:
         d = entry[0]
-        key = (d['mark'], get_id_value(d['rebar'].GetTypeId()), round(d.get('spacing') or 0.0))   # one pitch, one zone
+        # one pitch and one layer, one calling-up: identical bars of both directions share a mark, and a
+        # total over both layers was wrong (user 2026-10-10)
+        key = (d['mark'], get_id_value(d['rebar'].GetTypeId()), round(d.get('spacing') or 0.0),
+               _text(d['rebar'], u'NOSA_Rebar_Layer'))
         if d['mark']:
             groups.setdefault(key, []).append(entry)
     qty, callouts = set(), []
@@ -683,8 +831,10 @@ def _strict_zones(doc, view, pending):
         text = _full_label(doc, view, main[0], types.get(ZONE_TAG))
         if not text[:1].isdigit():
             continue
-        callout = re.sub(u'^\\d+', u'{}'.format(sum(e[0]['count'] for e in entries)), text)
+        note = _text(main[0]['rebar'], NOTE_PARAM)
+        callout = re.sub(u'^\\d+', u'{}'.format(sum(e[0]['count'] for e in entries)), _strip_note(text, note))
         callout = re.sub(u'\\d+\\.\\d+', lambda m: u'{:.0f}'.format(float(m.group(0))), callout)   # 150.0, 194.5
+        callout = u'{} {}'.format(callout, note) if note else callout
         for e in entries:
             e[0]['rebar'].LookupParameter(CALLOUT_PARAM).Set(callout)
             e[0]['rebar'].LookupParameter(ZONE_QTY_PARAM).Set(u'({})'.format(e[0]['count']))
@@ -972,9 +1122,9 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             item['free'], item['outside'] = True, CUT_OUTSIDE_PAPER_MM * scale
         layout.append(item)
     for side in ('top', 'bottom'):
-        row = [it for it in layout if it['side'] == side]
-        if row and (mode == 'beam' or callout_layout.crowded([it['anchor'][0] for it in row],
-                                                            max(it['length'] for it in row), gap)):
+        row = [it for it in layout if it['side'] == side and not it.get('free')]
+        if row and (mode == 'beam' or mode and callout_layout.crowded([it['anchor'][0] for it in row],
+                                                                     max(it['length'] for it in row), gap)):
             for it in row:
                 it['vertical'] = True
     for it, (key, tag, anchor) in zip(layout, entries):
@@ -991,7 +1141,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
         if size is not None:
             w, h, offsets[key] = size
             it['length'], it['height'] = (h, w) if it.get('vertical') else (w, h)
-    places = callout_layout.place_pointers(layout, box, gap, outside)
+    places = callout_layout.place_pointers(layout, box, gap, outside, free_gap=FREE_GAP_PAPER_MM * scale)
     for key, tag, anchor in entries:
         if key not in places or not tag.IsValidObject:
             continue

@@ -68,5 +68,10 @@ def test_face_of_a_bar():
 def test_link_zone_texts():
     assert pr.zone_quantity(17, 194.5) in (u'17/194', u'17/195')
     assert pr.zone_quantity(13, 100.0) == u'13/100'
-    assert pr.total_callout(u'26H8-06', 43, links=True) == u'43H8-06 LINKS'
+    assert pr.total_callout(u'26H8-06', 43, u'LINKS') == u'43H8-06 LINKS'
     assert pr.total_callout(u'20H16-01 B1', 39) == u'39H16-01 B1'
+
+
+def test_bar_notes():
+    assert pr.bar_note(u'00') == u'' and pr.bar_note(u'11') == u'L-BARS' and pr.bar_note(u'21') == u'U-BARS'
+    assert pr.bar_note(u'51') == u'LINKS' and pr.bar_note(u'52', in_twos=True) == u'LINKS IN 2s'

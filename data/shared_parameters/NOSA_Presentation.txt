@@ -8,3 +8,4 @@ GROUP	1	NOSA_Rebar_Presentation
 *PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
 PARAM	4c666f1b-5b86-4874-8c9a-42b673fb692d	NOSA_Rebar_Callout	TEXT		1	1	Calling-up of the bar mark on its drawing, the number written once for all its zones, e.g. 39H16-01-150 B1 (SMDSC 4.2.1)	1	0
 PARAM	5e948ecd-e6eb-444b-8f6e-f296794cca95	NOSA_Rebar_Zone_Qty	TEXT		1	1	Number of bars of this zone in brackets when the mark spans several zones, e.g. (20) (SMDSC 6.2.2)	1	0
+PARAM	c1e9d1f4-4fc4-4841-9f00-0fd6c04d12f7	NOSA_Rebar_Note	TEXT		1	1	What kind of bar, written after its calling-up: L-BARS, U-BARS, LINKS, LINKS IN 2s (blank for straight bars)	1	0

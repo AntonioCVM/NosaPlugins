@@ -424,8 +424,8 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
     """
     Two passes: drop every view on the first sheet, read its real viewport size (tags and the
     view title included), then pack them. One sheet per element (user brief): while the views
-    need a second sheet, the largest one that can goes to its next coarser scale (tags re-laid
-    out by `retag`); only then does a view move to another sheet. Every sheet gets the legends
+    need a second sheet, the largest section or elevation that can (then plan) goes to its next coarser
+    scale (tags re-laid out by `retag`); only then does a view move to another sheet. Every sheet gets the legends
     (layer notation, reinforcement notes) in the corner of the drawing area kept for them
     (IStructE SMDSC 3.7, 4.2.1).
     """
@@ -452,7 +452,8 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
                       if i not in stuck and view_plan.coarser_scale(spec['kind'], view.Scale)]
         if not candidates:
             break
-        i = max(candidates, key=lambda k: sizes[k][0] * sizes[k][1])
+        # the sections and elevations give way before the plans, which carry most of the calling-up
+        i = max(candidates, key=lambda k: (created[k][1].get('plan') is not True, sizes[k][0] * sizes[k][1]))
         view, spec = created[i][0], created[i][1]
         try:
             view.Scale = view_plan.coarser_scale(spec['kind'], view.Scale)
@@ -566,9 +567,17 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
         if place_on_sheets and created and titleblock is not None:
             import rc_legends
             legends = rc_legends.ensure(doc)
+            retag = None
+            if tag and rebars:
+                kinds = dict((get_id_value(v.Id), sp['kind']) for v, sp, _sc in created)
+
+                def retag(view):
+                    # a view taken to a coarser scale to fit the sheet: its calling-up laid out again at it
+                    rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
+                                             kind=kinds.get(get_id_value(view.Id)))
             report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
-                                                retag=None, legends=legends)   # the presentation laid the tags out
+                                                retag=retag, legends=legends)
             if report['sheets']:
                 # SMDSC 4.5.1: the member's bar schedules belong to the drawing it is detailed on
                 import bar_schedules

@@ -150,10 +150,26 @@ def zone_quantity(count, spacing_mm):
     return u'{}/{:.0f}'.format(count, spacing_mm)
 
 
-def total_callout(label, total, links=False):
+def total_callout(label, total, note=u''):
     """
     The one calling-up of a mark drawn in several zones: its label without centres ('26H8-06'), the count
-    the total of the zones ('43H8-06'); ' LINKS' after the links of a beam (SMDSC 6.2.3).
+    the total of the zones ('43H8-06'), then what kind of bar it is ('43H8-06 LINKS', SMDSC 6.2.3).
     """
     text = re.sub(u'^[0-9]+', u'{}'.format(total), (label or u'').strip())
-    return text + u' LINKS' if links else text
+    return u'{} {}'.format(text, note) if note else text
+
+
+_NOTES = ((('11', '12'), u'L-BARS'), (('13', '21', '22', '23', '24', '25'), u'U-BARS'),
+          (('31', '32', '33', '34', '35', '36', '41', '44', '46', '47', '51', '52', '56', '63', '64', '67'), u'LINKS'))
+
+
+def bar_note(shape_code, in_twos=False):
+    """
+    What kind of bar, written after its calling-up (user 2026-10-10, SMDSC drawings): 'L-BARS', 'U-BARS',
+    'LINKS', 'LINKS IN 2s' for two links at each position; '' for straight bars and other shapes.
+    """
+    code = (shape_code or u'').strip()
+    for codes, note in _NOTES:
+        if code in codes:
+            return u'LINKS IN 2s' if note == u'LINKS' and in_twos else note
+    return u''

@@ -124,32 +124,27 @@ MAX_TIERS = 3
 
 def tiers(desired, widths, gap, most=MAX_TIERS):
     """
-    Row of each mark (0 nearest the member): marks whose bars are too close for them side by side form runs, and
-    within a run mark k takes row k mod n, n the fewest rows (up to `most`) that give each its room; a mark with
-    room of its own stays in row 0.
+    Row of each mark (0 nearest the member), in order along the row: the nearest row where it stands clear of
+    the last mark already there; where no row has room, the one whose last mark is furthest back. So marks of
+    bars at close centres split over two or three rows only where they are close.
     """
     order = sorted(range(len(desired)), key=lambda i: desired[i])
     out = [0] * len(desired)
-    run = []
-
-    def close(run):
-        if len(run) < 2:
-            return
-        need = max(widths[i] for i in run) + gap
-        pitch = min(desired[b] - desired[a] for a, b in zip(run, run[1:])) or 1e-6
-        n = min(most, max(1, int(-(-need // pitch))))
-        for k, i in enumerate(run):
-            out[i] = k % n
+    last = [None] * most                         # (position, width) of the last mark in each row
     for i in order:
-        if run and desired[i] - desired[run[-1]] >= (widths[i] + widths[run[-1]]) / 2.0 + gap:
-            close(run)
-            run = []
-        run.append(i)
-    close(run)
+        pick = None
+        for t in range(most):
+            if last[t] is None or desired[i] - last[t][0] >= (widths[i] + last[t][1]) / 2.0 + gap:
+                pick = t
+                break
+        if pick is None:
+            pick = min(range(most), key=lambda t: last[t][0] + last[t][1] / 2.0)
+        out[i] = pick
+        last[pick] = (desired[i], widths[i])
     return out
 
 
-def place_pointers(items, box, gap, outside_gap, edges=None):
+def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None):
     """
     Marks of bars in a section or elevation: items [{'id', 'anchor' (x, y) on the bar, 'length', 'height',
     'vertical' (optional: the text turned to run up the sheet), 'side' (optional: 'top' | 'bottom' | 'left' |
@@ -157,7 +152,8 @@ def place_pointers(items, box, gap, outside_gap, edges=None):
     over its bar)}]. Each goes in a row beyond its side of the member, packed along it, its near end a fixed
     distance from the member so the texts of a row line up (SMDSC 6.2.2). Free marks of bars too close for them
     side by side split into up to MAX_TIERS rows (tiers); marks with pointers go in a row beyond them.
-    edges: {side: coordinate} where a row starts instead of the box's edge. Returns {id: {'centre', 'side', 'box'}}.
+    edges: {side: coordinate} where a row starts instead of the box's edge; free_gap: between free marks (they
+    need less room than texts with pointers). Returns {id: {'centre', 'side', 'box'}}.
     """
     rows = {}
     for it in items:
@@ -173,7 +169,8 @@ def place_pointers(items, box, gap, outside_gap, edges=None):
         across = [h if horizontal else w for w, h in sizes]
         free = [i for i, it in enumerate(row) if it.get('free')]
         tier = [0] * len(row)
-        for i, t in zip(free, tiers([desired[i] for i in free], [widths[i] for i in free], gap)):
+        fgap = gap if free_gap is None else free_gap
+        for i, t in zip(free, tiers([desired[i] for i in free], [widths[i] for i in free], fgap)):
             tier[i] = t
         outer = max([tier[i] for i in free]) + 1 if free else 0
         for i, it in enumerate(row):
@@ -182,7 +179,8 @@ def place_pointers(items, box, gap, outside_gap, edges=None):
         pos = [0.0] * len(row)
         for t in set(tier):
             ids = [i for i in range(len(row)) if tier[i] == t]
-            for i, p in zip(ids, pack([desired[i] for i in ids], [widths[i] for i in ids], gap)):
+            g = fgap if t < outer else gap
+            for i, p in zip(ids, pack([desired[i] for i in ids], [widths[i] for i in ids], g)):
                 pos[i] = p
         deep = (max(across[i] for i in free) + gap) if free else 0.0
         base = min(row[i].get('outside', outside_gap) for i in free) if free else None

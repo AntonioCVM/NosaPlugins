@@ -303,15 +303,16 @@ def _grouped(chains_by_key, normal, label):
 
 def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bottom_ext_mm,
                         continuous_ends, up, normal, bar_dia_mm, d_mm, anchorage_mm, clear_mm,
-                        n_support, support_dia_mm, n_span, span_dia_mm):
+                        n_support, support_dia_mm, n_span, span_dia_mm, support_inset_mm=0.0):
     """
     Extra bars of one beam element (x mm along `axis` from its start; spans_mm = clear spans
     between support faces), SMDSC 6.3.2 simplified rules (L = clear span + d): support bars over
     every intermediate support, at least 60 % to 0.25 L and none shorter than max(0.15 L, 45 bar
     diameters), each side by its own span; at an end support with a column (not a support of a
     continuous line) the same reach, from the column's far face with a leg (top leg of the end
-    U-bar). Span bars stopping 0.15 L from an internal support, 0.1 L from an exterior
-    (monolithic) one and 0.08 L from a simple support. Returns {'support': [...], 'span': [...]}.
+    U-bar), its leg support_inset_mm inside the top bars' legs (T8.49). Span bars stopping 0.15 L from an
+    internal support, 0.1 L from an exterior (monolithic) one and 0.08 L from a simple support.
+    Returns {'support': [...], 'span': [...]}.
     """
     import continuous_beam as cb
     out = {'support': [], 'span': [], 'spacer': []}
@@ -347,6 +348,7 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
             ext = top_ext_mm[end]
             if not ext or continuous_ends[end]:
                 continue
+            ext = max(ext - support_inset_mm, 0.0)
             span = spans_mm[0] if end == 0 else spans_mm[-1]
             reaches = cb.hogging_reaches_mm(eff(span), dia)
             leg = support_leg_mm(lbd, ext, dia, clear_mm)
@@ -911,10 +913,11 @@ def generate_stirrup_positions(axis_curve, spacing_mm, start_offset_mm=50.0, end
         list[float] distances in mm, empty if the beam is too short for
         even one stirrup after the two end offsets.
     """
+    from nosa_utils import links
     length_mm = axis_curve.Length * _MM_PER_FT
     lo = start_offset_mm
     hi = length_mm - end_offset_mm
-    return _evenly_spaced(lo, hi, spacing_mm)
+    return links.exact_pitch_positions(lo, hi, spacing_mm)     # round pitches on the drawing
 
 
 def generate_stirrup_positions_densified(axis_curve, spacing_mm, dense_spacing_mm,
@@ -946,35 +949,25 @@ def generate_stirrup_positions_densified(axis_curve, spacing_mm, dense_spacing_m
     max_each = usable * 0.4
     confine_each = min(confine, max_each) if confine > 0 else 0.0
 
+    # Round pitches (user 2026-10-10): the end zones at exactly the dense pitch from the support faces, the
+    # middle at exactly the span pitch; the remainder under one pitch goes to the two joints between zones.
+    from nosa_utils import links
     groups = []
-    if confine_each > dense * 0.5:
-        start_hi = lo + confine_each
-        end_lo = hi - confine_each
-        if start_hi > lo:
-            groups.append({
-                'zone': u'start',
-                'spacing_mm': dense,
-                'positions': _evenly_spaced(lo, start_hi, dense),
-            })
-        if end_lo > start_hi + spacing_mm * 0.5:
-            # start_hi / end_lo already carry the end zones' last / first
-            # stirrup: the middle run must not repeat them (T2.20).
-            groups.append({
-                'zone': u'middle',
-                'spacing_mm': spacing_mm,
-                'positions': _evenly_spaced(start_hi, end_lo, spacing_mm)[1:-1],
-            })
-        if hi > end_lo:
-            groups.append({
-                'zone': u'end',
-                'spacing_mm': dense,
-                'positions': _evenly_spaced(end_lo, hi, dense),
-            })
+    n_end = int(math.floor(confine_each / dense + 1e-9)) if confine_each > dense * 0.5 else 0
+    if n_end >= 1 and hi - lo > 2.0 * n_end * dense + dense:
+        start = [lo + k * dense for k in range(n_end + 1)]
+        end = [hi - (n_end - k) * dense for k in range(n_end + 1)]
+        groups.append({'zone': u'start', 'spacing_mm': dense, 'positions': start})
+        middle = links.interior_exact_positions(start[-1], end[0], spacing_mm)
+        if middle:
+            # start[-1] / end[0] already carry the end zones' last / first stirrup (T2.20)
+            groups.append({'zone': u'middle', 'spacing_mm': spacing_mm, 'positions': middle})
+        groups.append({'zone': u'end', 'spacing_mm': dense, 'positions': end})
     else:
         groups.append({
             'zone': u'middle',
             'spacing_mm': spacing_mm,
-            'positions': _evenly_spaced(lo, hi, spacing_mm),
+            'positions': links.exact_pitch_positions(lo, hi, spacing_mm),
         })
 
     # Drop empty groups
@@ -1098,6 +1091,18 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     # SMDSC MB1 flexible detailing: at an end column the bottom bars stop short, lapping the end U-bars
     b_leg0, b_leg1 = (0.0 if continuous_ends[0] else ext0_mm), (0.0 if continuous_ends[1] else ext1_mm)
     # a half joint (SMDSC 6.9): the bottom bars stop at the notch and turn up behind the hanger links
+    # T8.49, SMDSC MB1: the legs in one column nest, the top bars outermost, the support bars inside them, the
+    # bottom bars inside both (they coincided, found by the rebar QA)
+    from nosa_utils import joints
+    insets = joints.nested_leg_insets_mm(bar_diameter_mm, bar_diameter_mm,
+                                         (support_bar_diameter_mm or bar_diameter_mm) if n_support_bars else None)
+    for end, ext in ((0, ext0_mm), (1, ext1_mm)):
+        if ext and not continuous_ends[end] and bottom_stop_mm[end] is None:
+            nested = max(ext - insets['bottom'], 0.0)
+            if end == 0:
+                b_ext0 = b_leg0 = nested
+            else:
+                b_ext1 = b_leg1 = nested
     if bottom_stop_mm[0] is not None:
         b_ext0, b_leg0 = bottom_stop_mm[0], (1.0 if bottom_stop_leg[0] else 0.0)
     if bottom_stop_mm[1] is not None:
@@ -1276,7 +1281,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     extra = additional_bar_sets(
         axis, spans_mm, top_lines, bottom_lines, (ext0_mm, ext1_mm), (b_ext0, b_ext1),
         continuous_ends, height_dir_legs, long_bar_normal_vec, bar_diameter_mm, d_mm, anchor_mm,
-        clear_mm, n_support_bars, support_bar_diameter_mm, n_span_bars, span_bar_diameter_mm)
+        clear_mm, n_support_bars, support_bar_diameter_mm, n_span_bars, span_bar_diameter_mm,
+        support_inset_mm=insets['support'])
     support_bar_sets, span_bar_sets = extra['support'], extra['span']
     if (n_support_bars or n_span_bars) and not any(continuous_ends):
         warnings.extend(cb_rules().simplified_rules_warnings([b - a for a, b in spans_mm]))
