@@ -155,5 +155,5 @@ def total_callout(label, total, links=False):
     The one calling-up of a mark drawn in several zones: its label without centres ('26H8-06'), the count
     the total of the zones ('43H8-06'); ' LINKS' after the links of a beam (SMDSC 6.2.3).
     """
-    text = re.sub(u'^\d+', u'{}'.format(total), (label or u'').strip())
+    text = re.sub(u'^[0-9]+', u'{}'.format(total), (label or u'').strip())
     return text + u' LINKS' if links else text
