@@ -52,6 +52,7 @@ rebar_detailing = load_module('rebar_detailing', os.path.join(_HERE, 'rebar_deta
 column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
 beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
+punching_rebar = load_module('punching_rebar', os.path.join(_HERE, 'punching_rebar.py'))
 wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
 rebar_modify = load_module('rebar_modify', os.path.join(_HERE, 'rebar_modify.py'))
 rebar_partitions = load_module('rebar_partitions', os.path.join(_HERE, 'rebar_partitions.py'))
@@ -1515,6 +1516,15 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             values['top_spacing'] = self._read_number(self.TxtTopSpacing.Text, u'Top spacing', errors)
             values['top_hooks'] = self.ChkTopHooks.IsChecked == True
 
+        values['punching'] = self.ChkPunching.IsChecked == True
+        if values['punching']:
+            try:
+                values['punch_ved'] = max(float(self.TxtPunchVEd.Text or 0), 0.0)   # 0: the columns' own VEd only
+            except ValueError:
+                errors.append(u'"Punching VEd" must be a number.')
+            values['punch_beta'] = self._read_number(self.TxtPunchBeta.Text, u'Punching beta', errors)
+            values['stud_dia'] = self._read_number(self.TxtStudDia.Text, u'Stud diameter', errors)
+
         values['include_side_rebar'] = self.ChkIncludeSideRebar.IsChecked == True
         if values['include_side_rebar']:
             values['side_diameter'] = self._read_number(
@@ -2303,6 +2313,26 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                                                    float(values['dia_x']), float(values['spacing']), bands['layers']))
         return reinforcement
 
+    def _place_punching_studs(self, floors, values, errors):
+        """EC2 6.4 at every column under the floors, shear stud rails where needed (punching_rebar)."""
+        try:
+            punching_rebar.bind(self.doc)
+        except Exception as e:
+            errors.append(u'Punching parameters NOSA_Punching_VEd/Beta not bound to the columns: {}'.format(e))
+        with nosa_tx.revit_transaction(u'NOSA — Punching Shear Studs'):
+            for host in floors:
+                try:
+                    bottom = re_engine.get_native_cover_mm(self.doc, host, u'Bottom',
+                                                           self._standard_default_cover_mm(u'slab'))
+                    top = re_engine.get_native_cover_mm(self.doc, host, u'Top', self._standard_default_cover_mm(u'slab'))
+                    try:
+                        fck = standards.concrete_fck_mpa(self._host_std(host))
+                    except Exception:
+                        fck = 30.0
+                    punching_rebar.place(self.doc, host, values, bottom, top, fck, footing_rebar, column_rebar, errors)
+                except Exception as e:
+                    errors.append(u'Floor {}: punching studs — {}'.format(get_id_value(host.Id), e))
+
     def _is_pile_cap(self, host):
         try:
             return u'pile' in host.Symbol.FamilyName.lower() or bool(footing_rebar.pile_centres_ft(host))
@@ -2557,6 +2587,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 self._process_floor(host, values, wrapper, bar_types, errors, created_rebars)
             except Exception as e:
                 errors.append(u'Floor {}: {}'.format(get_id_value(host.Id), e))
+        if values.get('punching') and floors:
+            self._place_punching_studs(floors, values, errors)
 
         created = len(created_rebars)
 

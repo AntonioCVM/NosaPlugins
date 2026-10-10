@@ -195,6 +195,39 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ═══ PUNCHING SHEAR STUDS ═══ -->
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <CheckBox Name="ChkPunching" Content="Punching Shear Stud Rails — EC2 6.4 (Floors only)"
+                                  ToolTip="Checks every column under the floor (EC2 6.4, UK NA) and places Shear Stud Rail and Shear Stud families where reinforcement is needed: first perimeter 0.5d from the face, perimeters 0.75d apart, the last within 1.5d of u_out, studs no further apart than 1.5d inside u1 and 2d outside. VEd and beta come from each column's NOSA_Punching_VEd / NOSA_Punching_Beta, else from these fields."
+                                  FontWeight="Bold" Foreground="{DynamicResource AccentColor}" Margin="0,0,0,10"/>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="VEd where the column has none (kN, 0 = skip)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtPunchVEd" Text="0" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Beta where the column has none (1.15 / 1.4 / 1.5)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtPunchBeta" Text="1.15" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                        <Grid Style="{StaticResource RA_FieldRow}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="110"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Stud diameter (mm)" Style="{StaticResource RA_FieldLabel}"/>
+                            <TextBox Grid.Column="1" Name="TxtStudDia" Text="10" Style="{StaticResource RA_NumField}"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
                 <!-- ═══ PERIMETER CLOSURE U-BARS ═══ -->
                 <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                     <StackPanel>
