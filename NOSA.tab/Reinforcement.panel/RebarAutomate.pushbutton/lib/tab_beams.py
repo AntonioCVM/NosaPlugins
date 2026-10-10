@@ -711,7 +711,38 @@ class BeamsMixin(object):
             except Exception as e:
                 errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
 
+    def _process_curved_beam(self, host, values, wrapper, bar_types, errors, created_rebars):
+        """T8.58: a beam curved on plan — arc bars as FreeForm groups, radial closed links one by one."""
+        label = u'Beam {}'.format(get_id_value(host.Id))
+        cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
+        dia = values['bar_dia']
+        lap_mm, anchorage_mm = self._beam_lap_anchorage(host, dia)
+        curves = beam_rebar.build_curved_beam_curves(
+            self.doc, host, cover_mm, dia, values['n_top'], values['n_bottom'], values['stirrup_spacing'],
+            values['stirrup_dia'], end_offset_mm=values['end_offset'], stock_length_mm=values['stock_length'],
+            lap_length_mm=lap_mm, anchorage_mm=anchorage_mm)
+        errors.extend(u'{}: {}'.format(label, w) for w in curves['warnings'])
+        if values.get('densify_ends') or values.get('interior_ties') or values.get('n_support') \
+                or values.get('n_span'):
+            errors.append(u'{}: denser end links, interior links and extra support/span bars are not '
+                          u'detailed on curved beams yet.'.format(label))
+        bar_type = bar_types.get(dia)
+        for layer, name in ((u'top', u'Beam Top Bar'), (u'bottom', u'Beam Bottom Bar')):
+            for group in curves[layer]:
+                rebar = wrapper.create_freeform_group(host, group, bar_type,
+                                                      transaction_name=u'NOSA — Create {}'.format(name), bent=False)
+                self._made(rebar, layer, u'{}: {} (curved)'.format(label, name), wrapper, errors, created_rebars)
+        link_type = bar_types.get(values['stirrup_dia'])
+        for loop, normal in curves['links']:
+            rebar = wrapper.create_from_curves(host, loop, link_type, normal=normal,
+                                               style=DBS.RebarStyle.StirrupTie,
+                                               transaction_name=u'NOSA — Create Beam Link')
+            self._made(rebar, u'stirrup', u'{}: link (curved)'.format(label), wrapper, errors, created_rebars)
+
     def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars, span=None):
+        if beam_rebar.get_beam_arc(host) is not None:
+            return self._process_curved_beam(host, values, wrapper, bar_types, errors, created_rebars)
         # A floor that cuts the beam leaves it only the depth below the slab: the bars,
         # links and anchorage legs then lose that depth (found in the 2026-10-01 smoke test).
         try:

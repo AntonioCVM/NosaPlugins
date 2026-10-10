@@ -1397,6 +1397,130 @@ def group_beam_lines(hosts, max_gap_mm=1500.0, tol_mm=10.0):
     return list(lines.values())
 
 
+def get_beam_arc(host):
+    """The beam's centreline when it is an arc on plan (T8.58), else None."""
+    curve = getattr(getattr(host, 'Location', None), 'Curve', None)
+    if isinstance(curve, DB.Arc) and abs(curve.Normal.Normalize().Z) > 0.999:
+        return curve
+    return None
+
+
+def _column_reach_mm(doc, point, outward, end_inset_mm):
+    """mm a bar runs on from point along outward to the far face of the column there, less end_inset_mm; 0 if none."""
+    probe = point + outward.Multiply(20.0 / _MM_PER_FT)
+    reach = DB.XYZ(30.0 / _MM_PER_FT, 30.0 / _MM_PER_FT, 300.0 / _MM_PER_FT)
+    ext = 0.0
+    try:
+        for column in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralColumns) \
+                .WhereElementIsNotElementType().WherePasses(
+                    DB.BoundingBoxIntersectsFilter(DB.Outline(probe - reach, probe + reach))):
+            bbox = column.get_BoundingBox(None)
+            corners = [DB.XYZ(x, y, point.Z) for x in (bbox.Min.X, bbox.Max.X) for y in (bbox.Min.Y, bbox.Max.Y)]
+            ext = max(ext, max((c - point).DotProduct(outward) for c in corners) * _MM_PER_FT - end_inset_mm)
+    except Exception:
+        ext = 0.0
+    return ext if ext > 1.0 else 0.0
+
+
+def build_curved_beam_curves(doc, host, cover_mm, bar_diameter_mm, n_top_bars, n_bottom_bars,
+                             stirrup_spacing_mm, stirrup_bar_diameter_mm, end_offset_mm=50.0,
+                             stock_length_mm=12000.0, lap_length_mm=None, anchorage_mm=None):
+    """
+    T8.58 — a beam curved on plan: top and bottom bars are arcs round the centre (into the columns at the
+    ends, top bars with a leg down there), links are closed rectangles on radial planes with the pitch kept
+    at the outer leg. Returns {'top': [[chains]], 'bottom': [[chains]], 'links': [(curves, normal)],
+    'pitch_mm', 'warnings'}: top/bottom are one group of bar chains per stock-length piece.
+    """
+    from nosa_utils import curved_beams as cb
+    from nosa_utils.bootstrap import load_module
+    cw = load_module('curved_wall', os.path.join(_HERE, 'curved_wall.py'))
+    engine = _ensure_engine()
+    arc = get_beam_arc(host)
+    if arc is None:
+        raise ValueError(u'Beam centreline is not an arc on plan.')
+    c = arc.Center
+    center = (c.X * _MM_PER_FT, c.Y * _MM_PER_FT)
+    p0 = arc.GetEndPoint(0)
+    a_start = math.atan2(p0.Y - c.Y, p0.X - c.X)
+    sweep = arc.Length / arc.Radius * (1.0 if arc.Normal.Z > 0 else -1.0)
+    sign = 1.0 if sweep >= 0 else -1.0
+
+    solid = engine.get_host_solid(host)
+    if solid is None:
+        raise ValueError(u'No solid geometry for the curved beam.')
+    points = [p for edge in solid.Edges for p in edge.Tessellate()]
+    t_min, t_max, r_min, r_max = cb.angle_range(
+        [(p.X * _MM_PER_FT, p.Y * _MM_PER_FT) for p in points], center, a_start, sweep)
+    z_min, z_max = min(p.Z for p in points), max(p.Z for p in points)
+    warnings = [cb.torsion_note(u'Curved beam')]
+
+    ld, bd = stirrup_bar_diameter_mm, bar_diameter_mm
+    inset = cover_mm + ld + bd / 2.0
+    z_top = z_max - inset / _MM_PER_FT
+    z_bot = z_min + inset / _MM_PER_FT
+    clear_mm = (z_top - z_bot) * _MM_PER_FT
+
+    def xyz(r_mm, t, z_ft):
+        x, y = cw.point(center, r_mm, cb.angle_at(a_start, sweep, t))
+        return DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, z_ft)
+
+    def tangent(t):
+        a = cb.angle_at(a_start, sweep, t)
+        return DB.XYZ(-math.sin(a) * sign, math.cos(a) * sign, 0.0)
+
+    r_mid = (r_min + r_max) / 2.0
+    z_mid = (z_top + z_bot) / 2.0
+    ends = []
+    for t, outward in ((t_min, tangent(t_min).Negate()), (t_max, tangent(t_max))):
+        ext = _column_reach_mm(doc, xyz(r_mid, t, z_mid), outward, cover_mm + ld + bd / 2.0)
+        ends.append(ext if ext else -cover_mm)
+    if not all(e > 0 for e in ends):
+        warnings.append(u'Curved beam: no column found at {} — the bars stop at the beam end cover; '
+                        u'check their anchorage.'.format(u'either end' if max(ends) <= 0 else u'one end'))
+
+    stock = stock_length_mm if stock_length_mm and stock_length_mm >= 500.0 else 12000.0
+    lap = lap_length_mm if lap_length_mm and lap_length_mm < stock else None
+    anchor = anchorage_mm or 40.0 * bd
+
+    def leg(ext, leg_sign):
+        """Vertical leg offset (ft) where the bar runs ext mm into a column, else None."""
+        if not leg_sign or ext <= 0:
+            return None
+        return DB.XYZ(0, 0, leg_sign * support_leg_mm(anchor, ext, bd, clear_mm) / _MM_PER_FT)
+
+    def layer(count, z, leg_sign):
+        groups = {}
+        for r in (cb.bar_radii(r_min, r_max, inset, int(count)) if count else []):
+            b0, b1 = t_min - ends[0] / r, t_max + ends[1] / r
+            pieces = cw.split_arc(b0, b1, r, stock, lap) if lap else [(b0, b1)]
+            for k, (s0, s1) in enumerate(pieces):
+                chain = [DB.Arc.Create(xyz(r, s0, z), xyz(r, s1, z), xyz(r, (s0 + s1) / 2.0, z))]
+                down = leg(ends[0], leg_sign) if k == 0 else None
+                if down is not None:
+                    p = chain[0].GetEndPoint(0)
+                    chain.insert(0, DB.Line.CreateBound(p + down, p))
+                down = leg(ends[1], leg_sign) if k == len(pieces) - 1 else None
+                if down is not None:
+                    p = chain[-1].GetEndPoint(1)
+                    chain.append(DB.Line.CreateBound(p, p + down))
+                groups.setdefault(k, []).append(chain)
+        return [groups[k] for k in sorted(groups)]
+
+    top = layer(n_top_bars, z_top, -1.0)
+    bottom = layer(n_bottom_bars, z_bot, 0.0)
+
+    r_lo, r_hi = r_min + cover_mm + ld / 2.0, r_max - cover_mm - ld / 2.0
+    zl_lo, zl_hi = z_min + (cover_mm + ld / 2.0) / _MM_PER_FT, z_max - (cover_mm + ld / 2.0) / _MM_PER_FT
+    r_c = (r_lo + r_hi) / 2.0
+    pitch_c = cb.link_pitch_at_centre_mm(stirrup_spacing_mm, r_c, r_hi)
+    links = []
+    for t in cb.link_angles(t_min, t_max, r_c, pitch_c, end_offset_mm):
+        corners = [xyz(r_lo, t, zl_lo), xyz(r_hi, t, zl_lo), xyz(r_hi, t, zl_hi), xyz(r_lo, t, zl_hi)]
+        links.append(([DB.Line.CreateBound(corners[i], corners[(i + 1) % 4]) for i in range(4)], tangent(t)))
+    return {'top': top, 'bottom': bottom, 'links': links, 'pitch_mm': stirrup_spacing_mm,
+            'pitch_centre_mm': pitch_c, 'warnings': warnings}
+
+
 def _end_ubar_sets(axis0, top, bottom, side_a, side_b, cover_mm, bar_dia_mm, link_dia_mm, normal, height,
                    at, ordered, exts, n_bottom, lap_mm, warnings):
     """
