@@ -138,6 +138,13 @@ class WallsMixin(object):
                 values['horiz_spacing'], values.get('both_faces', True), values.get('include_ties'),
                 values.get('tie_spacing'), label=u'Wall {}'.format(get_id_value(host.Id)))
             errors.extend(wall_notes)
+            if self.ra_project.get('water_retaining'):
+                # T8.53, SMDSC 9.2: vertical (tension) bars at 250 mm at most, horizontal (distribution) at 150
+                from nosa_utils import water_retaining
+                vs, hs, wr_notes = water_retaining.review(
+                    host.Width * 304.8, cover_mm, vs, hs, int(self.ra_project.get('tightness', 1)),
+                    label=u'Wall {}'.format(get_id_value(host.Id)))
+                errors.extend(wr_notes)
             if vs != values['vert_spacing'] or hs != values['horiz_spacing']:
                 values = dict(values, vert_spacing=vs, horiz_spacing=hs)
         except Exception:

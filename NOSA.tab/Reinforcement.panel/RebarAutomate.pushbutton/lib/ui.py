@@ -632,6 +632,12 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         for label in _STAIR_STARTER_TYPES:
             self.CboStairStarterType.Items.Add(label)
         self.CboStairStarterType.SelectedIndex = 0
+        # T8.53 water-retaining structures (SMDSC chapter 9)
+        self.CmbTightness.Items.Clear()
+        for cls in (u'0', u'1', u'2', u'3'):
+            self.CmbTightness.Items.Add(cls)
+        self.CmbTightness.SelectedIndex = int(self.ra_project.get('tightness', 1))
+        self.ChkWaterRetaining.IsChecked = bool(self.ra_project.get('water_retaining', False))
         # T8.51 welded fabric (wired here, never in the XAML: see the ComboBox load crash note)
         from nosa_utils import fabric as _fabric
         self.CmbFabricRef.Items.Clear()
@@ -702,6 +708,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             forms.alert(u'Default concrete fck must be between 12 and 90 MPa.', title=u'RebarAutomate')
             return
         self.ra_project['lap_rules'] = u'bs8110' if self.CmbLapRules.SelectedIndex == 1 else u'ec2'
+        self.ra_project['water_retaining'] = self.ChkWaterRetaining.IsChecked == True
+        self.ra_project['tightness'] = max(0, self.CmbTightness.SelectedIndex)
         rebar_project.save(self.doc, self.ra_project)
         forms.alert(u'Project settings saved.', title=u'RebarAutomate')
     
@@ -2412,6 +2420,15 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     h_mm, bottom_cover_mm, values['dia_x'], values['dia_y'], values['spacing'], fck, top=top,
                     label=label)
             errors.extend(notes)
+            if self.ra_project.get('water_retaining'):
+                # T8.53, SMDSC 9.2: both directions of a slab carry tension: 250 mm at most
+                from nosa_utils import water_retaining
+                spacing, _d, wr_notes = water_retaining.review(
+                    h_mm, bottom_cover_mm, spacing, water_retaining.MAX_DISTRIBUTION_PITCH_MM,
+                    int(self.ra_project.get('tightness', 1)), label=label)
+                if top:
+                    top_spacing = min(top_spacing, spacing)
+                errors.extend(wr_notes)
             if spacing != values['spacing'] or (top and top_spacing != values['top_spacing']):
                 values = dict(values, spacing=spacing)
                 if top:

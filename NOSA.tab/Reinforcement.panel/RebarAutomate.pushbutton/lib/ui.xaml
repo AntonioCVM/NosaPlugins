@@ -1561,6 +1561,7 @@
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
                                 
                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Partition:" VerticalAlignment="Center" Margin="0,0,8,8"
@@ -1585,6 +1586,14 @@
                                 <TextBlock Grid.Row="3" Grid.Column="2" Text="Default fck (MPa):" VerticalAlignment="Center" Margin="0,8,8,0"
                                            ToolTip="Used for hosts whose structural material has no concrete strength (32 = C32/40)."/>
                                 <TextBox Grid.Row="3" Grid.Column="3" Name="TxtDefaultFck" MaxLength="4" Margin="0,8,0,0"/>
+
+                                <CheckBox Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2" Name="ChkWaterRetaining"
+                                          Content="Water-retaining structure (SMDSC ch. 9)" VerticalAlignment="Center" Margin="0,8,16,0"
+                                          Foreground="{DynamicResource TextColor}"
+                                          ToolTip="Walls and slabs: cover at least 40 mm, tension bars at 250 mm or less, distribution bars at 150 mm or less, minimum thickness of the tightness class; construction and movement joints to be drawn (IStructE SMDSC 9, EC2 Part 3)."/>
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="Tightness class:" VerticalAlignment="Center" Margin="0,8,8,0"
+                                           ToolTip="SMDSC Table 9.1: 0 some leakage acceptable; 1 limited leakage (wk1 0.2 to 0.05 mm); 2 minimal leakage; 3 none."/>
+                                <ComboBox Grid.Row="4" Grid.Column="3" Name="CmbTightness" Margin="0,8,0,0"/>
                             </Grid>
                         </StackPanel>
                     </Border>

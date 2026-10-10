@@ -16,6 +16,7 @@ Scope variables set by the launcher:
     ROLLBACK   optional bool: run inside a TransactionGroup and roll it back; Revit errors roll their
                transaction back instead of opening a dialog, and the new rebars per host are listed
     OUT        optional path: RESULT is also written there (runs longer than the 60 s call)
+    PROJECT    optional JSON merged into the window's project settings (e.g. {"water_retaining": true})
     ASSIMILATE optional bool, with ROLLBACK: keep the run (assimilate the group) so an outer
                TransactionGroup of the caller can go on with it and roll everything back itself
 Result: RESULT (unicode).
@@ -177,6 +178,10 @@ try:
     win = ui.RebarAutomateWindow(doc)
     win.Show = lambda: None
     win._is_loaded = True
+    try:
+        win.ra_project.update(json.loads(PROJECT or '{}'))     # project settings (water-retaining, ...)
+    except NameError:  # nosa-lint: disable=NOSA006 - PROJECT not given
+        pass
     for name, value in json.loads(CONTROLS or '{}').items():
         control = getattr(win, name)
         if isinstance(value, bool):
