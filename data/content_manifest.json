@@ -4,9 +4,9 @@
     {
       "name": "NOSA Rebar Tag",
       "category": "Structural Rebar Tags",
-      "version": "1.1.0",
+      "version": "1.3.0",
       "file": "content/tags/NOSA Rebar Tag.rfa",
-      "changes": "1.1.0 - IStructE SMDSC 4.2.1/4.5.1: NOSA_Rebar_Mark_Suffix after the mark (8H20-01(a to h)-150) and No centres types (4H25-03) for beam and column main bars. 1.0.0 - Label reads Schedule Mark: the BS 8666 bar mark (01, 02 ...) written by RebarAutomate."
+      "changes": "1.3.0 - IStructE SMDSC 4.2.1/6.2.2: Callout and Zone quantity types (NOSA_Rebar_Callout, NOSA_Rebar_Zone_Qty), 2.5 mm lettering. 1.1.0 - IStructE SMDSC 4.2.1/4.5.1: NOSA_Rebar_Mark_Suffix after the mark (8H20-01(a to h)-150) and No centres types (4H25-03) for beam and column main bars. 1.0.0 - Label reads Schedule Mark: the BS 8666 bar mark (01, 02 ...) written by RebarAutomate."
     },
     {
       "name": "NOSA Rebar Coupler",
