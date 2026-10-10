@@ -1,0 +1,119 @@
+{
+  "_comment": "T8.55: Revit API capabilities per version, written by tools/revit_harness/capability_probe.py (api: present in the API; live: ok / fail of a probe in a rolled-back group, with a note). known_defects: behaviour measured live that the plugin works around.", 
+  "versions": {
+    "2024": {
+      "bending_detail": {
+        "api": true
+      }, 
+      "free_form": {
+        "api": true
+      }, 
+      "varying_suffix": {
+        "api": true
+      }, 
+      "presentation_select": {
+        "note": "a set in a plan", 
+        "live": "ok", 
+        "api": true
+      }, 
+      "varying_length": {
+        "note": "", 
+        "live": "ok", 
+        "api": true
+      }, 
+      "multi_rebar_annotation": {
+        "note": "", 
+        "live": "ok", 
+        "api": true
+      }, 
+      "couplers": {
+        "note": "", 
+        "live": "ok", 
+        "api": true
+      }, 
+      "hook_orientation": {
+        "api": true
+      }, 
+      "terminations": {
+        "api": false
+      }, 
+      "fabric": {
+        "note": "4 sheets", 
+        "live": "ok", 
+        "api": true
+      }
+    }
+  }, 
+  "known_defects": [
+    {
+      "versions": "2024", 
+      "area": "constraints", 
+      "defect": "GetConstraintCandidatesForHandle also offers faces of elements joined to the host; pinning to them moved column links 20 mm in. Filter candidates by their target element."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "creation", 
+      "defect": "Revit trims a beam bar back to the beam's end cover on creation; only the column's far face puts it back."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "sets", 
+      "defect": "A Rebar Set whose distribution normal is not square to the bar plane throws 'An internal error has occurred'."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "free form", 
+      "defect": "Bent FreeForm rebar with arcs opens 'bars in the set cannot be matched to existing rebar shapes' (no preprocessor catches it): never set Bent on arc chains."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "shapes", 
+      "defect": "'Can't solve Rebar Shape' for a U-bar whose legs are closer than the mandrel (seen again in a 140 mm wall's end U-bars): needs a failures preprocessor with ProceedWithRollBack and SetClearAfterRollback(True)."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "tags", 
+      "defect": "A whole Rebar Set cannot be tagged; a tag on one bar (subelement) is drawn only for some bars of the set and has no bounding box."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "tags", 
+      "defect": "NOSA Rebar Tag labels report boxes far wider than their text (about 50 mm on paper): size tags from their text, centred on the head."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "families", 
+      "defect": "About 100 family type loads per external call; later loads throw a managed exception."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "images", 
+      "defect": "ImageType ignores the PNG pHYs chunk and reads 72 dpi: set ImageTypeOptions.Resolution."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "couplers", 
+      "defect": "A coupler between two Rebar Sets is kept only when the sets match bar for bar; otherwise the constraint fails at commit."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "fabric", 
+      "defect": "FabricSheetType size and pitches are read-only properties: set them with SetMajorLayoutAs... / SetMinorLayoutAs...; FabricLocation is TopOrExternal / BottomOrInternal."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "schedules", 
+      "defect": "A schedule takes at most 4 sorting/grouping fields."
+    }, 
+    {
+      "versions": "2024", 
+      "area": "ui", 
+      "defect": "The modal 'Project Not Saved Recently' reminder blocks every API call until it is closed (close it, never save for the user)."
+    }, 
+    {
+      "versions": "2027", 
+      "area": "hooks", 
+      "defect": "RebarHookOrientation is replaced by BarTerminationsData (rebar_engine.rebar_from_curves handles both)."
+    }
+  ]
+}

@@ -1240,6 +1240,17 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=(), top_
     return pinned
 
 
+_API_CAPABILITIES = {}
+
+
+def api_capabilities():
+    """T8.55: {capability: bool} of the running Revit's API (nosa_utils.revit_capabilities), read once."""
+    if not _API_CAPABILITIES:
+        from nosa_utils import revit_capabilities
+        _API_CAPABILITIES.update(revit_capabilities.api_flags(DB, DBS))
+    return _API_CAPABILITIES
+
+
 def hook_orientation_left():
     """'Left' hook orientation: RebarHookOrientation up to Revit 2026, RebarTerminationOrientation from 2027."""
     enum = getattr(DBS, 'RebarHookOrientation', None) or DBS.RebarTerminationOrientation
