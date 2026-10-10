@@ -667,6 +667,19 @@ class ToolsMixin(object):
             return
         self._in_revit(self._open_rebar_qa)
 
+    def Robustness_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._open_robustness)
+
+    def _open_robustness(self):
+        """T8.50 — the QA Hub's robustness ties window (SMDSC 5.1.9)."""
+        from nosa_utils.base_window import launch_nosa_window
+        path = os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'QAHub.pushbutton', 'lib', 'robustness',
+                            'ui.py')
+        mod = load_module('robustness_ui', os.path.abspath(path))
+        launch_nosa_window(mod.RobustnessWindow, self.doc)
+
     def _open_rebar_qa(self):
         """T8.48 — the QA Hub's Rebar QA window (SMDSC 4.4 / 4.6 checks), shared with the hub."""
         from nosa_utils.base_window import launch_nosa_window

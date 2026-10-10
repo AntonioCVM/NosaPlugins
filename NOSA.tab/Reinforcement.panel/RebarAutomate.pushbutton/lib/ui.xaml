@@ -1632,6 +1632,9 @@
                             <Button Name="BtnRebarQA" Content="Rebar QA (SMDSC checks)..."
                                     Click="RebarQA_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"
                                     ToolTip="Cover, clear spacing with the real bar size, pitches and steel ratios, vibrator gaps, stock length, clashes and congestion, per host and drawing (IStructE SMDSC 4.4 / 4.6). Read-only."/>
+                            <Button Name="BtnRobustness" Content="Robustness Ties (SMDSC 5.1.9)..."
+                                    Click="Robustness_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"
+                                    ToolTip="Peripheral, internal, column and vertical tie forces and steel (EC2 9.10, UK NA), and the continuous lapped ties the bars of the selected floors give. Read-only."/>
                         </StackPanel>
                     </Border>
 

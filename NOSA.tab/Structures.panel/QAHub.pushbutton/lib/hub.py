@@ -24,4 +24,5 @@ def tools(doc, uidoc):
         (u'Model Health', _tool('model_health', 'modelhealthhub_ui', 'ModelHealthHubWindow', doc)),
         (u'Standards', _tool('standards', 'standardsaudit_ui', 'StandardsAuditWindow', doc)),
         (u'Rebar QA', _tool('rebar_qa', 'rebarqa_ui', 'RebarQAWindow', doc)),
+        (u'Robustness', _tool('robustness', 'robustness_ui', 'RobustnessWindow', doc)),
     ]
