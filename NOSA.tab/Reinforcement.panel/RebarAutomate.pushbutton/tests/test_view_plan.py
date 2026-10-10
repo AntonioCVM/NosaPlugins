@@ -66,3 +66,11 @@ def test_coarser_scale_steps_through_the_candidates():
     assert vp.coarser_scale('elevation', 50) == 100
     assert vp.coarser_scale('elevation', 100) is None
     assert vp.coarser_scale('member_section', 20) == 50
+
+
+def test_layout_keeps_the_legend_corner_free():
+    box = (610.0, 25.0, 715.0, 215.0)
+    placed = vp.layout([(400.0, 250.0), (300.0, 250.0)], reserved=(box,))
+    for (w, h), (sheet, cx, cy) in zip([(400.0, 250.0), (300.0, 250.0)], placed):
+        r = (cx - w / 2.0, cy - h / 2.0, cx + w / 2.0, cy + h / 2.0)
+        assert not _overlap(r, box)

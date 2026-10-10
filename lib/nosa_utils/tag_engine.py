@@ -360,6 +360,11 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
     if kind is None:
         return report
     type_ids = type_ids or {}
+    if 'rebar' in keys:
+        try:
+            _ra_presentation().bind(doc)       # the one-calling-up-per-mark parameters (SMDSC 4.2.1)
+        except Exception as e:
+            report['errors'].append(u'presentation parameters not bound: {}'.format(e))
     guard = _rollback_on_error()
     t = DB.Transaction(doc, u'NOSA — Tag All ({})'.format(view.Name))
     options = t.GetFailureHandlingOptions()

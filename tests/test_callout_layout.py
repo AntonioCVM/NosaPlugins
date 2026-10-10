@@ -22,11 +22,15 @@ def test_inline_goes_out_by_the_nearest_edge_on_the_line():
     assert r['end'] == 'a' and r['outside']
     assert abs(r['centre'][1] - 3000.0) < 1e-6                       # on the indicator line
     assert abs(r['box'][2] - (0.0 - 150.0)) < 1e-6                    # just past the slab edge
-    # a second zone on the same line pushes further out, never on top
+    # a second zone on the same line takes the baseline at the other end, never on top
     r2 = cl.place_inline({'a': (300.0, 3050.0), 'b': (2000.0, 3050.0), 'length': 1500.0, 'height': 125.0},
                          SLAB, placed, 75.0, 150.0)
     assert not cl.overlap(r['box'], r2['box'])
-    assert r2['outside'] and r2['box'][2] < r['box'][0]
+    assert r2['outside'] and r2['end'] == 'b' and abs(r2['box'][0] - (8000.0 + 150.0)) < 1e-6
+    # a third one, both baselines taken: pushed further out
+    r3 = cl.place_inline({'a': (400.0, 3020.0), 'b': (1800.0, 3020.0), 'length': 1500.0, 'height': 125.0},
+                         SLAB, placed, 75.0, 150.0)
+    assert r3['outside'] and not any(cl.overlap(r3['box'], q['box']) for q in (r, r2))
 
 
 def test_vertical_lines_take_vertical_text():

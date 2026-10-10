@@ -291,6 +291,32 @@ def _unique_view_name(doc, wanted):
     return name
 
 
+def hide_section_marks(view):
+    """
+    No section marks in the elevations and sections of a member (user brief 2026-10-10: Revit puts their
+    heads at the ends of the section's crop, right on the calling-up under a beam); each section is told by
+    its title. On the RC template when it controls the annotation visibility, else on the view.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    doc = view.Document
+    cat = DB.ElementId(DB.BuiltInCategory.OST_Sections)
+    target = view
+    template = doc.GetElement(view.ViewTemplateId) if view.ViewTemplateId != DB.ElementId.InvalidElementId else None
+    if template is not None:
+        free = set(get_id_value(i) for i in template.GetNonControlledTemplateParameterIds())
+        if int(DB.BuiltInParameter.VIS_GRAPHICS_ANNOTATION) not in free:
+            target = template
+    try:
+        if not target.GetCategoryHidden(cat):
+            target.SetCategoryHidden(cat, True)
+        return True
+    except Exception:
+        from nosa_utils.telemetry import log_swallowed
+        log_swallowed(u'rebarautomate', u'hide_section_marks')
+        return False
+
+
 def ensure_coarse(view):
     """
     Detail level Coarse (user decision 2026-10-10, replacing Fine of 2026-10-06): a bar is one thick line
@@ -364,7 +390,8 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
     view title included), then pack them. One sheet per element (user brief): while the views
     need a second sheet, the largest one that can goes to its next coarser scale (tags re-laid
     out by `retag`); only then does a view move to another sheet. Every sheet gets the legends
-    (layer notation, reinforcement notes) down panel B (IStructE SMDSC 3.7, 4.2.1).
+    (layer notation, reinforcement notes) in the corner of the drawing area kept for them
+    (IStructE SMDSC 3.7, 4.2.1).
     """
     from Autodesk.Revit import DB  # Lazy import
     sheets = [_new_sheet(doc, titleblock, sheet_numbers.pop(0), name)]
@@ -376,7 +403,11 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
         box = port.GetBoxOutline()
         return _mm(box.MaximumPoint.X - box.MinimumPoint.X), _mm(box.MaximumPoint.Y - box.MinimumPoint.Y)
     sizes = [_size(port) for port in ports]
-    placement = view_plan.layout(sizes)
+    reserved = ()
+    if legends:
+        import rc_legends
+        reserved = (rc_legends.LEGEND_BOX,)
+    placement = view_plan.layout(sizes, reserved=reserved)
     stuck = set()
     for _attempt in range(12):
         if max(p[0] for p in placement) == 0:
@@ -396,7 +427,7 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
             retag(view)
         doc.Regenerate()
         sizes[i] = _size(ports[i])
-        placement = view_plan.layout(sizes)
+        placement = view_plan.layout(sizes, reserved=reserved)
     for i, (sheet_index, cx, cy) in enumerate(placement):
         while sheet_index >= len(sheets):
             sheets.append(_new_sheet(doc, titleblock, sheet_numbers.pop(0),
@@ -422,7 +453,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
     popped from. Returns {'views': [names], 'sheets': [numbers], 'tags': n, 'errors': [...]}.
     """
     from Autodesk.Revit import DB  # Lazy import
-    from nosa_utils.revit_helpers import element_name
+    from nosa_utils.revit_helpers import element_name, get_id_value
     kind = host_kind(hosts[0])
     label = host_label(hosts[0]) if len(hosts) == 1 else u'{}-{}'.format(host_label(hosts[0]),
                                                                          host_label(hosts[-1]))
@@ -445,6 +476,12 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 break
     rebars = [r for h in hosts for r in host_rebars(h)]
 
+    if tag and rebars:
+        try:
+            import rebar_presentation
+            rebar_presentation.bind(doc)       # the one-calling-up-per-mark parameters (SMDSC 4.2.1)
+        except Exception as e:
+            report['errors'].append(u'presentation parameters not bound: {}'.format(e))
     guard = _rollback_on_error()
     t = DB.Transaction(doc, u'NOSA — Create Views {} {}'.format(_TITLES.get(kind, u''), label))
     options = t.GetFailureHandlingOptions()
@@ -469,6 +506,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                     break
                 view = _create_section(doc, detail_vft, spec)
                 _apply_template_and_scale(view, section_template, scale)
+                hide_section_marks(view)
             view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label,
                                                                      spec['title']))
             for rebar in rebars:
@@ -498,8 +536,11 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
         if tag and rebars:
             # T8.27, SMDSC 6.2.2: bars detailed on another drawing, once the views are on their sheets
+            own = set(get_id_value(r.Id) for r in rebars)
             for view, _spec, _scale in created:
-                rebar_presentation.see_drawing(doc, view, rebars)
+                others = [r for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Structure.Rebar)
+                          if get_id_value(r.Id) not in own]
+                rebar_presentation.see_drawing(doc, view, others)
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))

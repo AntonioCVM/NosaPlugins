@@ -4,8 +4,9 @@ NOSA.RebarAutomate — legends on every reinforcement drawing (T8.31, T8.32).
 
 IStructE SMDSC 4.2.1: the layer notation (T1/T2, B1/B2, N1/N2, F1/F2) illustrated by a sketch on
 the drawings; SMDSC 3.7: notes with the GA references, abbreviations, concrete grade, covers and
-schedule references, in panel B above the title block, working down from the top. One legend
-view each, shared by every sheet, so the notes are edited in one place.
+schedule references. They stand right-aligned in the bottom right corner of the drawing area,
+inside its frame, just above the title block; panel B is left for the project's own notes (user,
+2026-10-10). One legend view each, shared by every sheet, so the notes are edited in one place.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
@@ -18,8 +19,8 @@ TEXT_TYPE = u'2.0mm Century gothic - Sheet notes'
 LABEL_TYPE = u'2.0mm Century Gothic'
 VIEWPORT_TYPE = u'NOSA Manual title /No scale'
 
-# NOSA A1 QR titleblock, panel B: free strip right of the drawing area, above the revisions (mm)
-PANEL_B = (740.0, 135.0, 830.0, 588.0)
+# NOSA A1 QR titleblock: the legends' corner of the drawing area (mm), kept free of views
+LEGEND_BOX = (610.0, 25.0, 715.0, 215.0)
 PANEL_GAP_MM = 8.0
 
 _FT = 304.8
@@ -49,12 +50,16 @@ def notes_text(concrete_grade, cover_typical, cover_slabs):
     return u'\r'.join(lines)
 
 
-def stack_in_panel(sizes, panel=PANEL_B, gap=PANEL_GAP_MM):
-    """Centres (x, y) mm that stack boxes (w, h) right-aligned down panel B from its top."""
+def stack_in_panel(sizes, panel=LEGEND_BOX, gap=PANEL_GAP_MM):
+    """
+    Centres (x, y) mm that stack boxes (w, h) down the legend box from its top, their left edges in one
+    line and the widest against the box's right edge.
+    """
     x0, y0, x1, y1 = panel
+    left = x1 - max([w for w, _h in sizes] or [0.0])
     out, top = [], y1
     for w, h in sizes:
-        out.append((x1 - w / 2.0, top - h / 2.0))
+        out.append((left + w / 2.0, top - h / 2.0))
         top -= h + gap
     return out
 
@@ -226,7 +231,7 @@ def ensure(doc):
 
 
 def place(doc, sheet, legends):
-    """Viewports of the legends down panel B of the sheet; [viewport]."""
+    """Viewports of the legends down the legend box of the sheet; [viewport]."""
     from Autodesk.Revit import DB  # Lazy import
     doc.Regenerate()   # a legend made in this transaction is not placeable before it
     ports = [DB.Viewport.Create(doc, sheet.Id, v.Id, _xyz(780.0, 300.0)) for v in legends

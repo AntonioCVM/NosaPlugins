@@ -30,16 +30,16 @@ def test_notation_key_has_every_smdsc_layer():
     print(u'[PASS] test_notation_key_has_every_smdsc_layer')
 
 
-def test_legends_stack_down_panel_b_right_aligned():
-    x0, y0, x1, y1 = rl.PANEL_B
+def test_legends_stack_down_the_box_left_edges_aligned():
+    x0, y0, x1, y1 = rl.LEGEND_BOX
     centres = rl.stack_in_panel([(60.0, 100.0), (90.0, 60.0)])
-    assert centres[0] == (x1 - 30.0, y1 - 50.0)
+    assert centres[0] == (x1 - 90.0 + 30.0, y1 - 50.0)
     assert centres[1] == (x1 - 45.0, y1 - 100.0 - rl.PANEL_GAP_MM - 30.0)
-    print(u'[PASS] test_legends_stack_down_panel_b_right_aligned')
+    print(u'[PASS] test_legends_stack_down_the_box_left_edges_aligned')
 
 
 if __name__ == '__main__':
     test_notes_take_the_project_values()
     test_notes_without_values_point_to_the_general_notes()
     test_notation_key_has_every_smdsc_layer()
-    test_legends_stack_down_panel_b_right_aligned()
+    test_legends_stack_down_the_box_left_edges_aligned()

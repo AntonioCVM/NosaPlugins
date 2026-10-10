@@ -54,16 +54,17 @@ def _free(rect, placed, gap):
     return True
 
 
-def layout(sizes, area=A1_AREA, gap=GAP_MM):
+def layout(sizes, area=A1_AREA, gap=GAP_MM, reserved=()):
     """
     Top-left placement, largest first: [(sheet index, centre x, centre y)] in the input order,
     mm on the sheet. Each view takes the highest, then leftmost, free spot whose corner lies on
     the area's edge or next to a view already placed; when none fits, a new sheet starts.
+    reserved: boxes every sheet keeps free (the legends' corner).
     """
     ax0, ay0, ax1, ay1 = area
     order = sorted(range(len(sizes)), key=lambda i: (-sizes[i][0] * sizes[i][1], i))
     placed_out = [None] * len(sizes)
-    sheets = [[]]
+    sheets = [list(reserved)]
     for i in order:
         w, h = sizes[i]
         spot = None
@@ -83,7 +84,7 @@ def layout(sizes, area=A1_AREA, gap=GAP_MM):
             if spot:
                 break
         if spot is None:
-            sheets.append([])
+            sheets.append(list(reserved))
             rect = (ax0, ay1 - h, ax0 + w, ay1)
             spot = (len(sheets) - 1, rect)
         sheet_index, rect = spot

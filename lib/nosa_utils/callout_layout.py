@@ -33,9 +33,9 @@ def text_box(centre, along, length, height):
 def place_inline(item, box, placed, gap, outside_gap, tries=12):
     """
     Calling-up of one zone (SMDSC 6.2.2): item {'a', 'b' (ends of the indicator line), 'length', 'height' (text)}.
-    Tries the extension past each end, outside the member first (nearest edge first), pushing out past texts
-    already placed; then next to an end inside the member. Returns {'centre', 'end' ('a'|'b'), 'outside', 'box'}
-    and appends the box to `placed`.
+    First on the common baseline just outside the member past either end (nearest edge first), so the
+    calling-ups of a side line up; then pushed further out past texts already placed; then next to an end
+    inside the member. Returns {'centre', 'end' ('a'|'b'), 'outside', 'box'} and appends the box to `placed`.
     """
     a, b = item['a'], item['b']
     run = (b[0] - a[0], b[1] - a[1])
@@ -43,25 +43,34 @@ def place_inline(item, box, placed, gap, outside_gap, tries=12):
     u = (run[0] / n, run[1] / n)
     ends = [('b', b, u), ('a', a, (-u[0], -u[1]))]
     ends.sort(key=lambda e: exit_distance(e[1], e[2], box))
-    for inside in (False, True):
-        for name, p, out in ends:
-            start = gap if inside else exit_distance(p, out, box) + outside_gap
-            for _ in range(tries):
-                c = (p[0] + out[0] * (start + item['length'] / 2.0), p[1] + out[1] * (start + item['length'] / 2.0))
-                bx = text_box(c, out, item['length'], item['height'])
-                hits = [q for q in placed if overlap(bx, q, gap)]
-                if not hits:
-                    placed.append(bx)
-                    return {'centre': c, 'end': name, 'outside': not inside, 'box': bx}
-                if inside:
-                    break
-                far = max(abs((q[2] if out[0] > 0 else q[0]) - p[0]) * abs(out[0]) +
-                          abs((q[3] if out[1] > 0 else q[1]) - p[1]) * abs(out[1]) for q in hits)
-                start = far + gap
-    c = (b[0] + u[0] * (gap + item['length'] / 2.0), b[1] + u[1] * (gap + item['length'] / 2.0))
-    bx = text_box(c, u, item['length'], item['height'])
-    placed.append(bx)
-    return {'centre': c, 'end': 'b', 'outside': False, 'box': bx}
+
+    def at(p, out, start):
+        c = (p[0] + out[0] * (start + item['length'] / 2.0), p[1] + out[1] * (start + item['length'] / 2.0))
+        return c, text_box(c, out, item['length'], item['height'])
+
+    def accept(name, c, bx, outside):
+        placed.append(bx)
+        return {'centre': c, 'end': name, 'outside': outside, 'box': bx}
+    for name, p, out in ends:                                  # the baseline, both ends
+        c, bx = at(p, out, exit_distance(p, out, box) + outside_gap)
+        if not any(overlap(bx, q, gap) for q in placed):
+            return accept(name, c, bx, True)
+    for name, p, out in ends:                                  # further out
+        start = exit_distance(p, out, box) + outside_gap
+        for _ in range(tries):
+            c, bx = at(p, out, start)
+            hits = [q for q in placed if overlap(bx, q, gap)]
+            if not hits:
+                return accept(name, c, bx, True)
+            far = max(abs((q[2] if out[0] > 0 else q[0]) - p[0]) * abs(out[0]) +
+                      abs((q[3] if out[1] > 0 else q[1]) - p[1]) * abs(out[1]) for q in hits)
+            start = far + gap
+    for name, p, out in ends:                                  # inside, next to the zone
+        c, bx = at(p, out, gap)
+        if not any(overlap(bx, q, gap) for q in placed):
+            return accept(name, c, bx, False)
+    c, bx = at(b, u, gap)
+    return accept('b', c, bx, False)
 
 
 def pack(desired, widths, gap):
