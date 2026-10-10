@@ -765,6 +765,20 @@ class BeamsMixin(object):
         except Exception:
             anchorage_mm = None
 
+        import nib_rebar
+        from nosa_utils import nibs
+        half = nib_rebar.half_joint_params(host)
+        half_frame = None
+        bottom_stop = (span or {}).get('bottom_stop_mm', (None, None))
+        bottom_leg = (False, False)
+        if half:
+            # SMDSC 6.9 / EC2 Annex J: full-depth links only past the hanger links at each notch
+            half_frame = nib_rebar.frame(host)
+            stop = -(half[0] + cover_mm - half_frame['axis_offset'])
+            bottom_stop, bottom_leg = (stop, stop), (True, True)
+            hangers_end = (half[0] + cover_mm + values['stirrup_dia'] / 2.0
+                           + (nibs.HANGER_LINKS - 1) * nibs.HANGER_PITCH_MM - half_frame['axis_offset'])
+            values = dict(values, end_offset=max(values['end_offset'], hangers_end + 50.0))
         curves = beam_rebar.build_beam_rebar_curves(
             self.doc, host,
             cover_mm=cover_mm,
@@ -785,7 +799,8 @@ class BeamsMixin(object):
             link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])),
             continuous_ends=(span or {}).get('continuous_ends', (False, False)),
             internal_bottom_ext_mm=(span or {}).get('internal_bottom_ext_mm', (0.0, 0.0)),
-            bottom_stop_mm=(span or {}).get('bottom_stop_mm', (None, None)),
+            bottom_stop_mm=bottom_stop,
+            bottom_stop_leg=bottom_leg,
             include_top=span is None,
             n_support_bars=values.get('n_support', 0),
             support_bar_diameter_mm=values.get('support_dia'),
@@ -992,6 +1007,133 @@ class BeamsMixin(object):
             self._create_interior_tie_sets(
                 host, curves.get('interior_tie_sets') or [], bar_type_st, wrapper, errors,
                 created_rebars, u'Beam')
+        if half:
+            self._reinforce_half_joints(host, half, half_frame, values, cover_mm, bar_types, wrapper, errors,
+                                        created_rebars)
+        self._reinforce_nibs(host, values, cover_mm, bar_types, wrapper, errors, created_rebars)
+
+    def _type_for(self, dia, bar_types):
+        if bar_types.get(dia) is None:
+            bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+        return bar_types[dia]
+
+    def _made(self, rebar, layer, label, wrapper, errors, created_rebars):
+        try:
+            if rebar is not None and not rebar.IsValidObject:
+                rebar = None                     # Revit rejected and undid it
+        except Exception:
+            rebar = None
+        if rebar is None:
+            errors.append(u'{} — {}'.format(label, wrapper.last_error))
+            return
+        self._stamp_layer(rebar, layer)
+        created_rebars.append(rebar)
+
+    def _link_set(self, host, fr, xs, corners, bar_type, wrapper, label, layer, errors, created_rebars):
+        """Closed links in the beam section at the even positions xs."""
+        import nib_rebar
+        xs = sorted(xs)
+        curves = nib_rebar.section_loop(fr, xs[0], corners)
+        if len(xs) > 1:
+            rebar = wrapper.create_rebar_set(
+                host, curves, bar_type, xs[1] - xs[0], xs[-1] - xs[0], normal=fr['ex'],
+                style=DBS.RebarStyle.StirrupTie, transaction_name=u'NOSA — Create {}'.format(label),
+                link_hook=re_engine.get_link_hook_type(self.doc))
+        else:
+            rebar = wrapper.create_from_curves(host, curves, bar_type, normal=fr['ex'], style=DBS.RebarStyle.StirrupTie,
+                                               transaction_name=u'NOSA — Create {}'.format(label))
+        self._made(rebar, layer, u'Beam {}: {}'.format(get_id_value(host.Id), label), wrapper, errors, created_rebars)
+
+    def _reinforce_nibs(self, host, values, cover_mm, bar_types, wrapper, errors, created_rebars):
+        """IStructE SMDSC MN1 (closed links) or MN2 (horizontal U-bars, shallow nibs) along the nibs of an 'RC Beam - Nib'."""
+        import nib_rebar
+        from nosa_utils import nibs
+        info = nib_rebar.nib_sides(host)
+        if info is None:
+            return
+        proj, depth, sides = info
+        b, _h = nib_rebar.section_mm(host)
+        fr = nib_rebar.frame(host)
+        hid = get_id_value(host.Id)
+        link_dia = min(values['stirrup_dia'], nibs.MAX_LINK_DIA_MM)
+        mode, notes = nibs.nib_mode(depth, cover_mm, link_dia)
+        errors.extend(u'Beam {}: {}'.format(hid, n) for n in notes)
+        pitch = nibs.nib_pitch_mm(depth)
+        x0, x1 = cover_mm + link_dia, fr['length'] - cover_mm - link_dia
+        for n_side, side in enumerate(sides):
+            def flip(pts):
+                return [(x, side * y, z) for x, y, z in pts]
+            if mode == 'MN1':
+                corners = [(side * y, z) for y, z in nibs.mn1_link(b, proj, depth, cover_mm, link_dia)]
+                xs = nibs.positions_mm(x0, x1, pitch)
+                self._link_set(host, fr, xs, corners, self._type_for(link_dia, bar_types), wrapper, u'Nib Links',
+                               u'nib_link', errors, created_rebars)
+                bar_dia = 12.0
+                bar_t = self._type_for(bar_dia, bar_types)
+                for y, z in nibs.nib_bar_positions(b, proj, depth, cover_mm, link_dia, bar_dia):
+                    line = nib_rebar.polyline(fr, [(cover_mm, side * y, z), (fr['length'] - cover_mm, side * y, z)])
+                    self._made(wrapper.create_from_curves(host, line, bar_t, normal=fr['ey'],
+                                                          transaction_name=u'NOSA — Create Nib Bar'),
+                               u'nib_bar', u'Beam {}: nib bar'.format(hid), wrapper, errors, created_rebars)
+                if not n_side:
+                    errors.append(u'Beam {}: nib ({:.0f} x {:.0f}) to SMDSC MN1 — H{:.0f} closed links at {:.0f} round '
+                              u'beam and nib, H{:.0f} bars in the nib corners; keep 60 mm overlap with the supported '
+                              u'member\'s steel and size the beam links for the nib load.'.format(
+                                  hid, proj, depth, link_dia, xs[1] - xs[0] if len(xs) > 1 else 0.0, bar_dia))
+            else:
+                dia = min(max(link_dia, 10.0), nibs.MAX_UBAR_DIA_MM)
+                bar_t = self._type_for(dia, bar_types)
+                anchorage = self._beam_lap_anchorage(host, dia)[1]
+                xs = nibs.positions_mm(x0 + 30.0, x1 - 30.0, min(nibs.MAX_UBAR_PITCH_MM, pitch))
+                chains, short = [], 0.0
+                for x in xs:
+                    pts, s = nibs.mn2_ubar(b, proj, depth, cover_mm, dia, anchorage, x)
+                    short = max(short, s)
+                    chains.append(nib_rebar.polyline(fr, flip(pts)))
+                self._made(wrapper.create_freeform_group(host, chains, bar_t,
+                                                         transaction_name=u'NOSA — Create Nib U-Bars'),
+                           u'nib_ubar', u'Beam {}: nib U-bars'.format(hid), wrapper, errors, created_rebars)
+                y, z = nibs.mn2_lacer(b, proj, depth, cover_mm, dia)
+                line = nib_rebar.polyline(fr, [(cover_mm, side * y, z), (fr['length'] - cover_mm, side * y, z)])
+                self._made(wrapper.create_from_curves(host, line, bar_t, normal=fr['ey'],
+                                                      transaction_name=u'NOSA — Create Nib Lacer'),
+                           u'nib_lacer', u'Beam {}: nib lacer'.format(hid), wrapper, errors, created_rebars)
+                if not n_side:
+                    errors.append(u'Beam {}: shallow nib ({:.0f} x {:.0f}) to SMDSC MN2 — {} horizontal H{:.0f} U-bars at '
+                              u'{:.0f} with a lacer bar; wire each to at least two main bars.'.format(
+                                  hid, proj, depth, len(xs), dia, xs[1] - xs[0] if len(xs) > 1 else 0.0))
+                if short > 1.0:
+                    errors.append(u'Beam {}: the nib U-bar legs reach the far side {:.0f} mm short of a tension '
+                                  u'anchorage — bend them down or use smaller bars.'.format(hid, short))
+
+    def _reinforce_half_joints(self, host, half, fr, values, cover_mm, bar_types, wrapper, errors, created_rebars):
+        """IStructE SMDSC 6.9 / EC2 Annex J at both ends of an 'RC Beam - Half Joint'."""
+        import nib_rebar
+        from nosa_utils import nibs
+        hid = get_id_value(host.Id)
+        b, h = nib_rebar.section_mm(host)
+        link_dia = values['stirrup_dia']
+        ubar_dia = min(values['bar_dia'], nibs.MAX_UBAR_DIA_MM)
+        anchorage = self._beam_lap_anchorage(host, ubar_dia)[1]
+        lay = nibs.half_joint(half[0], half[1], h, b, cover_mm, link_dia, ubar_dia, anchorage)
+        errors.extend(u'Beam {}: {}'.format(hid, n) for n in lay['notes'])
+        link_t, u_t = self._type_for(link_dia, bar_types), self._type_for(ubar_dia, bar_types)
+        c = cover_mm + link_dia / 2.0
+        full = [(-b / 2.0 + c, c), (b / 2.0 - c, c), (b / 2.0 - c, h - c), (-b / 2.0 + c, h - c)]
+        for end in (0, 1):
+            def at(x):
+                return x if end == 0 else fr['length'] - x
+            self._link_set(host, fr, [at(x) for x in lay['hangers']], full, link_t, wrapper,
+                           u'Half Joint Hanger Links', u'half_joint_hanger', errors, created_rebars)
+            if lay['nib_links']:
+                self._link_set(host, fr, [at(x) for x in lay['nib_links']], lay['nib_link'], link_t, wrapper,
+                               u'Half Joint Nib Links', u'half_joint_link', errors, created_rebars)
+            chains = [nib_rebar.polyline(fr, u if end == 0 else nib_rebar.mirror_x(fr, u)) for u in lay['ubars']]
+            if chains:
+                self._made(wrapper.create_freeform_group(host, chains, u_t,
+                                                         transaction_name=u'NOSA — Create Half Joint U-Bars'),
+                           u'half_joint_ubar', u'Beam {}: half joint U-bars'.format(hid), wrapper, errors,
+                           created_rebars)
 
     @staticmethod
     def _bend_diameter_mm(bar_type):

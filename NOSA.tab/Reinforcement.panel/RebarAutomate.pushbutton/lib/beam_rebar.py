@@ -1019,7 +1019,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                              confine_length_mm=None, anchorage_mm=None,
                              include_interior_ties=False, tie_layout='all',
                              link_bend_diameter_mm=None, continuous_ends=(False, False),
-                             internal_bottom_ext_mm=(0.0, 0.0), bottom_stop_mm=(None, None), include_top=True,
+                             internal_bottom_ext_mm=(0.0, 0.0), bottom_stop_mm=(None, None),
+                             bottom_stop_leg=(False, False), include_top=True,
                              n_support_bars=0, support_bar_diameter_mm=None,
                              n_span_bars=0, span_bar_diameter_mm=None, side_bar_diameter_mm=None):
     """
@@ -1096,10 +1097,11 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     b_ext1 = internal_bottom_ext_mm[1] if continuous_ends[1] else ext1_mm
     # SMDSC MB1 flexible detailing: at an end column the bottom bars stop short, lapping the end U-bars
     b_leg0, b_leg1 = (0.0 if continuous_ends[0] else ext0_mm), (0.0 if continuous_ends[1] else ext1_mm)
+    # a half joint (SMDSC 6.9): the bottom bars stop at the notch and turn up behind the hanger links
     if bottom_stop_mm[0] is not None:
-        b_ext0, b_leg0 = bottom_stop_mm[0], 0.0
+        b_ext0, b_leg0 = bottom_stop_mm[0], (1.0 if bottom_stop_leg[0] else 0.0)
     if bottom_stop_mm[1] is not None:
-        b_ext1, b_leg1 = bottom_stop_mm[1], 0.0
+        b_ext1, b_leg1 = bottom_stop_mm[1], (1.0 if bottom_stop_leg[1] else 0.0)
     if ext0_mm or ext1_mm:
         top_lines = [_extend_line(l, ext0_mm, ext1_mm) for l in top_lines]
     if b_ext0 or b_ext1:
