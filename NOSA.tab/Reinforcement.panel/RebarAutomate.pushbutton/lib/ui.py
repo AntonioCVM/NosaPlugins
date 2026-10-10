@@ -2129,7 +2129,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                         errors.append(u'Footing {}: could not create the {}-axis '
                                       u'detail section.'.format(get_id_value(host.Id), axis))
                     else:
-                        rebar_views.ensure_fine(section)
+                        rebar_views.ensure_coarse(section)
                         created += 1
         return created
 

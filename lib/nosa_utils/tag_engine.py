@@ -21,6 +21,7 @@ _ELEMENT_CATEGORY = dict((c[0], c[2]) for c in tag_rules.CATEGORIES)
 _RA_LIB = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                        'NOSA.tab', 'Reinforcement.panel', 'RebarAutomate.pushbutton', 'lib')
 _rebar_detailing = None
+_rebar_presentation = None
 MRA_PREFERENCE = (u'dots',)
 MRA_MIN_SPREAD_MM = 10.0    # paper: narrower sets (bars across a beam) get an ordinary tag
 
@@ -39,6 +40,34 @@ def _ra_detailing():
             sys.path.insert(0, _RA_LIB)
         _rebar_detailing = load_module('tagall_rebar_detailing', os.path.join(_RA_LIB, 'rebar_detailing.py'))
     return _rebar_detailing
+
+
+def _ra_presentation():
+    global _rebar_presentation
+    if _rebar_presentation is None:
+        from nosa_utils.bootstrap import load_module
+        _ra_detailing()
+        _rebar_presentation = load_module('tagall_rebar_presentation', os.path.join(_RA_LIB, 'rebar_presentation.py'))
+    return _rebar_presentation
+
+
+def present_rebar(doc, view, mra_type):
+    """T8.27, IStructE SMDSC 6.2.2: the bars of the view as typical bars with indicator lines and notes."""
+    from nosa_utils.revit_helpers import get_id_value
+    rebars = elements(doc, view, 'rebar')
+    if not rebars:
+        return {}
+    hosts, seen = [], set()
+    for r in rebars:
+        try:
+            h = doc.GetElement(r.GetHostId())
+        except Exception:
+            h = None
+        if h is not None and get_id_value(h.Id) not in seen:
+            seen.add(get_id_value(h.Id))
+            hosts.append(h)
+    return _ra_presentation().apply(doc, view, rebars, _ra_detailing(),
+                                    mra_type.Id if mra_type is not None else mra_type_id(doc), hosts=hosts)
 
 
 def tag_types(doc, key):
@@ -448,6 +477,9 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
                 continue
             if leader:
                 report['leaders'] += 1
+        if 'rebar' in keys:
+            present = present_rebar(doc, view, mra_type)
+            report['mra'] += present.get('mra', 0) if kind != 'plan' else 0
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{}: {}'.format(view.Name, e))

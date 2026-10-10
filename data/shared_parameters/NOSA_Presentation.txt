@@ -1,0 +1,10 @@
+# This is a Revit shared parameter file.
+# NOSA rebar presentation (T8.27, 2026-10-10): IStructE SMDSC 4.2.1/6.2.2 calling-up written by the plugin, bound to Structural Rebar.
+# GUIDs are FINAL - never regenerate. A retired parameter keeps its GUID burned.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Rebar_Presentation
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	4c666f1b-5b86-4874-8c9a-42b673fb692d	NOSA_Rebar_Callout	TEXT		1	1	Calling-up of the bar mark on its drawing, the number written once for all its zones, e.g. 39H16-01-150 B1 (SMDSC 4.2.1)	1	0
+PARAM	5e948ecd-e6eb-444b-8f6e-f296794cca95	NOSA_Rebar_Zone_Qty	TEXT		1	1	Number of bars of this zone in brackets when the mark spans several zones, e.g. (20) (SMDSC 6.2.2)	1	0

@@ -291,11 +291,12 @@ def _unique_view_name(doc, wanted):
     return name
 
 
-def ensure_fine(view):
+def ensure_coarse(view):
     """
-    Detail level Fine (user decision 2026-10-06): bars drawn at their real diameter, cut bars as
-    filled circles (IStructE SMDSC 4.2). When the view template controls the detail level, the RC
-    template itself is set to Fine; otherwise the view. In a transaction; True when it is Fine.
+    Detail level Coarse (user decision 2026-10-10, replacing Fine of 2026-10-06): a bar is one thick line
+    and a cut bar a filled dot to scale (IStructE SMDSC 3.10), legible on A1 and reduced to A3. When the
+    view template controls the detail level, the RC template itself is set; otherwise the view. In a
+    transaction; True when it is Coarse.
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import get_id_value
@@ -307,12 +308,12 @@ def ensure_fine(view):
         if int(DB.BuiltInParameter.VIEW_DETAIL_LEVEL) not in free:
             target = template
     try:
-        if target.DetailLevel != DB.ViewDetailLevel.Fine:
-            target.DetailLevel = DB.ViewDetailLevel.Fine
+        if target.DetailLevel != DB.ViewDetailLevel.Coarse:
+            target.DetailLevel = DB.ViewDetailLevel.Coarse
         return True
     except Exception:
         from nosa_utils.telemetry import log_swallowed
-        log_swallowed(u'rebarautomate', u'ensure_fine')
+        log_swallowed(u'rebarautomate', u'ensure_coarse')
         return False
 
 
@@ -328,7 +329,7 @@ def _apply_template_and_scale(view, template, scale):
         if template is not None:
             view.ApplyViewTemplateParameters(template)
         view.Scale = scale
-    ensure_fine(view)
+    ensure_coarse(view)
 
 
 def _rollback_on_error():
@@ -478,30 +479,27 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             created.append((view, spec, scale))
         doc.Regenerate()
         if tag and rebars:
-            for view, spec, scale in created:
-                visible = [r for r in rebars if not r.IsHidden(view)]
-                tags, _errors = rebar_detailing.create_rebar_tags(
-                    doc, view, visible, tag_type_id=rebar_detailing.tag_type_for_view(doc, view))
-                doc.Regenerate()
-                # Revit drops the tags of bars that do not show in the view
-                tags = [x for x in tags if x is not None and x.IsValidObject]
-                rebar_detailing.resolve_tag_overlaps(doc, view, tags)
-                report['tags'] += len(tags)
+            # T8.27, SMDSC 6.2.2 / 3.3: typical bars, indicator lines and marks laid out outside the members,
+            # before the sheets so each viewport takes its calling-up in
+            import rebar_presentation
+            from nosa_utils import tag_engine
+            mra_type_id = tag_engine.mra_type_id(doc)
+            for view, _spec, _scale in created:
+                rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts)
         if place_on_sheets and created and titleblock is not None:
             import rc_legends
             legends = rc_legends.ensure(doc)
-
-            def _retag(view):
-                tags = [x for x in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag)]
-                if tags:
-                    rebar_detailing.resolve_tag_overlaps(doc, view, tags)
             report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
-                                                retag=_retag if tag else None, legends=legends)
+                                                retag=None, legends=legends)   # the presentation laid the tags out
             if report['sheets']:
                 # SMDSC 4.5.1: the member's bar schedules belong to the drawing it is detailed on
                 import bar_schedules
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
+        if tag and rebars:
+            # T8.27, SMDSC 6.2.2: bars detailed on another drawing, once the views are on their sheets
+            for view, _spec, _scale in created:
+                rebar_presentation.see_drawing(doc, view, rebars)
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))
