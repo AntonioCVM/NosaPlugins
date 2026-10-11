@@ -206,11 +206,15 @@ def deduplicate_and_mark(doc, rebars, ctx):
     marking_cfg = std.get("marking", {}) if std else {}
     tolerance_mm = marking_cfg.get("dedup_tolerance_mm", 5.0)
     partition = (ctx.get("mark_prefix") or u'').strip()
+    drawing_known = ctx.get("drawing_known")
 
     elements = [doc.GetElement(rid) for rid in rebars]
     elements = [e for e in elements if e is not None]
-    known, highest = _existing_marks(
-        doc, set(get_id_value(e.Id) for e in elements), partition, tolerance_mm)
+    if drawing_known is not None:
+        known, highest = dict(drawing_known), max(list(drawing_known.values()) or [0])
+    else:
+        known, highest = _existing_marks(
+            doc, set(get_id_value(e.Id) for e in elements), partition, tolerance_mm)
 
     clusters = {}
     varying_ids = set()
@@ -261,8 +265,10 @@ def deduplicate_and_mark(doc, rebars, ctx):
             _write(doc, rebar.Id, "NOSA_Rebar_Mark_Suffix", suffixes.get(get_id_value(rebar.Id), u''))
             from nosa_utils import couplers
             # SMDSC 5.5: 'E' just before the mark of a coupled bar (T8.52)
-            for bip, value in ((DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, couplers.schedule_mark(rebar, mark)),
-                               (DB.BuiltInParameter.NUMBER_PARTITION_PARAM, partition)):
+            stamps = [(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, couplers.schedule_mark(rebar, mark))]
+            if drawing_known is None:            # a drawing's numbering keeps each bar's member (Partition)
+                stamps.append((DB.BuiltInParameter.NUMBER_PARTITION_PARAM, partition))
+            for bip, value in stamps:
                 try:
                     param = rebar.get_Parameter(bip)
                     if param is not None and not param.IsReadOnly:
@@ -309,6 +315,31 @@ def assign_layers_and_lengths(doc, rebars, ctx):
         if rebar:
             total_length = compute_total_length_mm(rebar)
             _write(doc, rebar_id, "NOSA_Rebar_Total_Length", total_length)
+
+
+def renumber_drawing(doc, rebar_ids, ctx=None):
+    """
+    SMDSC 4.5.1 (user decision 2026-10-11): marks are unique per drawing. The bars detailed on one
+    drawing are numbered 01 upwards together, identical bars of different members sharing one mark;
+    each bar keeps its member (Partition). Finalized bars keep their marks and the others avoid them.
+    """
+    ctx = dict(ctx or {})
+    tolerance_mm = ((ctx.get("standard") or {}).get("marking", {}) or {}).get("dedup_tolerance_mm", 5.0)
+    known, todo = {}, []
+    for rid in rebar_ids:
+        if not _read(doc, rid, "NOSA_Rebar_Batch_Id"):
+            continue
+        if _read(doc, rid, "NOSA_Rebar_Finalized") in (1, u'1'):
+            number = mark_number(_read(doc, rid, "NOSA_Rebar_Mark"))
+            if number > 0:
+                varying = _read(doc, rid, "NOSA_Rebar_Is_Variable") in (1, u'1')
+                known.setdefault(_dedup_key(doc, doc.GetElement(rid), tolerance_mm, varying), number)
+            continue
+        todo.append(rid)
+    if not todo:
+        return {"total_positions": 0, "total_bars": 0, "largest_cluster": 0}
+    ctx["drawing_known"] = known
+    return deduplicate_and_mark(doc, todo, ctx)
 
 
 def renumber_partition(doc, ctx):

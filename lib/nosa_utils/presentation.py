@@ -163,11 +163,18 @@ _NOTES = ((('11', '12'), u'L-BARS'), (('13', '21', '22', '23', '24', '25'), u'U-
           (('31', '32', '33', '34', '35', '36', '41', '44', '46', '47', '51', '52', '56', '63', '64', '67'), u'LINKS'))
 
 
-def bar_note(shape_code, in_twos=False):
+_ROLE_NOTES = {u'spacer': u'SPACERS'}
+
+
+def bar_note(shape_code, in_twos=False, layer=u''):
     """
     What kind of bar, written after its calling-up (user 2026-10-10, SMDSC drawings): 'L-BARS', 'U-BARS',
-    'LINKS', 'LINKS IN 2s' for two links at each position; '' for straight bars and other shapes.
+    'LINKS', 'LINKS IN 2s' for two links at each position; '' for straight bars and other shapes. A bar's role
+    goes before its shape: spacer bars between layers are 'SPACERS' (4H25-01 SPACERS, user 2026-10-11).
     """
+    role = _ROLE_NOTES.get((layer or u'').strip().lower())
+    if role:
+        return role
     code = (shape_code or u'').strip()
     for codes, note in _NOTES:
         if code in codes:

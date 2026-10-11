@@ -139,6 +139,7 @@ POINTER_TAG = u'Mark only - Arrow'
 CUT_TAG = u'Mark only - Dot'            # a mark over every bar a section cuts (SMDSC 6.2.3, user 2026-10-10)
 ELEVATION_TAG = u'Full label - Arrow'   # main bars of an elevation: 'No centres' for beams and columns
 SHORT_TAG = u'No centres - Dot'
+SPACER_TAG = u'No centres - Arrow'      # '4H25-01 SPACERS': the count of the set, no centres (SMDSC MB1)
 TOTAL_STYLE = u'NOSA Total Lines'       # the line under a beam carrying a link mark's one calling-up
 ELEVATION_KINDS = ('elevation', 'column_elevation')
 CALLOUT_TAG = u'Callout - Dot'          # NOSA Rebar Tag 1.3.0
@@ -416,7 +417,7 @@ def _notes(doc, rebars):
         rid = get_id_value(r.Id)
         p = r.LookupParameter(NOTE_PARAM)
         if p is not None and not p.IsReadOnly:
-            p.Set(presentation.bar_note(shapes.get(rid), rid in twos))
+            p.Set(presentation.bar_note(shapes.get(rid), rid in twos, _text(r, u'NOSA_Rebar_Layer')))
 
 
 def _same_station(a, pa, b, pb, tol_mm=30.0):
@@ -1092,13 +1093,24 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
     cut_type = tag_types.get(CUT_TAG) or base
     frame = _crop_frame(view)
     for d in cut:
-        for i, ref, point in _cut_bars(view, d, frame):
+        bars = _cut_bars(view, d, frame)
+        for i, ref, point in bars:
             try:
                 tag = DB.IndependentTag.Create(doc, cut_type, view.Id, ref, False, DB.TagOrientation.Horizontal,
                                                point)
             except Exception:
                 continue
             entries.append(((d['id'], i), tag, point))
+        if _text(d['rebar'], u'NOSA_Rebar_Layer') == u'spacer' and bars:
+            # SMDSC MB1 (user 2026-10-11): each spacer keeps its mark, and the set gets one calling-up
+            # '4H25-01 SPACERS' pointing at the first
+            try:
+                i, ref, point = bars[0]
+                tag = DB.IndependentTag.Create(doc, tag_types.get(SPACER_TAG) or base, view.Id, ref, True,
+                                               DB.TagOrientation.Horizontal, point)
+                entries.append((d['id'], tag, point))
+            except Exception:
+                pass
     if not entries:
         return
     doc.Regenerate()

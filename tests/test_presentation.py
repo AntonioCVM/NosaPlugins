@@ -75,3 +75,9 @@ def test_link_zone_texts():
 def test_bar_notes():
     assert pr.bar_note(u'00') == u'' and pr.bar_note(u'11') == u'L-BARS' and pr.bar_note(u'21') == u'U-BARS'
     assert pr.bar_note(u'51') == u'LINKS' and pr.bar_note(u'52', in_twos=True) == u'LINKS IN 2s'
+
+
+def test_spacer_bars_are_called_spacers_whatever_their_shape():
+    assert pr.bar_note(u"00", layer=u"spacer") == u'SPACERS'
+    assert pr.bar_note(u"00", layer=u"top") == u''
+    assert pr.bar_note(u"21", layer=u"bottom") == u'U-BARS'

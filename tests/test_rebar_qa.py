@@ -46,3 +46,10 @@ def test_segments_clash_and_congestion():
     assert qa.pair_issue(d, cos, overlap, 20.0, 20.0)[0] == qa.WARNING    # 40 - 22 = 18 < 25
     d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (1000, 0, 0), (2000, 40, 0), (3000, 40, 0))
     assert overlap == 0.0 and qa.pair_issue(d, cos, overlap, 20.0, 20.0) is None
+
+
+def test_joint_clash_says_how_to_resolve_it_once():
+    text = qa.joint_advice(u'clash: centrelines 10 mm apart, bars 20 + 25 at (1, 2, 3)')
+    assert u'crank the beam bar' in text and u'second layer' in text and u'smaller bars' in text
+    assert qa.joint_advice(text) == text
+    assert qa.joint_advice(u'congested: clear gap 20 mm') == u'congested: clear gap 20 mm'

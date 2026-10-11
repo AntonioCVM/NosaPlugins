@@ -554,6 +554,11 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 except Exception:
                     continue
             created.append((view, spec, scale))
+        if rebars and place_on_sheets:
+            # SMDSC 4.5.1: these members make one new drawing, so their marks run 01 upwards across it —
+            # before the calling-up, whose callout texts carry the marks
+            import rebar_marking
+            report['marks'] = rebar_marking.renumber_drawing(doc, [r.Id for r in rebars]).get('total_positions', 0)
         doc.Regenerate()
         if tag and rebars:
             # T8.27, SMDSC 6.2.2 / 3.3: typical bars, indicator lines and marks laid out outside the members,

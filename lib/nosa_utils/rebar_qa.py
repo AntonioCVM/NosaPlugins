@@ -326,6 +326,21 @@ def _touch(a, b, tol):
             b.Min.Y - tol <= a.Max.Y and a.Min.Z - tol <= b.Max.Z and b.Min.Z - tol <= a.Max.Z)
 
 
+JOINT_ADVICE = (u'keep the column bars where they are and either crank the beam bar inwards just before the '
+                u'joint, take it to a second layer (check the reduced d) or use more, smaller bars (e.g. 4H25 for '
+                u'2H32)')
+
+
+def joint_advice(issue):
+    """
+    A joint clash with the way to resolve it (user decision 2026-10-11, SMDSC): never moved by the program, since
+    an automatic shift cuts the lever arm d and the cover; the column's bars rule and the beam's bars give way.
+    """
+    if not issue or not issue.startswith(u'clash') or JOINT_ADVICE in issue:
+        return issue
+    return u'{} - {}'.format(issue, JOINT_ADVICE)
+
+
 def _joint_pairs(hosts, parts, checked, aggregate_mm, get_id_value):
     """Bars of two members that meet (beam and column, slab and beam) clashing or crowding each other."""
     out = []
@@ -344,6 +359,7 @@ def _joint_pairs(hosts, parts, checked, aggregate_mm, get_id_value):
                            get_id_value, owner)
             for f in found:
                 f.Check = u'Joint ' + f.Check.lower()
+                f.Issue = joint_advice(f.Issue)
             out.extend(found)
     return out
 
