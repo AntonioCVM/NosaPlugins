@@ -180,3 +180,40 @@ def bar_note(shape_code, in_twos=False, layer=u''):
         if code in codes:
             return u'LINKS IN 2s' if note == u'LINKS' and in_twos else note
     return u''
+
+
+def curtailment_dims(bars, supports, tol=1.0):
+    """
+    What to dimension along a beam elevation (T9.3, SMDSC 4th ed. 3.13 / Fig. 6.24): bars [(x0, x1, layer)],
+    supports [(x0, x1)] (view mm). Each bar end that stops in a span is dimensioned from the face of the nearest
+    support ('cut', face, end, layer); two bars of one layer overlapping are a lap ('lap', start, end, layer).
+    Ends inside a support are anchored there and need no dimension.
+    """
+    out = []
+
+    def in_support(x):
+        return any(a - tol <= x <= b + tol for a, b in supports)
+
+    for x0, x1, layer in bars:
+        for end in (x0, x1):
+            if in_support(end) or not supports:
+                continue
+            faces = [x for s in supports for x in s]
+            face = min(faces, key=lambda f: abs(f - end))
+            if abs(face - end) > tol:
+                out.append(('cut', min(face, end), max(face, end), layer))
+    ordered = sorted(bars)
+    for i, (a0, a1, la) in enumerate(ordered):
+        for b0, b1, lb in ordered[i + 1:]:
+            if la != lb or b0 >= a1 - tol:
+                continue
+            lo, hi = max(a0, b0), min(a1, b1)
+            if hi - lo > tol and not (abs(a0 - b0) < tol and abs(a1 - b1) < tol):
+                out.append(('lap', lo, hi, la))
+    seen, unique = set(), []
+    for d in out:
+        key = (d[0], round(d[1]), round(d[2]), d[3])
+        if key not in seen:
+            seen.add(key)
+            unique.append(d)
+    return unique

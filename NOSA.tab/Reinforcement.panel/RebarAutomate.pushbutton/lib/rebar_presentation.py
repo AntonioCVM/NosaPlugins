@@ -392,6 +392,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     if beam_elevation:
         # SMDSC 6.2.3 beam elevation: the main bars' calling-up turned up the sheet just past the beam's faces,
         # then the link zones under them, each mark's '(n@pitch)' zones over its one total calling-up
+        # T9.3: where each bar stops in a span, from the face of the support, and its laps — first, so the
+        # calling-up keeps clear of them
+        report['curtailment'] = _curtailment(doc, view, pointers, box, placed, scale, total_style)
         _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, 'beam')
         made = _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, total_style)
     else:
@@ -999,6 +1002,46 @@ def _dimension_chain(doc, view, xs, y, like, scale, style):
         return doc.Create.NewDimension(view, line, refs)
     except Exception:
         return None
+
+
+def _curtailment(doc, view, items, box, placed, scale, style):
+    """
+    Dimension strings above a beam elevation for its top bars and below it for its bottom bars: each end stopping
+    in a span from the face of the nearest support, each lap with 'LAP' under it. Returns how many.
+    """
+    supports = _supports_x(doc, view, box)
+    mid = (box[1] + box[3]) / 2.0
+    bars = []
+    for d in items:
+        (ax, ay), (bx, by) = d['ends']
+        bars.append((min(ax, bx), max(ax, bx), u'top' if (ay + by) / 2.0 > mid else u'bottom'))
+    dims = presentation.curtailment_dims(bars, supports)
+    if not dims:
+        return 0
+    gap, row = GAP_PAPER_MM * scale, ROW_PAPER_MM * scale
+    like = view.Origin
+    rows = {u'top': [], u'bottom': []}
+    made = 0
+    for kind, a, b, layer in sorted(dims, key=lambda d: (d[3], d[1])):
+        k = 0
+        while any(r == k and not (b + gap < r0 or a - gap > r1) for r, r0, r1 in rows[layer]):
+            k += 1
+        rows[layer].append((k, a, b))
+        if layer == u'top':
+            y = max([box[3]] + [q[3] for q in placed if q[0] < b and q[2] > a]) + gap + row * (0.6 + k)
+        else:
+            y = min([box[1]] + [q[1] for q in placed if q[0] < b and q[2] > a]) - gap - row * (0.6 + k)
+        dim = _dimension_chain(doc, view, [a, b], y, like, scale, style)
+        if dim is None:
+            continue
+        if kind == 'lap':
+            try:
+                dim.Below = u'LAP'
+            except Exception:
+                pass
+        placed.append((a, y - row / 2.0, b, y + row / 2.0))
+        made += 1
+    return made
 
 
 def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, style):

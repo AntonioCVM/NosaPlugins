@@ -81,3 +81,13 @@ def test_spacer_bars_are_called_spacers_whatever_their_shape():
     assert pr.bar_note(u"00", layer=u"spacer") == u'SPACERS'
     assert pr.bar_note(u"00", layer=u"top") == u''
     assert pr.bar_note(u"21", layer=u"bottom") == u'U-BARS'
+
+
+def test_curtailment_dims_from_support_faces_and_laps():
+    supports = [(-225.0, 225.0), (5775.0, 6225.0)]
+    bars = [(-200.0, 1500.0, u'top'), (4500.0, 6200.0, u'top'), (-200.0, 6200.0, u'bottom')]
+    dims = pr.curtailment_dims(bars, supports)
+    assert ('cut', 225.0, 1500.0, u'top') in dims and ('cut', 4500.0, 5775.0, u'top') in dims
+    assert not [d for d in dims if d[3] == u'bottom']             # anchored in both supports
+    laps = pr.curtailment_dims([(0.0, 4000.0, u'bottom'), (3200.0, 8000.0, u'bottom')], [(-225.0, 225.0)])
+    assert ('lap', 3200.0, 4000.0, u'bottom') in laps
