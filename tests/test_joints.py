@@ -37,3 +37,8 @@ def test_inner_leg_stays_under_the_bend():
     room = joints.nested_leg_room_mm(480.0, 48.0, 20.0, 20.0)     # bend 80, 32 in from its centre: 7 mm lower
     assert 452.0 < room < 454.0
     assert joints.nested_leg_room_mm(480.0, 100.0, 20.0, 20.0) == 460.0
+
+
+def test_t_beam_flange_belongs_to_the_slab():
+    note = joints.flange_note(u'1234')
+    assert u'1234' in note and u'detailed with the slab' in note and u'EC2 6.2.4' in note

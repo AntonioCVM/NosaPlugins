@@ -92,6 +92,7 @@ def top_drop_mm(doc, host, axis, beam_cover_mm, bar_dia_mm, re_engine):
         return 0.0, notes
     slab = _slab_on_top(doc, host, box)
     if slab is not None:
+        notes.append(joints.flange_note(get_id_value(slab.Id)))
         cover = re_engine.get_native_cover_mm(doc, slab, u'Top', default_mm=25.0)
         dias = _bars_of(doc, slab, (u'top_x', u'top_y'))
         sizes = [dias.get(u'top_x'), dias.get(u'top_y')]

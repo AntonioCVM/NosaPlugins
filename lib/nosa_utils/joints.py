@@ -77,3 +77,14 @@ def nested_leg_room_mm(clear_mm, inset_mm, top_dia_mm, bottom_dia_mm):
     e = r - inset_mm
     rise = r - math.sqrt(r * r - e * e) if 0.0 < e < r else 0.0
     return clear_mm - rise - (top_dia_mm + bottom_dia_mm) / 2.0
+
+
+def flange_note(slab_label):
+    """
+    A slab on a beam makes it a T or L beam (user decision 2026-10-11, SMDSC / EC2 6.2.4): the flange belongs to
+    the slab, whose top bars run on across the beam as both its hogging steel and the flange's transverse bars;
+    the beam keeps its web bars and links, which reach up into the flange under the slab's top mat.
+    """
+    return (u'T/L beam with slab {}: the flange is detailed with the slab (its top bars continuous across the '
+            u'beam, not repeated in the beam); check the flange-web shear (EC2 6.2.4) and add local U-bars '
+            u'(shape 21) under the flange where the slab bars fall short.'.format(slab_label))
