@@ -475,12 +475,17 @@ class ToolsMixin(object):
         errors = []
         self.SetLoading(True, u'Creating views…')
         try:
-            for group in groups:
-                report = rebar_views.build_element_views(
+            if self.ChkViewsSheets.IsChecked == True:
+                # T9.7: the elements of one kind share a drawing (consultancy practice, user 2026-10-11)
+                reports = [rebar_views.build_drawings(
+                    self.doc, groups, re_engine, rebar_detailing, view_plan, numbers, beam_rebar=beam_rebar,
+                    stair_host=stair_host, tag=self.ChkViewsTags.IsChecked == True)]
+            else:
+                reports = [rebar_views.build_element_views(
                     self.doc, group, re_engine, rebar_detailing, view_plan, numbers,
-                    beam_rebar=beam_rebar, stair_host=stair_host,
-                    place_on_sheets=self.ChkViewsSheets.IsChecked == True,
-                    tag=self.ChkViewsTags.IsChecked == True)
+                    beam_rebar=beam_rebar, stair_host=stair_host, place_on_sheets=False,
+                    tag=self.ChkViewsTags.IsChecked == True) for group in groups]
+            for report in reports:
                 views += len(report['views'])
                 sheets += len(report['sheets'])
                 tags += report['tags']

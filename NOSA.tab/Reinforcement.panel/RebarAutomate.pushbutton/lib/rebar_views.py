@@ -181,7 +181,7 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         width = _mm(host.Symbol.LookupParameter(u'b').AsDouble()) if host.Symbol.LookupParameter(u'b') else 300.0
         top = _mm(box.Max.Z)
         specs.append(_plan(u'Plan', 'plan', _level_of(doc, host), box, top + 200.0, _mm(box.Min.Z) - 200.0))
-        for letter, t in ((u'A', 0.5), (u'B', 0.12)):
+        for letter, t in ((u'1', 0.5), (u'2', 0.12)):
             p = arc.Evaluate(t, True)
             tangent = arc.ComputeDerivatives(t, True).BasisX.Normalize()
             across = DB.XYZ(-tangent.Y, tangent.X, 0.0).Normalize()
@@ -296,6 +296,139 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
             spec['title'] = u'Section {0}-{0}'.format(number)
             number += 1
     return specs
+
+
+_PLURAL = {'column': u'Columns', 'beam': u'Beams', 'foundation': u'Foundations', 'floor': u'Slabs',
+           'wall': u'Walls', 'stairs': u'Stairs'}
+
+
+def _continue_labels(doc, created, group, kind, label):
+    """Section numbers and letters carried on across one drawing (1-1 ... then 5-5; A, B, then C, D)."""
+    from Autodesk.Revit import DB  # Lazy import
+    numbers = [e for e in created if e[1].get('letter', u'').isdigit()]
+    letters = [e for e in created if e[1].get('letter') and not e[1]['letter'].isdigit()]
+    for view, spec, _s in numbers:
+        spec['letter'] = u'{}'.format(int(spec['letter']) + group['numbers'])
+        spec['title'] = u'Section {0}-{0}'.format(spec['letter'])
+    for view, spec, _s in letters:
+        spec['letter'] = _letter(ord(spec['letter'][0]) - ord(u'A') + group['letters'])
+        spec['title'] = u'Section {0}-{0}'.format(spec['letter'])
+    group['numbers'] += len(numbers)
+    group['letters'] += len(letters)
+    for view, spec, _s in created:
+        try:
+            if (view, spec, _s) in numbers + letters:
+                view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label,
+                                                                        spec['title']))
+            # several members on one drawing: every title says whose view it is ('B1-B3 Elevation')
+            view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).Set(
+                u'{} {}'.format(label, spec['title']) if group['members'] > 1 else spec['title'])
+        except Exception:
+            continue
+
+
+def _letter(index):
+    """A ... Z, then AA, AB ... (SMDSC 3.19 omits I and O)."""
+    alphabet = [c for c in u'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if c not in u'IO']
+    out = u''
+    index += 1
+    while index > 0:
+        index, rem = divmod(index - 1, len(alphabet))
+        out = alphabet[rem] + out
+    return out
+
+
+def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_numbers, beam_rebar=None,
+                   stair_host=None, tag=True):
+    """
+    T9.7 (user 2026-10-11): the elements of one kind on one drawing, as a consultancy draws them: all their
+    views laid out together on shared A1 sheets, marks 01 upwards across the drawing and its sections
+    numbered on. groups: [[host, ...]] (one element or one beam line each). Returns one report.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    report = {'views': [], 'sheets': [], 'tags': 0, 'errors': []}
+    kinds = []
+    for g in groups:
+        k = host_kind(g[0])
+        if k not in kinds:
+            kinds.append(k)
+    for kind in kinds:
+        batch = [g for g in groups if host_kind(g[0]) == kind]
+        rebars = [r for g in batch for h in g for r in host_rebars(h)]
+        if rebars:
+            t = DB.Transaction(doc, u'NOSA — Marks of the {} drawing'.format(_PLURAL.get(kind, kind)))
+            t.Start()
+            import rebar_marking
+            rebar_marking.renumber_drawing(doc, [r.Id for r in rebars])      # SMDSC 4.5.1: one drawing
+            t.Commit()
+        group = {'pending': [], 'retag': {}, 'hosts': [], 'rebars': [], 'numbers': 0, 'letters': 0,
+                 'members': len(batch)}
+        for g in batch:
+            r = build_element_views(doc, g, re_engine, rebar_detailing, view_plan, sheet_numbers,
+                                    beam_rebar=beam_rebar, stair_host=stair_host, tag=tag, sheet_group=group)
+            report['views'].extend(r['views'])
+            report['tags'] += r['tags']
+            report['errors'].extend(r['errors'])
+        valid = [e for e in group['pending'] if e[0].IsValidObject]
+        if valid:
+            report['sheets'].extend(_place_group(doc, kind, valid, group, view_plan, sheet_numbers, report))
+    return report
+
+
+def _titleblock(doc):
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name
+    found = None
+    for symbol in DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol).OfCategory(
+            DB.BuiltInCategory.OST_TitleBlocks):
+        if found is None or element_name(symbol) == TITLEBLOCK:
+            found = symbol
+            if element_name(symbol) == TITLEBLOCK:
+                break
+    return found
+
+
+def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
+    """The views of one drawing on its A1 sheets, with the legends, its notes and the drawing stamped."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    import rc_legends
+    titleblock = _titleblock(doc)
+    if titleblock is None:
+        report['errors'].append(u'No title block in this project: views left off the sheets.')
+        return []
+    t = DB.Transaction(doc, u'NOSA — {} drawing'.format(_PLURAL.get(kind, kind)))
+    t.Start()
+    try:
+        legends = rc_legends.ensure(doc)
+
+        def retag(view):
+            fn = group['retag'].get(get_id_value(view.Id))
+            if fn is not None:
+                fn(view)
+        # a drawing of several members goes on to a second sheet rather than below the SMDSC reading scales
+        sheets = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
+                                  u'{} reinforcement'.format(_PLURAL.get(kind, kind)), retag=retag, legends=legends,
+                                  coarsen=False)
+        if sheets:
+            import bar_schedules
+            bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0])
+            for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+                if sheet.SheetNumber in sheets:
+                    report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars']))
+            import rebar_presentation
+            own = set(get_id_value(r.Id) for r in group['rebars'])
+            for view, _spec, _scale in created:
+                others = [r for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Structure.Rebar)
+                          if get_id_value(r.Id) not in own]
+                rebar_presentation.see_drawing(doc, view, others)
+        t.Commit()
+        return sheets
+    except Exception as e:
+        t.RollBack()
+        report['errors'].append(u'{} drawing: {}'.format(_PLURAL.get(kind, kind), e))
+        return []
 
 
 def _number_in_reading_order(doc, created, kind, label):
@@ -433,6 +566,23 @@ def _unique_view_name(doc, wanted):
     return name
 
 
+def _hide_datums(doc, view):
+    """A member section shows the member only: the grids and levels crossing it are hidden in it."""
+    from Autodesk.Revit import DB  # Lazy import
+    from System.Collections.Generic import List
+    ids = List[DB.ElementId]()
+    for cls in (DB.Grid, DB.Level):
+        for e in DB.FilteredElementCollector(doc).OfClass(cls):
+            if e.CanBeHidden(view):
+                ids.Add(e.Id)
+    if ids.Count:
+        try:
+            view.HideElements(ids)
+        except Exception:
+            from nosa_utils.telemetry import log_swallowed
+            log_swallowed(u'rebarautomate', u'hide datums')
+
+
 def hide_section_marks(view):
     """
     No section marks in the elevations and sections of a member (user brief 2026-10-10: Revit puts their
@@ -534,7 +684,8 @@ def _title_on_sheet(view):
         return u''
 
 
-def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None, legends=()):
+def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None, legends=(),
+                     coarsen=True):
     """
     Two passes: drop every view on the first sheet, read its real viewport size (tags and the
     view title included), then pack them. One sheet per element (user brief): while the views
@@ -563,7 +714,7 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
         reserved = (rc_legends.LEGEND_BOX,)
     placement = view_plan.layout(sizes, reserved=reserved)
     stuck = set()
-    for _attempt in range(12):
+    for _attempt in range(12 if coarsen else 0):
         if max(p[0] for p in placement) == 0:
             break
         candidates = [i for i, (view, spec, _s) in enumerate(created)
@@ -617,7 +768,7 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
 
 
 def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet_numbers,
-                        beam_rebar=None, stair_host=None, place_on_sheets=True, tag=True):
+                        beam_rebar=None, stair_host=None, place_on_sheets=True, tag=True, sheet_group=None):
     """
     Views (and sheets) of one element / beam line. sheet_numbers: a list the next numbers are
     popped from. Returns {'views': [names], 'sheets': [numbers], 'tags': n, 'errors': [...]}.
@@ -681,6 +832,8 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 view = _create_section(doc, section_vft if spec.get('letter') else detail_vft, spec)
                 _apply_template_and_scale(view, section_template, scale)
                 hide_section_marks(view)
+                if spec['kind'] in ('member_section', 'wall_section'):
+                    _hide_datums(doc, view)
             view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label,
                                                                      spec['title']))
             try:
@@ -696,7 +849,9 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                     continue
             created.append((view, spec, scale))
         created = _number_in_reading_order(doc, created, kind, label)
-        if rebars and place_on_sheets:
+        if sheet_group is not None:
+            _continue_labels(doc, created, sheet_group, kind, label)
+        if rebars and place_on_sheets and sheet_group is None:
             # SMDSC 4.5.1: these members make one new drawing, so their marks run 01 upwards across it —
             # before the calling-up, whose callout texts carry the marks
             import rebar_marking
@@ -711,7 +866,21 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             for view, spec, _scale in created:
                 rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
                                          kind=spec['kind'], sections=section_refs(created, view, spec))
-        if place_on_sheets and created and titleblock is not None:
+        if sheet_group is not None and tag and rebars:
+            # T9.7: the views wait for the drawing of their kind; their calling-up is redone there at a coarser
+            # scale when the sheet needs it
+            def regroup(view, created=created, rebars=rebars, hosts=hosts, mra_type_id=mra_type_id):
+                sp = dict((get_id_value(v.Id), x) for v, x, _s in created).get(get_id_value(view.Id)) or \
+                    {'plan': False, 'kind': None}
+                rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
+                                         kind=sp.get('kind'), sections=section_refs(created, view, sp))
+            for v, _sp, _sc in created:
+                sheet_group['retag'][get_id_value(v.Id)] = regroup
+        if sheet_group is not None:
+            sheet_group['pending'].extend(created)
+            sheet_group['hosts'].extend(hosts)
+            sheet_group['rebars'].extend(rebars)
+        if place_on_sheets and created and titleblock is not None and sheet_group is None:
             import rc_legends
             legends = rc_legends.ensure(doc)
             retag = None
@@ -734,7 +903,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                     if sheet.SheetNumber in report['sheets']:
                         report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars))
-        if tag and rebars:
+        if tag and rebars and sheet_group is None:
             # T8.27, SMDSC 6.2.2: bars detailed on another drawing, once the views are on their sheets
             own = set(get_id_value(r.Id) for r in rebars)
             for view, _spec, _scale in created:
