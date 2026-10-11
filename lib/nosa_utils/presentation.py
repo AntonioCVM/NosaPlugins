@@ -146,8 +146,8 @@ def face(z_mm, lo_mm, hi_mm):
 
 
 def zone_quantity(count, spacing_mm):
-    """A link zone under a beam elevation (SMDSC 6.2.3): 'n/pitch', the pitch rounded to the mm."""
-    return u'{}/{:.0f}'.format(count, spacing_mm)
+    """A link zone under a beam elevation: '(n@pitch)', the pitch rounded to the mm (SMDSC 4th ed. Fig. 6.24)."""
+    return u'({}@{:.0f})'.format(count, spacing_mm)
 
 
 def total_callout(label, total, note=u''):

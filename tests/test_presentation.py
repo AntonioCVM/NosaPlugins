@@ -66,8 +66,8 @@ def test_face_of_a_bar():
 
 
 def test_link_zone_texts():
-    assert pr.zone_quantity(17, 194.5) in (u'17/194', u'17/195')
-    assert pr.zone_quantity(13, 100.0) == u'13/100'
+    assert pr.zone_quantity(17, 194.5) in (u'(17@194)', u'(17@195)')
+    assert pr.zone_quantity(13, 100.0) == u'(13@100)'
     assert pr.total_callout(u'26H8-06', 43, u'LINKS') == u'43H8-06 LINKS'
     assert pr.total_callout(u'20H16-01 B1', 39) == u'39H16-01 B1'
 

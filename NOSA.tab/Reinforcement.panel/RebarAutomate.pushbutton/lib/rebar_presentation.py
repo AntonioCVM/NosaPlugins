@@ -3,7 +3,7 @@
 NOSA.RebarAutomate — IStructE SMDSC 6.2.2 presentation of the bars in one view (T8.27), the rules in
 nosa_utils.presentation and nosa_utils.callout_layout: each set lying in the view plane is drawn as one
 typical bar (layers drawn over each other show different bars) with a Multi-Rebar Annotation as its indicator
-line and the calling-up on its extension outside the member; under a beam elevation its link zones 'n/pitch'
+line and the calling-up on its extension outside the member; under a beam elevation its link zones '(n@pitch)'
 over one total calling-up per mark; in sections and elevations a mark over every cut bar and one per set lying
 in the view, in rows outside the member with pointers; 'Alt.' / 'Stg.'; a short 30 degree
 oblique at curtailed ends; bars detailed on another drawing dashed with 'SEE DRG' (see_drawing, once the
@@ -101,6 +101,10 @@ def _clear(doc, view, styles):
     for note in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.TextNote):
         if _OWN_NOTE.match((note.Text or u'').strip()):
             gone.append(note.Id)
+    for mask in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.FilledRegion):
+        note = mask.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+        if note is not None and note.AsString() == STUB_NOTE:
+            gone.append(mask.Id)
     own = set(get_id_value(s.Id) for s in styles if s is not None)
     if own:
         for curve in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.CurveElement):
@@ -323,7 +327,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     """
     SMDSC 6.2.2 / 3.3 in `view` for `rebars` (det: the rebar_detailing module): typical bars, indicator lines
     with their calling-up outside the member, a mark over every bar a section or elevation cuts and one per set
-    lying in it, in rows outside the member; under a beam elevation its link zones 'n/pitch' over one total
+    lying in it, in rows outside the member; under a beam elevation its link zones '(n@pitch)' over one total
     calling-up per mark; 'Alt.' / 'Stg.', 30 degree ends. kind: the view_plan kind of the view.
     Replaces the rebars' own annotations in the view.
     Returns {'typical', 'mra', 'marks', 'notes', 'ticks', 'inside'}.
@@ -383,7 +387,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     placed = []
     if beam_elevation:
         # SMDSC 6.2.3 beam elevation: the main bars' calling-up turned up the sheet just past the beam's faces,
-        # then the link zones under them, each mark's 'n/pitch' zones over its one total calling-up
+        # then the link zones under them, each mark's '(n@pitch)' zones over its one total calling-up
         _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, 'beam')
         made = _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, total_style)
     else:
@@ -403,7 +407,95 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if _note(doc, view, point, label, text_type):
             report['notes'] += 1
     _fit_crop(view, [box] + placed, CROP_MARGIN_PAPER_MM * scale)
+    if beam_elevation:
+        # SMDSC 4th ed. Fig. 6.24: the columns as short stubs under the beam, so the link zones, their calling-up
+        # and dimensions below read clear (a crop would hide the dimensions: Revit drops those whose references
+        # it crops out)
+        report['stubs'] = _column_stubs(doc, view, box, scale, style)
     return report
+
+
+STUB_MM = 300.0              # column stub drawn under a beam elevation
+STUB_NOTE = u'NOSA stub'     # Comments of the masking regions that cut the columns to stubs
+
+
+def _column_stubs(doc, view, box, scale, style):
+    """
+    Each column under the beam in `box` cut off STUB_MM below its soffit: a masking region over the rest down to
+    the crop and a break line across the stub. Returns how many.
+    """
+    try:
+        crop_low = min(_xy(view, view.CropBox.Transform.OfPoint(DB.XYZ(x, y, view.CropBox.Max.Z)))[1]
+                       for x in (view.CropBox.Min.X, view.CropBox.Max.X)
+                       for y in (view.CropBox.Min.Y, view.CropBox.Max.Y))
+        cols = DB.FilteredElementCollector(doc, view.Id).OfCategory(DB.BuiltInCategory.OST_StructuralColumns) \
+            .WhereElementIsNotElementType().ToElements()
+    except Exception:
+        return 0
+    from System.Collections.Generic import List
+    invisible = None
+    for sid in DB.FilledRegion.GetValidLineStyleIdsForFilledRegion(doc):
+        style_el = doc.GetElement(sid)
+        if style_el is not None and u'Invisible' in (style_el.Name or u''):
+            invisible = sid                  # the mask's own outline must not show
+            break
+    like = view.Origin
+    made = 0
+    pad = 0.5 * scale
+    cut = box[1] - STUB_MM
+    for col in cols:
+        o = _outline(view, [col])
+        if o is None or not (o[1] < cut < o[3]):
+            continue
+        x0, x1, y0 = o[0] - pad, o[2] + pad, max(o[1], crop_low) - pad
+        loop = DB.CurveLoop()
+        pts = [(x0, y0), (x1, y0), (x1, cut), (x0, cut)]
+        try:
+            for i in range(4):
+                loop.Append(DB.Line.CreateBound(_point(view, pts[i], like), _point(view, pts[(i + 1) % 4], like)))
+            loops = List[DB.CurveLoop]()
+            loops.Add(loop)
+            mask = DB.FilledRegion.CreateMaskingRegion(doc, view.Id, loops)
+            if invisible is not None:
+                mask.SetLineStyleId(invisible)
+            note = mask.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+            if note is not None and not note.IsReadOnly:
+                note.Set(STUB_NOTE)
+        except Exception:
+            continue
+        # break line: straight across with one zigzag in the middle
+        m, z = (o[0] + o[2]) / 2.0, 1.5 * scale
+        zig = [(o[0] - pad, cut), (m - z, cut), (m - z / 2.0, cut + z), (m + z / 2.0, cut - z), (m + z, cut),
+               (o[2] + pad, cut)]
+        for a, b in zip(zig, zig[1:]):
+            try:
+                curve = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_point(view, a, like),
+                                                                            _point(view, b, like)))
+                if style is not None:
+                    curve.LineStyle = style
+            except Exception:
+                continue
+        made += 1
+    return made
+
+
+def _crop_bottom(view, y):
+    """Move the bottom of the view's crop to view height y (mm)."""
+    try:
+        crop = view.CropBox
+        t = crop.Transform
+        o = t.Origin.DotProduct(view.UpDirection) * _MM_PER_FT
+        sy = 1.0 if t.BasisY.DotProduct(view.UpDirection) > 0 else -1.0
+        value = sy * (y - o) / _MM_PER_FT
+        if sy > 0 and value < crop.Max.Y:
+            crop.Min = DB.XYZ(crop.Min.X, value, crop.Min.Z)
+        elif sy < 0 and value > crop.Min.Y:
+            crop.Max = DB.XYZ(crop.Max.X, value, crop.Max.Z)
+        else:
+            return
+        view.CropBox = crop
+    except Exception:
+        pass
 
 
 def _strip_note(text, note):
@@ -697,10 +789,54 @@ def _total_line(doc, view, x0, x1, y, like, scale, style):
             continue
 
 
+def _supports_x(doc, view, box):
+    """View x ranges (mm) of the columns the beam in `box` frames into, from the left."""
+    out = []
+    try:
+        cols = DB.FilteredElementCollector(doc, view.Id).OfCategory(DB.BuiltInCategory.OST_StructuralColumns) \
+            .WhereElementIsNotElementType().ToElements()
+    except Exception:
+        return out
+    for col in cols:
+        o = _outline(view, [col])
+        if o is not None and o[1] < box[3] and o[3] > box[1]:
+            out.append((o[0], o[2]))
+    return sorted(out)
+
+
+def _dimension_chain(doc, view, xs, y, like, scale, style):
+    """
+    A dimension string along the view x through the points xs at height y (mm): one short witness tick per point
+    (a detail line the dimension refers to) and Revit's own dimension, so the figures stay true to the model
+    (SMDSC 3.13: to faces and setting-out points, clear of the detail, read from the bottom).
+    """
+    xs = sorted(set(round(x, 1) for x in xs))
+    if len(xs) < 2:
+        return None
+    tick = 1.0 * scale
+    refs = DB.ReferenceArray()
+    for x in xs:
+        try:
+            curve = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_point(view, (x, y - tick), like),
+                                                                        _point(view, (x, y + tick), like)))
+            if style is not None:
+                curve.LineStyle = style
+            refs.Append(curve.GeometryCurve.Reference)
+        except Exception:
+            continue
+    if refs.Size < 2:
+        return None
+    try:
+        line = DB.Line.CreateBound(_point(view, (xs[0], y), like), _point(view, (xs[-1], y), like))
+        return doc.Create.NewDimension(view, line, refs)
+    except Exception:
+        return None
+
+
 def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, style):
     """
     Link zones under a beam elevation (SMDSC 6.2.3, fig. 'Beam on grid 1/A-B'): every zone of a mark on one
-    line, its indicator line labelled 'n/pitch' ('Zone quantity' tag, NOSA_Rebar_Zone_Qty), and under them one
+    line, its indicator line labelled '(n@pitch)' ('Zone quantity' tag, NOSA_Rebar_Zone_Qty), and under them one
     line from the mark's first zone to its last carrying its one calling-up ('43H8-06 LINKS', 'Callout' tag,
     NOSA_Rebar_Callout). Marks whose zones overlap take further rows. {id: text box}.
     """
@@ -730,13 +866,15 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
             spans.append([min(xs), max(xs), key, run])
     rows_used = []
     made = {}
+    supports = _supports_x(doc, view, box)
     for x0, x1, key, group in sorted(spans, key=lambda s: (s[0], s[1])):
         k = 0
         while any(r == k and not (x1 + gap < r0 or x0 - gap > r1) for r, r0, r1 in rows_used):
             k += 1
         rows_used.append((k, x0, x1))
-        y_zone = top - gap - text_h - k * 2 * row
+        y_zone = top - gap - text_h - k * 3 * row
         y_total = y_zone - row
+        y_dims = y_total - row
         pending = []
         for d in sorted(group, key=lambda z: z['first'][0]):
             rebar, n = d['rebar'], d['count']
@@ -788,8 +926,19 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
             placed.append((a, y_zone - gap, b, y_zone + gap))
             made[d['id']] = bx
         lo, hi = min(e[2] for e in pending), max(e[3] for e in pending)
-        _total_line(doc, view, lo, hi, y_total, _main_line(main['rebar'], 0).Evaluate(0.5, True), scale, style)
+        like = _main_line(main['rebar'], 0).Evaluate(0.5, True)
+        _total_line(doc, view, lo, hi, y_total, like, scale, style)
         placed.append((lo, y_total - gap, hi, y_total + gap))
+        # SMDSC 4th ed. Fig. 6.24 / 3.13: every zone dimensioned, the first and last from the face of the support
+        faces = supports if supports is not None else []
+        left = [f[1] for f in faces if f[1] <= lo + 1.0]
+        right = [f[0] for f in faces if f[0] >= hi - 1.0]
+        inner = [x for f in faces if f[0] > lo and f[1] < hi for x in f]   # both faces of the supports between
+        points = [x for e in pending for x in (e[2], e[3])] + ([max(left)] if left else []) + \
+            ([min(right)] if right else []) + inner
+        if _dimension_chain(doc, view, points, y_dims, like, scale, style) is not None:
+            report['dims'] = report.get('dims', 0) + 1
+            placed.append((min(points), y_dims - row / 2.0, max(points), y_dims + row / 2.0))
         if callout_type is None or not callout:
             continue
         tag, _i = _tag_bar(doc, view, main['rebar'], _shown_bar(view, main['rebar'], main['count']), callout_type)
