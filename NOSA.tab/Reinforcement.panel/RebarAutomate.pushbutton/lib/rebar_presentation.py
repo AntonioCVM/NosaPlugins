@@ -288,7 +288,7 @@ def _zone_text(doc, d):
         dia = doc.GetElement(rebar.GetTypeId()).BarNominalDiameter * _MM_PER_FT
     except Exception:
         dia = 16.0
-    full = u'{}H{:.0f}-{}-{:.0f} B1 {}'.format(d['count'], dia, d['mark'], d.get('spacing') or 0.0,
+    full = u'{}H{:.0f}-{}-{:.0f}B1 {}'.format(d['count'], dia, d['mark'], d.get('spacing') or 0.0,
                                                 _text(rebar, NOTE_PARAM)).strip()
     return qty, full
 
