@@ -309,6 +309,37 @@ Pendiente fuera de la oleada 1:
 
 ---
 
+## Fase 9 — Planos de nivel «detallista senior» (petición del usuario 2026-10-11)
+
+Cinco análisis de los planos de muestra 4002–4011 consolidados en [docs/FASE9_DETALLADO_SENIOR.md](docs/FASE9_DETALLADO_SENIOR.md).
+Referencia: **SMDSC 4.ª ed. (2021)**. Decisiones: generar con bandera «añadido por regla»; llamada `20H16-63-150B1`;
+cercos `(13@100)` por zona con cota + una llamada total; elementos del mismo tipo agrupados en A1; orden A → B → C → D.
+
+| | ID | Tarea | Oleada | Alcance / criterio de aceptación |
+|---|---|---|:-:|---|
+| [ ] | T9.1 | Notación 4.ª ed. | A | `NOSA Rebar Tag` 1.5.0 sin espacio antes de la capa; cercos de viga `(13@100)` sobre cada zona (en vez de `13/100`) con una llamada total por marca |
+| [ ] | T9.2 | Cotas de colocación | A | Zonas de cercos desde la cara del apoyo, inicio/fin de barras adicionales y negativos desde la cara, límites de zonas de losa, huecos y recercados; a caras y ejes, nunca a barras; fuera del elemento, sin cruces; suma = total |
+| [ ] | T9.3 | Corte, anclaje y solape dibujados | A | Extremos con símbolo, longitud de anclaje/solape acotada, LAP ZONE / SUPPORT ZONE, extensión más allá del apoyo |
+| [ ] | T9.4 | Geometría y niveles | A | b × h, longitudes y luces entre caras, espesores, cotas de nivel con flecha cerrada (SMDSC 3.14.3), ejes visibles |
+| [ ] | T9.5 | Secciones numeradas en alzados | A | Secciones de viga y pilar `1-1`, `2-2` con su marca en el alzado fuera de las filas de llamadas |
+| [ ] | T9.6 | Notas paramétricas por plano | A | Hormigón, c_nom + Δc_dev, árido máximo, acero, planillas del plano y GA (SMDSC 3.7); alerta si faltan datos |
+| [ ] | T9.7 | Agrupación en A1 | A | Elementos del mismo tipo en la misma hoja a escala de lectura, reparto con cajas reales |
+| [ ] | T9.8 | Congestión y secciones automáticas | B | Capas > 2, barras agrupadas, nudos → aviso y sección extra 1:10/1:20 |
+| [ ] | T9.9 | Vibrador en nudos | B | 75 mm cada 300 mm de ancho (4.ª ed. Fig. 4.2) |
+| [ ] | T9.10 | Retención de barras de pilar | B | Toda barra retenida por cerco salvo separación ≤ 150 (4.2.2) |
+| [ ] | T9.11 | Notas de montaje y jaulas | B | FIXING NOTES por tipo; jaulas prefabricables etiquetadas (4.2.3) |
+| [ ] | T9.12 | Buildability y puntuación QA | B | Informe/plano RC BUILDABILITY CHECK y nota A+/A/B/C |
+| [ ] | T9.13 | Comprobación previa a la emisión | C | Error/Warning/Info/Passed; bloquea *For Construction* con cajetín de prueba, barras sin marca, plano ≠ planilla, referencias rotas, textos solapados |
+| [ ] | T9.14 | Registro de revisiones | C | Marcas y geometrías por revisión (UniqueId), tabla de cambios, nubes opcionales |
+| [ ] | T9.15 | Bandera «añadido por regla» | C | Barras generadas por regla marcadas en QA y planilla |
+| [ ] | T9.16 | Losas | D | COLUMN/MIDDLE STRIP, U en bordes libres, curtailment MD S1 de la 4.ª ed. |
+| [ ] | T9.17 | Vigas | D | Hanger bars, límites de apoyo, piel MD B1 4.ª ed., viga curva con radio/centro/estaciones |
+| [ ] | T9.18 | Pilares | D | Cuantía ρ, zonas de solape y confinamiento, arranque con kicker 75/150 |
+| [ ] | T9.19 | Muros | D | Estilos distintos vertical/horizontal, MW4 completo |
+| [ ] | T9.20 | Cimentaciones | D | Bandas MF1, arranques acotados, tabla de pilotes |
+| [ ] | T9.21 | Biblioteca de detalles tipo | D | MD de la 4.ª ed. insertados por condición |
+| [ ] | T9.22 | Reglas frente a la 4.ª ed. | – | Cada regla de `nosa_utils` con edición y cláusula; diferencias 3.ª → 4.ª aplicadas |
+
 ## Orden y dependencias
 
 ```
