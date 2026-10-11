@@ -20,7 +20,7 @@ from nosa_utils.revit_helpers import get_id_value
 _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
-_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*)$')
+_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2})$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
 
 
@@ -323,7 +323,7 @@ def _is_plan(view):
     return isinstance(view, DB.ViewPlan)
 
 
-def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, kind=None):
+def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, kind=None, sections=()):
     """
     SMDSC 6.2.2 / 3.3 in `view` for `rebars` (det: the rebar_detailing module): typical bars, indicator lines
     with their calling-up outside the member, a mark over every bar a section or elevation cuts and one per set
@@ -337,7 +337,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     gap, outside, row = GAP_PAPER_MM * scale, OUTSIDE_PAPER_MM * scale, ROW_PAPER_MM * scale
     style = _line_style(doc)
     total_style = _line_style(doc, TOTAL_STYLE, 1)
-    _clear(doc, view, (style, total_style))
+    section_style = _line_style(doc, SECTION_STYLE, 6)
+    _clear(doc, view, (style, total_style, section_style))
     # only the bars the view really draws: inside its crop and depth (a curved beam's 34 loose links all passed
     # IsHidden and stretched every section's crop to the whole beam, 2026-10-11)
     drawn = set(get_id_value(i) for i in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar).ToElementIds())
@@ -385,6 +386,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         m is not None and m.Category is not None and
         get_id_value(m.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFraming) for m in members)
     placed = []
+    if sections:
+        # first, so every calling-up keeps clear of them
+        report['sections'] = _section_refs(doc, view, sections, box, placed, scale, section_style, text_type)
     if beam_elevation:
         # SMDSC 6.2.3 beam elevation: the main bars' calling-up turned up the sheet just past the beam's faces,
         # then the link zones under them, each mark's '(n@pitch)' zones over its one total calling-up
@@ -496,6 +500,47 @@ def _crop_bottom(view, y):
         view.CropBox = crop
     except Exception:
         pass
+
+
+SECTION_STYLE = u'NOSA Section Marks'
+SECTION_TICK_PAPER_MM = 5.0
+
+
+def _section_refs(doc, view, sections, box, placed, scale, style, text_type):
+    """
+    Where each numbered section cuts the member, SMDSC 4th ed. Fig. 6.24: a short thick line just past each face
+    with the section number at its end, across a long member (beam: above and below; column: left and right).
+    Returns how many.
+    """
+    gap, tick = GAP_PAPER_MM * scale, SECTION_TICK_PAPER_MM * scale
+    text = TEXT_PAPER_MM * scale
+    tall = (box[3] - box[1]) > (box[2] - box[0])
+    made = 0
+    for origin, number in sections:
+        a = _xy(view, origin)
+        if tall:
+            if not box[1] - gap < a[1] < box[3] + gap:
+                continue
+            ends = [((box[0] - gap - tick, a[1]), (box[0] - gap, a[1]), (box[0] - 2 * gap - tick - text, a[1])),
+                    ((box[2] + gap, a[1]), (box[2] + gap + tick, a[1]), (box[2] + 2 * gap + tick, a[1]))]
+        else:
+            if not box[0] - gap < a[0] < box[2] + gap:
+                continue
+            ends = [((a[0], box[3] + gap), (a[0], box[3] + gap + tick), (a[0] - text / 2.0, box[3] + 2 * gap + tick + text)),
+                    ((a[0], box[1] - gap - tick), (a[0], box[1] - gap), (a[0] - text / 2.0, box[1] - 2 * gap - tick))]
+        for p, q, at in ends:
+            try:
+                curve = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_point(view, p, origin),
+                                                                            _point(view, q, origin)))
+                if style is not None:
+                    curve.LineStyle = style
+            except Exception:
+                continue
+            _note(doc, view, _point(view, at, origin), number, text_type)
+            placed.append((min(p[0], q[0], at[0]) - gap, min(p[1], q[1], at[1] - text) - gap,
+                           max(p[0], q[0], at[0] + text) + gap, max(p[1], q[1], at[1]) + gap))
+        made += 1
+    return made
 
 
 def _strip_note(text, note):

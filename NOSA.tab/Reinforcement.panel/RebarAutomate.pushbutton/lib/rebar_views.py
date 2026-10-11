@@ -287,7 +287,55 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         if box is not None:
             specs.append(_plan(u'Plan', 'stair_plan', _level_of(doc, host), box,
                                _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0, margin=400.0))
+    number = 1
+    for spec in specs:
+        # SMDSC 3.18 / 4th ed. Fig. 6.24 (user 2026-10-11): member sections numbered 1-1, 2-2 ... on the drawing,
+        # each referenced on the elevation it cuts
+        if not spec['plan'] and spec['kind'] in ('member_section', 'wall_section') and not spec.get('letter'):
+            spec['letter'] = u'{}'.format(number)
+            spec['title'] = u'Section {0}-{0}'.format(number)
+            number += 1
     return specs
+
+
+def _number_in_reading_order(doc, created, kind, label):
+    """
+    The numbered sections renumbered 1, 2 ... in the order a reader meets them on the elevation they cut
+    (left to right on a beam, top down on a column; Revit may draw an elevation looking either way along the
+    member), renamed to match and put in that order for the sheet.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    elevations = [v for v, sp, _s in created if not sp['plan'] and sp['kind'] in ('elevation', 'column_elevation')]
+    numbered = [(v, sp, sc) for v, sp, sc in created if sp.get('letter') and sp['kind'] in ('member_section',
+                                                                                           'wall_section')]
+    if not elevations or len(numbered) < 2:
+        return created
+    right = elevations[0].RightDirection
+    column = any(sp['kind'] == 'column_elevation' for _v, sp, _s in created)
+    order = sorted(numbered, key=lambda e: -e[1]['origin'].Z if column else e[1]['origin'].DotProduct(right))
+    for n, (view, spec, _scale) in enumerate(order, 1):
+        spec['letter'] = u'{}'.format(n)
+        spec['title'] = u'Section {0}-{0}'.format(n)
+        try:
+            view.Name = u'{} - {}'.format(view.Name.split(u' - ')[0], u'tmp {}'.format(n))
+        except Exception:
+            pass
+    for view, spec, _scale in order:
+        try:
+            view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label, spec['title']))
+            view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).Set(spec['title'])
+        except Exception:
+            continue
+    rest = [e for e in created if e not in numbered]
+    return rest + order
+
+
+def section_refs(created, view, spec):
+    """[(origin, number)] of the numbered member sections an elevation should reference."""
+    if spec['plan'] or spec['kind'] not in ('elevation', 'column_elevation'):
+        return []
+    return [(sp['origin'], sp['letter']) for _v, sp, _s in created
+            if sp.get('letter') and sp['kind'] in ('member_section', 'wall_section')]
 
 
 def rebar_face(rebar, box):
@@ -546,6 +594,13 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
             view_id = ports[i].ViewId
             doc.Delete(ports[i].Id)
             ports[i] = DB.Viewport.Create(doc, sheets[sheet_index].Id, view_id, centre)
+    for i, (port, (_view, spec, _scale)) in enumerate(zip(ports, created)):
+        if not spec.get('letter'):
+            # out of the way of the section numbers 1, 2 ... (detail numbers are unique on a sheet)
+            try:
+                port.get_Parameter(DB.BuiltInParameter.VIEWPORT_DETAIL_NUMBER).Set(u'V{}'.format(i + 1))
+            except Exception:
+                pass
     for port, (_view, spec, _scale) in zip(ports, created):
         if spec.get('letter'):
             # the section's mark on the plans reads A / B, its title Section A-A (SMDSC 3.17)
@@ -640,6 +695,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 except Exception:
                     continue
             created.append((view, spec, scale))
+        created = _number_in_reading_order(doc, created, kind, label)
         if rebars and place_on_sheets:
             # SMDSC 4.5.1: these members make one new drawing, so their marks run 01 upwards across it —
             # before the calling-up, whose callout texts carry the marks
@@ -654,18 +710,19 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             mra_type_id = tag_engine.mra_type_id(doc)
             for view, spec, _scale in created:
                 rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
-                                         kind=spec['kind'])
+                                         kind=spec['kind'], sections=section_refs(created, view, spec))
         if place_on_sheets and created and titleblock is not None:
             import rc_legends
             legends = rc_legends.ensure(doc)
             retag = None
             if tag and rebars:
-                kinds = dict((get_id_value(v.Id), sp['kind']) for v, sp, _sc in created)
+                specs_of = dict((get_id_value(v.Id), sp) for v, sp, _sc in created)
 
                 def retag(view):
                     # a view taken to a coarser scale to fit the sheet: its calling-up laid out again at it
+                    sp = specs_of.get(get_id_value(view.Id)) or {'plan': False, 'kind': None}
                     rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
-                                             kind=kinds.get(get_id_value(view.Id)))
+                                             kind=sp.get('kind'), sections=section_refs(created, view, sp))
             report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
                                                 retag=retag, legends=legends)
