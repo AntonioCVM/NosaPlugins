@@ -317,11 +317,11 @@ cercos `(13@100)` por zona con cota + una llamada total; elementos del mismo tip
 
 | | ID | Tarea | Oleada | Alcance / criterio de aceptación |
 |---|---|---|:-:|---|
-| [ ] | T9.1 | Notación 4.ª ed. | A | `NOSA Rebar Tag` 1.5.0 sin espacio antes de la capa; cercos de viga `(13@100)` sobre cada zona (en vez de `13/100`) con una llamada total por marca |
-| [ ] | T9.2 | Cotas de colocación | A | Zonas de cercos desde la cara del apoyo, inicio/fin de barras adicionales y negativos desde la cara, límites de zonas de losa, huecos y recercados; a caras y ejes, nunca a barras; fuera del elemento, sin cruces; suma = total |
+| [x] | T9.1 | Notación 4.ª ed. | A | `NOSA Rebar Tag` 1.5.0 sin espacio antes de la capa; cercos de viga `(13@100)` sobre cada zona (en vez de `13/100`) con una llamada total por marca **Hecho 2026-10-11** (9c373de, 49bbc9f): probado en Project1 (`20H16-01-150B1`, `(13@100)` + `82H8-04 LINKS`). |
+| [ ] | T9.2 | Cotas de colocación | A | **Avance 2026-10-11** (49bbc9f): cadena de cotas de las zonas de cercos de cara a cara de apoyo (también las dos caras de los apoyos intermedios), con referencias a trazos para que siga al modelo; pilares cortados en arranques de 300 con máscara y línea de corte. Pendiente: barras adicionales/negativos, losas, huecos. | Zonas de cercos desde la cara del apoyo, inicio/fin de barras adicionales y negativos desde la cara, límites de zonas de losa, huecos y recercados; a caras y ejes, nunca a barras; fuera del elemento, sin cruces; suma = total |
 | [ ] | T9.3 | Corte, anclaje y solape dibujados | A | Extremos con símbolo, longitud de anclaje/solape acotada, LAP ZONE / SUPPORT ZONE, extensión más allá del apoyo |
-| [ ] | T9.4 | Geometría y niveles | A | b × h, longitudes y luces entre caras, espesores, cotas de nivel con flecha cerrada (SMDSC 3.14.3), ejes visibles |
-| [ ] | T9.5 | Secciones numeradas en alzados | A | Secciones de viga y pilar `1-1`, `2-2` con su marca en el alzado fuera de las filas de llamadas |
+| [ ] | T9.4 | Geometría y niveles | A | **Avance 2026-10-11** (697bfbb, falta revisión visual): b × h en secciones, espesor en losas/bases, cotas de nivel en alzados, todo referido a las caras del hormigón. | b × h, longitudes y luces entre caras, espesores, cotas de nivel con flecha cerrada (SMDSC 3.14.3), ejes visibles |
+| [x] | T9.5 | Secciones numeradas en alzados | A | **Hecho 2026-10-11** (d767acf): `Section 1-1…` numeradas en orden de lectura del alzado y en ese orden en la hoja; trazo + número a cada lado del elemento. | Secciones de viga y pilar `1-1`, `2-2` con su marca en el alzado fuera de las filas de llamadas |
 | [ ] | T9.6 | Notas paramétricas por plano | A | Hormigón, c_nom + Δc_dev, árido máximo, acero, planillas del plano y GA (SMDSC 3.7); alerta si faltan datos |
 | [ ] | T9.7 | Agrupación en A1 | A | Elementos del mismo tipo en la misma hoja a escala de lectura, reparto con cajas reales |
 | [ ] | T9.8 | Congestión y secciones automáticas | B | Capas > 2, barras agrupadas, nudos → aviso y sección extra 1:10/1:20 |
