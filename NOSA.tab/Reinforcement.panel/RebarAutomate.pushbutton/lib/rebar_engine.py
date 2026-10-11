@@ -295,11 +295,17 @@ def get_isolated_solid_bbox(host):
                 continue
             if curve is None:
                 continue
+            try:
+                # the whole edge, not its two ends: an arc edge bulges past them (curved beam, 2026-10-11)
+                points = list(edge.Tessellate())
+            except Exception:
+                points = []
             for i in (0, 1):
                 try:
-                    p = curve.GetEndPoint(i)
+                    points.append(curve.GetEndPoint(i))
                 except Exception:
                     continue
+            for p in points:
                 xs.append(p.X)
                 ys.append(p.Y)
                 zs.append(p.Z)

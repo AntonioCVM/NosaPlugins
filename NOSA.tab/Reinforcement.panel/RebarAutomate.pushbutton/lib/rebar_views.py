@@ -130,6 +130,26 @@ def _local_axes(element):
     return DB.XYZ.BasisX, DB.XYZ.BasisY
 
 
+def _clear_cut(solid, centre, right, other, lo, hi, olo, ohi):
+    """The point a section across `right` goes through: nearest the middle where its line meets no opening."""
+    from Autodesk.Revit import DB  # Lazy import
+    import view_plan
+    base = centre - other.Multiply(centre.DotProduct(other))
+    for offset in view_plan.section_offsets(olo, ohi):
+        point = base + other.Multiply(offset)
+        if solid is None:
+            return point
+        a = point - right.Multiply(point.DotProduct(right) - lo + 1.0)
+        b = point + right.Multiply(hi - point.DotProduct(right) + 1.0)
+        try:
+            hits = solid.IntersectWithCurve(DB.Line.CreateBound(a, b), DB.SolidCurveIntersectionOptions())
+            if hits.SegmentCount == 1:
+                return point
+        except Exception:
+            return point
+    return centre
+
+
 def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
     """The view set of one element (or one line of beam spans), in view_plan's kinds."""
     from Autodesk.Revit import DB  # Lazy import
@@ -151,6 +171,24 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
                               height / 2 + 700, 1.0, wy / 2 + 60))
         specs.append(_section(u'Elevation B', 'column_elevation', centre, y, z_axis, wy / 2 + 300,
                               height / 2 + 700, 1.0, wx / 2 + 60))
+    elif kind == 'beam' and beam_rebar.get_beam_arc(host) is not None:
+        # T8.58 curved beam: no plane holds it, so a plan of it (its arc bars) and radial sections
+        arc = beam_rebar.get_beam_arc(host)
+        # Revit's own box: the solid's edge ends miss the bulge of the arc (24 of 34 links fell outside the plan)
+        box = host.get_BoundingBox(None) or _box(host, re_engine)
+        z_mid = (box.Min.Z + box.Max.Z) / 2.0
+        depth = _mm(box.Max.Z - box.Min.Z)
+        width = _mm(host.Symbol.LookupParameter(u'b').AsDouble()) if host.Symbol.LookupParameter(u'b') else 300.0
+        top = _mm(box.Max.Z)
+        specs.append(_plan(u'Plan', 'plan', _level_of(doc, host), box, top + 200.0, _mm(box.Min.Z) - 200.0))
+        for letter, t in ((u'A', 0.5), (u'B', 0.12)):
+            p = arc.Evaluate(t, True)
+            tangent = arc.ComputeDerivatives(t, True).BasisX.Normalize()
+            across = DB.XYZ(-tangent.Y, tangent.X, 0.0).Normalize()
+            spec = _section(u'Section {0}-{0}'.format(letter), 'member_section', DB.XYZ(p.X, p.Y, z_mid), across,
+                            z_axis, width / 2 + 150, depth / 2 + 150, 0.0, 60.0)
+            spec['letter'] = letter              # its mark, named, on the plan
+            specs.append(spec)
     elif kind == 'beam':
         axes = [beam_rebar._clamp_axis_to_bbox(beam_rebar.get_beam_axis(h), h) for h in hosts]
         d = axes[0].Direction.Normalize()
@@ -195,11 +233,21 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         else:
             specs.append(_plan(u'Plan', 'plan', level, box, _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0))
         thick = _mm(box.Max.Z - box.Min.Z)
-        for name, right, other in ((u'Section A', x, y), (u'Section B', y, x)):
+        solid = None
+        try:
+            solid = re_engine.get_host_solid(host)
+        except Exception:
+            solid = None
+        for letter, right, other in ((u'A', x, y), (u'B', y, x)):
+            # user 2026-10-11: two real sections (60 mm deep, SMDSC 3.17), not views of the whole slab, through
+            # it clear of openings, their marks named A / B on the plans
             lo, hi = _extent(box, right)
             olo, ohi = _extent(box, other)
-            specs.append(_section(name, section_kind, centre, right, z_axis, _mm(hi - lo) / 2 + 300,
-                                  thick / 2 + 300, 1.0, _mm(ohi - olo) / 2 + 60))
+            origin = _clear_cut(solid, centre, right, other, lo, hi, olo, ohi)
+            spec = _section(u'Section {0}-{0}'.format(letter), section_kind, origin, right, z_axis,
+                            _mm(hi - lo) / 2 + 300, thick / 2 + 300, 0.0, 60.0)
+            spec['letter'] = letter
+            specs.append(spec)
     elif kind == 'wall':
         box = _box(host, re_engine)
         line = host.Location.Curve
@@ -211,8 +259,16 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         thick = _mm(host.Width)
         specs.append(_section(u'Elevation', 'elevation', centre, d, z_axis, _mm(line.Length) / 2 + 300,
                               height / 2 + 700, 1.0, thick / 2 + 60))
-        specs.append(_section(u'Section', 'member_section', centre, n, z_axis, thick / 2 + 300,
-                              height / 2 + 700, 0.0, 60.0))
+        solid = None
+        try:
+            solid = re_engine.get_host_solid(host)
+        except Exception:
+            solid = None
+        # through the wall clear of its openings (user 2026-10-11: the section fell in the opening)
+        dlo, dhi = _extent(box, d)
+        cut = _clear_cut(solid, centre, z_axis, d, box.Min.Z, box.Max.Z, dlo, dhi)
+        specs.append(_section(u'Section', 'wall_section', DB.XYZ(cut.X, cut.Y, centre.Z), n, z_axis,
+                              thick / 2 + 300, height / 2 + 700, 0.0, 60.0))
     elif kind == 'stairs':
         data = stair_host.read_stairs(doc, host)
         box = _box(host, re_engine) if host.get_BoundingBox(None) is not None else None
@@ -289,6 +345,8 @@ def _create_section(doc, vft, spec):
     box.Transform = transform
     box.Min = DB.XYZ(-_ft(spec['half_w']), -_ft(spec['half_h']), -_ft(spec['far']))
     box.Max = DB.XYZ(_ft(spec['half_w']), _ft(spec['half_h']), _ft(spec['near']))
+    if vft.ViewFamily == DB.ViewFamily.Section:
+        return DB.ViewSection.CreateSection(doc, vft.Id, box)
     return DB.ViewSection.CreateDetail(doc, vft.Id, box)
 
 
@@ -420,6 +478,14 @@ def _new_sheet(doc, titleblock, number, name):
     return sheet
 
 
+def _title_on_sheet(view):
+    from Autodesk.Revit import DB  # Lazy import
+    try:
+        return view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).AsString() or u''
+    except Exception:
+        return u''
+
+
 def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None, legends=()):
     """
     Two passes: drop every view on the first sheet, read its real viewport size (tags and the
@@ -436,8 +502,12 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
     doc.Regenerate()
 
     def _size(port):
+        from nosa_utils.revit_helpers import element_name
         box = port.GetBoxOutline()
-        return _mm(box.MaximumPoint.X - box.MinimumPoint.X), _mm(box.MaximumPoint.Y - box.MinimumPoint.Y)
+        view = doc.GetElement(port.ViewId)
+        title = view_plan.title_width_mm(element_name(view) if view is not None else u'', _title_on_sheet(view))
+        return (max(_mm(box.MaximumPoint.X - box.MinimumPoint.X), title),
+                _mm(box.MaximumPoint.Y - box.MinimumPoint.Y))
     sizes = [_size(port) for port in ports]
     reserved = ()
     if legends:
@@ -476,6 +546,14 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
             view_id = ports[i].ViewId
             doc.Delete(ports[i].Id)
             ports[i] = DB.Viewport.Create(doc, sheets[sheet_index].Id, view_id, centre)
+    for port, (_view, spec, _scale) in zip(ports, created):
+        if spec.get('letter'):
+            # the section's mark on the plans reads A / B, its title Section A-A (SMDSC 3.17)
+            try:
+                port.get_Parameter(DB.BuiltInParameter.VIEWPORT_DETAIL_NUMBER).Set(spec['letter'])
+            except Exception:
+                from nosa_utils.telemetry import log_swallowed
+                log_swallowed(u'rebarautomate', u'section letter')
     if legends:
         import rc_legends
         for sheet in sheets:
@@ -500,6 +578,8 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
         report['errors'].append(u'{} {}: nothing to draw.'.format(_TITLES.get(kind, u'Element'), label))
         return report
     detail_vft = _view_family_type(doc, DB.ViewFamily.Detail)
+    # a lettered section shows its mark, named on the sheet, in the plans (user 2026-10-11)
+    section_vft = _view_family_type(doc, DB.ViewFamily.Section) or detail_vft
     plan_vft = _view_family_type(doc, DB.ViewFamily.StructuralPlan) or \
         _view_family_type(doc, DB.ViewFamily.FloorPlan)
     section_template = _template(doc, SECTION_TEMPLATE)
@@ -543,11 +623,17 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 if detail_vft is None:
                     report['errors'].append(u'No detail view type in this project.')
                     break
-                view = _create_section(doc, detail_vft, spec)
+                view = _create_section(doc, section_vft if spec.get('letter') else detail_vft, spec)
                 _apply_template_and_scale(view, section_template, scale)
                 hide_section_marks(view)
             view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label,
                                                                      spec['title']))
+            try:
+                # the drawing names the member: each view's title on it is just its own (user 2026-10-11)
+                view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).Set(spec['title'])
+            except Exception:
+                from nosa_utils.telemetry import log_swallowed
+                log_swallowed(u'rebarautomate', u'title on sheet')
             for rebar in rebars:
                 try:
                     rebar.SetUnobscuredInView(view, True)

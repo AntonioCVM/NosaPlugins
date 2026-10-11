@@ -63,14 +63,11 @@ def describe(view, rebar):
     except Exception:
         return None
     first = _centreline(rebar, 0)
-    lines = [c for c in first if isinstance(c, DB.Line)]
-    if not lines:
+    main = _main_line(rebar, 0, view)
+    if main is None:
         return None
-    main = max(lines, key=lambda c: c.Length)
     along = main.Direction
-    last = _centreline(rebar, n - 1) if n > 1 else first
-    last_lines = [c for c in last if isinstance(c, DB.Line)]
-    last_main = max(last_lines, key=lambda c: c.Length) if last_lines else main
+    last_main = (_main_line(rebar, n - 1, view) if n > 1 else main) or main
     p0, p1 = _xy(view, main.Evaluate(0.5, True)), _xy(view, last_main.Evaluate(0.5, True))
     run = ((p1[0] - p0[0]), (p1[1] - p0[1]))
     length = (run[0] ** 2 + run[1] ** 2) ** 0.5
@@ -142,6 +139,7 @@ SHORT_TAG = u'No centres - Dot'
 SPACER_TAG = u'No centres - Arrow'      # '4H25-01 SPACERS': the count of the set, no centres (SMDSC MB1)
 TOTAL_STYLE = u'NOSA Total Lines'       # the line under a beam carrying a link mark's one calling-up
 ELEVATION_KINDS = ('elevation', 'column_elevation')
+PER_SET_KINDS = ('slab_section', 'footing_section', 'wall_section', 'column_elevation')   # one mark per cut set (user 2026-10-11)
 CALLOUT_TAG = u'Callout - Dot'          # NOSA Rebar Tag 1.3.0
 ZONE_QTY_TAG = u'Zone quantity - Dot'
 CALLOUT_PARAM = u'NOSA_Rebar_Callout'
@@ -195,9 +193,28 @@ def _own_annotations(doc, view, ids):
     return gone
 
 
-def _main_line(rebar, i):
-    lines = [c for c in _centreline(rebar, i) if isinstance(c, DB.Line)]
-    return max(lines, key=lambda c: c.Length) if lines else None
+def _main_line(rebar, i, view=None):
+    """
+    The longest straight leg of bar i; for a bar of arcs only (T8.58 curved beams) a short line along its tangent,
+    where a section cuts it (view given and not a plan) or at its middle.
+    """
+    curves = _centreline(rebar, i)
+    lines = [c for c in curves if isinstance(c, DB.Line)]
+    arcs = [c for c in curves if isinstance(c, DB.Arc)]
+    line = max(lines, key=lambda c: c.Length) if lines else None
+    arc = max(arcs, key=lambda c: c.Length) if arcs else None
+    if arc is None or line is not None and line.Length >= arc.Length:
+        return line                          # bends are short arcs: a straight leg is the bar's main line
+    at = (arc.GetEndParameter(0) + arc.GetEndParameter(1)) / 2.0
+    if view is not None and not _is_plan(view):
+        try:
+            at = arc.Project(view.Origin).Parameter
+        except Exception:
+            pass
+    frame = arc.ComputeDerivatives(at, False)
+    tangent = frame.BasisX.Normalize()
+    half = min(arc.Length / 4.0, 50.0 / _MM_PER_FT)
+    return DB.Line.CreateBound(frame.Origin - tangent.Multiply(half), frame.Origin + tangent.Multiply(half))
 
 
 def _show_one(rebar, view, n, idx):
@@ -317,7 +334,11 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     style = _line_style(doc)
     total_style = _line_style(doc, TOTAL_STYLE, 1)
     _clear(doc, view, (style, total_style))
-    visible = [r for r in rebars if r is not None and r.IsValidObject and not r.IsHidden(view)]
+    # only the bars the view really draws: inside its crop and depth (a curved beam's 34 loose links all passed
+    # IsHidden and stretched every section's crop to the whole beam, 2026-10-11)
+    drawn = set(get_id_value(i) for i in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar).ToElementIds())
+    visible = [r for r in rebars if r is not None and r.IsValidObject and not r.IsHidden(view)
+               and get_id_value(r.Id) in drawn]
     ids = set(get_id_value(r.Id) for r in visible)
     for eid in _own_annotations(doc, view, ids):
         try:
@@ -331,7 +352,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     except Exception:
         pass
     members = hosts or [doc.GetElement(r.GetHostId()) for r in visible]
-    box = _outline(view, [m for m in members if m is not None])
+    box = _clip_to_crop(view, _outline(view, [m for m in members if m is not None]))
     if box is None:
         return report
     text_type = doc.GetDefaultElementTypeId(DB.ElementTypeGroup.TextNoteType)
@@ -343,7 +364,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         d = describe(view, rebar)
         if d is None:
             continue
-        if presentation.is_typical_bar_set(d['view_dot'], d['spread_dir'] is not None) and mra_type is not None:
+        if presentation.is_typical_bar_set(d['view_dot'], d['spread_dir'] is not None) and mra_type is not None \
+                and _shape_driven(rebar):
             d['layer'] = _text(rebar, u'NOSA_Rebar_Layer')
             zones.append(d)
             continue
@@ -369,7 +391,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if plan:
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report)
         else:
-            _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, elevation)
+            _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, elevation,
+                   per_set=kind in PER_SET_KINDS)
     if not plan:
         _end_marks(doc, view, [d for d in pointers if d['view_dot'] < 0.5], tag_types, gap, placed, report)
     for a, _b, label in presentation.relations(zones):
@@ -487,6 +510,34 @@ def _end_marks(doc, view, items, tag_types, gap, placed, report):
                 pass
             placed.append(spot[1])
             report['marks'] += 1
+
+
+def _shape_driven(rebar):
+    """A Rebar Set (a typical bar and an indicator line can show it); a FreeForm group cannot."""
+    try:
+        return rebar.IsRebarShapeDriven()
+    except Exception:
+        return True
+
+
+def _clip_to_crop(view, box):
+    """
+    The member's outline cut to the view's crop in a section: a section across a curved beam would otherwise take
+    the whole arc projected (6-9 m) as the member and lay the calling-up and the crop out to it (2026-10-11).
+    """
+    if box is None or _is_plan(view):
+        return box
+    try:
+        if not view.CropBoxActive:
+            return box
+        crop = view.CropBox
+        pts = [_xy(view, crop.Transform.OfPoint(DB.XYZ(x, y, crop.Max.Z)))
+               for x in (crop.Min.X, crop.Max.X) for y in (crop.Min.Y, crop.Max.Y)]
+        clipped = (max(box[0], min(p[0] for p in pts)), max(box[1], min(p[1] for p in pts)),
+                   min(box[2], max(p[0] for p in pts)), min(box[3], max(p[1] for p in pts)))
+        return clipped if clipped[0] < clipped[2] and clipped[1] < clipped[3] else box
+    except Exception:
+        return box
 
 
 def _fit_crop(view, boxes, margin):
@@ -908,6 +959,23 @@ def _tag_bar(doc, view, rebar, index, type_id):
     neighbours.
     """
     subs = list(rebar.GetSubelements())
+    try:
+        free_form = not rebar.IsRebarShapeDriven()
+    except Exception:
+        free_form = False
+    if free_form:
+        # a FreeForm group (curved beam bars, T8.58): a tag on one bar reads 1, on the element its Quantity
+        try:
+            line = _main_line(rebar, index or 0, view)
+            tag = DB.IndependentTag.Create(doc, type_id, view.Id, DB.Reference(rebar), False,
+                                           DB.TagOrientation.Horizontal,
+                                           line.Evaluate(0.5, True) if line is not None else view.Origin)
+            doc.Regenerate()
+            if _visible(doc, view, tag):
+                return tag, index
+            doc.Delete(tag.Id)
+        except Exception:
+            pass
     if not subs:
         return DB.IndependentTag.Create(doc, type_id, view.Id, DB.Reference(rebar), False,
                                         DB.TagOrientation.Horizontal, view.Origin), index
@@ -975,11 +1043,80 @@ def _pointer_fractions(items):
     return out
 
 
+SINGLES_MARKED = 4            # up to this many loose bars of one mark also keep their own mark
+
+
+def merge_singles(doc, items):
+    """
+    Loose bars of one mark in a view (trimmers round an opening, the radial links of a curved beam, user
+    2026-10-11): one calling-up with their total on the middle one ('total'); up to SINGLES_MARKED of them the
+    others keep their mark ('mark_only'), more are left to the one calling-up.
+    """
+    groups, out = {}, []
+    for d in items:
+        try:
+            free_form = d['count'] > 1 and not d['rebar'].IsRebarShapeDriven()
+        except Exception:
+            free_form = False
+        if free_form:
+            # a FreeForm group's tag reads 1 bar: its calling-up written out with the count
+            out.append(dict(d, total=d['count']))
+        elif d['count'] == 1 and d.get('mark'):
+            groups.setdefault((d['mark'], get_id_value(d['rebar'].GetTypeId())), []).append(d)
+        else:
+            out.append(d)
+    for members in groups.values():
+        if len(members) == 1:
+            out.extend(members)
+            continue
+        members.sort(key=lambda d: (round(d['first'][0], 3), round(d['first'][1], 3)))
+        lead = dict(members[len(members) // 2], total=len(members))
+        out.append(lead)
+        if len(members) <= SINGLES_MARKED:
+            out.extend(dict(d, mark_only=True) for d in members if d['id'] != lead['id'])
+    return out
+
+
+def _single_type(doc, d, tag_types, fallback):
+    """The tag type of a merged loose bar: its calling-up with the total, or its mark alone."""
+    if d.get('total'):
+        try:
+            dia = doc.GetElement(d['rebar'].GetTypeId()).BarNominalDiameter * _MM_PER_FT
+        except Exception:
+            dia = 0.0
+        text = presentation.total_callout(u'1H{:.0f}-{}{}'.format(dia, d['mark'],
+                                                                 _text(d['rebar'], u'NOSA_Rebar_Mark_Suffix')),
+                                          d['total'], _text(d['rebar'], NOTE_PARAM))
+        _set(d['rebar'], CALLOUT_PARAM, text)
+        return tag_types.get(CALLOUT_TAG) or fallback
+    if d.get('mark_only'):
+        return tag_types.get(POINTER_TAG) or fallback
+    if _no_real_pitch(d['rebar']):
+        if fallback == tag_types.get(ZONE_TAG):
+            return tag_types.get(SHORT_TAG) or fallback
+        if fallback == tag_types.get(ELEVATION_TAG):
+            return tag_types.get(SPACER_TAG) or fallback        # 'No centres - Arrow'
+    return fallback
+
+
+def _no_real_pitch(rebar):
+    """
+    A set laid out by a nominal maximum spacing longer than its own spread (a pile cap's two layers of lacers:
+    10000 over 776 mm): its centres mean nothing, so it is called up without them (2H12-03 LINKS).
+    """
+    try:
+        accessor = rebar.GetShapeDrivenAccessor()
+        return rebar.NumberOfBarPositions > 1 and rebar.MaxSpacing > accessor.ArrayLength + 1e-6
+    except Exception:
+        return False
+
+
 def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, report):
     """Marks of the bars that are not zones, in rows outside the member, each with a pointer to its bar."""
     from nosa_utils import callout_layout
     if not items:
         return
+    items = merge_singles(doc, items)
     kind = ZONE_TAG if _is_plan(view) else POINTER_TAG
     type_id = tag_types.get(kind) or det.tag_type_for_view(doc, view)
     fractions = _pointer_fractions(items)
@@ -987,7 +1124,8 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
         try:
-            tag, index = _tag_bar(doc, view, d['rebar'], index, det._tag_type_for_bar(doc, d['rebar'], type_id))
+            tag, index = _tag_bar(doc, view, d['rebar'], index, _single_type(
+                doc, d, tag_types, det._tag_type_for_bar(doc, d['rebar'], type_id)))
         except Exception:
             continue
         anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, placed, gap)
@@ -1052,7 +1190,7 @@ def _cut_bars(view, d, frame):
                 continue
         except Exception:
             pass
-        line = _main_line(rebar, i)
+        line = _main_line(rebar, i, view)
         if line is None:
             continue
         if frame is not None:
@@ -1066,7 +1204,7 @@ def _cut_bars(view, d, frame):
     return out
 
 
-def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, report, mode):
+def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, report, mode, per_set=False):
     """
     Bar marks of a section or elevation (SMDSC 6.2.3, 6.4.4, user 2026-10-10): its own mark over every bar the
     view cuts ('Mark only - Dot', one per bar, no pointer: it stands just past the face in line with its bar,
@@ -1080,11 +1218,13 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
     scale = max(1, int(getattr(view, 'Scale', 50) or 50))
     entries = []
     base = tag_types.get(ELEVATION_TAG if mode else POINTER_TAG) or det.tag_type_for_view(doc, view)
+    items = merge_singles(doc, items)
     fractions = _pointer_fractions(items)
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
         try:
-            tag, index = _tag_bar(doc, view, d['rebar'], index, det._tag_type_for_bar(doc, d['rebar'], base))
+            tag, index = _tag_bar(doc, view, d['rebar'], index, _single_type(
+                doc, d, tag_types, det._tag_type_for_bar(doc, d['rebar'], base)))
         except Exception:
             continue
         anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, placed, gap)
@@ -1092,8 +1232,44 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             entries.append((d['id'], tag, anchor))
     cut_type = tag_types.get(CUT_TAG) or base
     frame = _crop_frame(view)
+    if mode is True:
+        # an elevation cuts loose links one by one (a circular column's ties): one calling-up with their total
+        # instead of a mark over every cut leg (user 2026-10-11)
+        groups, kept = {}, []
+        for d in cut:
+            if d['count'] == 1 and d.get('mark'):
+                groups.setdefault((d['mark'], get_id_value(d['rebar'].GetTypeId())), []).append(d)
+            else:
+                kept.append(d)
+        for members in groups.values():
+            if len(members) < 3:
+                kept.extend(members)
+                continue
+            members.sort(key=lambda d: (round(d['first'][1], 3), round(d['first'][0], 3)))
+            lead = dict(members[len(members) // 2], total=len(members))
+            bars = _cut_bars(view, lead, frame)
+            if not bars:
+                continue
+            i, ref, point = bars[0]
+            try:
+                tag = DB.IndependentTag.Create(doc, _single_type(doc, lead, tag_types, cut_type), view.Id, ref, True,
+                                               DB.TagOrientation.Horizontal, point)
+                entries.append((lead['id'], tag, point))
+            except Exception:
+                pass
+        cut = kept
     for d in cut:
         bars = _cut_bars(view, d, frame)
+        if per_set and len(bars) > 1:
+            # a slab or base section cuts tens of bars of a set: its mark once, pointing at its middle bar
+            i, ref, point = bars[len(bars) // 2]
+            try:
+                tag = DB.IndependentTag.Create(doc, tag_types.get(POINTER_TAG) or cut_type, view.Id, ref, True,
+                                               DB.TagOrientation.Horizontal, point)
+                entries.append((d['id'], tag, point))
+            except Exception:
+                pass
+            continue
         for i, ref, point in bars:
             try:
                 tag = DB.IndependentTag.Create(doc, cut_type, view.Id, ref, False, DB.TagOrientation.Horizontal,

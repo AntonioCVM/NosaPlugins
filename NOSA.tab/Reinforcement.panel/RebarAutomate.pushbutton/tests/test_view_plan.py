@@ -75,3 +75,14 @@ def test_layout_keeps_the_legend_corner_free():
     for (w, h), (sheet, cx, cy) in zip([(400.0, 250.0), (300.0, 250.0)], placed):
         r = (cx - w / 2.0, cy - h / 2.0, cx + w / 2.0, cy + h / 2.0)
         assert not _overlap(r, box)
+
+
+def test_section_offsets_try_the_middle_first():
+    offsets = vp.section_offsets(0.0, 1000.0)
+    assert offsets[0] == 500.0 and offsets[1] == 400.0 and offsets[2] == 600.0
+    assert all(0.0 < o < 1000.0 for o in offsets)
+
+
+def test_title_width_reads_the_title_on_sheet_first():
+    assert vp.title_width_mm(u'Beam B10-B11 - Section mid span 2', u'Section mid span 2') == 18 * 3.0 + 10.0
+    assert vp.title_width_mm(u'Plan') == 4 * 3.0 + 10.0

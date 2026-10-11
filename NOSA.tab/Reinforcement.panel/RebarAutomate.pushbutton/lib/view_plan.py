@@ -13,6 +13,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # kind -> (candidate scales, paper box (w, h) mm the view may take on the sheet)
 SCALES = {
     'member_section': ((20, 50), (200.0, 260.0)),
+    'wall_section': ((20, 50), (200.0, 260.0)),     # one mark per cut set, like slabs (user 2026-10-11)
     'elevation': ((50, 100), (660.0, 300.0)),
     'column_elevation': ((50, 100), (300.0, 520.0)),
     'footing_section': ((20, 50), (320.0, 220.0)),
@@ -103,3 +104,24 @@ def next_sheet_numbers(existing, count, series=4000):
             out.append(str(n))
         n += 1
     return out
+
+
+SECTION_FRACTIONS = (0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8)
+
+
+def section_offsets(lo, hi):
+    """
+    Where to try a cut across a slab or base, nearest the middle first (user 2026-10-11: two real sections, A-A
+    and B-B, clear of openings), between lo and hi along the other direction.
+    """
+    return [lo + (hi - lo) * f for f in SECTION_FRACTIONS]
+
+
+TITLE_CHAR_MM = 3.0      # NOSA view title lettering on the sheet, per character
+TITLE_EXTRA_MM = 10.0
+
+
+def title_width_mm(view_name, title_on_sheet=u''):
+    """Paper width a viewport's title takes (its Title on Sheet, else the view name), so titles never overlap."""
+    text = title_on_sheet or view_name or u''
+    return len(text) * TITLE_CHAR_MM + TITLE_EXTRA_MM
