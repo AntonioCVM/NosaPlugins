@@ -730,6 +730,10 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 # SMDSC 4.5.1: the member's bar schedules belong to the drawing it is detailed on
                 import bar_schedules
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
+                # SMDSC 3.7 (T9.6): each drawing's notes from what is on it
+                for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+                    if sheet.SheetNumber in report['sheets']:
+                        report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars))
         if tag and rebars:
             # T8.27, SMDSC 6.2.2: bars detailed on another drawing, once the views are on their sheets
             own = set(get_id_value(r.Id) for r in rebars)

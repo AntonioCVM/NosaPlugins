@@ -43,3 +43,24 @@ if __name__ == '__main__':
     test_notes_without_values_point_to_the_general_notes()
     test_notation_key_has_every_smdsc_layer()
     test_legends_stack_down_the_box_left_edges_aligned()
+
+
+def test_grade_read_from_the_material_name():
+    assert rl.grade_of(u'Concrete C32/40') == u'C32/40'
+    assert rl.grade_of(u'Concrete - Generic', u'C40/50') == u'C40/50'
+
+
+def test_drawing_notes_state_the_model_and_flag_what_is_missing():
+    text, warnings = rl.drawing_notes(
+        u'4002', {u'Beams': u''}, {u'Beams': (40.0, 40.0, 40.0)}, project_grade=u'C40/50',
+        project_cover=u'50mm', schedule_refs=())
+    assert u'beams C40/50' in text and u'beams 40' in text and u'20H16-63-150B1' in text
+    assert u'(13@100)' in text and u'to be issued (refs 4002-01' in text
+    joined = u' '.join(warnings)
+    assert u'differs from the general notes' in joined and u'NOSA_GN_Cover_Deviation' in joined
+    assert u'NOSA_GN_Aggregate_Max' in joined and u'material' in joined
+    text, warnings = rl.drawing_notes(
+        u'4002', {u'Slabs': u'C32/40'}, {u'Slabs': (25.0, 40.0, 40.0)}, deviation=u'10', aggregate=u'20',
+        schedule_refs=(u'4002-01-A',))
+    assert u'slabs 25 top, 40 bottom, 40 sides' in text and u'includes delta c_dev = 10' in text
+    assert u'4002-01-A' in text and warnings == []

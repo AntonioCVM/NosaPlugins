@@ -10,6 +10,8 @@ inside its frame, just above the title block; panel B is left for the project's 
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
+import re
+
 NOTATION_LEGEND = u'RC layer notation'
 NOTES_LEGEND = u'RC reinforcement notes'
 NOTATION_SCALE = 10
@@ -48,6 +50,89 @@ def notes_text(concrete_grade, cover_typical, cover_slabs):
         u'7. Laps and anchorages to the table in the general notes (0900) unless dimensioned.',
     ]
     return u'\r'.join(lines)
+
+
+_GRADE = re.compile(u'C\\d{2,3}/\\d{2,3}')
+
+
+def grade_of(material_name, fallback=u''):
+    """'C32/40' from a material name such as 'Concrete C32/40', else the fallback."""
+    m = _GRADE.search(material_name or u'')
+    return m.group(0) if m else fallback
+
+
+def _mm(value):
+    try:
+        return float(u'{}'.format(value).lower().replace(u'mm', u'').strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'', deviation=u'', aggregate=u'',
+                  schedule_refs=(), ga_refs=u''):
+    """
+    SMDSC 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
+    disagree with the model. grades {element kind: grade or ''}; covers {element kind: (top, bottom, sides) mm};
+    project values are the general notes' (NOSA_GN_*). Returns (text, [warnings]).
+    """
+    warnings = []
+    kinds = sorted(set(grades) | set(covers))
+    grade_bits = []
+    for kind in kinds:
+        g = grades.get(kind) or u''
+        if not g:
+            g = project_grade
+            if project_grade:
+                warnings.append(u'{} {}: concrete grade not in the material, the general notes\' {} '
+                                u'used.'.format(drawing, kind, project_grade))
+            else:
+                warnings.append(u'{} {}: no concrete grade in the material or the general notes.'.format(
+                    drawing, kind))
+        grade_bits.append(u'{} {}'.format(kind.lower(), g or u'(to be confirmed)'))
+    cover_bits = []
+    typical = _mm(project_cover)
+    for kind in kinds:
+        c = covers.get(kind)
+        if not c:
+            continue
+        values = sorted(set(int(round(v)) for v in c if v))
+        text = u'{}'.format(values[0]) if len(values) == 1 else \
+            u'{} top, {} bottom, {} sides'.format(*[int(round(v)) for v in c])
+        cover_bits.append(u'{} {}'.format(kind.lower(), text))
+        if typical and any(abs(v - typical) > 0.5 for v in c if v) and len(values) == 1:
+            warnings.append(u'{} {}: modelled cover {} mm differs from the general notes\' {} — the drawing '
+                            u'states the modelled value; check which is right.'.format(drawing, kind, values[0],
+                                                                                        project_cover))
+    dev = _mm(deviation)
+    if dev is None:
+        warnings.append(u'{}: no cover deviation set (NOSA_GN_Cover_Deviation): c_nom is stated as '
+                        u'modelled.'.format(drawing))
+    agg = _mm(aggregate)
+    if agg is None:
+        warnings.append(u'{}: no maximum aggregate size set (NOSA_GN_Aggregate_Max): the SMDSC standard '
+                        u'20 mm is stated, to be confirmed.'.format(drawing))
+    refs = u', '.join(schedule_refs)
+    if not refs:
+        warnings.append(u'{}: no bar schedules issued yet for this drawing.'.format(drawing))
+    lines = [
+        u'REINFORCEMENT NOTES',
+        u'',
+        u'1. Read with the general arrangement drawings{} and the general notes (0900). Do not scale from '
+        u'this drawing.'.format(u' ' + ga_refs if ga_refs else u''),
+        u'2. Concrete: {}.'.format(u'; '.join(grade_bits) or u'to the general notes'),
+        u'3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar '
+        u'schedules: {}.'.format(refs or u'to be issued (refs {}-01 ...)'.format(drawing)),
+        u'4. Nominal cover c_nom to all reinforcement, links included{}: {}.'.format(
+            u' (includes delta c_dev = {:.0f})'.format(dev) if dev is not None else u'',
+            u'; '.join(cover_bits) or u'to the general notes'),
+        u'5. Maximum aggregate size {:.0f} mm.'.format(agg if agg is not None else 20.0),
+        u'6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150B1; centres and '
+        u'layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.',
+        u'7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer '
+        u'notation key). EF each face, EW each way, Stg. staggered, Alt. alternate.',
+        u'8. Laps and anchorages to the table in the general notes (0900) unless dimensioned.',
+    ]
+    return u'\r'.join(lines), warnings
 
 
 def stack_in_panel(sizes, panel=LEGEND_BOX, gap=PANEL_GAP_MM):
@@ -223,11 +308,84 @@ def ensure(doc):
         if new:
             _draw_notation(doc, notation)
         out.append(notation)
-    notes, _new = _legend(doc, NOTES_LEGEND)
-    if notes is not None:
-        _write_notes(doc, notes)
-        out.append(notes)
+    # the notes are now each drawing's own (sheet_notes, T9.6): the shared notes legend is no longer placed
     return out
+
+
+_KINDS = (('OST_StructuralFraming', u'Beams'), ('OST_StructuralColumns', u'Columns'), ('OST_Floors', u'Slabs'),
+          ('OST_Walls', u'Walls'), ('OST_StructuralFoundation', u'Foundations'), ('OST_Stairs', u'Stairs'))
+
+
+def _kind(host):
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    cat = host.Category
+    if cat is None:
+        return u'Members'
+    for name, label in _KINDS:
+        if get_id_value(cat.Id) == int(getattr(DB.BuiltInCategory, name)):
+            return label
+    return u'Members'
+
+
+def _material_name(doc, host):
+    from Autodesk.Revit import DB  # Lazy import
+    for getter in (lambda: host.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM).AsElementId(),
+                   lambda: doc.GetElement(host.GetTypeId()).get_Parameter(
+                       DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM).AsElementId(),
+                   lambda: (lambda cs: cs.GetMaterialId(cs.StructuralMaterialIndex))(
+                       doc.GetElement(host.GetTypeId()).GetCompoundStructure())):
+        try:
+            m = doc.GetElement(getter())
+            if m is not None:
+                return m.Name
+        except Exception:
+            continue
+    return u''
+
+
+def _covers(doc, host):
+    from Autodesk.Revit import DB  # Lazy import
+    out = []
+    for bip in (DB.BuiltInParameter.CLEAR_COVER_TOP, DB.BuiltInParameter.CLEAR_COVER_BOTTOM,
+                DB.BuiltInParameter.CLEAR_COVER_OTHER):
+        try:
+            out.append(doc.GetElement(host.get_Parameter(bip).AsElementId()).CoverDistance * _FT)
+        except Exception:
+            out.append(None)
+    return tuple(out) if any(out) else None
+
+
+def sheet_notes(doc, sheet, hosts, rebars):
+    """
+    The drawing's own notes block (T9.6) on the sheet, under the layer notation key in the legend box.
+    Returns the warnings about data the model or the general notes do not give.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    grades, covers = {}, {}
+    project_grade = _project_value(doc, u'NOSA_GN_Concrete_Grade')
+    for host in hosts:
+        kind = _kind(host)
+        grades[kind] = grades.get(kind) or grade_of(_material_name(doc, host))
+        c = _covers(doc, host)
+        if c:
+            covers[kind] = c
+    refs = sorted(set(r.LookupParameter(u'NOSA_Rebar_Assembly').AsString()
+                      for r in rebars if r.LookupParameter(u'NOSA_Rebar_Assembly') is not None
+                      and r.LookupParameter(u'NOSA_Rebar_Assembly').AsString()))
+    text, warnings = drawing_notes(
+        sheet.SheetNumber, grades, covers, project_grade, _project_value(doc, u'NOSA_GN_Cover_Typical'),
+        _project_value(doc, u'NOSA_GN_Cover_Deviation'), _project_value(doc, u'NOSA_GN_Aggregate_Max'), refs,
+        _project_value(doc, u'NOSA_GN_GA_Drawings'))
+    top = LEGEND_BOX[3]
+    for port in [doc.GetElement(i) for i in sheet.GetAllViewports()]:
+        view = doc.GetElement(port.ViewId)
+        if view is not None and view.Name == NOTATION_LEGEND:
+            top = port.GetBoxOutline().MinimumPoint.Y * _FT - PANEL_GAP_MM
+    options = DB.TextNoteOptions(_text_type_id(doc, TEXT_TYPE))
+    DB.TextNote.Create(doc, sheet.Id, _xyz(LEGEND_BOX[2] - NOTES_WIDTH_MM, top), NOTES_WIDTH_MM / _FT, text,
+                       options)
+    return warnings
 
 
 def place(doc, sheet, legends):
