@@ -439,17 +439,19 @@ def _face_refs(view, element):
         geometry = element.get_Geometry(opts)
     except Exception:
         return out
-    stack = list(geometry) if geometry is not None else []
+    # an uncut family instance (a column) keeps its faces in the symbol geometry: only those references can be
+    # dimensioned, so they are read there and moved by the instance transform
+    stack = [(g, DB.Transform.Identity) for g in geometry] if geometry is not None else []
     while stack:
-        g = stack.pop()
+        g, t = stack.pop()
         if isinstance(g, DB.GeometryInstance):
-            stack.extend(list(g.GetInstanceGeometry()))
+            stack.extend((s, t.Multiply(g.Transform)) for s in g.GetSymbolGeometry())
             continue
         if not isinstance(g, DB.Solid) or g.Volume <= 0:
             continue
         for face in g.Faces:
             if isinstance(face, DB.PlanarFace) and face.Reference is not None:
-                out.append((face.FaceNormal, face.Reference, face.Origin))
+                out.append((t.OfVector(face.FaceNormal), face.Reference, t.OfPoint(face.Origin)))
     return out
 
 
@@ -490,7 +492,12 @@ def _geometry(doc, view, hosts, kind, box, placed, scale):
     lo_y = min([box[1]] + [q[1] for q in placed])
     hi_x = max([box[2]] + [q[2] for q in placed])
     lo_x = min([box[0]] + [q[0] for q in placed])
-    faces = [f for h in hosts for f in _face_refs(view, h)]
+    try:
+        # only members this view draws: a coplanar face of the next span would give a dimension the view hides
+        shown = set(get_id_value(i) for i in DB.FilteredElementCollector(doc, view.Id).ToElementIds())
+    except Exception:
+        shown = None
+    faces = [f for h in hosts if shown is None or get_id_value(h.Id) in shown for f in _face_refs(view, h)]
     if kind in SIZE_KINDS:
         pairs = []
         if kind in ('member_section', 'wall_section'):
@@ -525,12 +532,14 @@ def _geometry(doc, view, hosts, kind, box, placed, scale):
                 continue
             face = pick(group, key=lambda f: f[2].Z)
             at = _xy(view, face[2])
-            point = _point(view, (box[0], _xy(view, face[2])[1]), face[2])
-            end = _point(view, (lo_x - 3.0 * row, at[1]), face[2])
-            bend = _point(view, (lo_x - 1.0 * row, at[1]), face[2])
+            point = face[2]                          # on the face itself (the outline's end may lie in a column)
+            # just past the member's own face: a leader out to the furthest calling-up would widen the crop over
+            # the next element (column C2 came into C1's elevation)
+            end = _point(view, (box[0] - 2.5 * row, at[1]), face[2])
+            bend = _point(view, (box[0] - 1.0 * row, at[1]), face[2])
             try:
                 doc.Create.NewSpotElevation(view, face[1], point, bend, end, point, True)
-                placed.append((lo_x - 6.0 * row, at[1] - row, lo_x, at[1] + row))
+                placed.append((box[0] - 4.0 * row, at[1] - row / 2.0, box[0], at[1] + row / 2.0))
                 made += 1
             except Exception:
                 continue
