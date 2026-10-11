@@ -410,6 +410,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         point = _point(view, ((bx[0] + bx[2]) / 2.0, bx[1] - gap - TEXT_PAPER_MM * scale), made_origin(zones, a))
         if _note(doc, view, point, label, text_type):
             report['notes'] += 1
+    if hosts:
+        # SMDSC 3.13 / 3.14.3 (T9.4): the member's size and levels from its own faces, so they follow the model
+        report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
     _fit_crop(view, [box] + placed, CROP_MARGIN_PAPER_MM * scale)
     if beam_elevation:
         # SMDSC 4th ed. Fig. 6.24: the columns as short stubs under the beam, so the link zones, their calling-up
@@ -421,6 +424,117 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
 
 STUB_MM = 300.0              # column stub drawn under a beam elevation
 STUB_NOTE = u'NOSA stub'     # Comments of the masking regions that cut the columns to stubs
+
+
+SIZE_KINDS = ('member_section', 'wall_section', 'slab_section', 'footing_section')
+
+
+def _face_refs(view, element):
+    """[(normal, reference, a point on the face)] of the element's planar faces, with references for dimensions."""
+    out = []
+    opts = DB.Options()
+    opts.ComputeReferences = True
+    opts.View = view
+    try:
+        geometry = element.get_Geometry(opts)
+    except Exception:
+        return out
+    stack = list(geometry) if geometry is not None else []
+    while stack:
+        g = stack.pop()
+        if isinstance(g, DB.GeometryInstance):
+            stack.extend(list(g.GetInstanceGeometry()))
+            continue
+        if not isinstance(g, DB.Solid) or g.Volume <= 0:
+            continue
+        for face in g.Faces:
+            if isinstance(face, DB.PlanarFace) and face.Reference is not None:
+                out.append((face.FaceNormal, face.Reference, face.Origin))
+    return out
+
+
+def _extreme_pair(faces, direction, view):
+    """The two faces facing -direction and +direction furthest apart (the member's two outer faces)."""
+    lo = [(f[2].DotProduct(direction), f) for f in faces if f[0].DotProduct(direction) < -0.99]
+    hi = [(f[2].DotProduct(direction), f) for f in faces if f[0].DotProduct(direction) > 0.99]
+    if not lo or not hi:
+        return None
+    return min(lo, key=lambda e: e[0])[1], max(hi, key=lambda e: e[0])[1]
+
+
+def _geometry(doc, view, hosts, kind, box, placed, scale):
+    """
+    Member sections: overall width under the section and depth beside it; slab and base sections: thickness
+    at the left end; beam and column elevations: spot levels on the top (and a column's bottom) face.
+    Laid out beyond what is already placed. Returns how many dimensions and levels.
+    """
+    made = 0
+    gap = GAP_PAPER_MM * scale
+    row = ROW_PAPER_MM * scale
+    like = view.Origin
+    mra_dims = set()
+    for mra in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.MultiReferenceAnnotation):
+        mra_dims.add(get_id_value(mra.DimensionId))
+    for dim in list(DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Dimension)):
+        # an earlier pass's size dimensions and levels (the zone chains went with their witness ticks)
+        if get_id_value(dim.Id) in mra_dims:
+            continue
+        refs = [dim.References.get_Item(i) for i in range(dim.References.Size)] if dim.References else []
+        if isinstance(dim, DB.SpotDimension) or refs and all(r.ElementReferenceType ==
+                                                              DB.ElementReferenceType.REFERENCE_TYPE_SURFACE
+                                                              for r in refs):
+            try:
+                doc.Delete(dim.Id)
+            except Exception:
+                pass
+    lo_y = min([box[1]] + [q[1] for q in placed])
+    hi_x = max([box[2]] + [q[2] for q in placed])
+    lo_x = min([box[0]] + [q[0] for q in placed])
+    faces = [f for h in hosts for f in _face_refs(view, h)]
+    if kind in SIZE_KINDS:
+        pairs = []
+        if kind in ('member_section', 'wall_section'):
+            pairs.append((view.RightDirection, 'below'))
+        pairs.append((view.UpDirection, 'left' if kind in ('slab_section', 'footing_section') else 'right'))
+        for direction, side in pairs:
+            pair = _extreme_pair(faces, direction, view)
+            if pair is None:
+                continue
+            refs = DB.ReferenceArray()
+            refs.Append(pair[0][1])
+            refs.Append(pair[1][1])
+            if side == 'below':
+                y = lo_y - row
+                a, b = (box[0], y), (box[2], y)
+                placed.append((box[0], y - row / 2.0, box[2], y + row / 2.0))
+            else:
+                x = hi_x + row if side == 'right' else lo_x - row
+                a, b = (x, box[1]), (x, box[3])
+                placed.append((x - row / 2.0, box[1], x + row / 2.0, box[3]))
+            try:
+                doc.Create.NewDimension(view, DB.Line.CreateBound(_point(view, a, like), _point(view, b, like)), refs)
+                made += 1
+            except Exception:
+                continue
+    elif kind in ('elevation', 'column_elevation'):
+        up = DB.XYZ.BasisZ
+        tops = [f for f in faces if f[0].DotProduct(up) > 0.99]
+        bottoms = [f for f in faces if f[0].DotProduct(up) < -0.99] if kind == 'column_elevation' else []
+        for group, pick in ((tops, max), (bottoms, min)):
+            if not group:
+                continue
+            face = pick(group, key=lambda f: f[2].Z)
+            at = _xy(view, face[2])
+            point = _point(view, (box[0], _xy(view, face[2])[1]), face[2])
+            end = _point(view, (lo_x - 3.0 * row, at[1]), face[2])
+            bend = _point(view, (lo_x - 1.0 * row, at[1]), face[2])
+            try:
+                doc.Create.NewSpotElevation(view, face[1], point, bend, end, point, True)
+                placed.append((lo_x - 6.0 * row, at[1] - row, lo_x, at[1] + row))
+                made += 1
+            except Exception:
+                continue
+    return made
 
 
 def _column_stubs(doc, view, box, scale, style):
