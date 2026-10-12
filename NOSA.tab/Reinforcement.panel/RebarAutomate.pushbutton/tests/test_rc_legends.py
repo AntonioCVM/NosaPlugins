@@ -64,3 +64,10 @@ def test_drawing_notes_state_the_model_and_flag_what_is_missing():
         schedule_refs=(u'4002-01-A',))
     assert u'slabs 25 top, 40 bottom, 40 sides' in text and u'includes delta c_dev = 10' in text
     assert u'4002-01-A' in text and warnings == []
+
+
+def test_fixing_notes_and_buildability_line():
+    assert rl.fixing_notes([u'Beams', u'Unknown'])[0].startswith(u'Beams: links tied')
+    text, _w = rl.drawing_notes(u'4003', {u'Beams': u'C40/50'}, {u'Beams': (40.0, 40.0, 40.0)},
+                                buildability=(94.0, u'A', 0, 2))
+    assert u'9. Fixing: Beams:' in text and u'10. Buildability check: A (94/100; 0 error(s), 2 warning(s))' in text

@@ -43,9 +43,9 @@ class RebarQAWindow(NOSAWindow):
         for f in sorted(self._findings, key=lambda f: (f.Drawing, f.Host, order.get(f.Severity, 2), f.Check)):
             rows.Add(f)
         self.GridFindings.ItemsSource = rows
-        errors = sum(1 for f in self._findings if f.Severity == rebar_qa.ERROR)
-        self.TxtStatus.Text = u'{} finding(s), {} error(s). Double-click a row to show the element.'.format(
-            len(self._findings), errors)
+        score, grade, errors, _warnings = rebar_qa.buildability(self._findings)
+        self.TxtStatus.Text = u'{} finding(s), {} error(s). Buildability {} ({:.0f}/100). Double-click a row to ' \
+                              u'show the element.'.format(len(self._findings), errors, grade, score)
 
     def Show_Click(self, sender, args):
         row = self.GridFindings.SelectedItem

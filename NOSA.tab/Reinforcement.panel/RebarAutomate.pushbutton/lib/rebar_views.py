@@ -173,6 +173,10 @@ def _link_parameters(arc, rebars):
     return out
 
 
+CONGESTED_SCALE = 10           # a congested section's own scale (SMDSC 4th ed. 4.2.1)
+CONGESTED_CLEAR_MM = 300.0     # a congested station this close to a section already drawn is shown by it
+
+
 def _clear_cut(solid, centre, right, other, lo, hi, olo, ohi):
     """The point a section across `right` goes through: nearest the middle where its line meets no opening."""
     from Autodesk.Revit import DB  # Lazy import
@@ -274,6 +278,19 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
             at_support = DB.XYZ(at_support.X, at_support.Y, (z0 + z1) / 2.0)
             specs.append(_section(u'Section support{}'.format(label), 'member_section', at_support, w,
                                   z_axis, width / 2 + 150, depth / 2 + 150, 0.0, 60.0))
+        # T9.8 (SMDSC 4th ed. 4.2.1): where the bars congest a section, a section of its own at 1:10
+        from nosa_utils import rebar_qa
+        taken = [sp['origin'] for sp in specs if not sp['plan']]
+        for h in hosts:
+            for (x, y, _z), issues in rebar_qa.congested_stations(doc, h):
+                at = DB.XYZ(x, y, (z0 + z1) / 2.0)
+                if any(_mm(DB.XYZ(at.X - o.X, at.Y - o.Y, 0.0).GetLength()) < CONGESTED_CLEAR_MM for o in taken):
+                    continue
+                spec = _section(u'Section congested', 'member_section', at, w, z_axis, width / 2 + 150,
+                                depth / 2 + 150, 0.0, 60.0)
+                spec['scale'], spec['congested'] = CONGESTED_SCALE, issues
+                specs.append(spec)
+                taken.append(at)
     elif kind in ('foundation', 'floor'):
         box = _box(host, re_engine)
         x, y = _local_axes(host) if kind == 'foundation' else (DB.XYZ.BasisX, DB.XYZ.BasisY)
@@ -482,9 +499,11 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
         if sheets:
             import bar_schedules
             bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0])
+            grade = _buildability(doc, group['hosts'], report)
             for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                 if sheet.SheetNumber in sheets:
-                    report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars']))
+                    report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
+                                                                   grade))
             import rebar_presentation
             own = set(get_id_value(r.Id) for r in group['rebars'])
             for view, _spec, _scale in created:
@@ -500,6 +519,18 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
         t.RollBack()
         report['errors'].append(u'{} drawing: {}'.format(_PLURAL.get(kind, kind), e))
         return []
+
+
+def _buildability(doc, hosts, report):
+    """T9.12: (score, grade, errors, warnings) of a drawing's members from the reinforcement QA, or None."""
+    from nosa_utils import rebar_qa
+    try:
+        findings = rebar_qa.audit(doc, [h.Id for h in hosts])
+    except Exception as e:
+        report['errors'].append(u'buildability check not run: {}'.format(e))
+        return None
+    report['buildability'] = [(f.Host, f.Check, f.Severity, f.Issue) for f in findings]
+    return rebar_qa.buildability(findings)
 
 
 def _number_in_reading_order(doc, created, kind, label):
@@ -995,8 +1026,8 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
     t.SetFailureHandlingOptions(options)
     t.Start()
     created = []
-    scales = [view_plan.choose_scale('footing_section' if kind == 'foundation' else spec['kind'], spec['size'][0],
-                                     spec['size'][1]) for spec in specs]
+    scales = [spec.get('scale') or view_plan.choose_scale('footing_section' if kind == 'foundation' else spec['kind'],
+                                                          spec['size'][0], spec['size'][1]) for spec in specs]
     if kind == 'foundation':
         scales = [max(scales)] * len(scales)      # plan and sections at one scale (user 2026-10-12)
     try:

@@ -53,3 +53,30 @@ def test_joint_clash_says_how_to_resolve_it_once():
     assert u'crank the beam bar' in text and u'second layer' in text and u'smaller bars' in text
     assert qa.joint_advice(text) == text
     assert qa.joint_advice(u'congested: clear gap 20 mm') == u'congested: clear gap 20 mm'
+
+
+def test_congestion_layers_and_tight_bars():
+    two = [(-100, 540, 20), (0, 540, 20), (100, 540, 20), (-100, 500, 20), (100, 500, 20), (0, 60, 20)]
+    assert qa.face_layers(two, 300.0) == {u'top': 2, u'bottom': 1}
+    assert qa.congestion_issues(two, 300.0) == []
+    three = two + [(0, 460, 20)]
+    assert u'3 layers in the top face' in qa.congestion_issues(three, 300.0)[0][1]
+    tight = [(-20, 60, 20), (20, 60, 20)]                         # 40 centres, 18 clear < 25
+    assert u'closer than the minimum' in qa.congestion_issues(tight, 300.0)[0][1]
+
+
+def test_column_bar_retention():
+    corners = [(-160, -160), (160, -160), (160, 160), (-160, 160)]
+    bars = [(x, y, 20) for x, y in corners] + [(0, -160, 20), (0, 160, 20)]
+    assert qa.unrestrained_bars(bars, corners) == []                # middle bars 140 clear of a corner bar
+    wide = [(x * 2, y, 20) for x, y in corners] + [(0, -160, 20)]
+    assert qa.unrestrained_bars(wide, [(x * 2, y) for x, y in corners]) == [4]   # 300 clear: needs a tie
+
+
+def test_joint_vibrator_and_buildability_grade():
+    assert qa.joint_vibrator_issue(300.0, [-100, 0, 100], [25, 25, 25]) is not None
+    assert qa.joint_vibrator_issue(300.0, [-110, 0, 110], [16, 16, 16]) is None
+    assert qa.buildability([])[:2] == (100.0, u'A+')
+    assert qa.buildability([qa.WARNING] * 3)[1] == u'A'
+    assert qa.buildability([qa.ERROR])[1] == u'B'
+    assert qa.buildability([qa.ERROR] * 3)[1] == u'C'

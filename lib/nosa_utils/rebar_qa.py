@@ -169,6 +169,101 @@ def gaps_clear(positions_mm, dias_mm):
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# T9.8-T9.12 buildability (IStructE SMDSC 4th ed. 4.2, Fig. 4.2; EC2 9.5.3)
+
+MAX_LAYERS = 2                # more layers in one face of a member congests it (SMDSC 4th ed. 4.2.1)
+RESTRAINT_REACH_MM = 150.0    # EC2 9.5.3(6): a bar within 150 mm of a restrained bar needs no link of its own
+
+
+def face_layers(bars, mid_mm):
+    """{'top': n, 'bottom': n}: rows of bars in each face of a section, bars [(across, up, dia)] in mm."""
+    out = {}
+    for face, keep in ((u'top', lambda up: up > mid_mm), (u'bottom', lambda up: up <= mid_mm)):
+        rows = []
+        for _a, up, dia in sorted((b for b in bars if keep(b[1])), key=lambda b: b[1]):
+            if rows and abs(up - rows[-1]) <= max(dia, 10.0):
+                continue
+            rows.append(up)
+        out[face] = len(rows)
+    return out
+
+
+def congestion_issues(bars, mid_mm, aggregate_mm=AGGREGATE_MM):
+    """
+    T9.8: [(severity, text)] for one section through a beam or column, bars [(across, up, dia)] mm: more than two
+    layers in a face, or bars of one layer closer than the minimum clear gap (real size).
+    """
+    out = []
+    for face, n in sorted(face_layers(bars, mid_mm).items()):
+        if n > MAX_LAYERS:
+            out.append((WARNING, u'{} layers in the {} face: congested, drawn in a 1:10 section (SMDSC 4th ed. '
+                                 u'4.2.1)'.format(n, face)))
+    tight = 0
+    rows = {}
+    for across, up, dia in bars:
+        rows.setdefault(round(up / 10.0), []).append((across, dia))
+    for row in rows.values():
+        row.sort()
+        for (a, da), (b, db) in zip(row, row[1:]):
+            if b - a - REAL_DIA * (da + db) / 2.0 < min_clear_mm(max(da, db), aggregate_mm) - 0.5:
+                tight += 1
+    if tight:
+        out.append((WARNING, u'{} pair(s) of bars closer than the minimum clear gap: congested, drawn in a 1:10 '
+                             u'section'.format(tight)))
+    return out
+
+
+def unrestrained_bars(bars, restraints, link_dia_mm=10.0, reach_mm=RESTRAINT_REACH_MM):
+    """
+    T9.10, EC2 9.5.3(6) / SMDSC 4th ed. 4.2.2: indexes of a column's bars [(x, y, dia)] neither held in a link's
+    corner or a cross-tie's hook (restraints [(x, y)]) nor within reach_mm clear of a bar that is.
+    """
+    held = []
+    for i, (x, y, d) in enumerate(bars):
+        tol = d / 2.0 + link_dia_mm + 15.0
+        if any(((x - rx) ** 2 + (y - ry) ** 2) ** 0.5 <= tol for rx, ry in restraints):
+            held.append(i)
+    out = []
+    for i, (x, y, d) in enumerate(bars):
+        if i in held:
+            continue
+        near = [((x - bars[j][0]) ** 2 + (y - bars[j][1]) ** 2) ** 0.5 - (d + bars[j][2]) / 2.0 for j in held]
+        if not near or min(near) > reach_mm + 0.5:
+            out.append(i)
+    return out
+
+
+def joint_vibrator_issue(width_mm, positions_mm, dias_mm):
+    """
+    T9.9, SMDSC 4th ed. Fig. 4.2: at a beam-column joint the beam's top bars and the column bars through it, across
+    the beam, must leave a 75 mm poker gap for every 300 mm of width. Text when they do not; else None.
+    """
+    issue = vibrator_issue(width_mm, gaps_clear(positions_mm, dias_mm))
+    return u'joint: ' + issue if issue else None
+
+
+GRADES = ((95.0, u'A+'), (85.0, u'A'), (70.0, u'B'))
+
+
+def buildability(findings):
+    """
+    T9.12: (score 0-100, grade A+ / A / B / C, errors, warnings) of a drawing's findings: an error costs 15 points,
+    a warning 3. A+ ready to issue; A minor points; B to be reviewed with the detailer; C not buildable as drawn.
+    """
+    errors = sum(1 for f in findings if getattr(f, 'Severity', f) == ERROR)
+    warnings = sum(1 for f in findings if getattr(f, 'Severity', f) == WARNING)
+    score = max(0.0, 100.0 - 15.0 * errors - 3.0 * warnings)
+    grade = u'C'
+    for floor, g in GRADES:
+        if score >= floor:
+            grade = g
+            break
+    if errors and grade in (u'A+', u'A'):
+        grade = u'B'                     # an error is never A
+    return score, grade, errors, warnings
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # Revit side (read-only)
 
 _MM = 304.8
@@ -314,6 +409,148 @@ def audit(doc, host_ids=None, fck_mpa=32.0, aggregate_mm=AGGREGATE_MM):
             out.extend(found)
         parts[hid] = (samples, label)
     out.extend(_joint_pairs(hosts, parts, checked, aggregate_mm, get_id_value))
+    for hid in sorted(checked):
+        out.extend(_buildability_host(doc, DB, hosts[hid], by_host[hid], hosts, by_host, aggregate_mm,
+                                      parts[hid][1] if hid in parts else u'', get_id_value))
+    return out
+
+
+STATIONS = (0.1, 0.5, 0.9)      # where a beam is checked for congestion, along its span
+MAX_SECTION_BARS = 80
+
+
+def _crossing(doc, DB, rebars, origin, normal, axes):
+    """
+    The bars crossing the plane through origin (mm) square to normal: [(coordinates along axes, dia)] mm, and the
+    bend points (x, y, z) mm of bars lying within 100 mm of the plane (link corners, cross-tie hooks).
+    """
+    bars, bends = [], []
+    for rebar in rebars:
+        try:
+            dia = doc.GetElement(rebar.GetTypeId()).BarModelDiameter * _MM
+            n = rebar.NumberOfBarPositions
+        except Exception:
+            continue
+        for i in range(min(n, MAX_SECTION_BARS)):
+            for a, b, bend in _chain(DB, rebar, i):
+                da, db = _dot(_sub(a, origin), normal), _dot(_sub(b, origin), normal)
+                if bend:
+                    if abs(da) < 100.0:
+                        bends.append(a)
+                    continue
+                if da * db < 0.0:
+                    t = da / (da - db)
+                    q = tuple(a[k] + (b[k] - a[k]) * t for k in range(3))
+                    bars.append(tuple(_dot(_sub(q, origin), ax) for ax in axes) + (dia,))
+    return bars, bends
+
+
+def _stations(DB, host, kind):
+    """[(origin mm, normal, across, mid height above origin mm, label)] of the sections a member is checked at."""
+    box = host.get_BoundingBox(None)
+    if box is None:
+        return []
+    if kind == u'beam':
+        curve, axis = _beam_axis(host)
+        if curve is None or not isinstance(curve, DB.Line):
+            return []
+        n = math.sqrt(axis.X ** 2 + axis.Y ** 2) or 1.0
+        u = (axis.X / n, axis.Y / n, 0.0)
+        across = (-u[1], u[0], 0.0)
+        out = []
+        for f in STATIONS:
+            p = _xyz(curve.Evaluate(f, True))
+            out.append(((p[0], p[1], box.Min.Z * _MM), u, across, (box.Max.Z - box.Min.Z) * _MM / 2.0,
+                        u'{:.0f}% of the span'.format(100.0 * f)))
+        return out
+    if kind == u'column':
+        c = ((box.Min.X + box.Max.X) / 2.0 * _MM, (box.Min.Y + box.Max.Y) / 2.0 * _MM,
+             (box.Min.Z + box.Max.Z) / 2.0 * _MM)
+        return [(c, (0.0, 0.0, 1.0), (1.0, 0.0, 0.0), 0.0, u'mid height')]
+    return []
+
+
+def congested_stations(doc, host, aggregate_mm=AGGREGATE_MM):
+    """
+    T9.8: [((x, y, z) ft, [issue])] of the stations of a beam (0.1, 0.5, 0.9 of its span) or a column (mid height)
+    where its own bars congest the section: where a 1:10 section is drawn.
+    """
+    from Autodesk.Revit import DB
+    from Autodesk.Revit.DB.Structure import RebarHostData
+    try:
+        rebars = list(RebarHostData.GetRebarHostData(host).GetRebarsInHost())
+    except Exception:
+        return []
+    out = []
+    for origin, normal, across, mid, _label in _stations(DB, host, _kind(DB, host)):
+        if normal == (0.0, 0.0, 1.0):
+            continue                       # a column's plan section is checked for restraint, not layers
+        bars, _bends = _crossing(doc, DB, rebars, origin, normal, (across, (0.0, 0.0, 1.0)))
+        issues = [t for _sev, t in congestion_issues(bars, mid, aggregate_mm)]
+        if issues:
+            out.append((tuple(c / _MM for c in origin), issues))
+    return out
+
+
+def _buildability_host(doc, DB, host, rebars, hosts, by_host, aggregate_mm, label, get_id_value):
+    """T9.8-T9.10 findings of one member: congested sections, column bars no link holds, joint poker gaps."""
+    out = []
+    kind = _kind(DB, host)
+    for origin, normal, across, mid, where in _stations(DB, host, kind):
+        if kind == u'column':
+            other = (-across[1], across[0], 0.0)
+            bars, bends = _crossing(doc, DB, rebars, origin, normal, (across, other))
+            restraints = [(_dot(_sub(p, origin), across), _dot(_sub(p, origin), other)) for p in bends]
+            main = [b for b in bars if b[2] >= 12.0]
+            loose = unrestrained_bars(main, restraints) if restraints and main else []
+            if loose:
+                out.append(Finding(u'', label, u'', u'Bar restraint', WARNING,
+                                   u'{} main bar(s) neither in a link corner nor within 150 mm of one that is: add '
+                                   u'a link or cross-tie (EC2 9.5.3(6), SMDSC 4th ed. 4.2.2)'.format(len(loose)),
+                                   host.Id))
+            continue
+        bars, _bends = _crossing(doc, DB, rebars, origin, normal, (across, (0.0, 0.0, 1.0)))
+        for _sev, text in congestion_issues(bars, mid, aggregate_mm):
+            out.append(Finding(u'', label, u'', u'Congestion', WARNING, u'{} at {}'.format(text, where), host.Id))
+    if kind == u'beam':
+        out.extend(_joint_vibrator(doc, DB, host, rebars, hosts, by_host, label, get_id_value))
+    return out
+
+
+def _joint_vibrator(doc, DB, beam, rebars, hosts, by_host, label, get_id_value):
+    """T9.9: each end of a beam over a column: its top bars and the column bars through the joint, across it."""
+    out = []
+    curve, axis = _beam_axis(beam)
+    box = beam.get_BoundingBox(None)
+    if curve is None or box is None or not isinstance(curve, DB.Line):
+        return out
+    n = math.sqrt(axis.X ** 2 + axis.Y ** 2) or 1.0
+    u = (axis.X / n, axis.Y / n, 0.0)
+    across = (-u[1], u[0], 0.0)
+    up = (0.0, 0.0, 1.0)
+    width = _depth_mm(DB, beam, u'beam', box)
+    for end in (0, 1):
+        p = _xyz(curve.GetEndPoint(end))
+        for hid, col in hosts.items():
+            if _kind(DB, col) != u'column':
+                continue
+            cb = col.get_BoundingBox(None)
+            if not (cb.Min.X * _MM - 1.0 <= p[0] <= cb.Max.X * _MM + 1.0 and
+                    cb.Min.Y * _MM - 1.0 <= p[1] <= cb.Max.Y * _MM + 1.0):
+                continue
+            # the poker goes in from the top: the beam's top layer over the column and the column bars through it
+            inner = (p[0] + u[0] * (100.0 if end == 0 else -100.0), p[1] + u[1] * (100.0 if end == 0 else -100.0),
+                     box.Max.Z * _MM - 60.0)
+            beam_bars = [b for b in _crossing(doc, DB, rebars, inner, u, (across, up))[0] if b[1] > -80.0]
+            col_bars = [b for b in _crossing(doc, DB, by_host.get(hid, []), inner, up, (across, u))[0]
+                        if abs(b[0]) <= width / 2.0]
+            bars = beam_bars + col_bars
+            if len(bars) < 3:
+                continue
+            issue = joint_vibrator_issue(width, [b[0] for b in bars], [b[2] for b in bars])
+            if issue:
+                out.append(Finding(u'', label, u'', u'Vibrator gap', WARNING, u'{} (column {})'.format(
+                    issue, get_id_value(col.Id)), beam.Id))
     return out
 
 
@@ -438,6 +675,10 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
             chain = first if i == 0 else _chain(DB, rebar, i)
             pts = [s[0] for s in chain] + [chain[-1][1]] + [tuple((a + b) / 2.0 for a, b in zip(s[0], s[1]))
                                                              for s in chain]
+            if kind == u'column' and abs(u[2]) > 0.9:
+                # a column bar's ends run on into the base or the lift above (starters, laps): not a cover
+                k = len(chain)
+                pts = pts[1:k] + pts[k + 1:]          # inner vertices and midpoints, not the two ends
             covers = [c for c in (_cover_mm(DB, faces, box, p, dia) for p in pts) if c is not None]
             if covers:
                 for severity, issue in cover_issues(min(covers), dia, nominal, aggregate_mm):

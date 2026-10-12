@@ -68,8 +68,29 @@ def _mm(value):
         return None
 
 
+FIXING = {
+    u'Beams': u'Beams: links tied to every corner bar and to alternate bars elsewhere; top bars carried on the links, '
+              u'bottom bars on spacers to BS 7973 at 1.0 m centres max. Cages may be prefabricated, lifting points '
+              u'by the contractor.',
+    u'Columns': u'Columns: starter bars fixed to a template before the base is cast, 75 mm kicker; links tied to '
+                u'every bar they restrain. Cages may be prefabricated.',
+    u'Slabs': u'Slabs: bottom mat on spacers, top mat on continuous chairs at 1.0 m centres max (BS 7973); bars '
+              u'tied at alternate intersections, at every one along edges and round openings.',
+    u'Walls': u'Walls: the two faces held apart by spacers or links at 1.0 m centres max; horizontal bars outside '
+              u'the vertical bars unless shown otherwise.',
+    u'Foundations': u'Foundations: bottom mat on 50 mm spacers on the blinding; starter bars fixed to a template; '
+                    u'lacers tied to every bent-up leg.',
+    u'Stairs': u'Stairs: bars carried on spacers at 1.0 m centres max; landing bars lapped as dimensioned.',
+}
+
+
+def fixing_notes(kinds):
+    """SMDSC 4th ed. 4.2.3 (T9.11): the fixing notes of the element kinds on a drawing, in the order given."""
+    return [FIXING[k] for k in kinds if k in FIXING]
+
+
 def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'', deviation=u'', aggregate=u'',
-                  schedule_refs=(), ga_refs=u''):
+                  schedule_refs=(), ga_refs=u'', buildability=None):
     """
     SMDSC 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
     disagree with the model. grades {element kind: grade or ''}; covers {element kind: (top, bottom, sides) mm};
@@ -132,6 +153,14 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         u'notation key). EF each face, EW each way, Stg. staggered, Alt. alternate.',
         u'8. Laps and anchorages to the table in the general notes (0900) unless dimensioned.',
     ]
+    fixing = fixing_notes(kinds)
+    if fixing:
+        lines.append(u'9. Fixing: ' + u' '.join(fixing))
+    if buildability is not None:
+        score, grade, errors, warns = buildability
+        # T9.12: the drawing's buildability, from the reinforcement QA of its members
+        lines.append(u'{}. Buildability check: {} ({:.0f}/100; {} error(s), {} warning(s)) - see the RC QA '
+                     u'report.'.format(10 if fixing else 9, grade, score, errors, warns))
     return u'\r'.join(lines), warnings
 
 
@@ -356,7 +385,7 @@ def _covers(doc, host):
     return tuple(out) if any(out) else None
 
 
-def sheet_notes(doc, sheet, hosts, rebars):
+def sheet_notes(doc, sheet, hosts, rebars, buildability=None):
     """
     The drawing's own notes block (T9.6) on the sheet, under the layer notation key in the legend box.
     Returns the warnings about data the model or the general notes do not give.
@@ -376,7 +405,7 @@ def sheet_notes(doc, sheet, hosts, rebars):
     text, warnings = drawing_notes(
         sheet.SheetNumber, grades, covers, project_grade, _project_value(doc, u'NOSA_GN_Cover_Typical'),
         _project_value(doc, u'NOSA_GN_Cover_Deviation'), _project_value(doc, u'NOSA_GN_Aggregate_Max'), refs,
-        _project_value(doc, u'NOSA_GN_GA_Drawings'))
+        _project_value(doc, u'NOSA_GN_GA_Drawings'), buildability)
     top = LEGEND_BOX[3]
     for port in [doc.GetElement(i) for i in sheet.GetAllViewports()]:
         view = doc.GetElement(port.ViewId)
