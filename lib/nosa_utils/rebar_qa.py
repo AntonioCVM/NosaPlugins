@@ -306,9 +306,27 @@ def _chain(DB, rebar, i):
         if isinstance(c, DB.Line):
             segments.append((_xyz(c.GetEndPoint(0)), _xyz(c.GetEndPoint(1)), False))
         else:
-            pts = [_xyz(p) for p in c.Tessellate()]
+            pts = [_xyz(p) for p in _fine_points(DB, c)]
             segments.extend((a, b, True) for a, b in zip(pts, pts[1:]))
     return segments
+
+
+SAGITTA_MM = 1.0     # the chords an arc is checked by stray no further than this from it
+
+
+def _fine_points(DB, curve):
+    """
+    Points along a curved bar close enough that no chord strays SAGITTA_MM from it: Revit's own tessellation of a
+    curved beam's 3.5 m radius bars strays some 8 mm, which read as the bars clashing with their links.
+    """
+    if isinstance(curve, DB.Arc):
+        r = curve.Radius * _MM
+        sweep = abs(curve.GetEndParameter(1) - curve.GetEndParameter(0))
+        if r > 0 and sweep > 0:
+            step = 2.0 * math.acos(max(-1.0, 1.0 - SAGITTA_MM / r))
+            n = max(2, min(int(math.ceil(sweep / step)), 400))
+            return [curve.Evaluate(k / float(n), True) for k in range(n + 1)]
+    return list(curve.Tessellate())
 
 
 def _solid_faces(DB, host):
@@ -327,6 +345,58 @@ def _solid_faces(DB, host):
         elif isinstance(g, DB.GeometryInstance):
             stack.extend(list(g.GetInstanceGeometry()))
     return faces
+
+
+def _solids(DB, host):
+    opts = DB.Options()
+    out, stack = [], []
+    try:
+        stack = list(host.get_Geometry(opts) or [])
+    except Exception:
+        return out
+    while stack:
+        g = stack.pop()
+        if isinstance(g, DB.Solid) and g.Volume > 1e-6:
+            out.append(g)
+        elif isinstance(g, DB.GeometryInstance):
+            stack.extend(list(g.GetInstanceGeometry()))
+    return out
+
+
+def _faces_not_crossed(DB, faces, chain):
+    """
+    The faces a bar has a cover to: not the plane faces it runs through (a beam's end face, where its bars go on
+    into the column), whose distance falls to nothing where the bar crosses them.
+    """
+    pts = [a for a, _b, _bend in chain] + [chain[-1][1]]
+    out = []
+    for f in faces:
+        if isinstance(f, DB.PlanarFace):
+            n, o = f.FaceNormal, f.Origin
+            sides = [(p[0] / _MM - o.X) * n.X + (p[1] / _MM - o.Y) * n.Y + (p[2] / _MM - o.Z) * n.Z for p in pts]
+            if min(sides) < -1e-3 and max(sides) > 1e-3:
+                continue
+        out.append(f)
+    return out
+
+
+def _inside(DB, solids, point_mm):
+    """
+    The point lies in the member's own concrete: a bar's anchorage into a column lies in the beam's box but not in
+    it, and has no cover to the beam's faces.
+    """
+    if not solids:
+        return True
+    p = DB.XYZ(point_mm[0] / _MM, point_mm[1] / _MM, point_mm[2] / _MM)
+    for axis in (DB.XYZ.BasisX, DB.XYZ.BasisY, DB.XYZ.BasisZ):
+        line = DB.Line.CreateBound(p - axis.Multiply(0.5 / _MM), p + axis.Multiply(0.5 / _MM))
+        for solid in solids:
+            try:
+                if solid.IntersectWithCurve(line, DB.SolidCurveIntersectionOptions()).SegmentCount > 0:
+                    return True
+            except Exception:
+                return True
+    return False
 
 
 def _cover_mm(DB, faces, box, point_mm, dia_mm):
@@ -613,6 +683,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
     except Exception:
         label = u'{}'.format(get_id_value(host.Id))
     faces = _solid_faces(DB, host)
+    solids = _solids(DB, host)
     nominal = _nominal_cover_mm(doc, DB, host)
     depth = _depth_mm(DB, host, kind, box)
     samples = []                      # (rebar, dia, segments, mark)
@@ -675,11 +746,15 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
             chain = first if i == 0 else _chain(DB, rebar, i)
             pts = [s[0] for s in chain] + [chain[-1][1]] + [tuple((a + b) / 2.0 for a, b in zip(s[0], s[1]))
                                                              for s in chain]
-            if kind == u'column' and abs(u[2]) > 0.9:
-                # a column bar's ends run on into the base or the lift above (starters, laps): not a cover
+            closed = math.sqrt(_dot(_sub(chain[0][0], chain[-1][1]), _sub(chain[0][0], chain[-1][1]))) < 60.0
+            if kind == u'column' and abs(u[2]) > 0.9 or kind == u'beam' and not closed:
+                # a column bar's ends run on into the base or the lift above (starters, laps), a beam's main bars
+                # into the columns they anchor in: not a cover to the member's own faces
                 k = len(chain)
                 pts = pts[1:k] + pts[k + 1:]          # inner vertices and midpoints, not the two ends
-            covers = [c for c in (_cover_mm(DB, faces, box, p, dia) for p in pts) if c is not None]
+            own = _faces_not_crossed(DB, faces, chain)
+            covers = [c for c in (_cover_mm(DB, own, box, p, dia) for p in pts if _inside(DB, solids, p))
+                      if c is not None]
             if covers:
                 for severity, issue in cover_issues(min(covers), dia, nominal, aggregate_mm):
                     add(rebar, mark, u'Cover', severity, issue)
