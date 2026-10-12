@@ -12,10 +12,21 @@ Fase 9.
 | Filosofía | El plugin **sigue generando** armado por reglas SMDSC (U en bordes libres, zunchos, barras de piel, bandas) pero cada barra añadida por regla queda **marcada «regla de detallado aplicada — confirmar con el diseño»** en el QA y la planilla. Nunca mueve ni cambia barras de diseño: nudos y congestión solo avisan. |
 | Norma | SMDSC 4.ª ed. Cada regla registra edición y cláusula. |
 | Cercos de viga | Como la 4.ª ed. Fig. 6.24: `(13@100)` sobre cada zona, con su cota desde la cara del apoyo, y una llamada total por marca `82H8-04 LINKS`. |
-| Llamada | Sin espacio antes de la capa, `20H16-63-150B1` (4.ª ed. 4.2.1); la nota con espacio: `150B1 L-BARS`. |
+| Llamada | ~~Sin espacio antes de la capa~~ → **con espacio** `20H16-63-150 B1` por claridad (usuario 2026-10-12, se aparta de la 4.ª ed. 4.2.1). |
 | Orden | Oleada A, luego B, C y D. |
 | Hojas | Varios elementos del mismo tipo agrupados en un A1 (todas las vigas de una planta, todos los pilares…) a las escalas del SMDSC. |
 | Cajetín | Los datos de prueba («Client X», «Author»…) solo bloquean la emisión *For Construction*. |
+
+## Revisión del usuario de los planos 4002–4007 (2026-10-12)
+
+| Tema | Decisión / cambio |
+|---|---|
+| Recuento | Cada conjunto lleva su llamada completa con su propio número, aunque haya otro idéntico (las U de los dos extremos de un muro: `15H12-09-200 U-BARS` en cada uno, no `30…` con `(15)`). Se aparta de la 4.ª ed. 4.2.1 («stated only once»); la marca no cambia y la planilla suma. |
+| Barras sueltas | Agrupadas por sitio: las 8 de un pilar circular `8H20-01` aunque el alzado vea 5; los recercados de cada lado de un hueco por separado. Sin marcas sueltas sin llamada. |
+| Secciones | Marca sobre cada barra cortada también en losas, bases y muros (sin línea de referencia); en muros, a los lados. Flecha horizontal con la marca en cada extremo libre de las barras vistas en alzado. Hormigón cortado en su color (naranja claro). |
+| Marcas de sección | En alzados, trazo + flecha hacia donde mira + número. En plantas, siempre hacia arriba o a la izquierda. Las secciones de pilar son plantas cortadas mirando hacia abajo (Revit no dibuja el pilar en una sección horizontal). |
+| Hojas | Orden de lectura: alzados (A antes que B) alineados a la misma cota, secciones en orden numérico. Plantas de cimentación a la escala de sus secciones. |
+| Vistas | Solo las barras del elemento detallado. Llamadas de viga horizontales y cerca de la viga salvo que no quepan. |
 
 ## Contradicciones detectadas entre los análisis y la norma
 

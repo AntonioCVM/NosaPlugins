@@ -133,6 +133,25 @@ def _local_axes(element):
 LINK_LEAD_MM = 20.0          # a curved beam's section cut this far in front of the link it shows
 
 
+def _arc_box(arc, width_mm, box):
+    """
+    Plan box of a curved beam from its arc, half its width either side (Revit's own box of an arc beam ran 6 m
+    deep for a 2 m rise, user 2026-10-12: half the plan blank).
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    pts = []
+    for p in arc.Tessellate():
+        radial = DB.XYZ(p.X - arc.Center.X, p.Y - arc.Center.Y, 0.0).Normalize()
+        for side in (-1.0, 1.0):
+            pts.append(p + radial.Multiply(side * _ft(width_mm / 2.0)))
+    if not pts:
+        return box
+    out = DB.BoundingBoxXYZ()
+    out.Min = DB.XYZ(min(q.X for q in pts), min(q.Y for q in pts), box.Min.Z)
+    out.Max = DB.XYZ(max(q.X for q in pts), max(q.Y for q in pts), box.Max.Z)
+    return out
+
+
 def _link_parameters(arc, rebars):
     """Normalised arc parameters of a curved beam's links (bars of layer 'stirrup'), from their centres."""
     from Autodesk.Revit import DB  # Lazy import
@@ -209,7 +228,8 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         depth = _mm(box.Max.Z - box.Min.Z)
         width = _mm(host.Symbol.LookupParameter(u'b').AsDouble()) if host.Symbol.LookupParameter(u'b') else 300.0
         top = _mm(box.Max.Z)
-        plan = _plan(u'Plan', 'plan', _level_of(doc, host), box, top + 200.0, _mm(box.Min.Z) - 200.0)
+        plan = _plan(u'Plan', 'plan', _level_of(doc, host), _arc_box(arc, width, box), top + 200.0,
+                     _mm(box.Min.Z) - 200.0)
         plan['medium'] = True      # at Coarse Revit draws a beam in plan as its stick line only (user 2026-10-12)
         specs.append(plan)
         links = _link_parameters(arc, host_rebars(host))
