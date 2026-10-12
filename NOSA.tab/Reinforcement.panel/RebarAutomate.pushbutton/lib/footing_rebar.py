@@ -1340,7 +1340,7 @@ def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_
     if global_bbox is None:
         raise ValueError(u'Could not read this footing\'s global bounding box.')
 
-    # lateral_extra_mm: inside the bent-up legs of the mats (IStructE SMDSC MF2 lacers)
+    # lateral_extra_mm: further in than the side cover (0: the lacers are the outermost bars, SMDSC 4th ed. MD PC1)
     inset_ft = (bottom_cover_mm + lateral_extra_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
     bbox = bottom_face.face.GetBoundingBox()
     u0, u1 = bbox.Min.U + inset_ft, bbox.Max.U - inset_ft
@@ -1611,7 +1611,8 @@ def build_pile_cap_bands(doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm
     if bottom_face is None or box is None:
         return None
     outer, _holes, _n = topo.classify_loops(topo.extract_loops_mm(bottom_face.face))
-    poly = topo.offset_polygon_mm(outer, side_cover_mm + bar_dia_mm / 2.0)
+    # the bands stand in by the lacer's diameter: the lacers run round the outside of their bent-up ends (MD PC1)
+    poly = topo.offset_polygon_mm(outer, side_cover_mm + lacer_dia_mm + bar_dia_mm / 2.0)
     piles_mm = [(x * _MM_PER_FT, y * _MM_PER_FT) for x, y in piles]
     layers = pile_caps.layout(poly, piles_mm, pitch_mm, pile_size_mm(host))
     face_z = bottom_face.origin.Z * _MM_PER_FT
@@ -1626,8 +1627,8 @@ def build_pile_cap_bands(doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm
             chains.append([DB.Line.CreateBound(a + up, a), DB.Line.CreateBound(a, b), DB.Line.CreateBound(b, b + up)])
         bands.append(chains)
     nominal_cover = bottom_cover_mm + len(layers) * bar_dia_mm
-    # lacers inside the bent ends, between the nominal mat and the top (SMDSC MF2)
-    loop = topo.offset_polygon_mm(outer, side_cover_mm + bar_dia_mm + lacer_dia_mm / 2.0)
+    # lacers round the outside of the bent ends, the cover to them, between the nominal mat and the top (MD PC1)
+    loop = topo.offset_polygon_mm(outer, side_cover_mm + lacer_dia_mm / 2.0)
     z0 = face_z + nominal_cover + 2.0 * pile_caps.NOMINAL_DIA_MM + lacer_dia_mm / 2.0
     z1 = box.Max.Z * _MM_PER_FT - (top_cover_mm or bottom_cover_mm) - bar_dia_mm - lacer_dia_mm / 2.0
     pts = [DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, z0 / _MM_PER_FT) for x, y in loop]
@@ -1718,7 +1719,7 @@ def apply_column_band(doc, host, mat, cover_mm, dia_x_mm, dia_y_mm, max_pitch_mm
 
 def build_mat_bars_topology(doc, host, is_top, cover_mm, dia_x_mm, dia_y_mm,
                              spacing_x_mm, spacing_y_mm, max_stock_length_mm=12000.0,
-                             target_z_mm=None, leg_direction=None):
+                             target_z_mm=None, leg_direction=None, side_inset_mm=None):
     """
     PHASE 3.5.7 item 3 — topology-aware counterpart of build_mat_bar_set:
     same Z-layering convention (along_x = Layer 1, along_y = Layer 2 —
@@ -1767,7 +1768,8 @@ def build_mat_bars_topology(doc, host, is_top, cover_mm, dia_x_mm, dia_y_mm,
 
     raw_loops = topo.extract_loops_mm(face_info.face)
     raw_outer, raw_holes, _n_small = topo.classify_loops(raw_loops)
-    outer = topo.offset_polygon_mm(raw_outer, cover_mm)
+    # side_inset_mm: the bar ends (and bent-up legs) further in than the cover, inside the lacers (MD PC1)
+    outer = topo.offset_polygon_mm(raw_outer, cover_mm if side_inset_mm is None else side_inset_mm)
     large_holes = [topo.offset_polygon_mm(h, -cover_mm) for h in raw_holes]
     xmin_mm, xmax_mm, ymin_mm, ymax_mm = topo.polygon_bbox_mm(outer)
 
@@ -2042,13 +2044,16 @@ def build_footing_reinforcement(doc, host,
                               u'full-depth U-bar legs — covers exceed this '
                               u'footing\'s thickness.')
 
+    # IStructE SMDSC 4th ed. MD PC1 (user 2026-10-12): the lacers run round the outside of the bent-up legs, the
+    # cover to them; the main bars stand in by the lacer's diameter
+    side_inset = bottom_cover_mm + side_diameter_mm if include_side_rebar and side_diameter_mm else None
     bottom_mat = build_mat_bars_topology(
         doc, host, is_top=False, cover_mm=bottom_cover_mm,
         dia_x_mm=bottom_dia_x_mm, dia_y_mm=bottom_dia_y_mm,
         spacing_x_mm=bottom_spacing_mm, spacing_y_mm=bottom_spacing_mm,
         max_stock_length_mm=max_stock_length_mm,
         target_z_mm=bottom_target_z_mm,
-        leg_direction=DB.XYZ.BasisZ if bottom_hooks else None)
+        leg_direction=DB.XYZ.BasisZ if bottom_hooks else None, side_inset_mm=side_inset)
 
     apply_column_band(doc, host, bottom_mat, bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm)
 
@@ -2078,7 +2083,8 @@ def build_footing_reinforcement(doc, host,
             spacing_x_mm=top_spacing_mm, spacing_y_mm=top_spacing_mm,
             max_stock_length_mm=max_stock_length_mm,
             target_z_mm=top_target_z_mm,
-            leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None)
+            leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
+            side_inset_mm=(top_cover_mm + side_diameter_mm) if include_side_rebar and side_diameter_mm else None)
         result['top_mat'] = top_mat
 
     if include_dowels:
@@ -2101,8 +2107,7 @@ def build_footing_reinforcement(doc, host,
                      if include_top_mat else bottom_cover_mm + half_side)
         result['side_rebar'] = build_side_rebar_set(
             doc, host, bottom_cover_mm, effective_top_cover_mm, side_diameter_mm, side_spacing_mm,
-            bottom_clear_mm=bottom_clear, top_clear_mm=top_clear,
-            lateral_extra_mm=max(bottom_dia_x_mm, bottom_dia_y_mm) if bottom_hooks else 0.0)
+            bottom_clear_mm=bottom_clear, top_clear_mm=top_clear)
 
     if include_perimeter_closure_ubars:
         if not include_top_mat:

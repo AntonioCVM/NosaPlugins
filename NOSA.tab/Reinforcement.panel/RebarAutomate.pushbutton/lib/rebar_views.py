@@ -215,10 +215,12 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         spec.update({'as_plan': True, 'level': _level_of(doc, host), 'box': box, 'cut_z': _mm(centre.Z),
                      'bottom_z': _mm(centre.Z) - 60.0, 'margin': 150.0})
         specs.append(spec)
+        # the whole column in the view's depth, cut by neither plane: both elevations drawn alike (user 2026-10-12:
+        # B came out shaded and A blank)
         specs.append(_section(u'Elevation A', 'column_elevation', centre, x, z_axis, wx / 2 + 300,
-                              height / 2 + 700, 1.0, wy / 2 + 60))
+                              height / 2 + 700, wy / 2 + 60, wy / 2 + 60))
         specs.append(_section(u'Elevation B', 'column_elevation', centre, y, z_axis, wy / 2 + 300,
-                              height / 2 + 700, 1.0, wx / 2 + 60))
+                              height / 2 + 700, wx / 2 + 60, wx / 2 + 60))
     elif kind == 'beam' and beam_rebar.get_beam_arc(host) is not None:
         # T8.58 curved beam: no plane holds it, so a plan of it (its arc bars) and radial sections
         arc = beam_rebar.get_beam_arc(host)
@@ -737,6 +739,23 @@ def _apply_template_and_scale(view, template, scale):
     ensure_coarse(view)
 
 
+def _show_framing(doc, view):
+    """
+    The beam itself in a curved beam's plan (user 2026-10-12): the RC plan template hides the framing subcategories
+    (Primary, Secondary ...) so slab plans show no beams; this view shows them, not their stick symbols.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    cat = DB.Category.GetCategory(doc, DB.BuiltInCategory.OST_StructuralFraming)
+    for sub in cat.SubCategories:
+        if sub.Name in (u'Stick Symbols', u'Location Lines', u'Hidden Faces'):
+            continue
+        try:
+            if view.GetCategoryHidden(sub.Id):
+                view.SetCategoryHidden(sub.Id, False)
+        except Exception:
+            continue
+
+
 def _detach_template(view, template):
     """The view keeps its template's settings but no longer follows it (its own detail level)."""
     from Autodesk.Revit import DB  # Lazy import
@@ -992,6 +1011,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 if spec.get('medium'):
                     _detach_template(view, plan_template)
                     view.DetailLevel = DB.ViewDetailLevel.Medium
+                    _show_framing(doc, view)
                 if spec.get('as_plan'):
                     _hide_datums(doc, view)
                 if spec.get('face'):

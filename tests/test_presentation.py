@@ -113,3 +113,9 @@ def test_end_arrow_points_at_the_end_from_beside_the_bar():
     assert centre[0] < tip[0] - 50 * pr.ARROW_PAPER_MM and centre[1] == tip[1]   # the mark at the tail
     _tip, _c, box2 = pr.end_arrow((1000.0, 0.0), (1.0, 0.0), (0.0, 1.0), 100.0, 60.0, 50, 75.0, row=1)
     assert box2[1] >= box[3] - 1e-6                                 # a second row clear of the first
+
+
+def test_indicator_line_crosses_off_the_other_typical_bar():
+    for slot in (0.5, 0.3, 0.7, 0.1, 0.9):
+        f = pr.junction_fraction(slot)
+        assert 0.0 < f < 1.0 and abs(f - slot) >= 0.25 - 1e-9

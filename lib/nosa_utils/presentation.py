@@ -284,3 +284,12 @@ def end_arrow(end, outward, side, text_w, text_h, scale, gap, row=0):
     along = ARROW_PAPER_MM * scale + (text_w if abs(outward[0]) >= abs(outward[1]) else text_h) / 2.0
     c = (tip[0] - outward[0] * along, tip[1] - outward[1] * along)
     return tip, c, (c[0] - text_w / 2.0, c[1] - text_h / 2.0, c[0] + text_w / 2.0, c[1] + text_h / 2.0)
+
+
+def junction_fraction(slot):
+    """
+    Where along its typical bar a set's indicator line crosses it: a quarter of the bar away from the slot the typical
+    bar takes in its set, so it never runs along the typical bar of the set across it, which stands at the same slot
+    (user 2026-10-12, the two U-bar sets of a pile cap).
+    """
+    return slot + 0.25 if slot <= 0.5 else slot - 0.25

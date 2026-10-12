@@ -131,6 +131,7 @@ def _note(doc, view, point, text, type_id):
 
 GAP_PAPER_MM = 1.5           # between texts
 OUTSIDE_PAPER_MM = 6.0       # a calling-up past the member's edge
+COLUMN_OUTSIDE_PAPER_MM = 3.0   # a column elevation's calling-up beside the column
 CUT_OUTSIDE_PAPER_MM = 2.0   # a cut bar's mark, no pointer, next to the member's face
 FREE_GAP_PAPER_MM = 0.5      # between the marks of cut bars side by side
 CROP_MARGIN_PAPER_MM = 4.0   # the view's crop round its calling-up
@@ -399,15 +400,17 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if d is None:
             continue
         if presentation.is_typical_bar_set(d['view_dot'], d['spread_dir'] is not None) and mra_type is not None \
-                and _shape_driven(rebar) and not (kind == 'column_elevation' and _is_links(rebar)):
+                and _shape_driven(rebar):
             d['layer'] = _text(rebar, u'NOSA_Rebar_Layer')
             zones.append(d)
             continue
         if d['view_dot'] >= 0.5 and not plan:
-            if kind == 'column_elevation' and _is_links(rebar) and d['spread_dir'] is not None:
-                # a column's links seen side on: a distribution with its full calling-up in every elevation
-                # (user 2026-10-12), not a mark over each leg
-                pointers.append(d)
+            if (kind == 'column_elevation' and _is_links(rebar) and d['spread_dir'] is not None
+                    and mra_type is not None and _shape_driven(rebar)):
+                # a column's links seen side on: their Multi-Rebar Annotation with the full calling-up in every
+                # elevation (user 2026-10-12), not a mark over each leg
+                d['layer'] = _text(rebar, u'NOSA_Rebar_Layer')
+                zones.append(d)
                 continue
             cut.append(d)
             continue
@@ -428,7 +431,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     if hosts and elevation:
         # the levels first: the calling-up keeps off them (user 2026-10-12)
         report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
-    ended = [d for d in pointers if not plan and _end_marked(view, d)]
+    # arrows at bar ends on beam elevations and sections only: a wall elevation's trimmers filled it with them
+    ended = [d for d in pointers if (beam_elevation or kind in SIZE_KINDS) and _end_marked(view, d)]
     if beam_elevation:
         # SMDSC 6.2.3 beam elevation: the main bars' calling-up close to the beam's faces, the arrows to where
         # each bar stops beyond it (user 2026-10-12), then where they stop dimensioned from the supports (T9.3) and
@@ -438,7 +442,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         report['curtailment'] = _curtailment(doc, view, pointers, box, placed, scale, total_style)
         made = _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, total_style)
     else:
-        made = _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report)
+        # a column's bars called up close beside it (user 2026-10-12)
+        near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
+        made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report)
         if plan:
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters)
             if hosts and kind == 'plan':
@@ -447,8 +453,10 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             # a section: the bars lying in it are told by the arrows at their ends, not by another mark
             ends = set(d['id'] for d in ended)
             items = pointers if elevation else [d for d in pointers if d['id'] not in ends]
-            _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, report, elevation,
-                   per_set=kind in PER_SET_KINDS, clusters=clusters)
+            # a column's main bars on its right, clear of the levels on its left (user 2026-10-12)
+            _marks(doc, view, items, cut, det, tag_types, box, gap, near, placed, report, elevation,
+                   per_set=kind in PER_SET_KINDS, clusters=clusters,
+                   side='right' if kind == 'column_elevation' else None)
             _end_marks(doc, view, ended, tag_types, box, gap, scale, placed, report)
             if kind == 'column_elevation':
                 report['laps'] = _column_laps(doc, view, pointers + zones, box, placed, scale, total_style)
@@ -681,14 +689,14 @@ def _geometry(doc, view, hosts, kind, box, placed, scale):
             point = face[2]                          # on the face itself (the outline's end may lie in a column)
             # just past the member's own face: a leader out to the furthest calling-up would widen the crop over
             # the next element (column C2 came into C1's elevation)
-            end = _point(view, (box[0] - 2.5 * row, at[1]), face[2])
+            end = _point(view, (box[0] - 3.5 * row, at[1]), face[2])     # its figures clear of the member
             bend = _point(view, (box[0] - 1.0 * row, at[1]), face[2])
             try:
                 spot = doc.Create.NewSpotElevation(view, face[1], point, bend, end, point, True)
                 level_type = _level_type(doc, spot)
                 if level_type is not None:
                     spot.ChangeTypeId(level_type)
-                placed.append((box[0] - 4.0 * row, at[1] - row / 2.0, box[0], at[1] + row / 2.0))
+                placed.append((box[0] - 5.0 * row, at[1] - row / 2.0, box[0], at[1] + row / 2.0))
                 made += 1
             except Exception:
                 continue
@@ -696,7 +704,7 @@ def _geometry(doc, view, hosts, kind, box, placed, scale):
 
 
 LEVEL_TYPE = u'NOSA RC level'
-LEVEL_TEXT_FROM_SYMBOL_MM = 9.0      # the level's figures clear of its triangle (user 2026-10-12)
+LEVEL_TEXT_FROM_SYMBOL_MM = 11.0      # the level's figures clear of its triangle (user 2026-10-12)
 
 
 def _level_type(doc, spot):
@@ -946,6 +954,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
     if type_id is None:
         return
     mid = (box[1] + box[3]) / 2.0
+    pending = []
     for d in items:
         rebar = d['rebar']
         index = _shown_bar(view, rebar, d['count'])
@@ -975,6 +984,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
                 doc.Delete(tag.Id)
                 continue
             _move_head(view, tag, spot[1], offset)
+            pending.append((tag, 'h', spot[0]))
             try:
                 tag.HasLeader = True
                 tag.LeaderEndCondition = DB.LeaderEndCondition.Free
@@ -985,6 +995,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
                 pass
             placed.append(spot[2])
             report['marks'] += 1
+    _line_up(doc, view, pending)
 
 
 def _shape_driven(rebar):
@@ -1057,16 +1068,26 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         shown, first, last = _main_line(rebar, idx), _main_line(rebar, 0), _main_line(rebar, n - 1)
         if direction is None or shown is None or first is None or last is None:
             continue
-        junction = shown.Evaluate(frac, True)
+        # the indicator line crosses the typical bar off its middle: through the middle it ran along the other
+        # direction's typical bar (user 2026-10-12, PC10 plan)
+        junction = shown.Evaluate(presentation.junction_fraction(frac) if _is_plan(view) else frac, True)
         t = sorted((ln.Evaluate(0.5, True) - junction).DotProduct(direction) for ln in (first, last))
         a3, b3 = junction + direction.Multiply(t[0]), junction + direction.Multiply(t[1])
         mra = _mra(doc, view, mra_type, rebar, junction, direction, b3, False)
         if mra is None:
             continue
         report['mra'] += 1
+        if _no_real_pitch(rebar):
+            # two layers of lacers laid out by a nominal 10000 pitch: '2H12-04 LINKS', no centres
+            short = _tag_types(doc).get(SHORT_TAG)
+            try:
+                if short is not None:
+                    doc.GetElement(mra.TagId).ChangeTypeId(short)
+            except Exception:
+                pass
         pending.append((d, mra, a3, b3, junction))
     doc.Regenerate()
-    made = {}
+    made, line_up = {}, []
     for d, mra, a3, b3, _o in pending:
         tag = doc.GetElement(mra.TagId)
         if tag is None:
@@ -1084,7 +1105,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             continue
         # each set its own calling-up with its own count, even when another set is identical (user 2026-10-12:
         # one total over both ends of a wall with '(15)' at each read wrong)
-        w, h, offset = _size(view, tag, _zone_text(doc, d))
+        w, h, offset = _size(view, tag, _full_label(doc, view, d, tag.GetTypeId()) or _zone_text(doc, d))
         a, b = _xy(view, a3), _xy(view, b3)
         vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
         length, height = (h, w) if vertical else (w, h)
@@ -1094,10 +1115,39 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             tag.HasLeader = bool(r['outside'])
         except Exception:
             pass
-        if not r['outside']:
+        if r['outside']:
+            if not _square_mra(view, tag, a, b, r, length, a3):
+                # on its line's extension: the leader's attach point put on the line
+                line_up.append((tag, 'v' if vertical else 'h', r['centre']))
+        else:
             report['inside'] += 1
         made[d['id']] = r['box']
+    _line_up(doc, view, line_up)
     return made
+
+
+def _square_mra(view, tag, a, b, r, length, like):
+    """An indicator line's calling-up set beside its line's extension: the leader runs on along the line, then at 90
+    degrees to the text (user 2026-10-12: no oblique leaders)."""
+    end = b if r['end'] == 'b' else a
+    other = a if r['end'] == 'b' else b
+    u = (end[0] - other[0], end[1] - other[1])
+    n = (u[0] ** 2 + u[1] ** 2) ** 0.5 or 1.0
+    u = (u[0] / n, u[1] / n)
+    c = r['centre']
+    along = (c[0] - end[0]) * u[0] + (c[1] - end[1]) * u[1]
+    across = abs(-(c[0] - end[0]) * u[1] + (c[1] - end[1]) * u[0])
+    if across < 1.0:
+        return False
+    t = max(0.0, along - length / 2.0)
+    elbow = (end[0] + u[0] * t, end[1] + u[1] * t)
+    try:
+        refs = list(tag.GetTaggedReferences())
+        if refs:
+            tag.SetLeaderElbow(refs[0], _point(view, elbow, like))
+    except Exception:
+        pass
+    return True
 
 
 def _set(rebar, name, value):
@@ -1443,7 +1493,7 @@ def _full_label(doc, view, d, type_id):
     if tag is None:
         return u''
     try:
-        return (tag.TagText or u'').strip()
+        return (tag.TagText or u'').strip().rstrip(u'-').strip()   # an empty spacing leaves its '-' in TagText
     finally:
         doc.Delete(tag.Id)
 
@@ -1479,11 +1529,92 @@ def _shown_bar(view, rebar, n):
     return min(depths, key=lambda di: abs(di[0] - cut))[1] if depths else n // 2
 
 
+def _arc_of(rebar, index):
+    """The bar's arc when it is a bar of arcs only (a curved beam's), else None."""
+    curves = _centreline(rebar, index or 0)
+    lines = [c for c in curves if isinstance(c, DB.Line)]
+    arcs = [c for c in curves if isinstance(c, DB.Arc)]
+    if not arcs:
+        return None
+    arc = max(arcs, key=lambda c: c.Length)
+    return arc if not lines or max(c.Length for c in lines) < arc.Length else None
+
+
 def _anchor(view, d, fraction=0.5, index=None):
     """Point on the bar the mark points at: along the shown bar at `fraction` (a dot when the bars are cut)."""
     rebar = d['rebar']
-    line = _main_line(rebar, d['count'] // 2 if index is None else index) or _main_line(rebar, 0)
+    i = d['count'] // 2 if index is None else index
+    arc = _arc_of(rebar, i)
+    if arc is not None:
+        return arc.Evaluate(fraction, True)        # along a curved bar, not its short tangent
+    line = _main_line(rebar, i) or _main_line(rebar, 0)
     return line.Evaluate(fraction, True) if line is not None else None
+
+
+def _segment(view, d, index):
+    """(a, b) view mm of the straight leg a mark's pointer lands on, or None."""
+    line = _main_line(d['rebar'], d['count'] // 2 if index is None else index, view)
+    if line is None or _arc_of(d['rebar'], index) is not None:
+        return None
+    return _xy(view, line.GetEndPoint(0)), _xy(view, line.GetEndPoint(1))
+
+
+def _square_leader(view, tag, centre, side, segment, anchor):
+    """
+    A pointer at 90 degrees (user 2026-10-12): straight across the row to the bar where the bar crosses that line
+    (the anchor slid along it), else a right-angled elbow. side: the row's side of the member. Returns the leader
+    axis ('v' / 'h') the text's attach point is then lined up on.
+    """
+    vertical = side in ('top', 'bottom')
+    refs = list(tag.GetTaggedReferences())
+    if not refs:
+        return None
+    if segment is not None:
+        (ax, ay), (bx, by) = segment
+        t = None
+        if vertical and abs(bx - ax) > 1.0:
+            t = (centre[0] - ax) / (bx - ax)
+        elif not vertical and abs(by - ay) > 1.0:
+            t = (centre[1] - ay) / (by - ay)
+        if t is not None and 0.03 <= t <= 0.97:
+            p = (ax + t * (bx - ax), ay + t * (by - ay))
+            tag.SetLeaderEnd(refs[0], _point(view, p, anchor))
+            return ('v' if vertical else 'h'), p
+    a = _xy(view, anchor)
+    if abs((a[0] - centre[0]) if vertical else (a[1] - centre[1])) < 1.0:
+        return ('v' if vertical else 'h'), a
+    try:
+        elbow = (centre[0], a[1]) if vertical else (a[0], centre[1])
+        tag.SetLeaderElbow(refs[0], _point(view, elbow, anchor))
+        return ('v' if vertical else 'h'), elbow
+    except Exception:
+        return None
+
+
+LEADER_ATTACH_PAPER_MM = 0.48     # a NOSA tag's leader leaves its text this far above the tag head (measured)
+
+
+def _line_up(doc, view, pending):
+    """
+    Revit hangs a tag's leader on the middle of its text, LEADER_ATTACH_PAPER_MM off its head (the arrows at bar ends
+    leaned, more at 1:25 than at 1:50, user 2026-10-12): each tag moved so that point lies on its leader's straight
+    run. pending: [(tag, axis 'v' | 'h', point on the run)].
+    """
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    off = LEADER_ATTACH_PAPER_MM * scale
+    for tag, axis, at in pending:
+        try:
+            head = _xy(view, tag.TagHeadPosition)
+            turned = tag.TagOrientation == DB.TagOrientation.Vertical
+            if axis == 'h' and not turned:
+                head = (head[0], at[1] - off)
+            elif axis == 'v' and turned:
+                head = (at[0] + off, head[1])
+            else:
+                continue
+            tag.TagHeadPosition = _point(view, head, tag.TagHeadPosition)
+        except Exception:
+            continue
 
 
 def _visible(doc, view, element):
@@ -1651,7 +1782,7 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
     kind = ZONE_TAG if _is_plan(view) else POINTER_TAG
     type_id = tag_types.get(kind) or det.tag_type_for_view(doc, view)
     fractions = _pointer_fractions(items)
-    tags = []
+    tags, indices = [], {}
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
         try:
@@ -1663,6 +1794,7 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
         if tag is None or anchor is None:
             continue
         tags.append((d, tag, anchor))
+        indices[d['id']] = index
     doc.Regenerate()
     layout = []
     sizes = {}
@@ -1677,7 +1809,31 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
     if placed:
         box = (min([box[0]] + [b[0] for b in placed]), min([box[1]] + [b[1] for b in placed]),
                max([box[2]] + [b[2] for b in placed]), max([box[3]] + [b[3] for b in placed]))
-    places = callout_layout.place_pointers(layout, box, gap, outside)
+    arcs = dict((d['id'], _arc_of(d['rebar'], indices.get(d['id']))) for d, _t, _a in tags)
+    curved = [a for a in arcs.values() if a is not None]
+    if curved:
+        # a curved member's plan: every mark radially just outside it, its links' too
+        arcs = dict((k, a or curved[0]) for k, a in arcs.items())
+    places = callout_layout.place_pointers([it for it in layout if arcs.get(it['id']) is None], box, gap, outside)
+    for d, tag, anchor in tags:
+        arc = arcs.get(d['id'])
+        if arc is not None and d['id'] in sizes:
+            # a curved beam's bar: its mark just outside the arc, square to it (user 2026-10-12: they stood far off)
+            w, h, _o = sizes[d['id']]
+            a = _xy(view, anchor)
+            c0 = _xy(view, arc.Center)
+            n = (a[0] - c0[0], a[1] - c0[1])
+            ln = (n[0] ** 2 + n[1] ** 2) ** 0.5 or 1.0
+            n = (n[0] / ln, n[1] / ln)
+            reach = abs(n[0]) * w / 2.0 + abs(n[1]) * h / 2.0
+            for k in range(12):
+                dist = 4.0 * gap + reach + k * (h + gap)
+                c = (a[0] + n[0] * dist, a[1] + n[1] * dist)
+                bx = (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)
+                if not any(callout_layout.overlap(bx, q, gap / 2.0) for q in placed):
+                    break
+            places[d['id']] = {'centre': c, 'side': None, 'box': bx}
+    pending = []
     for d, tag, anchor in tags:
         if d['id'] not in places:
             continue
@@ -1690,10 +1846,16 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
             refs = list(tag.GetTaggedReferences())
             if refs:
                 tag.SetLeaderEnd(refs[0], anchor)
+            side = places[d['id']].get('side')
+            if side:
+                squared = _square_leader(view, tag, c, side, _segment(view, d, indices.get(d['id'])), anchor)
+                if squared:
+                    pending.append((tag, squared[0], squared[1]))
         except Exception:
             pass
         placed.append((c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0))
         report['marks'] += 1
+    _line_up(doc, view, pending)
 
 
 def _crop_frame(view):
@@ -1736,7 +1898,7 @@ def _cut_bars(view, d, frame):
 
 
 def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, report, mode, per_set=False,
-           clusters=None):
+           clusters=None, side=None):
     """
     Bar marks of a section or elevation (SMDSC 6.2.3, 6.4.4, user 2026-10-10): its own mark over every bar the
     view cuts ('Mark only - Dot', one per bar, no pointer: it stands just past the face in line with its bar,
@@ -1752,6 +1914,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
     base = tag_types.get(ELEVATION_TAG if mode else POINTER_TAG) or det.tag_type_for_view(doc, view)
     items = merge_singles(doc, items, clusters)
     fractions = _pointer_fractions(items)
+    bars = {}
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
         try:
@@ -1762,6 +1925,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
         anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, placed, gap)
         if tag is not None and anchor is not None:
             entries.append((d['id'], tag, anchor))
+            bars[d['id']] = (d, index)
     cut_type = tag_types.get(CUT_TAG) or base
     frame = _crop_frame(view)
     if mode is True:
@@ -1827,6 +1991,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
         box = (min([box[0]] + [b[0] for b in placed]), min([box[1]] + [b[1] for b in placed]),
                max([box[2]] + [b[2] for b in placed]), max([box[3]] + [b[3] for b in placed]))
     third = (member[3] - member[1]) / 3.0
+    forced = side
     tall = (member[3] - member[1]) > 3.0 * (member[2] - member[0])
     layout = []
     for key, tag, anchor in entries:
@@ -1839,7 +2004,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             # cut bars of a top or bottom layer, and all the bars of a beam elevation: above or below it
             side = 'top' if a[1] > (member[1] + member[3]) / 2.0 else 'bottom'
         else:
-            side = callout_layout.side_of(a, member)
+            side = forced or callout_layout.side_of(a, member)
         item = {'id': key, 'anchor': a, 'length': w, 'height': h, 'side': side}
         if isinstance(key, tuple):
             # a cut bar's mark stands next to the member over its bar, no pointer (SMDSC 6.2.3 sections)
@@ -1865,7 +2030,21 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
         if size is not None:
             w, h, offsets[key] = size
             it['length'], it['height'] = (h, w) if it.get('vertical') else (w, h)
-    places = callout_layout.place_pointers(layout, box, gap, outside, free_gap=FREE_GAP_PAPER_MM * scale)
+    edges = None
+    if forced:
+        # one side only (a column's right): its row starts past what is drawn level with the texts, not past the
+        # whole view's (the section marks beside the column pushed the calling-up out, user 2026-10-12)
+        ys = [it['anchor'][1] for it in layout if it['side'] == forced and not it.get('free')]
+        if ys:
+            lo_y, hi_y = min(ys) - 3.0 * gap, max(ys) + 3.0 * gap
+            near = [q for q in placed if q[1] < hi_y and q[3] > lo_y]
+            if forced == 'right':
+                edges = {'right': max([member[2]] + [q[2] for q in near if q[0] >= member[2] - 1.0])}
+            elif forced == 'left':
+                edges = {'left': min([member[0]] + [q[0] for q in near if q[2] <= member[0] + 1.0])}
+    places = callout_layout.place_pointers(layout, box, gap, outside, edges=edges,
+                                           free_gap=FREE_GAP_PAPER_MM * scale)
+    pending = []
     for key, tag, anchor in entries:
         if key not in places or not tag.IsValidObject:
             continue
@@ -1884,10 +2063,17 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             refs = list(tag.GetTaggedReferences())
             if refs:
                 tag.SetLeaderEnd(refs[0], anchor)
+            if key in bars:
+                d, index = bars[key]
+                squared = _square_leader(view, tag, places[key]['centre'], places[key].get('side'),
+                                         _segment(view, d, index), anchor)
+                if squared:
+                    pending.append((tag, squared[0], squared[1]))
         except Exception:
             pass
         placed.append(places[key]['box'])
         report['marks'] += 1
+    _line_up(doc, view, pending)
 
 
 def see_drawing(doc, view, rebars):
