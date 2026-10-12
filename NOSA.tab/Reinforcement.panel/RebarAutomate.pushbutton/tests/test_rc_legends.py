@@ -54,7 +54,7 @@ def test_drawing_notes_state_the_model_and_flag_what_is_missing():
     text, warnings = rl.drawing_notes(
         u'4002', {u'Beams': u''}, {u'Beams': (40.0, 40.0, 40.0)}, project_grade=u'C40/50',
         project_cover=u'50mm', schedule_refs=())
-    assert u'beams C40/50' in text and u'beams 40' in text and u'20H16-63-150B1' in text
+    assert u'beams C40/50' in text and u'beams 40' in text and u'20H16-63-150 B1' in text
     assert u'(13@100)' in text and u'to be issued (refs 4002-01' in text
     joined = u' '.join(warnings)
     assert u'differs from the general notes' in joined and u'NOSA_GN_Cover_Deviation' in joined

@@ -55,6 +55,17 @@ def place_inline(item, box, placed, gap, outside_gap, tries=12):
         c, bx = at(p, out, exit_distance(p, out, box) + outside_gap)
         if not any(overlap(bx, q, gap) for q in placed):
             return accept(name, c, bx, True)
+    for name, p, out in ends:
+        # beside the baseline spot, a row across the line at a time: a calling-up pushed further out along the
+        # same line has its leader run through the one before it (user 2026-10-12)
+        across = (-out[1], out[0])
+        step = item['height'] + gap
+        c0, _bx = at(p, out, exit_distance(p, out, box) + outside_gap)
+        for k in (1, -1, 2, -2, 3, -3):
+            c = (c0[0] + across[0] * step * k, c0[1] + across[1] * step * k)
+            bx = text_box(c, out, item['length'], item['height'])
+            if not any(overlap(bx, q, gap) for q in placed):
+                return accept(name, c, bx, True)
     for name, p, out in ends:                                  # further out
         start = exit_distance(p, out, box) + outside_gap
         for _ in range(tries):

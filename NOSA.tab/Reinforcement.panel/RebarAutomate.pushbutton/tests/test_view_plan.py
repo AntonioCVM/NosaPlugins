@@ -86,3 +86,21 @@ def test_section_offsets_try_the_middle_first():
 def test_title_width_reads_the_title_on_sheet_first():
     assert vp.title_width_mm(u'Beam B10-B11 - Section mid span 2', u'Section mid span 2') == 18 * 3.0 + 10.0
     assert vp.title_width_mm(u'Plan') == 4 * 3.0 + 10.0
+
+
+def test_layout_rows_keeps_reading_order_and_lines_up_levels():
+    # two elevations whose level datum lies at different depths below their tops, then two sections
+    streams = [[(100.0, 200.0, 150.0), (100.0, 230.0, 180.0)], [(60.0, 60.0, None), (60.0, 60.0, None)]]
+    out = vp.layout_rows(streams)
+    (s1, x1, y1), (s2, x2, y2), (s3, x3, y3), (s4, x4, y4) = out
+    assert x1 < x2 and x3 < x4 and s1 == s2 == s3 == s4 == 0
+    datum1 = y1 + 100.0 - 150.0
+    datum2 = y2 + 115.0 - 180.0
+    assert abs(datum1 - datum2) < 1e-6                     # level with each other
+    assert y3 + 30.0 < min(y1 - 100.0, y2 - 115.0)          # the sections on the next line down
+    assert abs(y3 - y4) < 1e-6
+
+
+def test_layout_rows_wraps_and_opens_a_new_sheet():
+    out = vp.layout_rows([[(400.0, 300.0, None)] * 4])
+    assert [o[0] for o in out] == [0, 1, 2, 3]             # one A1 line each: too wide for two, too tall for two

@@ -91,3 +91,25 @@ def test_curtailment_dims_from_support_faces_and_laps():
     assert not [d for d in dims if d[3] == u'bottom']             # anchored in both supports
     laps = pr.curtailment_dims([(0.0, 4000.0, u'bottom'), (3200.0, 8000.0, u'bottom')], [(-225.0, 225.0)])
     assert ('lap', 3200.0, 4000.0, u'bottom') in laps
+
+
+def test_single_bars_group_by_place():
+    ring = [(i, '01', (math.cos(a) * 180, math.sin(a) * 180, 0.0), (math.cos(a) * 180, math.sin(a) * 180, 3000.0))
+            for i, a in enumerate(k * math.pi / 4 for k in range(8))]
+    groups = pr.single_clusters(ring)
+    assert set(g[1] for g in groups.values()) == {8}           # the eight bars of a round column: one group
+    trimmers = [(1, '01', (0, 0, 0), (0, 0, 2000)), (2, '01', (60, 0, 0), (60, 0, 2000)),
+                (3, '01', (1500, 0, 0), (1500, 0, 2000)), (4, '01', (0, 0, 2500), (2000, 0, 2500))]
+    groups = pr.single_clusters(trimmers)
+    assert groups[1] == groups[2] and groups[1][1] == 2           # a pair each side of the opening
+    assert groups[3][1] == 1 and groups[4][1] == 1                # the far side and the cross bar on their own
+    other_mark = [(1, '01', (0, 0, 0), (0, 0, 2000)), (2, '02', (60, 0, 0), (60, 0, 2000))]
+    assert pr.single_clusters(other_mark)[1][1] == 1
+
+
+def test_end_arrow_points_at_the_end_from_beside_the_bar():
+    tip, centre, box = pr.end_arrow((1000.0, 0.0), (1.0, 0.0), (0.0, 1.0), 100.0, 60.0, 50, 75.0)
+    assert tip == (1000.0, 105.0)                                  # beside the bar, level with its end
+    assert centre[0] < tip[0] - 50 * pr.ARROW_PAPER_MM and centre[1] == tip[1]   # the mark at the tail
+    _tip, _c, box2 = pr.end_arrow((1000.0, 0.0), (1.0, 0.0), (0.0, 1.0), 100.0, 60.0, 50, 75.0, row=1)
+    assert box2[1] >= box[3] - 1e-6                                 # a second row clear of the first

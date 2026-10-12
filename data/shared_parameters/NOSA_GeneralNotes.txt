@@ -61,3 +61,6 @@ PARAM	9973b032-f8ed-4452-aada-a5be2a20c0b0	NOSA_GN_Pile_Survey_Time	TEXT		1	1	Fo
 PARAM	770c5dc4-2ed6-44d9-afaf-960922dffd80	NOSA_GN_Review_Period	TEXT		1	1	Contractor design review period (Contractor design)	1	0
 PARAM	3ca1957a-de61-4a32-becf-4e86a5f00b8c	NOSA_GN_Hard_Copies	TEXT		1	1	Hard copies requested (Contractor design)	1	0
 PARAM	65e69b95-e918-48bf-b180-772cfc513988	NOSA_GN_Sections	TEXT		1	1	Sections of 0900 hidden in this project and their shifts (JSON, managed by NOSA)	0	0
+PARAM	ad512724-a627-4cf6-bfc6-70f66030e7d8	NOSA_GN_Cover_Deviation	TEXT		1	1	Allowance for deviation in cover, delta c_dev (Concrete)	1	0
+PARAM	4f4820dd-3d91-45f0-9f82-bf65a2b19546	NOSA_GN_Aggregate_Max	TEXT		1	1	Maximum aggregate size (Concrete)	1	0
+PARAM	950aadab-e186-45bb-9db2-733b15bf8b92	NOSA_GN_GA_Drawings	TEXT		1	1	General arrangement drawings referenced by the RC drawings (Concrete)	1	0

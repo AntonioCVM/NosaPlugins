@@ -160,7 +160,8 @@ def total_callout(label, total, note=u''):
 
 
 _NOTES = ((('11', '12'), u'L-BARS'), (('13', '21', '22', '23', '24', '25'), u'U-BARS'),
-          (('31', '32', '33', '34', '35', '36', '41', '44', '46', '47', '51', '52', '56', '63', '64', '67'), u'LINKS'))
+          (('31', '32', '33', '34', '35', '36', '41', '44', '46', '47', '51', '52', '56', '63', '64', '67', '75'),
+           u'LINKS'))
 
 
 _ROLE_NOTES = {u'spacer': u'SPACERS'}
@@ -217,3 +218,69 @@ def curtailment_dims(bars, supports, tol=1.0):
             seen.add(key)
             unique.append(d)
     return unique
+
+
+CLUSTER_MM = 500.0
+
+
+def single_clusters(bars, reach_mm=CLUSTER_MM):
+    """
+    Loose single bars that make one group on a drawing (user 2026-10-12: the eight bars of a round column are
+    '8H20-01', not the five an elevation shows; trimmers each side of an opening are their own group): bars
+    [(id, key, (x, y, z) start, (x, y, z) end)] in mm, key their mark, type and layer. Two bars of one key join
+    when parallel, overlapping along their length and no more than reach_mm apart. Returns {id: (group, size)}.
+    """
+    def sub(a, b):
+        return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+    def dot(a, b):
+        return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+    def unit(a):
+        n = dot(a, a) ** 0.5 or 1.0
+        return (a[0] / n, a[1] / n, a[2] / n)
+
+    def near(a, b):
+        if a[1] != b[1]:
+            return False
+        u, v = unit(sub(a[3], a[2])), unit(sub(b[3], b[2]))
+        if abs(dot(u, v)) < PARALLEL:
+            return False
+        t0, t1 = sorted((dot(a[2], u), dot(a[3], u)))
+        s0, s1 = sorted((dot(b[2], u), dot(b[3], u)))
+        if min(t1, s1) - max(t0, s0) <= 0.0:
+            return False
+        w = sub(b[2], a[2])
+        across = sub(w, tuple(u[i] * dot(w, u) for i in range(3)))
+        return dot(across, across) ** 0.5 <= reach_mm
+    parent = list(range(len(bars)))
+
+    def root(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+    for i in range(len(bars)):
+        for j in range(i + 1, len(bars)):
+            if near(bars[i], bars[j]):
+                parent[root(j)] = root(i)
+    sizes = {}
+    for i in range(len(bars)):
+        sizes[root(i)] = sizes.get(root(i), 0) + 1
+    return dict((bars[i][0], (root(i), sizes[root(i)])) for i in range(len(bars)))
+
+
+ARROW_PAPER_MM = 6.0
+
+
+def end_arrow(end, outward, side, text_w, text_h, scale, gap, row=0):
+    """
+    Where a bar's end mark goes (user 2026-10-12: a horizontal arrow to where the bar stops, its mark at the tail):
+    the arrow runs along the bar, `row` steps of the text height to the side `side` (unit, view mm) of it, its tip
+    level with the end. Returns (tip, text centre, text box).
+    """
+    off = (row + 0.5) * text_h + gap
+    tip = (end[0] + side[0] * off, end[1] + side[1] * off)
+    along = ARROW_PAPER_MM * scale + (text_w if abs(outward[0]) >= abs(outward[1]) else text_h) / 2.0
+    c = (tip[0] - outward[0] * along, tip[1] - outward[1] * along)
+    return tip, c, (c[0] - text_w / 2.0, c[1] - text_h / 2.0, c[0] + text_w / 2.0, c[1] + text_h / 2.0)

@@ -130,6 +130,30 @@ def _local_axes(element):
     return DB.XYZ.BasisX, DB.XYZ.BasisY
 
 
+LINK_LEAD_MM = 20.0          # a curved beam's section cut this far in front of the link it shows
+
+
+def _link_parameters(arc, rebars):
+    """Normalised arc parameters of a curved beam's links (bars of layer 'stirrup'), from their centres."""
+    from Autodesk.Revit import DB  # Lazy import
+    out = []
+    for r in rebars:
+        p = r.LookupParameter(u'NOSA_Rebar_Layer')
+        if p is None or not (p.AsString() or u'').startswith(u'stirrup'):
+            continue
+        for i in range(r.NumberOfBarPositions):
+            try:
+                curves = list(r.GetTransformedCenterlineCurves(
+                    False, False, False, DB.Structure.MultiplanarOption.IncludeOnlyPlanarCurves, i))
+                pts = [c.Evaluate(0.5, True) for c in curves]
+                centre = DB.XYZ(sum(q.X for q in pts) / len(pts), sum(q.Y for q in pts) / len(pts), 0.0)
+                flat = DB.XYZ(centre.X, centre.Y, arc.Center.Z)
+                out.append(arc.ComputeNormalizedParameter(arc.Project(flat).Parameter))
+            except Exception:
+                continue
+    return out
+
+
 def _clear_cut(solid, centre, right, other, lo, hi, olo, ohi):
     """The point a section across `right` goes through: nearest the middle where its line meets no opening."""
     from Autodesk.Revit import DB  # Lazy import
@@ -166,7 +190,12 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         wx = _mm(_extent(box, x)[1] - _extent(box, x)[0])
         wy = _mm(_extent(box, y)[1] - _extent(box, y)[0])
         height = _mm(box.Max.Z - box.Min.Z)
-        specs.append(_section(u'Section', 'member_section', centre, x, y, wx / 2 + 150, wy / 2 + 150, 0.0, 60.0))
+        # drawn as a plan cut through the column looking down (SMDSC): Revit leaves a column out of a horizontal
+        # section (user 2026-10-12: no concrete in C1's section)
+        spec = _section(u'Section', 'member_section', centre, x, y, wx / 2 + 150, wy / 2 + 150, 0.0, 60.0)
+        spec.update({'as_plan': True, 'level': _level_of(doc, host), 'box': box, 'cut_z': _mm(centre.Z),
+                     'bottom_z': _mm(centre.Z) - 60.0, 'margin': 150.0})
+        specs.append(spec)
         specs.append(_section(u'Elevation A', 'column_elevation', centre, x, z_axis, wx / 2 + 300,
                               height / 2 + 700, 1.0, wy / 2 + 60))
         specs.append(_section(u'Elevation B', 'column_elevation', centre, y, z_axis, wy / 2 + 300,
@@ -180,11 +209,18 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         depth = _mm(box.Max.Z - box.Min.Z)
         width = _mm(host.Symbol.LookupParameter(u'b').AsDouble()) if host.Symbol.LookupParameter(u'b') else 300.0
         top = _mm(box.Max.Z)
-        specs.append(_plan(u'Plan', 'plan', _level_of(doc, host), box, top + 200.0, _mm(box.Min.Z) - 200.0))
+        plan = _plan(u'Plan', 'plan', _level_of(doc, host), box, top + 200.0, _mm(box.Min.Z) - 200.0)
+        plan['medium'] = True      # at Coarse Revit draws a beam in plan as its stick line only (user 2026-10-12)
+        specs.append(plan)
+        links = _link_parameters(arc, host_rebars(host))
         for letter, t in ((u'1', 0.5), (u'2', 0.12)):
+            if links:
+                # through a link, so the section shows one (user 2026-10-12: 5-5 and 6-6 fell between them)
+                t = min(links, key=lambda u: abs(u - t))
             p = arc.Evaluate(t, True)
             tangent = arc.ComputeDerivatives(t, True).BasisX.Normalize()
             across = DB.XYZ(-tangent.Y, tangent.X, 0.0).Normalize()
+            p = p + across.CrossProduct(z_axis).Normalize().Multiply(_ft(LINK_LEAD_MM))
             spec = _section(u'Section {0}-{0}'.format(letter), 'member_section', DB.XYZ(p.X, p.Y, z_mid), across,
                             z_axis, width / 2 + 150, depth / 2 + 150, 0.0, 60.0)
             spec['letter'] = letter              # its mark, named, on the plan
@@ -238,7 +274,8 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
             solid = re_engine.get_host_solid(host)
         except Exception:
             solid = None
-        for letter, right, other in ((u'A', x, y), (u'B', y, x)):
+        # their marks look up the plan and to its left (user 2026-10-12)
+        for letter, right, other in ((u'A', x.Negate(), y), (u'B', y.Negate(), x)):
             # user 2026-10-11: two real sections (60 mm deep, SMDSC 3.17), not views of the whole slab, through
             # it clear of openings, their marks named A / B on the plans
             lo, hi = _extent(box, right)
@@ -399,9 +436,18 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
         report['errors'].append(u'No title block in this project: views left off the sheets.')
         return []
     t = DB.Transaction(doc, u'NOSA — {} drawing'.format(_PLURAL.get(kind, kind)))
+    guard = _rollback_on_error()
+    options = t.GetFailureHandlingOptions()
+    options.SetFailuresPreprocessor(guard)
+    options.SetClearAfterRollback(True)
+    options.SetForcedModalHandling(False)
+    t.SetFailureHandlingOptions(options)
     t.Start()
     try:
         legends = rc_legends.ensure(doc)
+        for view, spec, _scale in created:
+            if spec.get('as_plan'):
+                _hide_viewers(doc, view)     # the marks of the views of the members built after this one
 
         def retag(view):
             fn = group['retag'].get(get_id_value(view.Id))
@@ -423,7 +469,10 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
                 others = [r for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Structure.Rebar)
                           if get_id_value(r.Id) not in own]
                 rebar_presentation.see_drawing(doc, view, others)
-        t.Commit()
+        if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
+            report['errors'].append(u'{} drawing: rolled back by Revit — {}'.format(
+                _PLURAL.get(kind, kind), u'; '.join(guard.errors)))
+            return []
         return sheets
     except Exception as e:
         t.RollBack()
@@ -464,11 +513,11 @@ def _number_in_reading_order(doc, created, kind, label):
 
 
 def section_refs(created, view, spec):
-    """[(origin, number)] of the numbered member sections an elevation should reference."""
+    """[(origin, number, the way it looks)] of the numbered member sections an elevation should reference."""
     if spec['plan'] or spec['kind'] not in ('elevation', 'column_elevation'):
         return []
-    return [(sp['origin'], sp['letter']) for _v, sp, _s in created
-            if sp.get('letter') and sp['kind'] in ('member_section', 'wall_section')]
+    return [(sp['origin'], sp['letter'], v.ViewDirection.Negate()) for v, sp, _s in created
+            if sp.get('letter') and sp['kind'] in ('member_section', 'wall_section') and v.IsValidObject]
 
 
 def rebar_face(rebar, box):
@@ -583,6 +632,24 @@ def _hide_datums(doc, view):
             log_swallowed(u'rebarautomate', u'hide datums')
 
 
+def _hide_viewers(doc, view):
+    """The section marks of the other views crossing a member section drawn as a plan."""
+    from Autodesk.Revit import DB  # Lazy import
+    from System.Collections.Generic import List
+    from nosa_utils.revit_helpers import get_id_value
+    viewers = set((int(DB.BuiltInCategory.OST_Viewers), int(DB.BuiltInCategory.OST_Views)))
+    for e in DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType():
+        try:
+            if e.Category is None or get_id_value(e.Category.Id) not in viewers or e.Id == view.Id \
+                    or not e.CanBeHidden(view):
+                continue
+            ids = List[DB.ElementId]()
+            ids.Add(e.Id)
+            view.HideElements(ids)
+        except Exception:
+            continue
+
+
 def hide_section_marks(view):
     """
     No section marks in the elevations and sections of a member (user brief 2026-10-10: Revit puts their
@@ -650,6 +717,14 @@ def _apply_template_and_scale(view, template, scale):
     ensure_coarse(view)
 
 
+def _detach_template(view, template):
+    """The view keeps its template's settings but no longer follows it (its own detail level)."""
+    from Autodesk.Revit import DB  # Lazy import
+    view.ViewTemplateId = DB.ElementId.InvalidElementId
+    if template is not None:
+        view.ApplyViewTemplateParameters(template)
+
+
 def _rollback_on_error():
     from Autodesk.Revit import DB  # Lazy import
 
@@ -684,6 +759,54 @@ def _title_on_sheet(view):
         return u''
 
 
+def _streams(created):
+    """
+    The views of a drawing in reading order (user 2026-10-12): each member's plans and elevations (A before B), then
+    its sections in number order, left to right; a drawing of several columns puts all the elevations on one line,
+    level with each other, and all the sections on the next.
+    """
+    def order(e):
+        letter = e[1].get('letter') or u''
+        return (0, int(letter), u'') if letter.isdigit() else (1, len(letter), letter)
+
+    def main_key(e):
+        return (not e[1]['plan'], e[1]['title'])
+    indexed = list(enumerate(created))
+    sections = [e for e in indexed if not e[1][1]['plan'] and e[1][1].get('letter')]
+    mains = [e for e in indexed if e not in sections]
+    members = []
+    for _i, (_v, sp, _s) in indexed:
+        if sp.get('member') not in members:
+            members.append(sp.get('member'))
+    if any(e[1][1]['kind'] == 'column_elevation' for e in indexed) and len(members) > 1:
+        lines = [(mains, []), ([], sections)]
+    else:
+        lines = [([e for e in mains if e[1][1].get('member') == m], [e for e in sections if e[1][1].get('member') == m])
+                 for m in members]
+    streams = []
+    for main, secs in lines:
+        stream = sorted(main, key=lambda e: (e[1][1].get('member') or u'', main_key(e[1]))) + \
+            sorted(secs, key=lambda e: order(e[1]))
+        if stream:
+            streams.append([i for i, _e in stream])
+    return streams
+
+
+DATUM_Z_FT = 0.0     # the model level every elevation of a drawing is lined up on
+
+
+def _datum_depth(port, view):
+    """Paper depth (mm) of the model datum below the top of an elevation's viewport, or None."""
+    from Autodesk.Revit import DB  # Lazy import
+    try:
+        t = port.GetProjectionToSheetTransform()
+        local = view.CropBox.Transform.Inverse.OfPoint(DB.XYZ(view.Origin.X, view.Origin.Y, DATUM_Z_FT))
+        y = t.OfPoint(local.Divide(view.Scale)).Y
+        return _mm(port.GetBoxOutline().MaximumPoint.Y - y)
+    except Exception:
+        return None
+
+
 def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None, legends=(),
                      coarsen=True):
     """
@@ -712,7 +835,18 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
     if legends:
         import rc_legends
         reserved = (rc_legends.LEGEND_BOX,)
-    placement = view_plan.layout(sizes, reserved=reserved)
+    streams = _streams(created)
+    anchors = dict((i, _datum_depth(ports[i], created[i][0])) for i in range(len(created))
+                   if created[i][1]['kind'] in ('elevation', 'column_elevation'))
+
+    def place():
+        rows = view_plan.layout_rows([[(sizes[i][0], sizes[i][1], anchors.get(i)) for i in st] for st in streams],
+                                     reserved=reserved)
+        out = [None] * len(created)
+        for i, r in zip([i for st in streams for i in st], rows):
+            out[i] = r
+        return out
+    placement = place()
     stuck = set()
     for _attempt in range(12 if coarsen else 0):
         if max(p[0] for p in placement) == 0:
@@ -733,7 +867,9 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
             retag(view)
         doc.Regenerate()
         sizes[i] = _size(ports[i])
-        placement = view_plan.layout(sizes, reserved=reserved)
+        if i in anchors:
+            anchors[i] = _datum_depth(ports[i], view)
+        placement = place()
     for i, (sheet_index, cx, cy) in enumerate(placement):
         while sheet_index >= len(sheets):
             sheets.append(_new_sheet(doc, titleblock, sheet_numbers.pop(0),
@@ -745,6 +881,12 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
             view_id = ports[i].ViewId
             doc.Delete(ports[i].Id)
             ports[i] = DB.Viewport.Create(doc, sheets[sheet_index].Id, view_id, centre)
+    for i, port in enumerate(ports):
+        # Revit numbers the viewports of a sheet 1, 2 ... itself: clear of the section numbers first
+        try:
+            port.get_Parameter(DB.BuiltInParameter.VIEWPORT_DETAIL_NUMBER).Set(u'tmp{}'.format(i + 1))
+        except Exception:
+            pass
     for i, (port, (_view, spec, _scale)) in enumerate(zip(ports, created)):
         if not spec.get('letter'):
             # out of the way of the section numbers 1, 2 ... (detail numbers are unique on a sheet)
@@ -814,15 +956,24 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
     t.SetFailureHandlingOptions(options)
     t.Start()
     created = []
+    scales = [view_plan.choose_scale('footing_section' if kind == 'foundation' else spec['kind'], spec['size'][0],
+                                     spec['size'][1]) for spec in specs]
+    if kind == 'foundation':
+        scales = [max(scales)] * len(scales)      # plan and sections at one scale (user 2026-10-12)
     try:
-        for spec in specs:
-            scale = view_plan.choose_scale(spec['kind'], spec['size'][0], spec['size'][1])
-            if spec['plan']:
+        for spec, scale in zip(specs, scales):
+            spec['member'] = label
+            if spec['plan'] or spec.get('as_plan'):
                 if plan_vft is None or spec['level'] is None:
                     report['errors'].append(u'{}: no plan view type or level.'.format(spec['title']))
                     continue
                 view = _create_plan(doc, plan_vft, spec)
                 _apply_template_and_scale(view, plan_template, scale)
+                if spec.get('medium'):
+                    _detach_template(view, plan_template)
+                    view.DetailLevel = DB.ViewDetailLevel.Medium
+                if spec.get('as_plan'):
+                    _hide_datums(doc, view)
                 if spec.get('face'):
                     _show_face(doc, view, rebars, hosts, spec['face'])
             else:
@@ -848,6 +999,10 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 except Exception:
                     continue
             created.append((view, spec, scale))
+        doc.Regenerate()
+        for view, spec, _scale in created:
+            if spec.get('as_plan'):
+                _hide_viewers(doc, view)
         created = _number_in_reading_order(doc, created, kind, label)
         if sheet_group is not None:
             _continue_labels(doc, created, sheet_group, kind, label)

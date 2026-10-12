@@ -27,10 +27,11 @@ def test_inline_goes_out_by_the_nearest_edge_on_the_line():
                          SLAB, placed, 75.0, 150.0)
     assert not cl.overlap(r['box'], r2['box'])
     assert r2['outside'] and r2['end'] == 'b' and abs(r2['box'][0] - (8000.0 + 150.0)) < 1e-6
-    # a third one, both baselines taken: pushed further out
+    # a third one, both baselines taken: a row beside the baseline, so its leader does not cross the first
     r3 = cl.place_inline({'a': (400.0, 3020.0), 'b': (1800.0, 3020.0), 'length': 1500.0, 'height': 125.0},
                          SLAB, placed, 75.0, 150.0)
     assert r3['outside'] and not any(cl.overlap(r3['box'], q['box']) for q in (r, r2))
+    assert abs(r3['box'][2] - r['box'][2]) < 1e-6 and abs(r3['centre'][1] - r['centre'][1]) >= 125.0
 
 
 def test_vertical_lines_take_vertical_text():

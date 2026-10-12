@@ -95,6 +95,55 @@ def layout(sizes, area=A1_AREA, gap=GAP_MM, reserved=()):
     return placed_out
 
 
+def layout_rows(streams, area=A1_AREA, gap=GAP_MM, reserved=()):
+    """
+    Views in reading order (user 2026-10-12: sections ordered, elevations of the same levels level with each other):
+    streams [[(w, h, anchor)]], each stream starting a new line, its views left to right and on to the next line when
+    the sheet is full. anchor: depth (mm) below the view's top of a datum shared by the line's views (the same model
+    level in each elevation), lining them up; None puts the view's top on the line's top. Lines go down the sheet
+    and on to a new sheet; reserved boxes (the legends' corner) are kept free. Returns [(sheet index, centre x,
+    centre y)] in the streams' flattened order.
+    """
+    ax0, ay0, ax1, ay1 = area
+    out = []
+    sheet, top = 0, ay1
+
+    def right_edge(y_top, y_bottom):
+        edge = ax1
+        for r in reserved:
+            if y_bottom < r[3] + gap and r[1] - gap < y_top:
+                edge = min(edge, r[0] - gap)
+        return edge
+
+    def line_height(items):
+        lift = max([a for _w, _h, a in items if a is not None] or [0.0])
+        return max((lift - a if a is not None else 0.0) + h for _w, h, a in items), lift
+
+    for stream in streams:
+        pending = list(stream)
+        while pending:
+            line = []
+            for item in pending:
+                trial = line + [item]
+                height, _lift = line_height(trial)
+                width = sum(w for w, _h, _a in trial) + gap * (len(trial) - 1)
+                if line and ax0 + width > right_edge(top, top - height) + 1e-6:
+                    break
+                line = trial
+            height, lift = line_height(line)
+            if top - height < ay0 - 1e-6 and top < ay1 - 1e-6:
+                sheet, top = sheet + 1, ay1                  # the line goes on to a new sheet
+                continue
+            x = ax0
+            for w, h, a in line:
+                y_top = top - (lift - a if a is not None else 0.0)
+                out.append((sheet, x + w / 2.0, y_top - h / 2.0))
+                x += w + gap
+            top -= height + gap
+            pending = pending[len(line):]
+    return out
+
+
 def next_sheet_numbers(existing, count, series=4000):
     """The next `count` free numbers of the series (4000 Construction details): '4002', ..."""
     taken = set(existing)

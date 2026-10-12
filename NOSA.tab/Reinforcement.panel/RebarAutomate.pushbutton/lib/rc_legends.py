@@ -126,7 +126,7 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
             u' (includes delta c_dev = {:.0f})'.format(dev) if dev is not None else u'',
             u'; '.join(cover_bits) or u'to the general notes'),
         u'5. Maximum aggregate size {:.0f} mm.'.format(agg if agg is not None else 20.0),
-        u'6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150B1; centres and '
+        u'6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and '
         u'layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.',
         u'7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer '
         u'notation key). EF each face, EW each way, Stg. staggered, Alt. alternate.',
