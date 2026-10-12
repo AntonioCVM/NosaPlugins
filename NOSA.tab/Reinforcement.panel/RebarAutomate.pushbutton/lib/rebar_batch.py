@@ -293,6 +293,11 @@ class RebarBatch(object):
                                 elem, u'NOSA_Rebar_Layer', layer)
                             results['Comments'] = stamp_location(
                                 elem, layer, self.locations.get(get_id_value(elem.Id)))
+                            from nosa_utils import rule_flags
+                            rule = rule_flags.flag_text(layer)
+                            if rule:
+                                # T9.15: a bar added by a detailing rule, not the design (user 2026-10-11)
+                                results[rule_flags.PARAM] = shared_params.write(elem, rule_flags.PARAM, rule)
                         results['Number of Members'] = default_members(elem)
                         results['NOSA_Rebar_Show_In_Schedule'] = default_schedule_flag(elem)
                         failed_fields = [name for name, ok in results.items() if not ok]

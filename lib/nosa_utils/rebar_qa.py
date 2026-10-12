@@ -19,7 +19,7 @@ CLASH_TOL_MM = 3.0        # modelling tolerance between straight bars
 PARALLEL_COS = 0.996
 MAX_SEGMENTS = 4000
 
-ERROR, WARNING = u'Error', u'Warning'
+ERROR, WARNING, INFO = u'Error', u'Warning', u'Info'
 
 
 class Finding(object):
@@ -495,7 +495,20 @@ def audit(doc, host_ids=None, fck_mpa=32.0, aggregate_mm=AGGREGATE_MM):
     for hid in sorted(checked):
         out.extend(_buildability_host(doc, DB, hosts[hid], by_host[hid], hosts, by_host, aggregate_mm,
                                       parts[hid][1] if hid in parts else u'', get_id_value))
+        out.extend(_rule_added(hosts[hid], by_host[hid], parts[hid][1] if hid in parts else u''))
     return out
+
+
+def _rule_added(host, rebars, label):
+    """T9.15: the bar sets a detailing rule added to a member, to be confirmed with the design (not graded)."""
+    from nosa_utils import rule_flags
+    rules = {}
+    for r in rebars:
+        rule = rule_flags.rule_for(_text(r, u'NOSA_Rebar_Layer'))
+        if rule:
+            rules.setdefault(rule, []).append(_text(r, u'NOSA_Rebar_Mark') or u'?')
+    return [Finding(u'', label, u', '.join(sorted(set(marks))), u'Rule-added bars', INFO,
+                    u'{}: {}'.format(rule, rule_flags.CONFIRM), host.Id) for rule, marks in sorted(rules.items())]
 
 
 STATIONS = (0.1, 0.5, 0.9)      # where a beam is checked for congestion, along its span

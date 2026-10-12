@@ -437,6 +437,8 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
             t.Start()
             import rebar_marking
             rebar_marking.renumber_drawing(doc, [r.Id for r in rebars])      # SMDSC 4.5.1: one drawing
+            from nosa_utils import rule_flags
+            rule_flags.stamp(rebars)                                           # T9.15: bars added by a rule
             t.Commit()
         group = {'pending': [], 'retag': {}, 'hosts': [], 'rebars': [], 'numbers': 0, 'letters': 0,
                  'members': len(batch)}

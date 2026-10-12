@@ -419,6 +419,10 @@
                                 <Button Content="Run All Checks" Click="IG_RunChecks_Click"
                                         Style="{StaticResource ActionButton}"
                                         Margin="0,8,0,0" HorizontalAlignment="Stretch"/>
+                                <Button Content="Record RC Revision" Click="IG_RecordRc_Click"
+                                        Style="{StaticResource ActionButton}"
+                                        ToolTip="Record every reinforcement drawing at its revision (F8) and write the changes since its last issue on it"
+                                        Margin="0,6,0,0" HorizontalAlignment="Stretch"/>
                             </StackPanel>
                         </ScrollViewer>
                     </Grid>

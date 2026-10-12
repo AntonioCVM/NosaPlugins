@@ -121,7 +121,7 @@ def _signature(doc, rebar):
     return u'{} {} {:.0f}'.format(size, shape, 5.0 * round(length / 5.0))
 
 
-def _drawings(doc):
+def drawings(doc):
     """{drawing number: [sheet]}: the RC sheets of the 4000 series, a drawing's continuation sheets ('Beams
     reinforcement (2)') with its first one."""
     from Autodesk.Revit import DB
@@ -175,7 +175,7 @@ def check(doc):
     out = []
     numbers = set(s.SheetNumber for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet))
     info = doc.ProjectInformation
-    for drawing, sheets in sorted(_drawings(doc).items()):
+    for drawing, sheets in sorted(drawings(doc).items()):
         views = [v for s in sheets for v in _views(doc, s) if v is not None]
         shown = {}
         for v in views:
