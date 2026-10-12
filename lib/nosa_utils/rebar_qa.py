@@ -162,6 +162,19 @@ def pair_issue(dist_mm, cos, overlap_mm, dia1_mm, dia2_mm, aggregate_mm=AGGREGAT
     return None
 
 
+def _length(a, b):
+    return math.sqrt(_dot(_sub(b, a), _sub(b, a)))
+
+
+def is_lap(dist_mm, cos, overlap_mm, len1_mm, len2_mm, dia1_mm, dia2_mm):
+    """
+    Two parallel bars on (nearly) one line overlapping over part of their length only: a lap, modelled with the bars
+    coincident and fixed in contact on site (EC2 8.7.2), not a clash.
+    """
+    return (cos >= PARALLEL_COS and dist_mm < (dia1_mm + dia2_mm) / 2.0 and overlap_mm > 0.0 and
+            overlap_mm < min(len1_mm, len2_mm) - 1.0)
+
+
 def gaps_clear(positions_mm, dias_mm):
     """Clear gaps (real size) between neighbouring bars of one layer, positions across the member."""
     pairs = sorted(zip(positions_mm, dias_mm))
@@ -826,6 +839,8 @@ def _pairs(samples, label, aggregate_mm, get_id_value, owner=None):
             if any(si[5][k] - reach > sj[6][k] or sj[5][k] - reach > si[6][k] for k in range(3)):
                 continue
             dist, cos, overlap, at = segment_distance(si[3], si[4], sj[3], sj[4])
+            if is_lap(dist, cos, overlap, _length(si[3], si[4]), _length(sj[3], sj[4]), si[2], sj[2]):
+                continue                  # two bars lapped: modelled on one line, in contact on site
             found = pair_issue(dist, cos, overlap, si[2], sj[2], aggregate_mm, si[8] or sj[8])
             if found:
                 seen.add(pair)

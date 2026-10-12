@@ -80,3 +80,10 @@ def test_joint_vibrator_and_buildability_grade():
     assert qa.buildability([qa.WARNING] * 3)[1] == u'A'
     assert qa.buildability([qa.ERROR])[1] == u'B'
     assert qa.buildability([qa.ERROR] * 3)[1] == u'C'
+
+
+def test_lap_is_not_a_clash():
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (3000, 0, 0), (2000, 0, 0), (6000, 0, 0))
+    assert qa.is_lap(d, cos, overlap, 3000.0, 4000.0, 20.0, 20.0)          # 1000 mm lap on one line
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (3000, 0, 0), (1000, 0, 0), (2000, 0, 0))
+    assert not qa.is_lap(d, cos, overlap, 3000.0, 1000.0, 20.0, 20.0)      # one bar inside the other: a clash
