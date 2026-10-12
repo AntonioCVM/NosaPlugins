@@ -498,7 +498,7 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
                                   coarsen=False)
         if sheets:
             import bar_schedules
-            bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0])
+            bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0], force=True)
             grade = _buildability(doc, group['hosts'], report)
             for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                 if sheet.SheetNumber in sheets:

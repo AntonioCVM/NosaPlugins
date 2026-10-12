@@ -36,12 +36,14 @@ _IG_CHECK_DEFS = [
     ('revisions',  u'Revision Completeness'),
     ('titleblock', u'Title Block Parameters'),
     ('duplicates', u'Duplicate Sheet Numbers'),
+    ('rc',         u'RC Drawings'),
 ]
 _IG_SUFFIXES = {
     'protocol':   'Protocol',
     'revisions':  'Revisions',
     'titleblock': 'Titleblock',
     'duplicates': 'Duplicates',
+    'rc':         'Rc',
 }
 _IG_STATUS_ICONS = {
     'pass':    u'✓',

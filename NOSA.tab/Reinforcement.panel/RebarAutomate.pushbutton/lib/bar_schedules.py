@@ -113,17 +113,18 @@ def _set(element, name, value):
     return True
 
 
-def stamp_drawing(doc, rebars, drawing):
+def stamp_drawing(doc, rebars, drawing, force=False):
     """
     Create Views: the drawing a member is detailed on, kept from its first drawing while that sheet
-    exists (a deleted one gives way to the new drawing). In a transaction.
+    exists (a deleted one gives way to the new drawing); force: the drawing is made anew for these members
+    (T9.7 grouped drawings: an old stamp would point at a sheet that now shows other members). In a transaction.
     """
     from Autodesk.Revit import DB  # Lazy import
     sheets = set(s.SheetNumber for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet))
     n = 0
     for rebar in rebars:
         old = _text(rebar, DRAWING_PARAM)
-        if (not old or old not in sheets) and old != drawing and _set(rebar, DRAWING_PARAM, drawing):
+        if (force or not old or old not in sheets) and old != drawing and _set(rebar, DRAWING_PARAM, drawing):
             n += 1
     return n
 
