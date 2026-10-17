@@ -177,3 +177,16 @@ def title_width_mm(view_name, title_on_sheet=u''):
     """Paper width a viewport's title takes (its Title on Sheet, else the view name), so titles never overlap."""
     text = title_on_sheet or view_name or u''
     return len(text) * TITLE_CHAR_MM + TITLE_EXTRA_MM
+
+
+_PREFIXES = u'column C beam B floor S wall W foundation F pile_cap PC stairs ST'.split()
+MARK_PREFIX = dict(zip(_PREFIXES[0::2], _PREFIXES[1::2]))     # kind -> GA mark prefix
+
+
+def next_mark(prefix, taken):
+    """The first free GA-style mark of a prefix: 'C' with C1-C3 and C21 taken -> 'C4' (user 2026-10-17)."""
+    taken = set(m.strip().upper() for m in taken if m)
+    n = 1
+    while u'{}{}'.format(prefix, n).upper() in taken:
+        n += 1
+    return u'{}{}'.format(prefix, n)

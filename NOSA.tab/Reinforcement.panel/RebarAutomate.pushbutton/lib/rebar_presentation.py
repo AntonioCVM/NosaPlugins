@@ -368,7 +368,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     section_style = _line_style(doc, SECTION_STYLE, 6)
     _clear(doc, view, (style, total_style, section_style))
     # only the bars of the members detailed (user 2026-10-12: a beam elevation showed the column bars)
-    _hide_foreign(doc, view, rebars)
+    _hide_foreign(doc, view, rebars, hosts or ())
     # only the bars the view really draws: inside its crop and depth (a curved beam's 34 loose links all passed
     # IsHidden and stretched every section's crop to the whole beam, 2026-10-11)
     drawn = set(get_id_value(i) for i in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar).ToElementIds())
@@ -495,13 +495,13 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     return report
 
 
-def _hide_foreign(doc, view, rebars):
-    """Hide in the view the bars of other members than the ones it details."""
+def _hide_foreign(doc, view, rebars, hosts=()):
+    """Hide in the view the bars of other members than the ones it details, but those ending inside them."""
     from System.Collections.Generic import List
     own = set(get_id_value(r.Id) for r in rebars if r is not None and r.IsValidObject)
     ids = List[DB.ElementId]()
     for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
-        if get_id_value(r.Id) not in own and r.CanBeHidden(view):
+        if get_id_value(r.Id) not in own and r.CanBeHidden(view) and not (hosts and _ends_inside(r, hosts)):
             ids.Add(r.Id)
     if ids.Count:
         try:
@@ -1666,9 +1666,8 @@ def _piles_under(doc, cap):
 
 def _pile_table(doc, view, hosts, box, placed, scale, text_type):
     """
-    T9.20 on a pile cap plan: each pile labelled P1.. at its centre and a table of the piles beside the plan:
-    number, position from the cap's centre, diameter and cut-off level (SMDSC 4th ed. 6.7.3). Returns how many
-    piles.
+    T9.20 on a pile cap plan: each pile labelled P1.. at its centre, the numbers of the piling drawing, which sets
+    them out (user 2026-10-17: no table of positions here). Returns how many piles.
     """
     from nosa_utils import presentation
     made = 0
@@ -1688,14 +1687,6 @@ def _pile_table(doc, view, hosts, box, placed, scale, text_type):
             at = _xy(view, DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, bb.Max.Z))
             _note(doc, view, _point(view, (at[0] + text_h, at[1] + 2.0 * text_h), like), label,
                   doc.GetDefaultElementTypeId(DB.ElementTypeGroup.TextNoteType) if text_type is None else text_type)
-        x0 = max([box[2]] + [q[2] for q in placed if q[1] < box[3] and q[3] > box[1]]) + 4.0 * text_h
-        top = box[3]
-        widths = (6.0, 9.0, 9.0, 9.0, 12.0)
-        for col, head in enumerate(presentation.PILE_HEADERS):
-            lines = [head] + [cells[col] for _l, _p, cells in rows]
-            _note(doc, view, _point(view, (x0 + sum(widths[:col]) * text_h, top), like), u'\r'.join(lines),
-                  text_type)
-        placed.append((x0, top - (len(rows) + 1) * 2.0 * text_h, x0 + sum(widths) * text_h, top))
         made += len(rows)
     return made
 
@@ -2567,6 +2558,55 @@ def see_drawing(doc, view, rebars):
         if line is not None and _note(doc, view, line.Evaluate(0.5, True), see, text_type):
             n += 1
     return n
+
+
+END_INSIDE_TOL_MM = 5.0
+
+
+def _ends_inside(rebar, hosts):
+    """True when a bar of the set ends inside one of the hosts (a starter, an anchorage), not when it only passes."""
+    boxes = [h.get_BoundingBox(None) for h in hosts if h is not None]
+    boxes = [b for b in boxes if b is not None]
+    if not boxes:
+        return False
+    tol = END_INSIDE_TOL_MM / _MM_PER_FT
+    try:
+        n = rebar.NumberOfBarPositions
+    except Exception:
+        return False
+    for i in sorted(set((0, n - 1))):
+        chain = _centreline(rebar, i)
+        if not chain:
+            continue
+        for p in (chain[0].GetEndPoint(0), chain[-1].GetEndPoint(1)):
+            for b in boxes:
+                if b.Min.X + tol < p.X < b.Max.X - tol and b.Min.Y + tol < p.Y < b.Max.Y - tol and \
+                        b.Min.Z + tol < p.Z < b.Max.Z - tol:
+                    return True
+    return False
+
+
+def foreign_bars(doc, view, own_ids, hosts):
+    """
+    The bars of other members a drawing's view shows (user 2026-10-17): hidden, except those ending inside its
+    members - starters, anchorages - drawn thick dashed with 'SEE DRG nnnn' (SMDSC 4th ed. 6.2.2). Returns
+    (hidden, kept).
+    """
+    from System.Collections.Generic import List
+    hide, keep = List[DB.ElementId](), []
+    for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
+        if get_id_value(r.Id) in own_ids or not r.CanBeHidden(view):
+            continue
+        if _ends_inside(r, hosts):
+            keep.append(r)
+        else:
+            hide.Add(r.Id)
+    if hide.Count:
+        try:
+            view.HideElements(hide)
+        except Exception:
+            pass
+    return hide.Count, see_drawing(doc, view, keep)
 
 
 def _ticks(doc, view, d, hosts, cover_mm, scale, style):

@@ -105,3 +105,9 @@ def test_layout_rows_keeps_reading_order_and_lines_up_levels():
 def test_layout_rows_wraps_and_opens_a_new_sheet():
     out = vp.layout_rows([[(400.0, 300.0, None)] * 4])
     assert [o[0] for o in out] == [0, 1, 2, 3]             # one A1 line each: too wide for two, too tall for two
+
+
+def test_next_mark():
+    assert vp.next_mark(u'C', [u'C1', u'C2', u'C3', u'C21']) == u'C4'
+    assert vp.next_mark(u'PC', [u'PC10']) == u'PC1'
+    assert vp.next_mark(u'B', []) == u'B1'

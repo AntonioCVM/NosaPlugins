@@ -420,6 +420,7 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import get_id_value
     report = {'views': [], 'sheets': [], 'tags': 0, 'errors': []}
+    assign_marks(doc, [h for g in groups for h in g], view_plan, report)
     kinds = []
     placed = []
     for g in groups:
@@ -448,17 +449,55 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
         valid = [e for e in group['pending'] if e[0].IsValidObject]
         if valid:
             report['sheets'].extend(_place_group(doc, kind, valid, group, view_plan, sheet_numbers, report))
-            placed.extend(valid)
+            own = set(get_id_value(r.Id) for r in group['rebars'])
+            placed.extend((v, sp, s, own, list(group['hosts'])) for v, sp, s in valid)
     # the section marks of the drawings made after a view, out of its elevations and sections (2026-10-17: F10's
     # section head sat on C3's confinement and kicker dimensions)
-    marked = [v for v, sp, _s in placed if v.IsValidObject and (sp.get('as_plan') or not sp.get('plan'))]
-    if marked:
-        t = DB.Transaction(doc, u'NOSA — Section marks of later drawings')
+    # ... and the bars of the other members drawn (user 2026-10-17): hidden, but for those ending in its members
+    if placed:
+        import rebar_presentation
+        t = DB.Transaction(doc, u'NOSA — Other members\' bars and section marks')
         t.Start()
-        for v in marked:
-            _hide_viewers(doc, v)
+        for v, sp, _s, own, hosts in placed:
+            if not v.IsValidObject:
+                continue
+            if sp.get('as_plan') or not sp.get('plan'):
+                _hide_viewers(doc, v)
+            rebar_presentation.foreign_bars(doc, v, own, hosts)
         t.Commit()
     return report
+
+
+def assign_marks(doc, hosts, view_plan, report):
+    """
+    The members drawn without a Mark get the next free one of their kind (C4, B13, S21, PC2...; user 2026-10-17:
+    SMDSC 3.19 - every member referenced), each one reported to be checked against the GA. In a transaction.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    import rebar_presentation
+
+    def mark_of(e):
+        p = e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
+        return ((p.AsString() or u'').strip() if p is not None else u''), p
+    bare = [h for h in hosts if h is not None and not mark_of(h)[0] and mark_of(h)[1] is not None
+            and not mark_of(h)[1].IsReadOnly]
+    if not bare:
+        return 0
+    t = DB.Transaction(doc, u'NOSA — Marks of unmarked members')
+    t.Start()
+    for h in bare:
+        kind = host_kind(h)
+        if kind == 'foundation' and rebar_presentation._piles_under(doc, h):
+            kind = 'pile_cap'
+        taken = [mark_of(e)[0] for e in DB.FilteredElementCollector(doc).OfCategoryId(h.Category.Id)
+                 .WhereElementIsNotElementType()]
+        mark = view_plan.next_mark(view_plan.MARK_PREFIX.get(kind, u'M'), taken)
+        mark_of(h)[1].Set(mark)
+        report['errors'].append(u'{} {} had no Mark: given {} - check it against the GA drawings.'.format(
+            _TITLES.get(host_kind(h), u'Member'), get_id_value(h.Id), mark))
+    t.Commit()
+    return len(bare)
 
 
 def _titleblock(doc):
@@ -514,12 +553,6 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
                 if sheet.SheetNumber in sheets:
                     report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
                                                                    grade, typical, td_sheet))
-            import rebar_presentation
-            own = set(get_id_value(r.Id) for r in group['rebars'])
-            for view, _spec, _scale in created:
-                others = [r for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Structure.Rebar)
-                          if get_id_value(r.Id) not in own]
-                rebar_presentation.see_drawing(doc, view, others)
         if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
             report['errors'].append(u'{} drawing: rolled back by Revit — {}'.format(
                 _PLURAL.get(kind, kind), u'; '.join(guard.errors)))
@@ -1171,9 +1204,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             # T8.27, SMDSC 4th ed. 6.2.2: bars detailed on another drawing, once the views are on their sheets
             own = set(get_id_value(r.Id) for r in rebars)
             for view, _spec, _scale in created:
-                others = [r for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Structure.Rebar)
-                          if get_id_value(r.Id) not in own]
-                rebar_presentation.see_drawing(doc, view, others)
+                rebar_presentation.foreign_bars(doc, view, own, hosts)
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))
