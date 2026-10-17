@@ -375,3 +375,34 @@ def confinement_zones(zones, tol=0.99):
         return []
     general = max(pitches)
     return sorted((a, b) for a, b, p in zones if 0.0 < p < tol * general)
+
+
+PILE_HEADERS = (u'PILE', u'X (mm)', u'Y (mm)', u'DIA (mm)', u'CUT-OFF (m)')
+PROJECTION_TEXT = u'PROJECTION'
+COVER_TEXT = u'COVER'
+
+
+def pile_table(piles, origin):
+    """
+    T9.20 beside a pile cap plan (SMDSC 4th ed. 6.7.3: pile positions and cut-off levels with the cap): the piles
+    [(x, y, dia, top z)] mm, numbered P1.. from the top left, set out from the cap's centre `origin` (x, y).
+    Returns [(label, (x, y), [cell texts])] in table order.
+    """
+    rows = sorted(piles, key=lambda p: (-round(p[1] - origin[1]), round(p[0] - origin[0])))
+    out = []
+    for i, (x, y, dia, top) in enumerate(rows):
+        label = u'P{}'.format(i + 1)
+        out.append((label, (x, y), [label, u'{:.0f}'.format(x - origin[0]), u'{:.0f}'.format(y - origin[1]),
+                                    u'{:.0f}'.format(dia), u'{:+.3f}'.format(top / 1000.0)]))
+    return out
+
+
+def starter_chain(soffit, foot, top, bar_top):
+    """
+    T9.20 beside a base section: the starters' cover under their feet, their embedment and their projection
+    above the base, as one vertical dimension string: ([points], [text per segment]); ([], []) when the bars do
+    not stand out of the base.
+    """
+    if not (soffit < foot < top < bar_top):
+        return [], []
+    return [soffit, foot, top, bar_top], [COVER_TEXT, u'', PROJECTION_TEXT]

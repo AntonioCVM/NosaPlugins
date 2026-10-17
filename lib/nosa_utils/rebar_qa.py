@@ -453,6 +453,15 @@ def _depth_mm(DB, host, kind, box):
         except Exception:
             pass
     if kind in (u'slab', u'foundation'):
+        # the member's own solid: a pile cap family can carry its piles' geometry too (PC10 read 6825 mm deep)
+        solids = _solids(DB, host)
+        if solids:
+            try:
+                bb = max(solids, key=lambda g: g.Volume).GetBoundingBox()
+                zs = [bb.Transform.OfPoint(p).Z for p in (bb.Min, bb.Max)]
+                return (max(zs) - min(zs)) * _MM
+            except Exception:
+                pass
         return (box.Max.Z - box.Min.Z) * _MM
     return min(box.Max.X - box.Min.X, box.Max.Y - box.Min.Y) * _MM
 
@@ -793,7 +802,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
             if most and flat and meshed and spacing > most + 1.0:
                 add(rebar, mark, u'Pitch', WARNING, u'pitch {:.0f} mm over the {:.0f} allowed (SMDSC 6.{})'.format(
                     spacing, most, {u'slab': 2, u'wall': 5, u'foundation': 7}[kind]))
-            if kind in (u'slab', u'foundation') and flat or kind == u'wall' and abs(u[2]) > 0.7:
+            if meshed and (kind in (u'slab', u'foundation') and flat or kind == u'wall' and abs(u[2]) > 0.7):
                 key = (_text(rebar, u'NOSA_Rebar_Layer'), round(u[0], 1), round(u[1], 1), round(u[2], 1))
                 layer_area[key] = max(layer_area.get(key, 0.0), area_per_m(dia, spacing))
             layer = _text(rebar, u'NOSA_Rebar_Layer').strip().lower()

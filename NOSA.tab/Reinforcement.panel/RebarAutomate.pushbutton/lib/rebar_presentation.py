@@ -22,7 +22,8 @@ _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
 _OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP|CH \\d+|'
-                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE|ρ = .*)$')   # ... and section numbers
+                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE|ρ = .*|P\\d+|'
+                       u'(PILE|X \\(mm\\)|Y \\(mm\\)|DIA \\(mm\\)|CUT-OFF \\(m\\))[\\r\\n][\\s\\S]*)$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
 
 
@@ -456,6 +457,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
                 report['strips'] = _strips(doc, view, hosts, box, placed, scale, total_style, text_type)
                 report['arc'] = _arc_setting_out(doc, view, hosts, box, scale, total_style, text_type)
+                report['piles'] = _pile_table(doc, view, hosts, box, placed, scale, text_type)
         else:
             # a section: the bars lying in it are told by the arrows at their ends, not by another mark
             ends = set(d['id'] for d in ended)
@@ -469,6 +471,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
                 report['laps'] = _column_laps(doc, view, pointers + zones, box, placed, scale, total_style)
                 report['confinement'] = _confinement(doc, view, zones, box, placed, scale, total_style)
                 report['kicker'] = _kicker(doc, view, hosts or members, box, placed, scale, total_style)
+            elif kind == 'footing_section':
+                report['starters'] = _starter_dims(doc, view, visible, box, placed, scale, total_style)
     for a, _b, label in presentation.relations(zones):
         bx = made.get(a)
         if bx is None:
@@ -1630,6 +1634,102 @@ def _kicker(doc, view, hosts, box, placed, scale, style):
     except Exception:
         pass
     placed.append((x - row / 2.0, foot, x + row / 2.0, foot + kicker))
+    return 1
+
+
+def _piles_under(doc, cap):
+    """Piles under a pile cap: foundations centred in its plan whose tops sit inside it. [(x, y, dia, top z)] mm."""
+    bb = cap.get_BoundingBox(None)
+    if bb is None:
+        return []
+    out = []
+    for f in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralFoundation) \
+            .WhereElementIsNotElementType():
+        if get_id_value(f.Id) == get_id_value(cap.Id):
+            continue
+        fb = f.get_BoundingBox(None)
+        if fb is None:
+            continue
+        cx, cy = (fb.Min.X + fb.Max.X) / 2.0, (fb.Min.Y + fb.Max.Y) / 2.0
+        if bb.Min.X < cx < bb.Max.X and bb.Min.Y < cy < bb.Max.Y and fb.Max.Z < bb.Max.Z - 0.01 and \
+                fb.Max.Z > bb.Max.Z - 3000.0 / _MM_PER_FT:
+            out.append((cx * _MM_PER_FT, cy * _MM_PER_FT, (fb.Max.X - fb.Min.X) * _MM_PER_FT, fb.Max.Z * _MM_PER_FT))
+    return out
+
+
+def _pile_table(doc, view, hosts, box, placed, scale, text_type):
+    """
+    T9.20 on a pile cap plan: each pile labelled P1.. at its centre and a table of the piles beside the plan:
+    number, position from the cap's centre, diameter and cut-off level (SMDSC 4th ed. 6.7.3). Returns how many
+    piles.
+    """
+    from nosa_utils import presentation
+    made = 0
+    text_h = TEXT_PAPER_MM * scale
+    for cap in hosts:
+        if cap is None or cap.Category is None or \
+                get_id_value(cap.Category.Id) != int(DB.BuiltInCategory.OST_StructuralFoundation):
+            continue
+        piles = _piles_under(doc, cap)
+        if not piles:
+            continue
+        bb = cap.get_BoundingBox(None)
+        origin = ((bb.Min.X + bb.Max.X) / 2.0 * _MM_PER_FT, (bb.Min.Y + bb.Max.Y) / 2.0 * _MM_PER_FT)
+        rows = presentation.pile_table(piles, origin)
+        like = bb.Max
+        for label, (x, y), _cells in rows:
+            at = _xy(view, DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, bb.Max.Z))
+            _note(doc, view, _point(view, (at[0] + text_h, at[1] + 2.0 * text_h), like), label,
+                  doc.GetDefaultElementTypeId(DB.ElementTypeGroup.TextNoteType) if text_type is None else text_type)
+        x0 = max([box[2]] + [q[2] for q in placed if q[1] < box[3] and q[3] > box[1]]) + 4.0 * text_h
+        top = box[3]
+        widths = (6.0, 9.0, 9.0, 9.0, 12.0)
+        for col, head in enumerate(presentation.PILE_HEADERS):
+            lines = [head] + [cells[col] for _l, _p, cells in rows]
+            _note(doc, view, _point(view, (x0 + sum(widths[:col]) * text_h, top), like), u'\r'.join(lines),
+                  text_type)
+        placed.append((x0, top - (len(rows) + 1) * 2.0 * text_h, x0 + sum(widths) * text_h, top))
+        made += len(rows)
+    return made
+
+
+def _starter_dims(doc, view, rebars, box, placed, scale, style):
+    """
+    T9.20 on a base section: the starter bars (dowels) dimensioned beside it - the cover under their feet, their
+    embedment and their projection above the base (SMDSC 4th ed. MF1 / 6.7.3). Returns 1 when drawn.
+    """
+    from nosa_utils import presentation
+    tops, feet = [], []
+    for r in rebars:
+        if _text(r, u'NOSA_Rebar_Layer').strip().lower() != u'dowel':
+            continue
+        try:
+            n = r.NumberOfBarPositions
+            for i in sorted(set((0, n - 1))):
+                for c in _centreline(r, i) or []:
+                    for k in (0, 1):
+                        y = _xy(view, c.GetEndPoint(k))[1]
+                        tops.append(y)
+                        feet.append(y)
+        except Exception:
+            continue
+    if not tops:
+        return 0
+    xs, labels = presentation.starter_chain(box[1], min(feet), box[3], max(tops))
+    if not xs:
+        return 0
+    row = ROW_PAPER_MM * scale
+    x = max([box[2]] + [q[2] for q in placed if q[1] < xs[-1] and q[3] > xs[0]]) + row
+    dim = _dimension_chain(doc, view, xs, x, view.Origin, scale, style, vertical=True)
+    if dim is None:
+        return 0
+    try:
+        for seg, label in zip(list(dim.Segments), labels):
+            if label:
+                seg.Below = label
+    except Exception:
+        pass
+    placed.append((x - row / 2.0, xs[0], x + row / 2.0, xs[-1]))
     return 1
 
 

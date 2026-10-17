@@ -138,3 +138,14 @@ def test_column_ratio_and_confinement():
     assert u'OVER 4 %' in pr.steel_ratio_text([(12, 32.0)], 300.0 * 300.0)
     assert pr.confinement_zones([(0, 600, 100), (600, 2400, 200), (2400, 3000, 100)]) == [(0, 600), (2400, 3000)]
     assert pr.confinement_zones([(0, 3000, 200)]) == []
+
+
+def test_pile_table_and_starter_chain():
+    rows = pr.pile_table([(37450.0, 39450.0, 600.0, -825.0), (38550.0, 40550.0, 600.0, -825.0),
+                          (37450.0, 40550.0, 600.0, -825.0), (38550.0, 39450.0, 600.0, -825.0)], (38000.0, 40000.0))
+    assert [r[0] for r in rows] == [u'P1', u'P2', u'P3', u'P4']
+    assert rows[0][2] == [u'P1', u'-550', u'550', u'600', u'-0.825']          # top left first
+    assert rows[3][2][1:3] == [u'550', u'-550']
+    pts, labels = pr.starter_chain(-900.0, -825.0, 0.0, 1200.0)
+    assert pts == [-900.0, -825.0, 0.0, 1200.0] and labels == [pr.COVER_TEXT, u'', pr.PROJECTION_TEXT]
+    assert pr.starter_chain(-900.0, -825.0, 0.0, -10.0) == ([], [])
