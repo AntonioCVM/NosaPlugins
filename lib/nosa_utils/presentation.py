@@ -293,3 +293,46 @@ def junction_fraction(slot):
     (user 2026-10-12, the two U-bar sets of a pile cap).
     """
     return slot + 0.25 if slot <= 0.5 else slot - 0.25
+
+
+SUPPORT_TEXT = u'SUPPORT'
+
+
+def support_chain(supports, tol=1.0):
+    """
+    T9.17 (SMDSC 4th ed. 6.3, MD B1): the points of the dimension string under a beam elevation through the faces
+    of its supports [(a, b)] and the text under each segment: SUPPORT across a support, '' across a clear span.
+    ([x], [label per segment]); ([], []) with no support.
+    """
+    xs = []
+    for a, b in sorted(supports):
+        for x in (a, b):
+            if not xs or x - xs[-1] > tol:
+                xs.append(x)
+    labels = []
+    for x0, x1 in zip(xs, xs[1:]):
+        m = (x0 + x1) / 2.0
+        labels.append(SUPPORT_TEXT if any(a - tol <= m <= b + tol for a, b in supports) else u'')
+    return (xs, labels) if len(xs) >= 2 else ([], [])
+
+
+def arc_stations(length_mm, step_mm=None, least_mm=500.0):
+    """
+    T9.17 curved beam plan: the chainages (mm along its axis) set out on the plan, from 0 to its length: at a round
+    step (a sixth of the length up to 500 mm, at least 500) and at its end.
+    """
+    if length_mm <= 0.0:
+        return []
+    if step_mm is None:
+        step_mm = max(least_mm, least_mm * round(length_mm / 6.0 / least_mm))
+    out, ch = [], 0.0
+    while ch < length_mm - 0.25 * step_mm:
+        out.append(ch)
+        ch += step_mm
+    out.append(length_mm)
+    return out
+
+
+def chainage_text(ch_mm):
+    """'CH 2000' for a station 2000 mm along a curved beam."""
+    return u'CH {:.0f}'.format(ch_mm)

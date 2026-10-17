@@ -16,9 +16,50 @@ MAX_PITCH_MM = 300.0
 MAX_LATERAL_LEG_MM = 600.0
 MAX_BAR_TO_LEG_MM = 150.0        # no bar further than this from a vertical leg
 OPEN_LINK_WIDTH_MM = 450.0       # open links (with a locking link) from this rib width
-SIDE_BARS_DEPTH_MM = 1000.0      # side bars H16 at <= 250 from this depth
+SIDE_BARS_DEPTH_MM = 750.0       # side bars from this depth (SMDSC 4th ed. MD B1 table)
 SIDE_BAR_DIA_MM = 16.0
 SIDE_BAR_PITCH_MM = 250.0
+MD_B1_WIDTHS = (300.0, 450.0, 600.0, 750.0, 900.0)
+MD_B1_SIDE = (                   # SMDSC 4th ed. MD B1 'side bar details': (depth, bars per face, size by width)
+    (750.0, 3, (16, 20, 20, 25, 25)),
+    (900.0, 4, (16, 16, 20, 20, 25)),
+    (1200.0, 5, (16, 16, 16, 20, 20)),
+    (1500.0, 6, (16, 16, 16, 16, 20)),
+)
+MD_B1_EXTRA_EVERY_MM = 300.0     # past 1500 mm deep: one more bar each 300 mm
+HANGER_SHARE = 0.20              # SMDSC 4th ed. 6.3.2.9: hanger bars >= 20 % of the largest support area
+HANGER_DIA_MM = 16.0             # ... H16 recommended
+
+
+def md_b1_side_bars(width_mm, depth_mm):
+    """
+    SMDSC 4th ed. MD B1 side bar table: (bars per side face, size) of a beam width_mm x depth_mm, read at the next
+    tabulated depth and width up (the safe side); None under 750 mm deep.
+    """
+    if depth_mm < MD_B1_SIDE[0][0] - 1e-6:
+        return None
+    col = next((i for i, w in enumerate(MD_B1_WIDTHS) if width_mm <= w + 1e-6), len(MD_B1_WIDTHS) - 1)
+    for depth, count, sizes in MD_B1_SIDE:
+        if depth_mm <= depth + 1e-6:
+            return count, float(sizes[col])
+    depth, count, sizes = MD_B1_SIDE[-1]
+    extra = int(math.ceil((depth_mm - depth) / MD_B1_EXTRA_EVERY_MM - 1e-9))
+    return count + extra, float(sizes[col])
+
+
+def hanger_issue(n_hanger, hanger_dia_mm, n_support, support_dia_mm):
+    """
+    SMDSC 4th ed. 6.3.2.9: the bars carried to 25 mm from each support (hanger bars) at least 20 % of the largest
+    support area (theirs plus the extra support bars), H16 recommended. None when met.
+    """
+    hang = n_hanger * hanger_dia_mm ** 2
+    support = hang + n_support * support_dia_mm ** 2
+    if n_hanger < 2 or hang < HANGER_SHARE * support - 1e-6:
+        return (u'hanger bars {}H{:.0f} under 20 % of the support steel: SMDSC 4th ed. 6.3.2.9 asks for at least '
+                u'that, carried to 25 mm from each support'.format(n_hanger, hanger_dia_mm))
+    if hanger_dia_mm < HANGER_DIA_MM - 1e-6:
+        return (u'hanger bars H{:.0f}: SMDSC 4th ed. 6.3.2.9 recommends H16 (stiffer cages)'.format(hanger_dia_mm))
+    return None
 
 
 def rho_w_min(fck_mpa, fyk_mpa=FYK_MPA):
@@ -86,9 +127,10 @@ def beam_review(width_mm, height_mm, cover_mm, link_dia_mm, bar_dia_mm, spacing_
     if width_mm >= OPEN_LINK_WIDTH_MM:
         notes.append(u'{}: {:.0f} mm wide: open links with a top locking link may be used '
                      u'(SMDSC 6.3, Fig. 6.21).'.format(label, width_mm))
-    if height_mm >= SIDE_BARS_DEPTH_MM:
-        notes.append(u'{}: {:.0f} mm deep: side bars H16 at <= 250 mm added inside the links '
-                     u'(SMDSC 6.3, EC2 7.3.3).'.format(label, height_mm))
+    side = md_b1_side_bars(width_mm, height_mm)
+    if side:
+        notes.append(u'{}: {:.0f} x {:.0f} mm: {}H{:.0f} side bars each face inside the links (SMDSC 4th ed. '
+                     u'MD B1, EC2 7.3.3).'.format(label, width_mm, height_mm, side[0], side[1]))
     return pitch, notes
 
 

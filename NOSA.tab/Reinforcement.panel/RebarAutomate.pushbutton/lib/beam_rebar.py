@@ -771,23 +771,30 @@ def side_bar_rows_mm(clear_mm, pitch_mm=250.0):
 
 
 def build_side_bar_sets(axis, section_origin, width_dir, height_dir, half_width_mm, half_height_mm,
-                        link_dia_mm, bar_dia_mm, stirrup_sets, beam_height_mm, side_bar_dia_mm=None):
+                        link_dia_mm, bar_dia_mm, stirrup_sets, beam_height_mm, side_bar_dia_mm=None,
+                        beam_width_mm=None):
     """
-    IStructE SMDSC 6.3 / EC2 7.3.3: a beam 1000 mm deep or more takes H16 side bars inside the links
-    at <= 250 mm up each side face, between the bottom and top bars, along the length the links
-    cover. side_bar_dia_mm: None = automatic (16 from 1000 mm), 0 = none. One Set per face, propagated
-    up from the lowest row. Returns groups for the tab's _create_long_group.
+    IStructE SMDSC 4th ed. MD B1 / EC2 7.3.3: a beam 750 mm deep or more takes side bars inside the links
+    up each side face, between the bottom and top bars, along the length the links cover: as many and
+    as large as the MD B1 table gives for its width and depth. side_bar_dia_mm: None = automatic (MD B1),
+    0 = none, a size = that size at <= 250 mm. One Set per face, propagated up from the lowest row.
+    Returns groups for the tab's _create_long_group.
     """
     from nosa_utils import links
+    table = None
     if side_bar_dia_mm is None:
-        side_bar_dia_mm = links.SIDE_BAR_DIA_MM if beam_height_mm >= links.SIDE_BARS_DEPTH_MM - 1e-6 else 0.0
+        table = links.md_b1_side_bars(beam_width_mm or 2.0 * half_width_mm, beam_height_mm)
+        side_bar_dia_mm = table[1] if table else 0.0
     positions = [p for s in stirrup_sets for p in (s.get('positions') or [])]
     if not side_bar_dia_mm or not positions:
         return []
     bar_offset = link_dia_mm / 2.0 + bar_dia_mm / 2.0          # main bars inside the link centreline
     bottom = -half_height_mm + bar_offset
     top = half_height_mm - bar_offset
-    rows, pitch = side_bar_rows_mm(top - bottom, links.SIDE_BAR_PITCH_MM)
+    if table:
+        rows, pitch = table[0], (top - bottom) / (table[0] + 1.0)
+    else:
+        rows, pitch = side_bar_rows_mm(top - bottom, links.SIDE_BAR_PITCH_MM)
     if rows < 1:
         return []
     across = half_width_mm - link_dia_mm / 2.0 - side_bar_dia_mm / 2.0
@@ -1321,7 +1328,14 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
 
     side_bar_sets = build_side_bar_sets(
         axis, section_origin, width_dir, height_dir, half_width_mm, half_height_mm,
-        stirrup_bar_diameter_mm, bar_diameter_mm, stirrup_sets, beam_height_mm, side_bar_diameter_mm)
+        stirrup_bar_diameter_mm, bar_diameter_mm, stirrup_sets, beam_height_mm, side_bar_diameter_mm,
+        beam_width_mm=half_width_mm * 2.0 + 2.0 * inset_mm)
+    if n_support_bars and n_top_bars:
+        from nosa_utils import links as _links
+        hanger = _links.hanger_issue(n_top_bars, bar_diameter_mm, n_support_bars,
+                                     support_bar_diameter_mm or bar_diameter_mm)
+        if hanger:
+            warnings.append(hanger + u'.')
 
     return {
         'side_bar_sets': side_bar_sets,

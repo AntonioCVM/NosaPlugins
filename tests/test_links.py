@@ -98,3 +98,13 @@ def test_round_link_pitches():
     assert all(abs((b - a) - 200.0) < 1e-6 for a, b in zip(mid, mid[1:]))
     assert 100.0 <= mid[0] - 1200.0 <= 200.0 and 100.0 <= 4312.0 - mid[-1] <= 200.0
     assert lk.interior_exact_positions(0.0, 1000.0, 200.0) == [200.0, 400.0, 600.0, 800.0]
+
+
+def test_md_b1_side_bars_and_hangers():
+    assert links.md_b1_side_bars(300.0, 600.0) is None
+    assert links.md_b1_side_bars(300.0, 750.0) == (3, 16.0)
+    assert links.md_b1_side_bars(500.0, 800.0) == (4, 20.0)          # next depth and width up
+    assert links.md_b1_side_bars(1000.0, 2100.0) == (8, 20.0)        # 1500 + 2 x 300
+    assert links.hanger_issue(2, 16.0, 2, 25.0) is None
+    assert u'20 %' in links.hanger_issue(2, 12.0, 6, 32.0)
+    assert u'H16' in links.hanger_issue(2, 12.0, 1, 12.0)

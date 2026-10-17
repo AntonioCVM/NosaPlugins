@@ -21,7 +21,8 @@ from nosa_utils.revit_helpers import get_id_value
 _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
-_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP)$')   # ... and section numbers
+_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP|CH \\d+|'
+                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE)$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
 
 
@@ -441,6 +442,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, 'beam', clusters=clusters)
         _end_marks(doc, view, ended, tag_types, box, gap, scale, placed, report)
         report['curtailment'] = _curtailment(doc, view, pointers, box, placed, scale, total_style)
+        report['supports'] = _support_limits(doc, view, box, placed, scale, total_style)
         made = _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, total_style)
     else:
         # a column's bars called up close beside it (user 2026-10-12)
@@ -451,6 +453,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             if hosts and kind == 'plan':
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
                 report['strips'] = _strips(doc, view, hosts, box, placed, scale, total_style, text_type)
+                report['arc'] = _arc_setting_out(doc, view, hosts, box, scale, total_style, text_type)
         else:
             # a section: the bars lying in it are told by the arrows at their ends, not by another mark
             ends = set(d['id'] for d in ended)
@@ -1259,6 +1262,32 @@ def _curtailment(doc, view, items, box, placed, scale, style):
     return made
 
 
+def _support_limits(doc, view, box, placed, scale, style):
+    """
+    T9.17 under a beam elevation: one dimension string through the faces of its supports, SUPPORT under each
+    support and the clear spans between their faces (SMDSC 4th ed. MD B1: curtailment is read from the faces).
+    Returns 1 when drawn.
+    """
+    supports = [s for s in _supports_x(doc, view, box) if s[1] > box[0] - 1.0 and s[0] < box[2] + 1.0]
+    xs, labels = presentation.support_chain(supports)
+    if not xs:
+        return 0
+    row = ROW_PAPER_MM * scale
+    y = min([box[1]] + [q[1] for q in placed if q[0] < xs[-1] and q[2] > xs[0]]) - row
+    dim = _dimension_chain(doc, view, xs, y, view.Origin, scale, style)
+    if dim is None:
+        return 0
+    try:
+        segments = list(dim.Segments) if dim.NumberOfSegments > 1 else [dim]
+        for seg, label in zip(segments, labels):
+            if label:
+                seg.Below = label
+    except Exception:
+        pass
+    placed.append((xs[0], y - row / 2.0, xs[-1], y + row / 2.0))
+    return 1
+
+
 LAP_TEXT = u'LAP ZONE'
 EDGE_TOL_MM = 100.0       # a bar stopping this close to a slab edge or an opening is anchored there, not curtailed
 
@@ -1333,6 +1362,87 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
             if _dimension_chain(doc, view, [t0, t1], c + 1.5 * gap, like, scale, style, vertical=vertical) is not None:
                 made += 1
     report['dims'] = report.get('dims', 0) + made
+    return made
+
+
+ARC_NOTE = u'BEAM ON R {:.0f} TO ITS CENTRELINE - CENTRE OFF THE PLAN'
+RADIUS_AT = 0.64     # where along a curved beam its radius is drawn: off its sections (0.5, 0.12) and stations
+
+
+def _arc_setting_out(doc, view, hosts, box, scale, style, text_type):
+    """
+    T9.17 on a curved beam's plan (SMDSC 3.13: set out from a centre): its radius written along a line from its
+    axis towards the centre, the centre crossed and labelled when it falls on the plan, and stations across the
+    beam with their chainage from its start, inside the curve. Returns how many texts.
+    """
+    import beam_rebar
+    from nosa_utils import presentation
+    made = 0
+    tick, text_h = 3.0 * scale, TEXT_PAPER_MM * scale
+
+    def line(a, b, like):
+        try:
+            c = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_point(view, a, like), _point(view, b, like)))
+            if style is not None:
+                c.LineStyle = style
+        except Exception:
+            pass
+
+    def note(xy, text, like, angle=0.0):
+        try:
+            opts = DB.TextNoteOptions(text_type)
+            opts.HorizontalAlignment = DB.HorizontalTextAlignment.Center
+            opts.Rotation = angle
+            return DB.TextNote.Create(doc, view.Id, _point(view, xy, like), text, opts) is not None
+        except Exception:
+            return False
+
+    for host in hosts:
+        try:
+            arc = beam_rebar.get_beam_arc(host)
+        except Exception:
+            arc = None
+        if arc is None:
+            continue
+        like = arc.Evaluate(RADIUS_AT, True)      # clear of the sections at mid span and near the start
+        centre = _xy(view, arc.Center)
+        radius = arc.Radius * _MM_PER_FT
+        mid = _xy(view, like)
+        to_c = (centre[0] - mid[0], centre[1] - mid[1])
+        n = (to_c[0] ** 2 + to_c[1] ** 2) ** 0.5 or 1.0
+        u = (to_c[0] / n, to_c[1] / n)
+        on_plan = box[0] <= centre[0] <= box[2] and box[1] <= centre[1] <= box[3]
+        if on_plan:
+            line(mid, centre, like)
+            line((centre[0] - tick, centre[1]), (centre[0] + tick, centre[1]), like)
+            line((centre[0], centre[1] - tick), (centre[0], centre[1] + tick), like)
+            made += note((centre[0], centre[1] - tick - text_h), u'CENTRE', like)
+            made += note(((mid[0] + centre[0]) / 2.0, (mid[1] + centre[1]) / 2.0 + text_h),
+                         u'R {:.0f}'.format(radius), like)
+        else:
+            # the inside of the curve is full of stations and section marks: a note under the plan
+            made += note(((box[0] + box[2]) / 2.0, box[1] - 4.0 * ROW_PAPER_MM * scale),
+                         ARC_NOTE.format(radius), like)
+        length = arc.Length * _MM_PER_FT
+        for ch in presentation.arc_stations(length):
+            p = arc.Evaluate(ch / length, True)
+            q = _xy(view, p)
+            out = (q[0] - centre[0], q[1] - centre[1])
+            m = (out[0] ** 2 + out[1] ** 2) ** 0.5 or 1.0
+            o = (out[0] / m, out[1] / m)
+            half_w = 300.0
+            try:
+                half_w = host.Symbol.LookupParameter(u'b').AsDouble() * _MM_PER_FT / 2.0
+            except Exception:
+                pass
+            a = (q[0] - o[0] * (half_w + tick), q[1] - o[1] * (half_w + tick))
+            b = (q[0] + o[0] * (half_w + tick), q[1] + o[1] * (half_w + tick))
+            line(a, b, like)
+            t_angle = math.atan2(o[1], o[0])
+            if t_angle > math.pi / 2.0 or t_angle < -math.pi / 2.0:
+                t_angle += math.pi
+            at = (a[0] - o[0] * 3.0 * text_h, a[1] - o[1] * 3.0 * text_h)     # inside: the calling-up is outside
+            made += note(at, presentation.chainage_text(ch), like, t_angle)
     return made
 
 

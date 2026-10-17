@@ -119,3 +119,13 @@ def test_indicator_line_crosses_off_the_other_typical_bar():
     for slot in (0.5, 0.3, 0.7, 0.1, 0.9):
         f = pr.junction_fraction(slot)
         assert 0.0 < f < 1.0 and abs(f - slot) >= 0.25 - 1e-9
+
+
+def test_support_chain_and_arc_stations():
+    xs, labels = pr.support_chain([(0.0, 300.0), (5000.0, 5300.0), (9000.0, 9400.0)])
+    assert xs == [0.0, 300.0, 5000.0, 5300.0, 9000.0, 9400.0]
+    assert labels == [u'SUPPORT', u'', u'SUPPORT', u'', u'SUPPORT']
+    assert pr.support_chain([]) == ([], [])
+    assert pr.arc_stations(6000.0) == [0.0, 1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0]
+    assert pr.arc_stations(1100.0) == [0.0, 500.0, 1100.0]
+    assert pr.chainage_text(2000.0) == u'CH 2000'

@@ -333,7 +333,7 @@ cercos `(13@100)` por zona con cota + una llamada total; elementos del mismo tip
 | [x] | T9.14 | Registro de revisiones | C | Marcas y geometrías por revisión (UniqueId), tabla de cambios, nubes opcionales **Hecho 2026-10-12**: `nosa_utils.rc_register` (JSON por modelo/plano/revisión en NOSA_Configs/rc_register, orden de emisión) y botón «Record RC Revision»: tabla «REINFORCEMENT CHANGES - REVISION x» bajo las notas y nubes de revisión opcionales en las barras cambiadas. Probado en Project1 (cambio de marca 01→99, tabla y 3 nubes). |
 | [x] | T9.15 | Bandera «añadido por regla» | C | Barras generadas por regla marcadas en QA y planilla **Hecho 2026-10-12**: parámetro `NOSA_Rebar_Rule` (regla y MD de la 4.ª ed. + «confirm with design») sellado al generar (rebar_batch) y al crear planos; aviso Info en el QA (no puntúa); planilla «RC rule-added bars» en la plantilla v30. |
 | [x] | T9.16 | Losas | D | COLUMN/MIDDLE STRIP, U en bordes libres, curtailment MD S1 de la 4.ª ed. |
-| [ ] | T9.17 | Vigas | D | Hanger bars, límites de apoyo, piel MD B1 4.ª ed., viga curva con radio/centro/estaciones |
+| [x] | T9.17 | Vigas | D | Hanger bars, límites de apoyo, piel MD B1 4.ª ed., viga curva con radio/centro/estaciones |
 | [ ] | T9.18 | Pilares | D | Cuantía ρ, zonas de solape y confinamiento, arranque con kicker 75/150 |
 | [ ] | T9.19 | Muros | D | Estilos distintos vertical/horizontal, MW4 completo |
 | [ ] | T9.20 | Cimentaciones | D | Bandas MF1, arranques acotados, tabla de pilotes |
