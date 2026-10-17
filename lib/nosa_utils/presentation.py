@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 IStructE SMDSC 4th ed. 6.2.2 presentation of bars on plans and elevations, no Revit: which sets are drawn as one
-typical bar, quantities in brackets for a mark in several zones, 'Alt.' / 'Stg.' between sets, and the
+typical bar, quantities in brackets for a mark in several zones, 'ALT' / 'STG' between sets, and the
 short 30 degree obliques at curtailed bar ends. Sets are described in the view's own 2D frame (mm):
 {'id', 'mark', 'count', 'bar_dir': (x, y), 'spread_dir': (x, y) or None, 'first': (x, y), 'last': (x, y),
  'ends': ((x, y), (x, y)), 'spacing'}.
@@ -55,7 +55,7 @@ def _overlap(i, j):
 
 def relation(a, b, tol_mm=5.0):
     """
-    'Alt.' when two sets of different marks interleave (same spacing, half a pitch apart), 'Stg.' when bars of
+    'ALT' when two sets of different marks interleave (same spacing, half a pitch apart), 'STG' when bars of
     one mark are staggered (their zones overlap, the bars shifted along their length); else None.
     """
     if not a.get('spread_dir') or not b.get('spread_dir'):
@@ -77,14 +77,14 @@ def relation(a, b, tol_mm=5.0):
     if abs(shift - sa / 2.0) > tol_mm:
         return None                                     # not interleaved half a pitch apart
     if a['mark'] != b['mark']:
-        return u'Alt.'
+        return u'ALT'
     if abs(ea[0] - eb[0]) > tol_mm or abs(ea[1] - eb[1]) > tol_mm:
-        return u'Stg.'
+        return u'STG'
     return None
 
 
 def relations(sets):
-    """[(id_a, id_b, 'Alt.' | 'Stg.')] for every related pair of sets in a view."""
+    """[(id_a, id_b, 'ALT' | 'STG')] for every related pair of sets in a view."""
     out = []
     for i in range(len(sets)):
         for j in range(i + 1, len(sets)):
@@ -398,12 +398,16 @@ def pile_table(piles, origin):
     return out
 
 
-def starter_chain(soffit, foot, top, bar_top):
+def starter_chain(soffit, foot, top, bar_top, mat=None):
     """
-    T9.20 beside a base section: the starters' cover under their feet, their embedment and their projection
-    above the base, as one vertical dimension string: ([points], [text per segment]); ([], []) when the bars do
-    not stand out of the base.
+    T9.20 beside a base section: the cover (soffit to the underside of the bottom mat `mat`), the starters' feet
+    on the mat, their embedment and their projection above the base, as one vertical dimension string:
+    ([points], [text per segment]); ([], []) when the bars do not stand out of the base. The feet sit on the mat,
+    so soffit to feet is no cover (user 2026-10-17): without `mat` no segment is called COVER.
     """
     if not (soffit < foot < top < bar_top):
         return [], []
-    return [soffit, foot, top, bar_top], [COVER_TEXT, u'', PROJECTION_TEXT]
+    if mat is not None and soffit < mat < foot:
+        # the feet sit on the mat, a bar size above its underside: no segment of their own, its text clashed
+        return [soffit, mat, top, bar_top], [COVER_TEXT, u'', PROJECTION_TEXT]
+    return [soffit, foot, top, bar_top], [u'', u'', PROJECTION_TEXT]

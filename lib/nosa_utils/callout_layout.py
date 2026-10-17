@@ -61,7 +61,8 @@ def place_inline(item, box, placed, gap, outside_gap, tries=12):
         across = (-out[1], out[0])
         step = item['height'] + gap
         c0, _bx = at(p, out, exit_distance(p, out, box) + outside_gap)
-        for k in (1, -1, 2, -2, 3, -3):
+        # up to 8 rows: clear of a column cut above a base before going further out (user 2026-10-17, F10)
+        for k in (1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6, 7, -7, 8, -8):
             c = (c0[0] + across[0] * step * k, c0[1] + across[1] * step * k)
             bx = text_box(c, out, item['length'], item['height'])
             if not any(overlap(bx, q, gap) for q in placed):
@@ -144,8 +145,13 @@ def pack(desired, widths, gap):
 
 
 def side_of(anchor, box):
-    """The member edge a bar's mark goes beyond: the nearest one."""
-    d = {'bottom': anchor[1] - box[1], 'top': box[3] - anchor[1], 'left': anchor[0] - box[0], 'right': box[2] - anchor[0]}
+    """
+    The member edge a bar's mark goes beyond: the nearest one; beside the member for a bar standing out above or
+    below it (a base's starters: over them is the column cut, user 2026-10-17).
+    """
+    if anchor[1] > box[3] or anchor[1] < box[1]:
+        return 'left' if anchor[0] < (box[0] + box[2]) / 2.0 else 'right'
+    d ={'bottom': anchor[1] - box[1], 'top': box[3] - anchor[1], 'left': anchor[0] - box[0], 'right': box[2] - anchor[0]}
     return min(d, key=d.get)
 
 

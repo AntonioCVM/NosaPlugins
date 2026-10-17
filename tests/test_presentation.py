@@ -29,13 +29,13 @@ def test_zone_quantities():
 
 def test_alternate_and_stagger():
     a, b = _set(1, u'63', 0, 10, 300), _set(2, u'64', 150, 10, 300)
-    assert pr.relation(a, b) == u'Alt.'
+    assert pr.relation(a, b) == u'ALT'
     assert pr.relation(a, _set(3, u'64', 100, 10, 300)) is None          # not half a pitch apart
     c = _set(4, u'63', 150, 10, 300, y0=800.0, y1=3800.0)
-    assert pr.relation(a, c) == u'Stg.'
+    assert pr.relation(a, c) == u'STG'
     d = _set(5, u'63', 0, 10, 300, y0=3000.0, y1=6000.0)
     assert pr.relation(a, d) is None                                      # end to end, two runs
-    assert pr.relations([a, b, c]) == [(1, 2, u'Alt.'), (1, 4, u'Stg.')]
+    assert pr.relations([a, b, c]) == [(1, 2, u'ALT'), (1, 4, u'STG')]
 
 
 def test_curtailed_ends_and_ticks():
@@ -148,5 +148,7 @@ def test_pile_table_and_starter_chain():
     assert rows[0][2] == [u'P1', u'-550', u'550', u'600', u'-0.825']          # top left first
     assert rows[3][2][1:3] == [u'550', u'-550']
     pts, labels = pr.starter_chain(-900.0, -825.0, 0.0, 1200.0)
-    assert pts == [-900.0, -825.0, 0.0, 1200.0] and labels == [pr.COVER_TEXT, u'', pr.PROJECTION_TEXT]
+    assert pts == [-900.0, -825.0, 0.0, 1200.0] and labels == [u'', u'', pr.PROJECTION_TEXT]
+    pts, labels = pr.starter_chain(-900.0, -818.0, 0.0, 1200.0, mat=-825.0)
+    assert pts == [-900.0, -825.0, 0.0, 1200.0] and labels[0] == pr.COVER_TEXT
     assert pr.starter_chain(-900.0, -825.0, 0.0, -10.0) == ([], [])

@@ -119,3 +119,10 @@ def test_place_beside_next_to_the_typical_bar():
 def test_place_beside_none_outside_the_member():
     assert cl.place_beside((50.0, 50.0), (1.0, 0.0), 1000.0, 200.0, (0.0, 0.0, 300.0, 300.0), [], [], 50.0,
                            125.0, 150.0) is None
+
+
+def test_side_of_a_bar_standing_out_is_beside():
+    box = (0.0, 0.0, 1000.0, 500.0)
+    assert cl.side_of((600.0, 900.0), box) == 'right'
+    assert cl.side_of((300.0, 900.0), box) == 'left'
+    assert cl.side_of((500.0, 480.0), box) == 'top'

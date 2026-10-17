@@ -46,7 +46,8 @@ def notes_text(concrete_grade, cover_typical, cover_slabs):
         u'5. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1. '
         u'Centres and layer are not given for beams and columns.',
         u'6. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer '
-        u'(see the layer notation key). EF each face, EW each way, Stg. staggered, Alt. alternate.',
+        u'(see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, '
+        u'ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).',
         u'7. Laps and anchorages to the table in the general notes (0900) unless dimensioned.',
     ]
     return u'\r'.join(lines)
@@ -152,19 +153,30 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         u'6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and '
         u'layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.',
         u'7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer '
-        u'notation key). EF each face, EW each way, Stg. staggered, Alt. alternate.',
-        u'8. Laps and anchorages to the table in the general notes (0900) unless dimensioned.',
+        u'notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate '
+        u'bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).',
+        u'8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent '
+        u'bars staggered unless shown otherwise.',
+        # good practice notes for every RC drawing (user 2026-10-17: IStructE)
+        u'9. Bars bent cold to BS 8666 (minimum mandrel sizes to its Table 2); no bar to be heated, welded or '
+        u'rebent on site without the engineer\'s approval.',
+        u'10. Construction joints only where shown or agreed with the engineer, the reinforcement continuous '
+        u'through them; no holes, chases or cast-in items other than those shown.',
+        u'11. Reinforcement fixed, tied and inspected before concreting; no substitution of bars without '
+        u'the engineer\'s approval.',
     ]
+    number = 12
     fixing = fixing_notes(kinds)
     if fixing:
-        lines.append(u'9. Fixing: ' + u' '.join(fixing))
+        lines.append(u'{}. Fixing: '.format(number) + u' '.join(fixing))
+        number += 1
     if buildability is not None:
         score, grade, errors, warns = buildability
         # T9.12: the drawing's buildability, from the reinforcement QA of its members
         lines.append(u'{}. Buildability check: {} ({:.0f}/100; {} error(s), {} warning(s)) - see the RC QA '
-                     u'report.'.format(10 if fixing else 9, grade, score, errors, warns))
+                     u'report.'.format(number, grade, score, errors, warns))
+        number += 1
     if details:
-        number = 9 + (1 if fixing else 0) + (1 if buildability is not None else 0)
         lines.append(u'{}. Typical details: {}{} (after the SMDSC 4th ed. model details; confirm with '
                      u'design).'.format(number, u', '.join(u'TD {} ({})'.format(k, md.replace(u'SMDSC 4th ed. ', u''))
                                                        for k, md in details),

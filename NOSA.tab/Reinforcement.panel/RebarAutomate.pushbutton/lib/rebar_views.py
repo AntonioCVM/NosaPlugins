@@ -87,6 +87,26 @@ def _extent(box, direction):
     return min(values), max(values)
 
 
+STARTER_LAYERS = (u'dowel', u'starter_link')
+
+
+def _starters_depth(host, origin, toward):
+    """How far (mm) behind a section's plane at `origin`, looking along -`toward`, the starters of a base reach."""
+    from Autodesk.Revit import DB  # Lazy import
+    deepest = 0.0
+    for r in host_rebars(host):
+        p = r.LookupParameter(u'NOSA_Rebar_Layer')
+        if p is None or (p.AsString() or u'').strip().lower() not in STARTER_LAYERS:
+            continue
+        bb = r.get_BoundingBox(None)
+        if bb is None:
+            continue
+        for x in (bb.Min.X, bb.Max.X):
+            for y in (bb.Min.Y, bb.Max.Y):
+                deepest = max(deepest, -_mm((DB.XYZ(x, y, origin.Z) - origin).DotProduct(toward)))
+    return deepest
+
+
 def _section(title, kind, origin, right, up, half_w, half_h, near, far):
     return {'title': title, 'kind': kind, 'plan': False, 'origin': origin, 'right': right.Normalize(),
             'up': up.Normalize(), 'half_w': half_w, 'half_h': half_h, 'near': near, 'far': far,
@@ -316,8 +336,13 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
             lo, hi = _extent(box, right)
             olo, ohi = _extent(box, other)
             origin = _clear_cut(solid, centre, right, other, lo, hi, olo, ohi)
+            far = 60.0
+            if kind == 'foundation':
+                # deep enough for the far row of starters and their links: 60 mm left them all out, the calling-up
+                # naming bars the section did not draw (user 2026-10-17, F10)
+                far = max(far, _starters_depth(host, origin, right.CrossProduct(z_axis).Normalize()) + 60.0)
             spec = _section(u'Section {0}-{0}'.format(letter), section_kind, origin, right, z_axis,
-                            _mm(hi - lo) / 2 + 300, thick / 2 + 300, 0.0, 60.0)
+                            _mm(hi - lo) / 2 + 300, thick / 2 + 300, 0.0, far)
             spec['letter'] = letter
             specs.append(spec)
     elif kind == 'wall':

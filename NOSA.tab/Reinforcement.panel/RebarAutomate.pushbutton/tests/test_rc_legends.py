@@ -70,7 +70,7 @@ def test_fixing_notes_and_buildability_line():
     assert rl.fixing_notes([u'Beams', u'Unknown'])[0].startswith(u'Beams: links tied')
     text, _w = rl.drawing_notes(u'4003', {u'Beams': u'C40/50'}, {u'Beams': (40.0, 40.0, 40.0)},
                                 buildability=(94.0, u'A', 0, 2))
-    assert u'9. Fixing: Beams:' in text and u'10. Buildability check: A (94/100; 0 error(s), 2 warning(s))' in text
+    assert u'12. Fixing: Beams:' in text and u'13. Buildability check: A (94/100; 0 error(s), 2 warning(s))' in text
 
 
 def test_drawing_notes_call_up_the_typical_details():

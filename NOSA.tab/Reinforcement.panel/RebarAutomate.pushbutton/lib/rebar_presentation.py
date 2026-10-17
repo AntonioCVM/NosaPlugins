@@ -5,7 +5,7 @@ nosa_utils.presentation and nosa_utils.callout_layout: each set lying in the vie
 typical bar (layers drawn over each other show different bars) with a Multi-Rebar Annotation as its indicator
 line and the calling-up on its extension outside the member; under a beam elevation its link zones '(n@pitch)'
 over one total calling-up per mark; in sections and elevations a mark over every cut bar and one per set lying
-in the view, in rows outside the member with pointers; 'Alt.' / 'Stg.'; a short 30 degree
+in the view, in rows outside the member with pointers; 'ALT' / 'STG'; a short 30 degree
 oblique at curtailed ends; bars detailed on another drawing dashed with 'SEE DRG' (see_drawing, once the
 view is on its sheet). Re-running replaces the bars' own annotations in the view. In a transaction.
 """
@@ -21,7 +21,7 @@ from nosa_utils.revit_helpers import get_id_value
 _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
-_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP|CH \\d+|'
+_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|ALT|STG|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP|CH \\d+|'
                        u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE|ρ = .*|P\\d+|CONFINEMENT ZONE|KICKER|'
                        u'(PILE|X \\(mm\\)|Y \\(mm\\)|DIA \\(mm\\)|CUT-OFF \\(m\\))[\\r\\n][\\s\\S]*)$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
@@ -356,7 +356,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     SMDSC 4th ed. 6.2.2 / 3.3 in `view` for `rebars` (det: the rebar_detailing module): typical bars, indicator lines
     with their calling-up outside the member, a mark over every bar a section or elevation cuts and one per set
     lying in it, in rows outside the member; under a beam elevation its link zones '(n@pitch)' over one total
-    calling-up per mark; 'Alt.' / 'Stg.', 30 degree ends. kind: the view_plan kind of the view.
+    calling-up per mark; 'ALT' / 'STG', 30 degree ends. kind: the view_plan kind of the view.
     Replaces the rebars' own annotations in the view.
     Returns {'typical', 'mra', 'marks', 'notes', 'ticks', 'inside'}.
     """
@@ -433,6 +433,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         report['sections'] = _section_refs(doc, view, sections, box, placed, scale, section_style, text_type)
     viewers = _viewer_boxes(doc, view) if plan else []
     placed.extend(viewers)                           # the section marks drawn on a plan (user 2026-10-12)
+    if kind == 'footing_section':
+        # the column cut above the base: its calling-up outside all cut concrete (user 2026-10-17, F10)
+        placed.extend(_other_concrete(doc, view, hosts or members))
     if hosts and elevation:
         # the levels first: the calling-up keeps off them (user 2026-10-12)
         report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
@@ -551,10 +554,63 @@ def _concrete_cut(doc, view, members):
             continue
 
 
-def _viewer_boxes(doc, view):
-    """View boxes (mm) of the section marks a plan draws, for the calling-up to keep off."""
+def _other_concrete(doc, view, hosts):
+    """View boxes (mm) of the columns and walls a section draws besides its members, cut to the view's crop."""
+    own = set(get_id_value(h.Id) for h in hosts if h is not None)
+    crop = _clip_to_crop(view, (-1e9, -1e9, 1e9, 1e9))
     out = []
+    for cat in (DB.BuiltInCategory.OST_StructuralColumns, DB.BuiltInCategory.OST_Walls):
+        for e in DB.FilteredElementCollector(doc, view.Id).OfCategory(cat).WhereElementIsNotElementType():
+            if get_id_value(e.Id) in own:
+                continue
+            bb = e.get_BoundingBox(None)
+            if bb is None:
+                continue
+            pts = [_xy(view, DB.XYZ(x, y, z)) for x in (bb.Min.X, bb.Max.X) for y in (bb.Min.Y, bb.Max.Y)
+                   for z in (bb.Min.Z, bb.Max.Z)]
+            b = (max(crop[0], min(p[0] for p in pts)), max(crop[1], min(p[1] for p in pts)),
+                 min(crop[2], max(p[0] for p in pts)), min(crop[3], max(p[1] for p in pts)))
+            if b[0] < b[2] and b[1] < b[3]:
+                out.append(b)
+    return out
+
+
+VIEWER_HEAD_PAPER_MM = 9.0     # round a section mark's head on a plan: its bubble and arrow
+
+
+def _viewer_boxes(doc, view):
+    """
+    View boxes (mm) of the section marks a plan draws, for the calling-up to keep off: each one's cut line and its
+    two heads - not the box of its depth, which covered the member and drove every text far off it (user
+    2026-10-17, F10 plan).
+    """
+    out = []
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    head = VIEWER_HEAD_PAPER_MM * scale
+    sections = {}
+    for v in DB.FilteredElementCollector(doc).OfClass(DB.ViewSection):
+        try:
+            sections.setdefault(v.Name, v)
+        except Exception:
+            continue
     for viewer in DB.FilteredElementCollector(doc, view.Id).OfCategory(DB.BuiltInCategory.OST_Viewers):
+        line = None
+        section = sections.get(viewer.Name)
+        if section is not None:
+            try:
+                crop = section.CropBox
+                t = crop.Transform
+                line = (_xy(view, t.OfPoint(DB.XYZ(crop.Min.X, 0.0, crop.Max.Z))),
+                        _xy(view, t.OfPoint(DB.XYZ(crop.Max.X, 0.0, crop.Max.Z))))
+            except Exception:
+                line = None
+        if line is not None and (abs(line[1][0] - line[0][0]) + abs(line[1][1] - line[0][1])) > 1.0:
+            a, b = line
+            out.append((min(a[0], b[0]) - head / 6.0, min(a[1], b[1]) - head / 6.0,
+                        max(a[0], b[0]) + head / 6.0, max(a[1], b[1]) + head / 6.0))
+            for p in (a, b):
+                out.append((p[0] - head, p[1] - head, p[0] + head, p[1] + head))
+            continue
         try:
             bb = viewer.get_BoundingBox(view)
         except Exception:
@@ -1421,6 +1477,9 @@ def _openings(view, host):
     return [b for b in loops if b is not outer]
 
 
+OPENING_RULE_LAYERS = (u'trimmer', u'diagonal', u'opening_ubar')
+
+
 def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
     """
     T9.2 on a slab or base plan (SMDSC 4th ed. 3.13, 4th ed. Fig. 6.24): each opening set out from the edges, a string
@@ -1443,6 +1502,8 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
             placed.append((x - row / 2.0, box[1], x + row / 2.0, box[3]))
             made += 1
     for d in zones:
+        if (d.get('layer') or u'').lower().startswith(OPENING_RULE_LAYERS):
+            continue                      # trimmers and diagonals: their reach is MD OP1's, not a dimension each
         rebar = d['rebar']
         line, free = _free_ends(_centreline(rebar, _shown_bar(view, rebar, d['count'])))
         if line is None or not free:
@@ -1784,9 +1845,20 @@ def _starter_dims(doc, view, rebars, box, placed, scale, style):
     embedment and their projection above the base (SMDSC 4th ed. MD F1 / 6.7.3). Returns 1 when drawn.
     """
     from nosa_utils import presentation
-    tops, feet = [], []
+    tops, feet, mat = [], [], []
     for r in rebars:
-        if _text(r, u'NOSA_Rebar_Layer').strip().lower() != u'dowel':
+        layer = _text(r, u'NOSA_Rebar_Layer').strip().lower()
+        if layer.startswith(u'bottom'):
+            # the underside of the bottom mat: the real cover is to it, not to the starters' feet on it
+            try:
+                radius = doc.GetElement(r.GetTypeId()).BarModelDiameter * _MM_PER_FT / 2.0
+                for i in sorted(set((0, r.NumberOfBarPositions - 1))):
+                    for c in _centreline(r, i) or []:
+                        mat.extend(_xy(view, c.GetEndPoint(k))[1] - radius for k in (0, 1))
+            except Exception:
+                pass
+            continue
+        if layer != u'dowel':
             continue
         try:
             n = r.NumberOfBarPositions
@@ -1800,7 +1872,7 @@ def _starter_dims(doc, view, rebars, box, placed, scale, style):
             continue
     if not tops:
         return 0
-    xs, labels = presentation.starter_chain(box[1], min(feet), box[3], max(tops))
+    xs, labels = presentation.starter_chain(box[1], min(feet), box[3], max(tops), min(mat) if mat else None)
     if not xs:
         return 0
     row = ROW_PAPER_MM * scale
