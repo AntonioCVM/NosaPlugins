@@ -132,3 +132,11 @@ def test_strip_bands():
     assert mr.strip_bands_mm(0.0, 3000.0, [1000.0, 1500.0], 2000.0) == [(0.0, 500.0, mr.MIDDLE_STRIP),
                                                                         (500.0, 2000.0, mr.COLUMN_STRIP),
                                                                         (2000.0, 3000.0, mr.MIDDLE_STRIP)]
+
+
+def test_trimmers_contact_or_clear_never_between():
+    rows = [22350.0 + 150.0 * k for k in range(-3, 4)]
+    out = mr.clear_of_rows([22368.0, 22418.0, 22468.0], rows, 16.0, 16.0, 1.0)
+    for t in out:
+        d = min(abs(t - r) for r in rows)
+        assert d >= 17.6 + 25.0 - 1e-6 or 17.6 - 1e-6 <= d <= 17.6 + 1.0

@@ -17,6 +17,7 @@ STOCK_MM = 12000.0         # SMDSC 4.2.4: commercial length
 VIBRATOR_GAP_MM = 75.0     # SMDSC MB1: a 75 mm poker gap for every 300 mm of beam width
 VIBRATOR_WIDTH_MM = 300.0
 CLASH_TOL_MM = 3.0        # modelling tolerance between straight bars
+CONTACT_TOL_MM = 2.0      # two parallel bars this close to touching (real size) are a pair or a lap in contact
 PARALLEL_COS = 0.996
 MAX_SEGMENTS = 4000
 
@@ -154,7 +155,8 @@ def pair_issue(dist_mm, cos, overlap_mm, dia1_mm, dia2_mm, aggregate_mm=AGGREGAT
     limit = max(touch - (min(dia1_mm, dia2_mm) if bend else CLASH_TOL_MM), 0.5 * touch)
     if dist_mm < limit:
         return ERROR, u'clash: centrelines {:.0f} mm apart, bars {:.0f} + {:.0f}'.format(dist_mm, dia1_mm, dia2_mm)
-    if cos >= PARALLEL_COS and overlap_mm > 0.0 and dist_mm > 1.05 * touch:
+    # bars in contact, a pair or a lap (SMDSC 5.2.5, EC2 8.7.2), are not congestion: only a gap under the minimum
+    if cos >= PARALLEL_COS and overlap_mm > 0.0 and dist_mm > REAL_DIA * touch + CONTACT_TOL_MM:
         clear = dist_mm - REAL_DIA * touch
         need = min_clear_mm(max(dia1_mm, dia2_mm), aggregate_mm)
         if clear < need - 0.5:
@@ -785,7 +787,10 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
                 add(rebar, mark, u'Clear spacing', WARNING, issue)
             most = max_pitch_mm(kind, depth)
             flat = abs(u[2]) < 0.3 if kind in (u'slab', u'foundation') else True
-            if most and flat and spacing > most + 1.0:
+            # the largest pitch is the mesh's: bars a rule adds (trimmers, U-bars, diagonals) are set out by the hole
+            from nosa_utils import rule_flags
+            meshed = not rule_flags.rule_for(_text(rebar, u'NOSA_Rebar_Layer'))
+            if most and flat and meshed and spacing > most + 1.0:
                 add(rebar, mark, u'Pitch', WARNING, u'pitch {:.0f} mm over the {:.0f} allowed (SMDSC 6.{})'.format(
                     spacing, most, {u'slab': 2, u'wall': 5, u'foundation': 7}[kind]))
             if kind in (u'slab', u'foundation') and flat or kind == u'wall' and abs(u[2]) > 0.7:

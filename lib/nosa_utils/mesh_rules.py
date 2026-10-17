@@ -482,3 +482,42 @@ def stair_review(throat_mm, cover_mm, main_dia, main_spacing, dist_dia, dist_spa
     if main_dia < SLAB_MIN_DIA_MM:
         notes.append(u'{}: H{:.0f} main bars under the preferred H10 (SMDSC 6.2).'.format(label, main_dia))
     return main_spacing, dist_spacing, top_spacing, _unique(notes)
+
+
+TRIMMER_CLEAR_MM = 25.0       # SMDSC 5.2.5 / EC2 8.2: the least clear gap from a trimmer to a mesh bar
+
+
+def clear_of_rows(positions, rows, own_dia_mm, row_dia_mm, outward, step_mm=5.0, clear_mm=TRIMMER_CLEAR_MM):
+    """
+    Trimmer positions across their bars, the group moved away from the opening (outward +1 / -1) as one, keeping
+    its pitch, until every trimmer stands the clear gap from every mesh row, or failing that touches it (QA
+    2026-10-17: S10's trimmers lay 2 mm into a mat bar, W10's 12 mm from the wall mesh). Real bar sizes (+10 %).
+    """
+    touch = 1.1 * (own_dia_mm + row_dia_mm) / 2.0
+    full = touch + clear_mm
+
+    def fits(moved, contact):
+        # each trimmer the clear gap from every row - or, failing that, in contact with one: never in between
+        return all(abs(m - r) >= full or (contact and touch - 1e-6 <= abs(m - r) <= touch + 1.0)
+                   for m in moved for r in rows)
+    for contact in (False, True):        # else in contact with the mesh bar, a pair (SMDSC 5.2.5), never through it
+        shift = 0.0
+        while shift <= 4.0 * (full + step_mm):
+            moved = [q + outward * shift for q in positions]
+            if fits(moved, contact):
+                return moved
+            shift += 1.0 if contact else step_mm
+    # no shift fits the whole group (3 trimmers at 50 between rows at 150): each one, outward in turn, at the
+    # first place that fits, at least the group's pitch past the one before
+    order = sorted(positions, key=lambda q: outward * q)
+    pitch = min(abs(b - a) for a, b in zip(order, order[1:])) if len(order) > 1 else 0.0
+    out, at = [], order[0]
+    for q in order:
+        at = max(at, q) if outward > 0 else min(at, q)
+        tries = 0
+        while not fits([at], True) and tries < 1000:
+            at += outward
+            tries += 1
+        out.append(at)
+        at += outward * pitch
+    return out

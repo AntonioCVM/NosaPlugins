@@ -421,6 +421,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         pointers.append(d)
     _notes(doc, visible)
     elevation = kind in ELEVATION_KINDS
+    if kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members):
+        report['styles'] = _wall_styles(doc, view, visible)
     beam_elevation = not plan and kind in (None, 'elevation') and any(
         m is not None and m.Category is not None and
         get_id_value(m.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFraming) for m in members)
@@ -1519,6 +1521,34 @@ def _strips(doc, view, hosts, box, placed, scale, style, text_type):
             else:
                 placed.append((x - text_h, box[1], x + gap, box[3]))
     return made
+
+
+WALL_VERTICAL_PEN = 5      # T9.19: a wall elevation's vertical bars heavier than its horizontal ones
+WALL_HORIZONTAL_PEN = 2
+
+
+def _wall_styles(doc, view, rebars):
+    """
+    T9.19 on a wall elevation: vertical and horizontal bars told apart by their line weight (the verticals heavy,
+    the horizontals light), so the two layers of each face read at a glance. Returns how many bars restyled.
+    """
+    n = 0
+    for r in rebars:
+        line = _main_line(r, 0)
+        if line is None:
+            continue
+        pen = WALL_VERTICAL_PEN if abs(line.Direction.Z) > 0.9 else (
+            WALL_HORIZONTAL_PEN if abs(line.Direction.Z) < 0.1 else None)
+        if pen is None:
+            continue
+        try:
+            ogs = view.GetElementOverrides(r.Id)
+            ogs.SetProjectionLineWeight(pen)
+            view.SetElementOverrides(r.Id, ogs)
+            n += 1
+        except Exception:
+            continue
+    return n
 
 
 def _is_column(host):

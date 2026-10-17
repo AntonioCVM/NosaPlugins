@@ -94,3 +94,8 @@ def test_distribution_pitch_md_s1():
             ('tx', u'top', 260.0, 12.0, 200.0), ('ty', u'top', 248.0, 10.0, 200.0)]
     issues = qa.distribution_issues(rows, 300.0)
     assert [k for k, _i in issues] == ['by'] and u'MD S1' in issues[0][1]
+
+
+def test_bars_in_contact_are_not_congested():
+    assert qa.pair_issue(1.1 * 12.0 + 0.5, 1.0, 500.0, 12.0, 12.0) is None       # a hole U-bar beside its cut bar
+    assert qa.pair_issue(25.0, 1.0, 500.0, 12.0, 12.0)[0] == qa.WARNING           # a 12 mm gap is congestion

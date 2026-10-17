@@ -53,3 +53,15 @@ def test_side_trimmers_cross_head_trimmers_in_contact():
     assert wr.crossing_depth_mm(40.0, 16.0, heads) == 40.0      # already clear
     c = wr.crossing_depth_mm(0.0, 20.0, [(0.0, 20.0)])          # thin wall, one bar each in the middle
     assert abs(c - 22.0) < 1e-6
+
+
+def test_hole_ubars_beside_the_cut_rows():
+    spots = wr.beside_rows_mm([1900.0, 2100.0, 2300.0, 2500.0], 2000.0, 2600.0, 12.0, 12.0)
+    assert [round(x, 1) for x in spots] == [2113.2, 2313.2, 2513.2]
+    assert wr.beside_rows_mm([1900.0], 2000.0, 2600.0, 12.0, 12.0) == []
+
+
+def test_trimmer_clear_of_mesh_rows():
+    from nosa_utils import mesh_rules
+    z = mesh_rules.clear_of_rows([2140.0], [2096.0, 2296.0], 16.0, 12.0, 1.0)[0]
+    assert all(abs(z - r) >= 1.1 * 14.0 + 25.0 - 1e-6 for r in (2096.0, 2296.0))

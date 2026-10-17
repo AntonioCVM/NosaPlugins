@@ -1790,24 +1790,7 @@ def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia
     return [(layer, dia, g) for (layer, dia), g in sorted(groups.items())], notes
 
 
-TRIMMER_CLEAR_MM = 25.0       # SMDSC 5.2.5 / EC2 8.2: the least clear gap from a trimmer to a mat bar
-
-
-def clear_of_rows(positions, rows, own_dia_mm, row_dia_mm, outward, step_mm=5.0, clear_mm=TRIMMER_CLEAR_MM):
-    """
-    Trimmer positions across their bars, the group moved away from the opening (outward +1 / -1) as one, keeping
-    its pitch, until every trimmer stands the clear gap from every mat row, or failing that touches it (QA
-    2026-10-17: S10's trimmers lay 2 mm into a mat bar). Real bar sizes (+10 %).
-    """
-    for gap in (clear_mm, 0.0):          # else in contact with the mat bar, a pair (SMDSC 5.2.5), never through it
-        need = 1.1 * (own_dia_mm + row_dia_mm) / 2.0 + gap
-        shift = 0.0
-        while shift <= 4.0 * (need + step_mm):
-            moved = [q + outward * shift for q in positions]
-            if all(abs(m - r) >= need for m in moved for r in rows):
-                return moved
-            shift += step_mm
-    return list(positions)
+from nosa_utils.mesh_rules import TRIMMER_CLEAR_MM, clear_of_rows  # noqa: E402,F401 (shared with the walls)
 
 
 def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals):
@@ -1863,7 +1846,14 @@ def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, d
                         normal = DB.XYZ(sign, 0.0, 0.0)
                     grouped = groups.setdefault((layer, dia), {'sets': [], 'bars': []})
                     curves = [DB.Line.CreateBound(p, q)]
-                    if len(across) > 1:
+                    steps = [abs(b - a) for a, b in zip(across, across[1:])]
+                    if steps and any(abs(t - pitch) > 0.5 for t in steps):
+                        # placed one by one between the mat rows (clear_of_rows' last resort): loose bars
+                        for a in across:
+                            shift = DB.XYZ(0.0, (a - across[0]) / _MM_PER_FT, 0.0) if axis == u'x' else                                 DB.XYZ((a - across[0]) / _MM_PER_FT, 0.0, 0.0)
+                            grouped['bars'].append({'curves': [DB.Line.CreateBound(p + shift, q + shift)],
+                                                    'normal': normal, 'label': u'Floor Opening Trimmer'})
+                    elif len(across) > 1:
                         grouped['sets'].append({'curves': curves, 'normal': normal, 'spacing_mm': pitch + 0.01,
                                                 'array_length_mm': pitch * (len(across) - 1),
                                                 'label': u'Floor Opening Trimmer'})
