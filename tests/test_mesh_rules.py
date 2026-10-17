@@ -146,3 +146,7 @@ def test_trimmer_reach_is_the_anchorage_450_min():
     assert mr.trimmer_reach_mm(400.0) == 450.0          # H10: the 4th ed. minimum governs
     assert mr.trimmer_reach_mm(640.0) == 640.0          # H16: its l_bd
     assert mr.trimmer_reach_mm(None) == 450.0
+
+
+def test_distribution_pitch_is_a_float():
+    assert isinstance(mr.distribution_pitch_mm(200.0, 10.0), float)

@@ -758,3 +758,9 @@ same = column_rebar.apply_lap_zones([{'start_mm': 50.0, 'end_mm': 400.0, 'spacin
                                     [(0.0, 1125.0)], 200.0)
 assert same == [{'start_mm': 50.0, 'end_mm': 400.0, 'spacing_mm': 150.0}]   # already closer
 print("apply_lap_zones: links along each lap at the lap pitch, the rest untouched: OK")
+
+short = column_rebar.apply_lap_zones([{'start_mm': 475.0, 'end_mm': 2025.0, 'spacing_mm': 200.0}],
+                                     [(0.0, 505.0)], 120.0)
+assert short[0]['start_mm'] == 475.0 and short[0]['end_mm'] - short[0]['start_mm'] >= 120.0 - 1e-6
+assert all(z['end_mm'] - z['start_mm'] >= 0.0 for z in short) and short[1]['spacing_mm'] == 200.0
+print("apply_lap_zones: no piece shorter than its pitch (two links 30 mm apart): OK")

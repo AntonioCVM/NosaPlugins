@@ -374,7 +374,8 @@ def confinement_zones(zones, tol=0.99):
     if len(set(round(p) for p in pitches)) < 2:
         return []
     general = max(pitches)
-    return sorted((a, b) for a, b, p in zones if 0.0 < p < tol * general)
+    # a zone of two links or fewer is a set's remainder, not a confinement zone (2026-10-17: a 30 mm 'zone' at C3)
+    return sorted((a, b) for a, b, p in zones if 0.0 < p < tol * general and b - a >= 2.0 * p - 1e-6)
 
 
 PILE_HEADERS = (u'PILE', u'X (mm)', u'Y (mm)', u'DIA (mm)', u'CUT-OFF (m)')

@@ -2106,6 +2106,12 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 wrapper, host, freeform_candidates, bar_type, None, label, layer, created_rebars)
         fallback_bars = [b for b in loose_bars
                           if b.get('style') is not None or b.get('is_hole')]
+        # a lone straight bar is a bar of its own, with its own mark and real Shape: a FreeForm group of them
+        # drew S20's two edge rows, 4770 apart, as one set (2026-10-17)
+        straight = [b for b in freeform_candidates
+                    if len(b['curves']) == 1 and isinstance(b['curves'][0], DB.Line)]
+        fallback_bars = fallback_bars + straight
+        freeform_candidates = [b for b in freeform_candidates if not any(b is s for s in straight)]
 
         if len(freeform_candidates) >= 2:
             curve_groups = [b['curves'] for b in freeform_candidates]

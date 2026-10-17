@@ -244,7 +244,7 @@ def distribution_pitch_mm(depth_mm, dia_mm):
         return None
     for d, pitch in zip(MD_S1_DEPTHS, row):
         if depth_mm <= d + 1e-6:
-            return pitch
+            return float(pitch) if pitch is not None else None    # a float: IronPython formats no int as {:.0f}
     return None
 
 

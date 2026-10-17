@@ -55,22 +55,18 @@ def host_rebars(element):
 
 
 def host_label(element):
-    """The element's Mark, else the BBS partition of its bars, else its id."""
+    """
+    The element's Mark, else its id: never its bars' BBS partition, which another member's Mark can read the same
+    (2026-10-17: an unmarked column drawn as a second 'C1').
+    """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import get_id_value
     try:
         mark = (element.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK).AsString() or u'').strip()
         if mark:
             return mark
-    except Exception:  # nosa-lint: disable=NOSA006 - no Mark parameter: the next source applies
+    except Exception:  # nosa-lint: disable=NOSA006 - no Mark parameter: the id applies
         pass
-    for rebar in host_rebars(element):
-        try:
-            partition = rebar.get_Parameter(DB.BuiltInParameter.NUMBER_PARTITION_PARAM).AsString()
-            if partition:
-                return partition
-        except Exception:
-            continue
     return u'{}'.format(get_id_value(element.Id))
 
 
@@ -502,7 +498,7 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
             import bar_schedules
             bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0], force=True)
             grade = _buildability(doc, group['hosts'], report)
-            td_sheet, typical = _typical(doc, group['hosts'], group['rebars'], titleblock)
+            td_sheet, typical = _typical(doc, group['hosts'], group['rebars'], titleblock, sheet_numbers)
             for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                 if sheet.SheetNumber in sheets:
                     report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
@@ -816,10 +812,12 @@ def _rollback_on_error():
     return RollbackOnError()
 
 
-def _typical(doc, hosts, rebars, titleblock):
+def _typical(doc, hosts, rebars, titleblock, sheet_numbers=None):
     """
-    T9.21: the NOSA typical details these members call for (their kinds, the bar layers on them, piles under a
-    cap), placed on the typical details drawing. (its number, [(key, model detail)]).
+    T9.21: the typical details these members call for (their kinds, the bar layers on them, piles under a cap),
+    placed on the typical details drawing - made, when missing, with the next of the numbers reserved for this run
+    (sheet_numbers; 2026-10-17: it took a free number the walls drawing then found in use). (its number,
+    [(key, model detail)]).
     """
     import rc_legends
     import rebar_presentation
@@ -832,7 +830,8 @@ def _typical(doc, hosts, rebars, titleblock):
     piled = any(host_kind(h) == 'foundation' and rebar_presentation._piles_under(doc, h) for h in hosts)
     keys = typical_details.needed([host_kind(h) for h in hosts], layers, piled)
     try:
-        return rc_legends.typical_details(doc, keys, titleblock)
+        return rc_legends.typical_details(doc, keys, titleblock, number=(
+            (lambda: sheet_numbers.pop(0)) if sheet_numbers else None))
     except Exception:
         from nosa_utils.telemetry import log_swallowed
         log_swallowed(u'rebarautomate', u'typical details')
@@ -1152,7 +1151,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 import bar_schedules
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
                 # SMDSC 4th ed. 3.7 (T9.6): each drawing's notes from what is on it
-                td_sheet, typical = _typical(doc, hosts, rebars, titleblock)
+                td_sheet, typical = _typical(doc, hosts, rebars, titleblock, sheet_numbers)
                 for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                     if sheet.SheetNumber in report['sheets']:
                         report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars,

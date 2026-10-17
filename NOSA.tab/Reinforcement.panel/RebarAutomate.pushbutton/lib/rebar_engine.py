@@ -866,10 +866,15 @@ def starter_link_set(bar_lines, hand, foundation, link_dia_mm, bar_dia_mm, cover
         return None
     top_mm = bbox.Max.Z * _MM_PER_FT - cover_mm - link_dia_mm / 2.0
     feet_mm = min(line.GetEndPoint(0).Z for line in bar_lines) * _MM_PER_FT
-    levels = links.starter_link_levels_mm(top_mm, feet_mm + 2.0 * bar_dia_mm + link_dia_mm / 2.0)
+    # the lowest link clear of the starters' bend into their feet: BS 8666 mandrels give it up to 4 dia. to the
+    # bar's axis (H20 and over), so 6 dia. + a link: some 50 mm over the bend (2026-10-17: at 2 dia. it ran
+    # through the bends of F10, at 4.5 dia. it touched their tops)
+    levels = links.starter_link_levels_mm(top_mm, feet_mm + 6.0 * bar_dia_mm + link_dia_mm)
     if not levels:
         return None
-    e = bar_dia_mm / 2.0 + link_dia_mm / 2.0
+    # round the bars at their real size (+10 %) and 2 mm more: Revit seats a link shape up to 5 mm inwards on one
+    # side (2026-10-17: F10's links ran 10 mm from the starters' axes, through the bars)
+    e = 1.1 * (bar_dia_mm + link_dia_mm) / 2.0 + 2.0
     corners_uv = ((u0 - e, v0 - e), (u1 + e, v0 - e), (u1 + e, v1 + e), (u0 - e, v1 + e))
 
     def _loop(z_mm):

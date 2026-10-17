@@ -467,11 +467,12 @@ def _empty(doc, view):
             pass
 
 
-def typical_details(doc, keys, titleblock=None, redraw=False):
+def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
     """
     T9.21: the typical details `keys` as legends (drawn when missing, or again with redraw) on the project's
     typical details drawing, made with `titleblock` when missing; legends still under their old 'NOSA TD' names
-    are renamed. In a transaction. Returns (its number or '', [(key, model detail)]).
+    are renamed. number: a callable giving the drawing's number when it has to be made (the caller's reserved
+    numbers), else the next free RC number. In a transaction. Returns (its number or '', [(key, model detail)]).
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils import typical_details as td
@@ -501,7 +502,8 @@ def typical_details(doc, keys, titleblock=None, redraw=False):
     if sheet is None and titleblock is not None:
         try:
             sheet = DB.ViewSheet.Create(doc, titleblock.Id)
-            sheet.SheetNumber = view_plan.next_sheet_numbers([s.SheetNumber for s in sheets], 1)[0]
+            sheet.SheetNumber = number() if number is not None else \
+                view_plan.next_sheet_numbers([s.SheetNumber for s in sheets], 1)[0]
             sheet.Name = TYPICAL_SHEET_NAME
         except Exception:
             sheet = None

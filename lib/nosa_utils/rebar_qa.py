@@ -753,6 +753,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
     axis_curve, axis = _beam_axis(host) if kind == u'beam' else (None, None)
     top_layer = []                    # beam: (position across, dia) of the top bars at mid span
     mats = {}                         # slab: {(face, direction): (rebar, mark, height, dia, pitch)}
+    pitches = {}                      # ... and every pitch each mat layer is laid at
 
     done = set()
 
@@ -808,6 +809,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
             layer = _text(rebar, u'NOSA_Rebar_Layer').strip().lower()
             if kind == u'slab' and flat and MAT_LAYER.match(layer):
                 key = (layer.split(u'_')[0], layer.split(u'_')[1])
+                pitches.setdefault(key, set()).add(int(round(spacing / 5.0)))
                 if key not in mats or spacing > mats[key][4]:
                     mats[key] = (rebar, mark, (main[0][2] + main[1][2]) / 2.0, dia, spacing)
         if kind == u'column' and abs(u[2]) > 0.9:
@@ -861,7 +863,10 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
         if issue:
             out.append(Finding(u'', label, u'', u'Steel ratio', WARNING, issue, host.Id))
     if mats and depth > 0.0:
-        rows = [((face, axis_), face, v[2], v[3], v[4]) for (face, axis_), v in mats.items()]
+        # a layer laid at several pitches is in column and middle strips (a flat slab, main both ways): the
+        # MD S1 distribution table is not its rule (2026-10-17, S20)
+        rows = [((face, axis_), face, v[2], v[3], v[4]) for (face, axis_), v in mats.items()
+                if len(pitches.get((face, axis_), ())) < 2]
         for key, issue in distribution_issues(rows, depth):
             rebar, mark = mats[key][0], mats[key][1]
             add(rebar, mark, u'Distribution pitch', WARNING, issue)

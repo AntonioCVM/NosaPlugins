@@ -138,6 +138,7 @@ def test_column_ratio_and_confinement():
     assert u'OVER 4 %' in pr.steel_ratio_text([(12, 32.0)], 300.0 * 300.0)
     assert pr.confinement_zones([(0, 600, 100), (600, 2400, 200), (2400, 3000, 100)]) == [(0, 600), (2400, 3000)]
     assert pr.confinement_zones([(0, 3000, 200)]) == []
+    assert pr.confinement_zones([(0, 30, 100), (30, 2400, 200), (2400, 3000, 100)]) == [(2400, 3000)]
 
 
 def test_pile_table_and_starter_chain():

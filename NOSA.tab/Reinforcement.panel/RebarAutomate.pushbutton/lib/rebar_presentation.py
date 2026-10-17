@@ -22,7 +22,7 @@ _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
 _OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP|CH \\d+|'
-                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE|ρ = .*|P\\d+|'
+                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE|ρ = .*|P\\d+|CONFINEMENT ZONE|KICKER|'
                        u'(PILE|X \\(mm\\)|Y \\(mm\\)|DIA \\(mm\\)|CUT-OFF \\(m\\))[\\r\\n][\\s\\S]*)$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
 
@@ -1583,13 +1583,23 @@ def _confinement(doc, view, zones, box, placed, scale, style):
         dim = _dimension_chain(doc, view, [lo, hi], x, view.Origin, scale, style, vertical=True)
         if dim is None:
             continue
-        try:
-            dim.Below = presentation.CONFINEMENT_TEXT
-        except Exception:
-            pass
+        # read level beside the string: along it the words outran a zone of 720 at 1:50 (2026-10-17)
+        _side_note(doc, view, x, (lo + hi) / 2.0, presentation.CONFINEMENT_TEXT, scale)
         placed.append((x - row / 2.0, lo, x + row / 2.0, hi))
         made += 1
     return made
+
+
+def _side_note(doc, view, x, y, text, scale):
+    """A level note just right of a vertical dimension string at x, centred on y (view mm)."""
+    try:
+        type_id = doc.GetDefaultElementTypeId(DB.ElementTypeGroup.TextNoteType)
+        opts = DB.TextNoteOptions(type_id)
+        opts.HorizontalAlignment = DB.HorizontalTextAlignment.Left
+        at = _point(view, (x + 2.0 * GAP_PAPER_MM * scale, y + TEXT_PAPER_MM * scale / 2.0), view.Origin)
+        return DB.TextNote.Create(doc, view.Id, at, text, opts)
+    except Exception:
+        return None
 
 
 def _kicker(doc, view, hosts, box, placed, scale, style):
@@ -1629,10 +1639,7 @@ def _kicker(doc, view, hosts, box, placed, scale, style):
     dim = _dimension_chain(doc, view, [foot, foot + kicker], x, view.Origin, scale, style, vertical=True)
     if dim is None:
         return 0
-    try:
-        dim.Below = presentation.KICKER_TEXT
-    except Exception:
-        pass
+    _side_note(doc, view, x, foot + kicker / 2.0, presentation.KICKER_TEXT, scale)
     placed.append((x - row / 2.0, foot, x + row / 2.0, foot + kicker))
     return 1
 

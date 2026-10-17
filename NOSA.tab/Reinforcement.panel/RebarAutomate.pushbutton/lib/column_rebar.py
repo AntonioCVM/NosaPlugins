@@ -2061,6 +2061,18 @@ def apply_lap_zones(zones, lap_ranges_mm, lap_spacing_mm):
                 pieces[-1][1] = b
             else:
                 pieces.append([a, b, pitch])
+        # a piece shorter than its pitch held two links 30 mm apart (C3, 2026-10-17): it runs a whole pitch, the
+        # next piece starting after it
+        k = 0
+        while k < len(pieces) - 1:
+            a, b, pitch = pieces[k]
+            if b - a < pitch - 1e-6:
+                pieces[k][1] = min(a + pitch, pieces[k + 1][1])
+                pieces[k + 1][0] = pieces[k][1]
+                if pieces[k + 1][1] - pieces[k + 1][0] < 1e-6:
+                    del pieces[k + 1]
+                    continue
+            k += 1
         start = s
         for k, (a, b, pitch) in enumerate(pieces):
             if k:
