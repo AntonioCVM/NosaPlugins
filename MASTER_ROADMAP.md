@@ -340,6 +340,25 @@ cercos `(13@100)` por zona con cota + una llamada total; elementos del mismo tip
 | [x] | T9.21 | Biblioteca de detalles tipo | D | MD de la 4.ª ed. insertados por condición |
 | [x] | T9.22 | Reglas frente a la 4.ª ed. | – | Cada regla de `nosa_utils` con edición y cláusula; diferencias 3.ª → 4.ª aplicadas |
 
+## Fase 10 — Interfaz de RebarAutomate (petición del usuario 2026-10-17)
+
+Análisis y propuesta en [docs/FASE10_INTERFAZ_RA.md](docs/FASE10_INTERFAZ_RA.md). Todo en la rama `feature/ra-ui-v2`;
+la interfaz actual no cambia en `develop`/`main` hasta que el usuario la apruebe.
+
+| | ID | Tarea | Oleada | Alcance / criterio de aceptación |
+|---|---|---|:-:|---|
+| [ ] | T10.1 | Maqueta navegable | A | Maqueta HTML de la ventana (todas las secciones, modo claro/oscuro) aprobada por el usuario antes de tocar el XAML |
+| [ ] | T10.2 | Navegación lateral | A | Project · Slabs · Bases · Beams · Columns · Walls · Stairs · Drawings · Schedules & Export · Check & Manage; abre en el elemento seleccionado |
+| [ ] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced en cada elemento; Footings & Slabs separados |
+| [ ] | T10.4 | Barras de selección y de acción | A | Selección resumida arriba; GENERATE, resultado y «siguiente paso» fijos abajo |
+| [ ] | T10.5 | Aspecto NOSA | B | Cards de NosaTheme, iconos vectoriales, espaciado 8 pt, modo oscuro revisado |
+| [ ] | T10.6 | Vista previa grande | B | Sección y alzado a escala con colores de material y capas; insignia QA A+/A/B/C |
+| [ ] | T10.7 | SMDSC defaults y validación | C | Botón que rellena con las tablas (MD W1, MD S1, MD B1…); validación en línea con la regla en el tooltip |
+| [ ] | T10.8 | Mostrar solo lo que aplica | C | Sin «(… only)»: las opciones se muestran según la selección |
+| [ ] | T10.9 | Resultado útil | C | Resumen antes de generar; notas pulsables que seleccionan el elemento; recuerda pestaña y valores |
+| [ ] | T10.10 | Textos 4.ª ed. | D | Inglés británico, citas de la 4.ª ed. en todo el XAML, tooltips con cláusula |
+| [ ] | T10.11 | Validación y versiones | E | Test de XAML; prueba en 2024 y luego 2025–2027; capturas antes/después; merge tras aprobación |
+
 ## Orden y dependencias
 
 ```
