@@ -1637,7 +1637,7 @@
                                     HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
                             <Button Name="BtnBarSchedules" Content="Create A4 Bar Schedules (5500 series)"
                                     Click="BarSchedules_Click" HorizontalAlignment="Stretch" Margin="0,0,0,8"
-                                    ToolTip="IStructE SMDSC 4.5.1: separate A4 schedules for each reinforcement drawing, referenced drawing + schedule + revision (4002-01-A), members whole and level by level, status P until changed on the sheet. Run Create Views with sheets first."/>
+                                    ToolTip="IStructE SMDSC 4.5.1: separate A4 schedules for each reinforcement drawing, referenced drawing + schedule + revision (4502-01-A), members whole and level by level, status P until changed on the sheet. Run Create Views with sheets first."/>
                             <TextBlock Name="TxtScheduleSummary" Text="" FontSize="11"
                                        Foreground="{DynamicResource TextColor}" Opacity="0.8"
                                        TextWrapping="Wrap" Margin="0,0,0,0"/>
@@ -1709,7 +1709,7 @@
                                        Foreground="{DynamicResource TextColor}"
                                        Text="Select reinforced elements in the model, then create their views in one click: column section + two elevations; beam elevation + sections at mid-span and near the support (one elevation per line of spans); footing / slab plan + two sections; wall elevation + section; stair section per flight + plan. NOSA RC Section / RC PLAN templates, IStructE SMDSC scales (sections 1:20, elevations and slabs 1:50, coarser only when a view does not fit), layer notation key and reinforcement notes on every sheet, bars shown unobscured."/>
                             <CheckBox Name="ChkViewsTags" Content="Tag the bars (no overlapping tags)" IsChecked="True" Margin="0,0,0,4"/>
-                            <CheckBox Name="ChkViewsSheets" Content="Place on a new A1 sheet per element (4000 series)" IsChecked="True" Margin="0,0,0,8"/>
+                            <CheckBox Name="ChkViewsSheets" Content="Place on a new A1 sheet per element (4500 series)" IsChecked="True" Margin="0,0,0,8"/>
                             <Button Name="BtnCreateViews" Content="CREATE VIEWS FOR SELECTION"
                                     Click="CreateViews_Click" Style="{DynamicResource ActionButton}"
                                     HorizontalAlignment="Stretch" Height="40"/>

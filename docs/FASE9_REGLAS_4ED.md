@@ -23,7 +23,7 @@ Referencia: IStructE *Standard Method of Detailing Structural Concrete*, 4.ª ed
 | Hanger bars | — | ≥ 20 % del acero de apoyo, H16 recomendado (6.3.2.9) | `links.hanger_issue` |
 | Sillas | detalladas | a cargo del contratista salvo encepados multipilar y losas de cimentación (4.2.6, 6.7.2) | notas de montaje |
 | Trimmers y diagonales de losa | 45Ø más allá del hueco | mínimo 450 (anclaje nominal), 6.2.2.12 | max(450, l_bd del proyecto) con la adherencia de cada capa (decisión 2026-10-17) |
-| Detalles tipo | — | 4.1.2: plano de detalles tipo | `typical_details`, plano 4900 |
+| Detalles tipo | — | 4.1.2: plano de detalles tipo | `typical_details`, planos desde el 4500 |
 
 ## Renumeraciones aplicadas a las citas
 

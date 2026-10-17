@@ -75,5 +75,5 @@ def test_fixing_notes_and_buildability_line():
 
 def test_drawing_notes_call_up_the_typical_details():
     text, _w = rl.drawing_notes(u'4004', {u'Slabs': u'C32/40'}, {}, details=[(u'OP1', u'SMDSC 4th ed. MD OP1 / 6.2.2')],
-                                details_drawing=u'4900')
-    assert u'Typical details: TD OP1 (MD OP1 / 6.2.2) on drawing 4900 (after the SMDSC' in text
+                                details_drawing=u'4500')
+    assert u'Typical details: TD OP1 (MD OP1 / 6.2.2) on drawing 4500 (after the SMDSC' in text

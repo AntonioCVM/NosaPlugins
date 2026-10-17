@@ -40,3 +40,17 @@ def test_no_practice_name_in_the_details():
     for key, title, md, sketch in td.DETAILS:
         assert u'NOSA' not in title and u'NOSA' not in td.view_name(key)
         assert all(u'NOSA' not in d[2] for kind, d in sketch if kind == 'text')
+
+
+def test_free_edge_u_bar_back_at_the_edge():
+    sketch = td.by_key()[u'S3'][2]
+    u = [d for kind, d in sketch if kind == 'poly' and len(d) == 4][0]
+    back_x = u[1][0]
+    assert u[1][0] == u[2][0] and back_x > u[0][0] and back_x > u[3][0]   # its back on the free edge side, legs in
+    assert back_x < 1600.0                                                  # inside the cover
+
+
+def test_faces_drawn_only_where_the_member_ends():
+    for key, title, md, sketch in td.DETAILS:
+        assert not [k for k, _d in sketch if k == 'rect'], key
+        assert [k for k, _d in sketch if k == 'edge'], key

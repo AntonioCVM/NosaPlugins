@@ -450,7 +450,6 @@ def place(doc, sheet, legends):
     return ports
 
 
-TYPICAL_SHEET = u'4900'                  # the project's RC typical details drawing (SMDSC 4th ed. 4.1.2)
 TYPICAL_SHEET_NAME = u'RC typical details'
 TYPICAL_AREA = (40.0, 40.0, 710.0, 560.0)   # sheet mm the details fill, clear of the titleblock strip
 TYPICAL_PER_ROW = 3
@@ -495,15 +494,14 @@ def typical_details(doc, keys, titleblock=None, redraw=False):
         if new or redraw:
             td.draw(doc, view, key, _text_type_id(doc, LABEL_TYPE))
         views.append(view)
-    sheet = None
-    for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
-        if s.SheetNumber == TYPICAL_SHEET:
-            sheet = s
-            break
+    import view_plan
+    sheets = list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet))
+    # found by its name: it takes the next free RC number when first made, among the drawings (user 2026-10-17)
+    sheet = next((s for s in sheets if s.Name == TYPICAL_SHEET_NAME), None)
     if sheet is None and titleblock is not None:
         try:
             sheet = DB.ViewSheet.Create(doc, titleblock.Id)
-            sheet.SheetNumber = TYPICAL_SHEET
+            sheet.SheetNumber = view_plan.next_sheet_numbers([s.SheetNumber for s in sheets], 1)[0]
             sheet.Name = TYPICAL_SHEET_NAME
         except Exception:
             sheet = None

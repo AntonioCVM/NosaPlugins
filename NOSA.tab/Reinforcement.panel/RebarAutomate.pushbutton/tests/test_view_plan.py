@@ -60,7 +60,8 @@ def test_overflow_opens_a_second_sheet():
 
 
 def test_next_sheet_numbers_skip_the_taken_ones():
-    assert vp.next_sheet_numbers(['4000', '4001', '4003'], 3) == ['4002', '4004', '4005']
+    assert vp.next_sheet_numbers(['4500', '4501', '4503'], 3) == ['4502', '4504', '4505']
+    assert vp.next_sheet_numbers([], 1) == ['4500']
 
 
 def test_coarser_scale_steps_through_the_candidates():

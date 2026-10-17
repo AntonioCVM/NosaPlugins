@@ -4,7 +4,7 @@ NOSA.RebarAutomate — Create Views in one click (T7.3).
 
 For every reinforced element: the view set of its typology (user decision 2026-10-03), the NOSA
 RC templates, a scale from view_plan, its bars shown unobscured and tagged without overlaps, and
-an A1 QR sheet of its own numbered in the 4000 series. Each element is built in one transaction
+an A1 QR sheet of its own numbered in the 4500 series (45xx RC details). Each element is built in one transaction
 that rolls back on a Revit error instead of opening a dialog.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals

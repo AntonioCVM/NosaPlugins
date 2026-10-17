@@ -15,11 +15,6 @@ FILL_TYPES = {u'cut': u'NOSA concrete cut (light orange)',
               u'seen': u'NOSA concrete elevation/plan (Light grey) Opaque'}
 
 
-def _u(x0, y0, w, h):
-    """A U-bar opening right: its back at x0, legs w long, h apart."""
-    return ('poly', ((x0 + w, y0), (x0, y0), (x0, y0 + h), (x0 + w, y0 + h)))
-
-
 def corner_bar(x, y, sx, sy, offset=150.0, half=400.0):
     """
     A corner diagonal of an opening at its corner (x, y), the opening lying towards (-sx, -sy): outside the
@@ -31,32 +26,39 @@ def corner_bar(x, y, sx, sy, offset=150.0, half=400.0):
     return ('poly', ((cx - dx, cy - dy), (cx + dx, cy + dy)))
 
 
-# kind: 'fill' ('cut' | 'seen', outer (x0, y0, x1, y1), [holes]) concrete | 'rect' (x0, y0, x1, y1) outline |
+# kind: 'fill' ('cut' | 'seen', outer (x0, y0, x1, y1), [holes]) concrete, its boundary invisible |
+# 'edge' ((x, y), ...) a real face of the concrete, thin - none where the member runs on (user 2026-10-17) |
 # 'poly' ((x, y), ...) bar | 'thin' ((x, y), ...) a thin line (leader) | 'text' (x, y, text)
 DETAILS = (
     (u'S1', u'SLAB TOP BARS AT AN INTERNAL SUPPORT', u'SMDSC 4th ed. MD S1', (
         ('fill', (u'cut', (0.0, 0.0, 2400.0, 250.0), [])), ('fill', (u'cut', (1050.0, -600.0, 1350.0, 0.0), [])),
-        ('rect', (0.0, 0.0, 2400.0, 250.0)), ('rect', (1050.0, -600.0, 1350.0, 0.0)),
+        ('edge', ((0.0, 250.0), (2400.0, 250.0))), ('edge', ((0.0, 0.0), (1050.0, 0.0))),
+        ('edge', ((1350.0, 0.0), (2400.0, 0.0))),
+        ('edge', ((1050.0, 0.0), (1050.0, -600.0))), ('edge', ((1350.0, 0.0), (1350.0, -600.0))),
         ('poly', ((40.0, 210.0), (2360.0, 210.0))),
-        ('poly', ((450.0, 170.0), (1950.0, 170.0))),
+        ('poly', ((700.0, 175.0), (1700.0, 175.0))),
+        ('poly', ((350.0, 140.0), (2050.0, 140.0))),
         ('poly', ((40.0, 40.0), (2360.0, 40.0))),
-        ('thin', ((1350.0, 330.0), (1950.0, 330.0))), ('text', (1400.0, 420.0, u'50 %: 0.3 l or l_bd')),
-        ('thin', ((1350.0, 290.0), (1700.0, 290.0))), ('text', (1400.0, 560.0, u'100 %: 0.15 l or l_bd')),
-        ('text', (0.0, -750.0, u'l = clear span; the greater of the two governs')),
-        ('text', (0.0, -850.0, u'Bottom bars: 40 % into the support, lapped')),
-        ('text', (0.0, -950.0, u'Distribution bars to the MD S1 table')),
+        ('thin', ((1350.0, 300.0), (1700.0, 300.0))), ('text', (1380.0, 410.0, u'100 %: 0.15 l or l_bd')),
+        ('thin', ((1350.0, 520.0), (2050.0, 520.0))), ('text', (1380.0, 630.0, u'50 %: 0.3 l or l_bd')),
+        ('thin', ((1350.0, 280.0), (1350.0, 540.0))),
+        ('text', (0.0, -750.0, u'l = clear span, from the face of the support;')),
+        ('text', (0.0, -850.0, u'the greater of the two governs')),
+        ('text', (0.0, -950.0, u'Bottom bars: 40 % into the support, lapped')),
+        ('text', (0.0, -1050.0, u'Distribution bars to the MD S1 table')),
     )),
     (u'S3', u'SLAB FREE EDGE', u'SMDSC 4th ed. MD S3', (
-        ('fill', (u'cut', (0.0, 0.0, 1600.0, 250.0), [])), ('rect', (0.0, 0.0, 1600.0, 250.0)),
-        ('poly', ((0.0, 210.0), (1560.0, 210.0))), ('poly', ((0.0, 40.0), (1560.0, 40.0))),
-        _u(1000.0, 60.0, 560.0, 130.0),
+        ('fill', (u'cut', (0.0, 0.0, 1600.0, 250.0), [])),
+        ('edge', ((0.0, 250.0), (1600.0, 250.0), (1600.0, 0.0), (0.0, 0.0))),
+        ('poly', ((0.0, 210.0), (1530.0, 210.0))), ('poly', ((0.0, 40.0), (1530.0, 40.0))),
+        ('poly', ((1000.0, 190.0), (1560.0, 190.0), (1560.0, 60.0), (1000.0, 60.0))),
         ('text', (0.0, -150.0, u'U-bars the size of the bottom bars, one beside')),
-        ('text', (0.0, -250.0, u'each bar, legs lapped with the mats')),
-        ('text', (0.0, -350.0, u'50 % of the span steel continues to the support')),
+        ('text', (0.0, -250.0, u'each bar, their backs at the edge, legs lapped')),
+        ('text', (0.0, -350.0, u'with the mats; 50 % of the span steel to the support')),
     )),
     (u'OP1', u'SLAB OPENING TRIMMING', u'SMDSC 4th ed. MD OP1 / 6.2.2.12', (
         ('fill', (u'seen', (0.0, 0.0, 2000.0, 1600.0), [(600.0, 500.0, 1400.0, 1100.0)])),
-        ('rect', (0.0, 0.0, 2000.0, 1600.0)), ('rect', (600.0, 500.0, 1400.0, 1100.0)),
+        ('edge', ((600.0, 500.0), (1400.0, 500.0), (1400.0, 1100.0), (600.0, 1100.0), (600.0, 500.0))),
         ('poly', ((100.0, 420.0), (1900.0, 420.0))), ('poly', ((100.0, 1180.0), (1900.0, 1180.0))),
         ('poly', ((520.0, 60.0), (520.0, 1540.0))), ('poly', ((1480.0, 60.0), (1480.0, 1540.0))),
         corner_bar(600.0, 500.0, -1.0, -1.0), corner_bar(1400.0, 500.0, 1.0, -1.0),
@@ -69,9 +71,10 @@ DETAILS = (
     )),
     (u'W4', u'WALL OPENING', u'SMDSC 4th ed. MD W4', (
         ('fill', (u'seen', (0.0, 0.0, 1800.0, 1600.0), [(500.0, 400.0, 1300.0, 1200.0)])),
-        ('rect', (0.0, 0.0, 1800.0, 1600.0)), ('rect', (500.0, 400.0, 1300.0, 1200.0)),
+        ('edge', ((500.0, 400.0), (1300.0, 400.0), (1300.0, 1200.0), (500.0, 1200.0), (500.0, 400.0))),
         ('poly', ((100.0, 340.0), (1700.0, 340.0))), ('poly', ((100.0, 1260.0), (1700.0, 1260.0))),
         ('poly', ((440.0, 60.0), (440.0, 1540.0))), ('poly', ((1360.0, 60.0), (1360.0, 1540.0))),
+        ('poly', ((470.0, 370.0), (1330.0, 370.0), (1330.0, 1230.0), (470.0, 1230.0), (470.0, 370.0))),
         ('text', (650.0, 830.0, u'OPENING')),
         ('text', (0.0, -150.0, u'Trimmers one size up from the verticals,')),
         ('text', (0.0, -250.0, u'tension anchorage past the opening')),
@@ -80,22 +83,26 @@ DETAILS = (
     )),
     (u'C1', u'COLUMN STARTERS AND KICKER', u'SMDSC 4th ed. MD C1 / MD F1', (
         ('fill', (u'cut', (0.0, 0.0, 1800.0, 700.0), [])), ('fill', (u'cut', (650.0, 700.0, 1150.0, 775.0), [])),
-        ('rect', (0.0, 0.0, 1800.0, 700.0)), ('rect', (650.0, 700.0, 1150.0, 775.0)),
+        ('fill', (u'cut', (650.0, 775.0, 1150.0, 1500.0), [])),
+        ('edge', ((650.0, 700.0), (0.0, 700.0), (0.0, 0.0), (1800.0, 0.0), (1800.0, 700.0), (1150.0, 700.0))),
+        ('edge', ((650.0, 1500.0), (650.0, 700.0))), ('edge', ((1150.0, 1500.0), (1150.0, 700.0))),
+        ('thin', ((650.0, 775.0), (1150.0, 775.0))),
         ('poly', ((700.0, 1500.0), (700.0, 75.0), (400.0, 75.0))),
         ('poly', ((1100.0, 1500.0), (1100.0, 75.0), (1400.0, 75.0))),
         ('poly', ((650.0, 300.0), (1150.0, 300.0))), ('poly', ((650.0, 500.0), (1150.0, 500.0))),
-        ('text', (1250.0, 760.0, u'KICKER 75 (150 below ground)')),
+        ('text', (1250.0, 860.0, u'KICKER 75 (150 below ground)')),
         ('text', (1250.0, 1250.0, u'Projection: lap + kicker + 150')),
         ('text', (0.0, -150.0, u'Starter links H10-300, 3 min., in the base')),
         ('text', (0.0, -250.0, u'Starters fixed to a template before the pour')),
     )),
     (u'PC1', u'PILE CAP', u'SMDSC 4th ed. MD PC1 / 6.7', (
         ('fill', (u'cut', (0.0, 0.0, 2000.0, 900.0), [])),
-        ('fill', (u'cut', (250.0, -600.0, 750.0, 0.0), [])), ('fill', (u'cut', (1250.0, -600.0, 1750.0, 0.0), [])),
-        ('rect', (0.0, 0.0, 2000.0, 900.0)),
-        ('rect', (250.0, -600.0, 750.0, 0.0)), ('rect', (1250.0, -600.0, 1750.0, 0.0)),
-        _u(100.0, 175.0, 1800.0, 625.0),
-        ('poly', ((100.0, 175.0), (100.0, 800.0))),
+        ('fill', (u'seen', (250.0, -600.0, 750.0, 0.0), [])), ('fill', (u'seen', (1250.0, -600.0, 1750.0, 0.0), [])),
+        ('edge', ((0.0, 0.0), (2000.0, 0.0), (2000.0, 900.0), (0.0, 900.0), (0.0, 0.0))),
+        ('edge', ((250.0, -600.0), (250.0, 0.0))), ('edge', ((750.0, -600.0), (750.0, 0.0))),
+        ('edge', ((1250.0, -600.0), (1250.0, 0.0))), ('edge', ((1750.0, -600.0), (1750.0, 0.0))),
+        ('poly', ((100.0, 800.0), (100.0, 175.0), (1900.0, 175.0), (1900.0, 800.0))),
+        ('poly', ((140.0, 800.0), (140.0, 215.0), (1860.0, 215.0), (1860.0, 800.0))),
         ('text', (0.0, -750.0, u'Bars over the piles, 100 cover above the pile heads')),
         ('text', (0.0, -850.0, u'Lacers round the U-bar legs; piles cut off')),
         ('text', (0.0, -950.0, u'75 into the cap (see the pile table)')),
@@ -175,9 +182,11 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
     from System.Collections.Generic import List
     title, md, sketch = by_key()[key]
     view.Scale = SCALE
-    top = max([p[1] for kind, d in sketch if kind in ('poly', 'thin') for p in d] +
-              [d[3] for kind, d in sketch if kind == 'rect'] + [d[1] + 60.0 for kind, d in sketch if kind == 'text']
+    top = max([p[1] for kind, d in sketch if kind in ('poly', 'thin', 'edge') for p in d] +
+              [d[1][3] for kind, d in sketch if kind == 'fill'] + [d[1] + 60.0 for kind, d in sketch if kind == 'text']
               + [0.0])
+    invisible = [g for g in DB.FilteredElementCollector(doc).OfClass(DB.GraphicsStyle)
+                 if g.Name == u'<Invisible lines>']
     if bar_style is None:
         bar_style = wide_lines(doc)
 
@@ -197,16 +206,13 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
         for h in holes:
             loops.Add(_loop(*h))
         try:
-            DB.FilledRegion.Create(doc, frt.Id, view.Id, loops)
+            region = DB.FilledRegion.Create(doc, frt.Id, view.Id, loops)
+            if invisible:
+                region.SetLineStyleId(invisible[0].Id)     # the real faces are drawn as 'edge' lines
         except Exception:
             continue
     for kind, d in sketch:
-        if kind == 'rect':
-            x0, y0, x1, y1 = d
-            pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
-            for a, b in zip(pts, pts[1:]):
-                line(a, b, None)
-        elif kind in ('poly', 'thin'):
+        if kind in ('poly', 'thin', 'edge'):
             for a, b in zip(d, d[1:]):
                 line(a, b, bar_style if kind == 'poly' else thin_style)
         elif kind == 'text':

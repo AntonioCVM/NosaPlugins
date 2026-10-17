@@ -144,10 +144,13 @@ def layout_rows(streams, area=A1_AREA, gap=GAP_MM, reserved=()):
     return out
 
 
-def next_sheet_numbers(existing, count, series=4000):
-    """The next `count` free numbers of the series (4000 Construction details): '4002', ..."""
+RC_SERIES = 4500       # NOSA protocol: 45xx RC details (user 2026-10-17: the reinforcement drawings start at 4500)
+
+
+def next_sheet_numbers(existing, count, series=RC_SERIES):
+    """The next `count` free numbers of the series from its first: '4500', '4501', ..."""
     taken = set(existing)
-    out, n = [], series + 1
+    out, n = [], series
     while len(out) < count:
         if str(n) not in taken:
             out.append(str(n))
