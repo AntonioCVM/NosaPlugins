@@ -2670,7 +2670,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             # attempting (and failing) it per bar.
             skip_reason = None
             try:
-                if isinstance(view, DB.View3D) and not view.IsLocked:
+                if view is None or view.IsTemplate or view.ViewType in (
+                        DB.ViewType.DrawingSheet, DB.ViewType.Schedule, DB.ViewType.Legend):
+                    # no view to tag in (the model not the active document, a sheet or schedule open): one clear
+                    # line, not a failed tag per bar (pyRevit log, 2026-10-17)
+                    skip_reason = (u'no model view is active in "{}" - open a plan, section or elevation and '
+                                   u'tag the bars from Detailing & Tools.').format(self.doc.Title)
+                elif isinstance(view, DB.View3D) and not view.IsLocked:
                     skip_reason = (u'active 3D view "{}" is not locked — lock it '
                                     u'(View tab → Lock 3D View, or right-click the '
                                     u'view cube) or switch to a 2D/plan view before '
