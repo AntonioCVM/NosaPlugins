@@ -46,3 +46,28 @@ segments, skipped = floor_rebar.opening_corner_diagonals_mm(
 assert len(segments) == 5 and skipped == 0, (len(segments), skipped)
 print('opening_corner_diagonals_mm: no bar at a re-entrant opening corner: OK')
 print('\nALL OPENING DIAGONAL CHECKS PASSED')
+
+
+def test_neighbouring_diagonals_cross_in_contact():
+    # two corners' diagonals crossing beside the opening: the second goes up a level; a third clear of both stays
+    a = ((0.0, 0.0), (1000.0, 1000.0))
+    b = ((0.0, 1000.0), (1000.0, 0.0))
+    c = ((3000.0, 0.0), (4000.0, 1000.0))
+    assert floor_rebar.diagonal_levels([a, b, c]) == [0, 1, 0]
+    assert floor_rebar.diagonal_levels([a, c]) == [0, 0]
+
+
+test_neighbouring_diagonals_cross_in_contact()
+print('diagonal_levels: crossing diagonals at two levels: OK')
+
+
+def test_trimmers_kept_off_the_mat_rows():
+    rows = [0.0, 150.0, 300.0]
+    two = floor_rebar.clear_of_rows([2.0, 52.0], rows, 16.0, 16.0, 1.0)           # 2 mm into the row at 0
+    assert all(abs(t - r) >= 1.1 * 16.0 + 25.0 for t in two for r in rows) and abs(two[1] - two[0] - 50.0) < 1e-6
+    three = floor_rebar.clear_of_rows([2.0, 52.0, 102.0], rows, 16.0, 16.0, 1.0)  # no room for 25 mm: in contact
+    assert all(abs(t - r) >= 1.1 * 16.0 - 1e-6 for t in three for r in rows)
+
+
+test_trimmers_kept_off_the_mat_rows()
+print('clear_of_rows: trimmers off the mat rows: OK')

@@ -42,3 +42,14 @@ def test_lap_centres_are_never_in_the_same_section():
     centre_a = stock - lap / 2.0
     centre_b = first - lap / 2.0
     assert centre_a - centre_b >= wr.STAGGER_FACTOR * lap
+
+
+def test_side_trimmers_cross_head_trimmers_in_contact():
+    heads = [(84.0, 16.0), (-84.0, 16.0)]                       # 300 wall, head trimmers 84 mm off centre
+    a = wr.crossing_depth_mm(73.0, 16.0, heads)                 # 11 mm from the head trimmer: through it
+    assert abs(a - (84.0 - 17.6)) < 1e-6
+    b = wr.crossing_depth_mm(-73.0, 16.0, heads)
+    assert abs(b - (-84.0 + 17.6)) < 1e-6
+    assert wr.crossing_depth_mm(40.0, 16.0, heads) == 40.0      # already clear
+    c = wr.crossing_depth_mm(0.0, 20.0, [(0.0, 20.0)])          # thin wall, one bar each in the middle
+    assert abs(c - 22.0) < 1e-6

@@ -1778,6 +1778,26 @@ def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia
     return [(layer, dia, g) for (layer, dia), g in sorted(groups.items())], notes
 
 
+TRIMMER_CLEAR_MM = 25.0       # SMDSC 5.2.5 / EC2 8.2: the least clear gap from a trimmer to a mat bar
+
+
+def clear_of_rows(positions, rows, own_dia_mm, row_dia_mm, outward, step_mm=5.0, clear_mm=TRIMMER_CLEAR_MM):
+    """
+    Trimmer positions across their bars, the group moved away from the opening (outward +1 / -1) as one, keeping
+    its pitch, until every trimmer stands the clear gap from every mat row, or failing that touches it (QA
+    2026-10-17: S10's trimmers lay 2 mm into a mat bar). Real bar sizes (+10 %).
+    """
+    for gap in (clear_mm, 0.0):          # else in contact with the mat bar, a pair (SMDSC 5.2.5), never through it
+        need = 1.1 * (own_dia_mm + row_dia_mm) / 2.0 + gap
+        shift = 0.0
+        while shift <= 4.0 * (need + step_mm):
+            moved = [q + outward * shift for q in positions]
+            if all(abs(m - r) >= need for m in moved for r in rows):
+                return moved
+            shift += step_mm
+    return list(positions)
+
+
 def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals):
     """
     IStructE SMDSC 6.2 (vi)-(vii): each hole over 150 mm is trimmed on all sides with bars of the
@@ -1811,8 +1831,12 @@ def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, d
                 s0 = max(lo - anchor, b0 + dia / 2.0)
                 s1 = min(hi + anchor, b1 - dia / 2.0)
                 first = side_cover_mm + ubar_dia_mm + dia / 2.0
+                lim0, lim1 = (ymin, ymax) if axis == u'x' else (xmin, xmax)
+                other = dia_y if axis == u'x' else dia_x
+                rows = exact_spaced_mm(lim0 + other / 2.0, lim1 - other / 2.0, spacing)
                 for edge, sign in ((c0, -1.0), (c1, 1.0)):
-                    across = [edge + sign * (first + j * pitch) for j in range(n)]
+                    across = clear_of_rows([edge + sign * (first + j * pitch) for j in range(n)], rows, dia, dia,
+                                           sign)
                     lim0, lim1 = (ymin, ymax) if axis == u'x' else (xmin, xmax)
                     across = [a for a in across if lim0 + dia / 2.0 <= a <= lim1 - dia / 2.0]
                     if not across or s1 - s0 < 100.0:
@@ -1848,11 +1872,33 @@ def _hole_bbox(points):
     return min(xs), max(xs), min(ys), max(ys)
 
 
-def _diagonal_bars(engine, DB, segments, z_ft):
+def _segments_cross(a, b):
+    """Two plan segments ((x, y), (x, y)) crossing each other (not merely touching at an end)."""
+    def side(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+    d1, d2 = side(a[0], a[1], b[0]), side(a[0], a[1], b[1])
+    d3, d4 = side(b[0], b[1], a[0]), side(b[0], b[1], a[1])
+    return d1 * d2 < 0.0 and d3 * d4 < 0.0
+
+
+def diagonal_levels(segments):
+    """
+    0 or 1 for each corner diagonal: one crossing a diagonal already at level 0 goes up a bar size, so the
+    diagonals of neighbouring corners cross in contact instead of through each other (QA 2026-10-17, S10).
+    """
+    levels = []
+    for i, seg in enumerate(segments):
+        clash = any(levels[j] == 0 and _segments_cross(seg, segments[j]) for j in range(i))
+        levels.append(1 if clash else 0)
+    return levels
+
+
+def _diagonal_bars(engine, DB, segments, z_ft, step_ft=0.0):
     bars = []
-    for (x0, y0), (x1, y1) in segments:
-        p0 = DB.XYZ(x0 / _MM_PER_FT, y0 / _MM_PER_FT, z_ft)
-        p1 = DB.XYZ(x1 / _MM_PER_FT, y1 / _MM_PER_FT, z_ft)
+    for ((x0, y0), (x1, y1)), level in zip(segments, diagonal_levels(segments)):
+        z = z_ft + level * step_ft
+        p0 = DB.XYZ(x0 / _MM_PER_FT, y0 / _MM_PER_FT, z)
+        p1 = DB.XYZ(x1 / _MM_PER_FT, y1 / _MM_PER_FT, z)
         direction = (p1 - p0).Normalize()
         bars.append({'curves': [DB.Line.CreateBound(p0, p1)],
                      'normal': engine.compute_vertical_hook_plane_normal(direction),
@@ -2181,12 +2227,13 @@ def build_floor_reinforcement(doc, host,
                 u'(SMDSC 6.2).'.format(len(auto_diagonal_holes), dia)]
         # Each diagonal sits on the inner face of its mat, clear of both layers.
         diag_bottom_z = b2_z_ft + (bottom_dia_y_mm + dia) / 2.0 / _MM_PER_FT
-        diagonals = {'bottom': _diagonal_bars(engine, DB, segments, diag_bottom_z),
+        step = dia / _MM_PER_FT
+        diagonals = {'bottom': _diagonal_bars(engine, DB, segments, diag_bottom_z, step),
                      'top': None, 'n_skipped': n_skipped}
         if include_top_mat:
             diag_top_z = t2_z_ft - (top_dia_y_mm + dia) / 2.0 / _MM_PER_FT
-            if diag_top_z - diag_bottom_z >= dia / _MM_PER_FT:
-                diagonals['top'] = _diagonal_bars(engine, DB, segments, diag_top_z)
+            if diag_top_z - diag_bottom_z >= 3.0 * dia / _MM_PER_FT:     # room for both crossing levels
+                diagonals['top'] = _diagonal_bars(engine, DB, segments, diag_top_z, -step)
         result['opening_diagonals'] = diagonals
 
     return result

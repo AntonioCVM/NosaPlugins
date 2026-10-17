@@ -1177,6 +1177,10 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     if clear_mm and insets['bottom'] and (ext0_mm or ext1_mm):
         room = joints.nested_leg_room_mm(clear_mm, insets['bottom'], bar_diameter_mm, bar_diameter_mm)
         bottom_clear = room + bar_diameter_mm          # support_leg_mm takes the bar size off again
+    if bottom_clear and (ext0_mm or ext1_mm):
+        # and under a top bar lapped in contact under its neighbour (a continuous line's lowered run): the
+        # upstand stopped 5 mm into it at B11's end (QA 2026-10-17)
+        bottom_clear -= bar_diameter_mm
     bottom_chains = _add_support_legs(bottom_chains, b_leg0, b_leg1, height_dir_legs,
                                       anchor_mm, bar_diameter_mm, bottom_clear)
     if not include_top:

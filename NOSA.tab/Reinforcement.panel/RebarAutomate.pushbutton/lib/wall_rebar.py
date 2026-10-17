@@ -420,6 +420,25 @@ def opening_trims(openings, vert_spacing_mm, horiz_spacing_mm):
             if (o['s1'] - o['s0']) >= vert_spacing_mm - 1e-6 or (o['z1'] - o['z0']) >= horiz_spacing_mm - 1e-6]
 
 
+def crossing_depth_mm(depth_mm, dia_mm, others):
+    """
+    Depth (mm along one wall normal) of a trimmer moved towards the wall centre until it crosses the other
+    trimmers [(depth_mm, dia_mm)] in contact, never through them (QA 2026-10-17: W10's side and head trimmers
+    crossed 12 mm apart, 16 + 16 bars). Real bar sizes (+10 %).
+    """
+    inward = -1.0 if depth_mm > 0.0 else 1.0
+    for _ in range(len(others) + 1):
+        moved = False
+        for o_depth, o_dia in others:
+            need = 1.1 * (dia_mm + o_dia) / 2.0
+            if abs(depth_mm - o_depth) < need - 1e-6:
+                depth_mm = o_depth + inward * need
+                moved = True
+        if not moved:
+            break
+    return depth_mm
+
+
 def build_opening_bars(openings, p0, axis_dir, z0, length_mm, height_mm, cover_mm, thickness_mm,
                        vert_dia_mm, horiz_dia_mm, face_layers, horiz_layers, lap_mm, anchorage_mm,
                        vert_bottom_z, vert_top_z):
@@ -462,6 +481,7 @@ def build_opening_bars(openings, p0, axis_dir, z0, length_mm, height_mm, cover_m
     bottom_z_mm = (vert_bottom_z - z0) * _MM_PER_FT
     for o in openings:
         width, height = o['s1'] - o['s0'], o['z1'] - o['z0']
+        heads = []          # (depth mm along na, dia) of this hole's top / bottom trimmers
         # top and bottom: vertical U-bars at the vertical pitch across the hole, legs up / down
         for edge, sign in (('z1', 1.0), ('z0', -1.0)):
             if (sign > 0 and o['z1'] >= height_mm - cover_mm - 1.0) or (sign < 0 and o['z0'] <= cover_mm + 1.0):
@@ -485,6 +505,7 @@ def build_opening_bars(openings, p0, axis_dir, z0, length_mm, height_mm, cover_m
             dia = trim_dia if thickness_mm >= 250.0 else single_bar_for_pair_mm(trim_dia)
             for nk, dk in layers:
                 depth = _inside(dk, dia)
+                heads.append((depth * _MM_PER_FT * nk.DotProduct(na), dia))
                 out['trimmers'].append({'curves': [DB.Line.CreateBound(_pt(s_lo, nk, depth, z_t), _pt(s_hi, nk, depth, z_t))],
                                         'dia_mm': dia, 'normal': DB.XYZ.BasisZ})
         # sides: horizontal U-bars at the horizontal pitch up the hole, legs along the wall
@@ -509,6 +530,9 @@ def build_opening_bars(openings, p0, axis_dir, z0, length_mm, height_mm, cover_m
             dia = trim_dia if thickness_mm > 200.0 else single_bar_for_pair_mm(trim_dia)
             for nk, dk in layers:
                 depth = _inside(dk, dia)
+                if heads:   # the side trimmers cross the head trimmers past the corners: in contact, inside them
+                    along = nk.DotProduct(na) or 1.0
+                    depth = crossing_depth_mm(depth * _MM_PER_FT * along, dia, heads) / _MM_PER_FT / along
                 out['trimmers'].append({'curves': [DB.Line.CreateBound(_pt(s_t, nk, depth, z_lo), _pt(s_t, nk, depth, z_hi))],
                                         'dia_mm': dia, 'normal': axis_dir})
     return out
