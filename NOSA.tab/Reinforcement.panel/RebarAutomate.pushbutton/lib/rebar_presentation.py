@@ -2259,11 +2259,26 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
         # a curved member's plan: every mark radially just outside it, its links' too
         arcs = dict((k, a or curved[0]) for k, a in arcs.items())
     places = callout_layout.place_pointers([it for it in layout if arcs.get(it['id']) is None], box, gap, outside)
-    for d, tag, anchor in tags:
+    along = 0.0
+    for i, (d, tag, anchor) in enumerate(tags):
         arc = arcs.get(d['id'])
         if arc is not None and d['id'] in sizes:
-            # a curved beam's bar: its mark just outside the arc, square to it (user 2026-10-12: they stood far off)
+            # a curved beam's bar: its mark just outside the arc, square to it (user 2026-10-12: they stood far off);
+            # the next ones slid along the arc a mark's width each, side by side, not stacked over one point where
+            # one's pointer crossed the other's text (B12, 2026-10-17)
             w, h, _o = sizes[d['id']]
+            if along:
+                try:
+                    hit = arc.Project(anchor)
+                    if hit is not None:
+                        raw = hit.Parameter - along / (arc.Radius * _MM_PER_FT)
+                        lo, hi = arc.GetEndParameter(0), arc.GetEndParameter(1)
+                        if lo <= raw <= hi:
+                            anchor = arc.Evaluate(raw, False)
+                            tags[i] = (d, tag, anchor)
+                except Exception:
+                    pass
+            along += w + 2.0 * gap
             a = _xy(view, anchor)
             c0 = _xy(view, arc.Center)
             n = (a[0] - c0[0], a[1] - c0[1])
@@ -2276,7 +2291,8 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
                 bx = (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)
                 if not any(callout_layout.overlap(bx, q, gap / 2.0) for q in placed):
                     break
-            places[d['id']] = {'centre': c, 'side': None, 'box': bx}
+            places[d['id']] = {'centre': c, 'side': None, 'box': bx, 'taken': True}
+            placed.append(bx)          # the next curved bar's mark keeps clear of this one (B12, 2026-10-17)
     pending = []
     for d, tag, anchor in tags:
         if d['id'] not in places:
@@ -2297,7 +2313,8 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
                     pending.append((tag, squared[0], squared[1]))
         except Exception:
             pass
-        placed.append((c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0))
+        if not places[d['id']].get('taken'):
+            placed.append((c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0))
         report['marks'] += 1
     _line_up(doc, view, pending)
 
