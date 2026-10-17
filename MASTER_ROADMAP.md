@@ -334,7 +334,7 @@ cercos `(13@100)` por zona con cota + una llamada total; elementos del mismo tip
 | [x] | T9.15 | Bandera «añadido por regla» | C | Barras generadas por regla marcadas en QA y planilla **Hecho 2026-10-12**: parámetro `NOSA_Rebar_Rule` (regla y MD de la 4.ª ed. + «confirm with design») sellado al generar (rebar_batch) y al crear planos; aviso Info en el QA (no puntúa); planilla «RC rule-added bars» en la plantilla v30. |
 | [x] | T9.16 | Losas | D | COLUMN/MIDDLE STRIP, U en bordes libres, curtailment MD S1 de la 4.ª ed. |
 | [x] | T9.17 | Vigas | D | Hanger bars, límites de apoyo, piel MD B1 4.ª ed., viga curva con radio/centro/estaciones |
-| [ ] | T9.18 | Pilares | D | Cuantía ρ, zonas de solape y confinamiento, arranque con kicker 75/150 |
+| [x] | T9.18 | Pilares | D | Cuantía ρ, zonas de solape y confinamiento, arranque con kicker 75/150 |
 | [ ] | T9.19 | Muros | D | Estilos distintos vertical/horizontal, MW4 completo |
 | [ ] | T9.20 | Cimentaciones | D | Bandas MF1, arranques acotados, tabla de pilotes |
 | [ ] | T9.21 | Biblioteca de detalles tipo | D | MD de la 4.ª ed. insertados por condición |

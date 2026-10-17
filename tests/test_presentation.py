@@ -129,3 +129,12 @@ def test_support_chain_and_arc_stations():
     assert pr.arc_stations(6000.0) == [0.0, 1000.0, 2000.0, 3000.0, 4000.0, 5000.0, 6000.0]
     assert pr.arc_stations(1100.0) == [0.0, 500.0, 1100.0]
     assert pr.chainage_text(2000.0) == u'CH 2000'
+
+
+def test_column_ratio_and_confinement():
+    text = pr.steel_ratio_text([(8, 20.0)], 400.0 * 400.0)
+    assert text.startswith(u'ρ = 1.57 %') and u'8H20' in text and u'2513' in text
+    assert u'UNDER 0.2 %' in pr.steel_ratio_text([(4, 12.0)], 600.0 * 600.0)
+    assert u'OVER 4 %' in pr.steel_ratio_text([(12, 32.0)], 300.0 * 300.0)
+    assert pr.confinement_zones([(0, 600, 100), (600, 2400, 200), (2400, 3000, 100)]) == [(0, 600), (2400, 3000)]
+    assert pr.confinement_zones([(0, 3000, 200)]) == []

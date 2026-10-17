@@ -22,7 +22,7 @@ _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
 _OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP|CH \\d+|'
-                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE)$')   # ... and section numbers
+                       u'R \\d+|BEAM ON R \\d+ TO ITS CENTRELINE - CENTRE OFF THE PLAN|CENTRE|ρ = .*)$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
 
 
@@ -465,6 +465,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             _end_marks(doc, view, ended, tag_types, box, gap, scale, placed, report)
             if kind == 'column_elevation':
                 report['laps'] = _column_laps(doc, view, pointers + zones, box, placed, scale, total_style)
+                report['confinement'] = _confinement(doc, view, zones, box, placed, scale, total_style)
+                report['kicker'] = _kicker(doc, view, hosts or members, box, placed, scale, total_style)
     for a, _b, label in presentation.relations(zones):
         bx = made.get(a)
         if bx is None:
@@ -475,6 +477,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     if hosts and not elevation:
         # SMDSC 3.13 / 3.14.3 (T9.4): the member's size and levels from its own faces, so they follow the model
         report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
+        if kind == 'member_section':
+            # under the section's own dimensions (T9.18)
+            report['ratio'] = _column_ratio(doc, view, hosts, visible, box, placed, scale, text_type)
     _fit_crop(view, [box] + [q for q in placed if q not in viewers], CROP_MARGIN_PAPER_MM * scale)
     if beam_elevation:
         # SMDSC 4th ed. Fig. 6.24: the columns as short stubs under the beam, so the link zones, their calling-up
@@ -1514,6 +1519,133 @@ def _strips(doc, view, hosts, box, placed, scale, style, text_type):
             else:
                 placed.append((x - text_h, box[1], x + gap, box[3]))
     return made
+
+
+def _is_column(host):
+    return host is not None and host.Category is not None and \
+        get_id_value(host.Category.Id) == int(DB.BuiltInCategory.OST_StructuralColumns)
+
+
+def _right_of(box, placed, row):
+    return max([box[2]] + [q[2] for q in placed if q[1] < box[3] and q[3] > box[1]]) + row
+
+
+def _confinement(doc, view, zones, box, placed, scale, style):
+    """
+    T9.18 on a column elevation: each link zone closer than the general pitch (ends of the lift, laps; EC2
+    9.5.3(4), SMDSC 4th ed. MD C1) dimensioned beside the column, CONFINEMENT ZONE under it. Returns how many.
+    """
+    from nosa_utils import presentation
+    links = []
+    for d in zones:
+        if d.get('spread_dir') is None or abs(d['spread_dir'][1]) < 0.9:
+            continue                                  # links stepping up the column
+        lo, hi = sorted((d['first'][1], d['last'][1]))
+        links.append((lo, hi, d.get('spacing') or 0.0))
+    row = ROW_PAPER_MM * scale
+    x = _right_of(box, placed, row)
+    made = 0
+    for lo, hi in presentation.confinement_zones(links):
+        dim = _dimension_chain(doc, view, [lo, hi], x, view.Origin, scale, style, vertical=True)
+        if dim is None:
+            continue
+        try:
+            dim.Below = presentation.CONFINEMENT_TEXT
+        except Exception:
+            pass
+        placed.append((x - row / 2.0, lo, x + row / 2.0, hi))
+        made += 1
+    return made
+
+
+def _kicker(doc, view, hosts, box, placed, scale, style):
+    """
+    T9.18 on the elevation of a column standing on a base: its kicker dimensioned at its foot, KICKER under it -
+    75 mm, 150 mm below ground (SMDSC 4th ed. 6.7.3, MD C1). Returns 1 when drawn.
+    """
+    from nosa_utils import presentation, wall_rules
+    cols = [h for h in hosts if _is_column(h)]
+    if not cols:
+        return 0
+    bb = cols[0].get_BoundingBox(None)
+    if bb is None:
+        return 0
+    base = bb.Min.Z
+    on_base = False
+    for f in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralFoundation) \
+            .WhereElementIsNotElementType():
+        fb = f.get_BoundingBox(None)
+        if fb is not None and abs(fb.Max.Z - base) < 0.2 and fb.Min.X < bb.Max.X and fb.Max.X > bb.Min.X \
+                and fb.Min.Y < bb.Max.Y and fb.Max.Y > bb.Min.Y:
+            on_base = True
+            break
+    if not on_base:
+        return 0
+    ground = 0.0
+    for level in DB.FilteredElementCollector(doc).OfClass(DB.Level):
+        if level.Name.lower().startswith(u'ground'):
+            ground = level.Elevation
+            break
+    kicker = wall_rules.KICKER_BELOW_GROUND_MM if base < ground - 50.0 / _MM_PER_FT else wall_rules.KICKER_MM
+    foot = _xy(view, DB.XYZ(0.0, 0.0, base))[1] if abs(view.UpDirection.Z) > 0.99 else None
+    if foot is None:
+        return 0
+    row = ROW_PAPER_MM * scale
+    x = _right_of(box, placed, row)
+    dim = _dimension_chain(doc, view, [foot, foot + kicker], x, view.Origin, scale, style, vertical=True)
+    if dim is None:
+        return 0
+    try:
+        dim.Below = presentation.KICKER_TEXT
+    except Exception:
+        pass
+    placed.append((x - row / 2.0, foot, x + row / 2.0, foot + kicker))
+    return 1
+
+
+def _column_ratio(doc, view, hosts, rebars, box, placed, scale, text_type):
+    """T9.18 under a column's section: its steel ratio and vertical bars (EC2 9.5.2). Returns 1 when written."""
+    from nosa_utils import presentation
+    cols = [h for h in hosts if _is_column(h)]
+    if not cols:
+        return 0
+    host = cols[0]
+    bb = host.get_BoundingBox(None)
+    try:
+        solids = [g for g in host.get_Geometry(DB.Options()) if isinstance(g, DB.Solid) and g.Volume > 0]
+        if not solids:
+            inst = [g for g in host.get_Geometry(DB.Options()) if isinstance(g, DB.GeometryInstance)]
+            solids = [g for i in inst for g in i.GetInstanceGeometry() if isinstance(g, DB.Solid) and g.Volume > 0]
+        height = bb.Max.Z - bb.Min.Z
+        area = sum(s.Volume for s in solids) / height * _MM_PER_FT ** 2 if height > 0 else 0.0
+    except Exception:
+        area = 0.0
+    bars = []
+    hid = get_id_value(host.Id)
+    for r in rebars:
+        try:
+            if get_id_value(r.GetHostId()) != hid:
+                continue
+            line = _main_line(r, 0)
+            if line is None or abs(line.Direction.Z) < 0.9:
+                continue
+            bars.append((r.NumberOfBarPositions, doc.GetElement(r.GetTypeId()).BarModelDiameter * _MM_PER_FT))
+        except Exception:
+            continue
+    bars = [(n, round(d)) for n, d in bars]
+    text = presentation.steel_ratio_text(bars, area)
+    if not text:
+        return 0
+    row = ROW_PAPER_MM * scale
+    y = min([box[1]] + [q[1] for q in placed if q[0] < box[2] and q[2] > box[0]]) - 2.0 * row
+    try:
+        opts = DB.TextNoteOptions(text_type)
+        opts.HorizontalAlignment = DB.HorizontalTextAlignment.Center
+        DB.TextNote.Create(doc, view.Id, _point(view, ((box[0] + box[2]) / 2.0, y), view.Origin), text, opts)
+    except Exception:
+        return 0
+    placed.append((box[0], y - row, box[2], y))
+    return 1
 
 
 def _column_laps(doc, view, items, box, placed, scale, style):

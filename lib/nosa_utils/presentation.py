@@ -336,3 +336,42 @@ def arc_stations(length_mm, step_mm=None, least_mm=500.0):
 def chainage_text(ch_mm):
     """'CH 2000' for a station 2000 mm along a curved beam."""
     return u'CH {:.0f}'.format(ch_mm)
+
+
+CONFINEMENT_TEXT = u'CONFINEMENT ZONE'
+KICKER_TEXT = u'KICKER'
+RHO_MIN = 0.002            # EC2 9.5.2(2): As,min >= 0.002 Ac (and 0.10 NEd / fyd, the designer's)
+RHO_MAX = 0.04             # EC2 9.5.2(3) + UK NA: 4 % outside laps
+
+
+def steel_ratio_text(bars, area_mm2):
+    """
+    T9.18 under a column section: 'rho = 1.26 % - 8H20, As 2513 mm2' from its vertical bars [(count, dia)] and its
+    concrete area; flagged against EC2 9.5.2 (under 0.2 %, over 4 % outside laps).
+    """
+    if area_mm2 <= 0.0 or not bars:
+        return u''
+    a_s = sum(n * math.pi * d ** 2 / 4.0 for n, d in bars)
+    rho = a_s / area_mm2
+    sizes = {}
+    for n, d in bars:
+        sizes[d] = sizes.get(d, 0) + n
+    calls = u' + '.join(u'{}H{:.0f}'.format(n, d) for d, n in sorted(sizes.items(), reverse=True))
+    text = u'\u03c1 = {:.2f} % - {}, As {:.0f} mm\u00b2'.format(100.0 * rho, calls, a_s)
+    if rho < RHO_MIN - 1e-9:
+        text += u' - UNDER 0.2 % (EC2 9.5.2(2))'
+    elif rho > RHO_MAX + 1e-9:
+        text += u' - OVER 4 % (EC2 9.5.2(3))'
+    return text
+
+
+def confinement_zones(zones, tol=0.99):
+    """
+    T9.18 on a column elevation: the link zones [(lo, hi, pitch)] closer than the column's general pitch (the
+    largest) - its confinement zones at the ends and at laps (EC2 9.5.3(4), SMDSC 4th ed. MD C1). [(lo, hi)].
+    """
+    pitches = [p for _a, _b, p in zones if p > 0.0]
+    if len(set(round(p) for p in pitches)) < 2:
+        return []
+    general = max(pitches)
+    return sorted((a, b) for a, b, p in zones if 0.0 < p < tol * general)
