@@ -204,20 +204,60 @@ def slab_corners(polygon):
     return out
 
 
-TOP_BAR_SPAN_SHARE = 0.3   # SMDSC MS1/MS2: top bars reach 0.3 x span from each support
+TOP_BAR_SPAN_SHARE = 0.3   # SMDSC 4th ed. MD S1: top bars 0.3 x clear span (or l_bd) past the support face
+MD_S1_ALL_SHARE = 0.15     # ... every top bar at least 0.15 x clear span (or l_bd) past it
 
 
-def support_strips_mm(positions_mm, lo_mm, hi_mm, share=TOP_BAR_SPAN_SHARE):
+def md_s1_top_reach_mm(clear_span_mm, lbd_mm=0.0):
+    """
+    SMDSC 4th ed. MD S1 (continuous slab, simplified curtailment): how far past an interior support's face the
+    top bars run: (all of them, half of them) = (0.15 l, 0.3 l), each 'or l_bd, whichever is greater'.
+    """
+    return (max(MD_S1_ALL_SHARE * clear_span_mm, lbd_mm), max(TOP_BAR_SPAN_SHARE * clear_span_mm, lbd_mm))
+
+
+MD_S1_DEPTHS = (100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400)
+MD_S1_DISTRIBUTION = {     # SMDSC 4th ed. MD S1 table: pitch of distribution bars (mm) by bar size and slab depth
+    10: (350, 425, 425, 350, 300, 275, 225, 200, 200, 175, 150, 150, 125),
+    12: (None, None, 450, 450, 450, 400, 350, 325, 275, 250, 250, 250, 200),
+    16: (None, None, None, None, None, 450, 450, 450, 450, 450, 425, 400, 375),
+}
+
+
+def distribution_pitch_mm(depth_mm, dia_mm):
+    """
+    SMDSC 4th ed. MD S1: the largest pitch of distribution bars of dia_mm in a slab depth_mm deep, read at the
+    next tabulated depth up (the safe side past 150 mm); None when the table has no value (size not used at that
+    depth, or off the table).
+    """
+    row = MD_S1_DISTRIBUTION.get(int(round(dia_mm)))
+    if row is None or depth_mm > MD_S1_DEPTHS[-1] + 1e-6:
+        return None
+    for d, pitch in zip(MD_S1_DEPTHS, row):
+        if depth_mm <= d + 1e-6:
+            return pitch
+    return None
+
+
+def support_strips_mm(positions_mm, lo_mm, hi_mm, share=TOP_BAR_SPAN_SHARE, widths_mm=None, lbd_mm=0.0):
     """
     Bands lo..hi (one coordinate) holding the top bars over supports at positions_mm: share x the span
     either side of each support; past the end supports they run on to the slab edge (edge support or
-    cantilever). Overlapping bands merge. [] with no support.
+    cantilever). Overlapping bands merge. [] with no support. With widths_mm ({position: support width})
+    SMDSC 4th ed. MD S1: share x the clear span, or l_bd if greater, past each support's face.
     """
     sup = sorted(p for p in positions_mm if lo_mm - 1e-6 <= p <= hi_mm + 1e-6)
+    half = dict((p, (widths_mm or {}).get(p, 0.0) / 2.0) for p in sup)
     bands = []
     for i, p in enumerate(sup):
-        a = p - share * (p - sup[i - 1]) if i > 0 else lo_mm
-        b = p + share * (sup[i + 1] - p) if i + 1 < len(sup) else hi_mm
+        if widths_mm is None:
+            a = p - share * (p - sup[i - 1]) if i > 0 else lo_mm
+            b = p + share * (sup[i + 1] - p) if i + 1 < len(sup) else hi_mm
+        else:
+            a = (p - half[p] - max(share * ((p - half[p]) - (sup[i - 1] + half[sup[i - 1]])), lbd_mm)
+                 if i > 0 else lo_mm)
+            b = (p + half[p] + max(share * ((sup[i + 1] - half[sup[i + 1]]) - (p + half[p])), lbd_mm)
+                 if i + 1 < len(sup) else hi_mm)
         bands.append((max(lo_mm, a), min(hi_mm, b)))
     merged = []
     for a, b in sorted(bands):
@@ -316,6 +356,36 @@ def flat_slab_strips_mm(lo_mm, hi_mm, lines_mm, short_span_mm, pitch_mm, top=Tru
             out[-1] = (out[-1][0], b, p)
         else:
             out.append((a, b, p))
+    return out
+
+
+COLUMN_STRIP = u'COLUMN STRIP'
+MIDDLE_STRIP = u'MIDDLE STRIP'
+
+
+def strip_bands_mm(lo_mm, hi_mm, lines_mm, short_span_mm, min_mm=1.0):
+    """
+    SMDSC 4th ed. 6.2.2.9 / Fig. 6.4 / MD S5: [(a, b, COLUMN_STRIP | MIDDLE_STRIP)] covering lo..hi across the
+    column lines, the column strip half the shorter panel wide (a quarter of it each side of the line).
+    """
+    q = float(short_span_mm) / 4.0
+    cols = []
+    for c in sorted(lines_mm):
+        a, b = max(lo_mm, c - q), min(hi_mm, c + q)
+        if b - a < min_mm:
+            continue
+        if cols and a <= cols[-1][1]:
+            cols[-1] = (cols[-1][0], max(cols[-1][1], b))
+        else:
+            cols.append((a, b))
+    out, at = [], lo_mm
+    for a, b in cols:
+        if a - at >= min_mm:
+            out.append((at, a, MIDDLE_STRIP))
+        out.append((a, b, COLUMN_STRIP))
+        at = b
+    if hi_mm - at >= min_mm:
+        out.append((at, hi_mm, MIDDLE_STRIP))
     return out
 
 

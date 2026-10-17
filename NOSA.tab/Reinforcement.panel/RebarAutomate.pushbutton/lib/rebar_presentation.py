@@ -9,6 +9,7 @@ in the view, in rows outside the member with pointers; 'Alt.' / 'Stg.'; a short 
 oblique at curtailed ends; bars detailed on another drawing dashed with 'SEE DRG' (see_drawing, once the
 view is on its sheet). Re-running replaces the bars' own annotations in the view. In a transaction.
 """
+import math
 import re
 
 from Autodesk.Revit import DB
@@ -20,7 +21,7 @@ from nosa_utils.revit_helpers import get_id_value
 _MM_PER_FT = 304.8
 LINE_STYLE = u'NOSA Bar Ends'
 DRAWING_PARAM = u'NOSA_Rebar_Group'
-_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2})$')   # ... and section numbers
+_OWN_NOTE = re.compile(u'^(\\(\\d+\\)|Alt\\.|Stg\\.|SEE DRG .*|\\d{1,2}|COLUMN STRIP|MIDDLE STRIP)$')   # ... and section numbers
 TEXT_PAPER_MM = 2.5
 
 
@@ -449,6 +450,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters)
             if hosts and kind == 'plan':
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
+                report['strips'] = _strips(doc, view, hosts, box, placed, scale, total_style, text_type)
         else:
             # a section: the bars lying in it are told by the arrows at their ends, not by another mark
             ends = set(d['id'] for d in ended)
@@ -1331,6 +1333,76 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
             if _dimension_chain(doc, view, [t0, t1], c + 1.5 * gap, like, scale, style, vertical=vertical) is not None:
                 made += 1
     report['dims'] = report.get('dims', 0) + made
+    return made
+
+
+STRIP_MIN_COLUMNS = 2     # a flat slab: the slab stands on this many columns and on no wall or beam
+
+
+def _strips(doc, view, hosts, box, placed, scale, style, text_type):
+    """
+    T9.16 on a flat slab plan (SMDSC 4th ed. 6.2.2.9 / Fig. 6.4 / MD S5): the column and middle strips of each
+    direction, their limits as thin lines across the slab and each band labelled COLUMN STRIP / MIDDLE STRIP
+    outside it (under the plan for the bands across X, left of it, turned, for those across Y). Returns how many
+    labels.
+    """
+    import floor_rebar
+    from nosa_utils import mesh_rules
+    made = 0
+    for host in hosts:
+        if not isinstance(host, DB.Floor):
+            continue
+        bb = host.get_BoundingBox(None)
+        if bb is None:
+            continue
+        bounds = (bb.Min.X * _MM_PER_FT, bb.Max.X * _MM_PER_FT, bb.Min.Y * _MM_PER_FT, bb.Max.Y * _MM_PER_FT)
+        sup_x, sup_y = floor_rebar._slab_supports_mm(doc, DB, bounds, bb.Min.Z)
+        cols = floor_rebar._slab_columns_mm(doc, DB, bounds, bb.Min.Z)
+        if sup_x or sup_y or len(cols) < STRIP_MIN_COLUMNS:
+            continue
+        at = [_xy(view, DB.XYZ(c[0] / _MM_PER_FT, c[1] / _MM_PER_FT, bb.Min.Z)) for c in cols]
+        xs = floor_rebar._merge_lines([p[0] for p in at])
+        ys = floor_rebar._merge_lines([p[1] for p in at])
+        spans = [b - a for line in (xs, ys) for a, b in zip(line, line[1:])]
+        short = min(spans) if spans else min(box[2] - box[0], box[3] - box[1])
+        like = bb.Min
+        gap, row = GAP_PAPER_MM * scale, ROW_PAPER_MM * scale
+        text_h = TEXT_PAPER_MM * scale
+        y = min([box[1]] + [q[1] for q in placed if q[0] < box[2] and q[2] > box[0]]) - row
+        x = min([box[0]] + [q[0] for q in placed if q[1] < box[3] and q[3] > box[1]]) - row
+        for across_x, lines, lo, hi in ((True, xs, box[0], box[2]), (False, ys, box[1], box[3])):
+            bands = mesh_rules.strip_bands_mm(lo, hi, lines, short)
+            if len(bands) < 2:
+                continue
+            for a, b, label in bands:
+                if a > lo + 1.0:
+                    p, q = ((a, box[1]), (a, box[3])) if across_x else ((box[0], a), (box[2], a))
+                    try:
+                        curve = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_point(view, p, like),
+                                                                                    _point(view, q, like)))
+                        if style is not None:
+                            curve.LineStyle = style
+                    except Exception:
+                        pass
+                width = len(label) * text_h * 0.8
+                if b - a < width + gap:
+                    continue                      # too narrow to be labelled at this scale
+                try:
+                    opts = DB.TextNoteOptions(text_type)
+                    opts.HorizontalAlignment = DB.HorizontalTextAlignment.Center
+                    if across_x:
+                        point = _point(view, ((a + b) / 2.0, y), like)
+                    else:
+                        opts.Rotation = math.pi / 2.0
+                        point = _point(view, (x, (a + b) / 2.0), like)
+                    if DB.TextNote.Create(doc, view.Id, point, label, opts) is not None:
+                        made += 1
+                except Exception:
+                    continue
+            if across_x:
+                placed.append((box[0], y - text_h, box[2], y + gap))
+            else:
+                placed.append((x - text_h, box[1], x + gap, box[3]))
     return made
 
 

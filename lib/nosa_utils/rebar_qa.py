@@ -8,6 +8,7 @@ that clash or crowd each other. The rules are pure; audit(doc) reads the model a
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import math
+import re
 
 REAL_DIA = 1.10            # SMDSC Table 5.2: a deformed bar is about 10 % over its nominal size
 AGGREGATE_MM = 20.0
@@ -697,6 +698,29 @@ def _joint_pairs(hosts, parts, checked, aggregate_mm, get_id_value):
     return out
 
 
+MAT_LAYER = re.compile(u'^(bottom|top)_[xy]$')
+
+
+def distribution_issues(layers, depth_mm):
+    """
+    SMDSC 4th ed. MD S1 (T9.16): in each slab mat the inner layer is the distribution one, its pitch no more than
+    the table's for its bar size and the slab depth. layers: [(key, face 'bottom' | 'top', height mm, dia,
+    pitch)]. Returns [(key, issue)].
+    """
+    from nosa_utils import mesh_rules
+    out = []
+    for face in (u'bottom', u'top'):
+        mat = [l for l in layers if l[1] == face]
+        if len(mat) < 2:
+            continue
+        inner = (max if face == u'bottom' else min)(mat, key=lambda l: l[2])
+        most = mesh_rules.distribution_pitch_mm(depth_mm, inner[3])
+        if most is not None and inner[4] > most + 1.0:
+            out.append((inner[0], u'distribution bars H{:.0f} at {:.0f} over the {:.0f} of SMDSC 4th ed. MD S1 for '
+                                  u'a {:.0f} mm slab'.format(inner[3], inner[4], most, depth_mm)))
+    return out
+
+
 def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_id_value):
     """([Finding], the bar samples for the clash checks, the host's label)."""
     out = []
@@ -717,6 +741,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
     vertical_area = 0.0
     axis_curve, axis = _beam_axis(host) if kind == u'beam' else (None, None)
     top_layer = []                    # beam: (position across, dia) of the top bars at mid span
+    mats = {}                         # slab: {(face, direction): (rebar, mark, height, dia, pitch)}
 
     done = set()
 
@@ -766,6 +791,11 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
             if kind in (u'slab', u'foundation') and flat or kind == u'wall' and abs(u[2]) > 0.7:
                 key = (_text(rebar, u'NOSA_Rebar_Layer'), round(u[0], 1), round(u[1], 1), round(u[2], 1))
                 layer_area[key] = max(layer_area.get(key, 0.0), area_per_m(dia, spacing))
+            layer = _text(rebar, u'NOSA_Rebar_Layer').strip().lower()
+            if kind == u'slab' and flat and MAT_LAYER.match(layer):
+                key = (layer.split(u'_')[0], layer.split(u'_')[1])
+                if key not in mats or spacing > mats[key][4]:
+                    mats[key] = (rebar, mark, (main[0][2] + main[1][2]) / 2.0, dia, spacing)
         if kind == u'column' and abs(u[2]) > 0.9:
             vertical_area += n * math.pi * dia ** 2 / 4.0
         for i in sorted(set((0, n // 2, n - 1))):
@@ -816,6 +846,11 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
         issue = ratio_issue(kind, vertical_area / ac, fck_mpa)
         if issue:
             out.append(Finding(u'', label, u'', u'Steel ratio', WARNING, issue, host.Id))
+    if mats and depth > 0.0:
+        rows = [((face, axis_), face, v[2], v[3], v[4]) for (face, axis_), v in mats.items()]
+        for key, issue in distribution_issues(rows, depth):
+            rebar, mark = mats[key][0], mats[key][1]
+            add(rebar, mark, u'Distribution pitch', WARNING, issue)
     if kind == u'beam' and len(top_layer) > 2:
         issue = vibrator_issue(depth, gaps_clear([p for p, _d in top_layer], [d for _p, d in top_layer]))
         if issue:

@@ -109,3 +109,26 @@ def test_strip_rows_and_bars_through():
     runs = mr.strip_rows_mm(0.0, 1000.0, [(0.0, 400.0, 200.0), (400.0, 1000.0, 100.0)])
     assert runs[0] == (0.0, 200.0, 3) and runs[1] == (500.0, 100.0, 6)
     assert mr.bars_through([0.0, 100.0, 200.0, 300.0], 150.0, 150.0) == 2
+
+
+def test_md_s1_4th_edition():
+    assert mr.md_s1_top_reach_mm(5000.0) == (750.0, 1500.0)
+    assert mr.md_s1_top_reach_mm(2000.0, 640.0) == (640.0, 640.0)          # or l_bd, whichever is greater
+    assert mr.distribution_pitch_mm(200.0, 10.0) == 300
+    assert mr.distribution_pitch_mm(210.0, 12.0) == 400                     # next tabulated depth up
+    assert mr.distribution_pitch_mm(150.0, 16.0) is None                    # H16 not used in 150 slabs
+    assert mr.distribution_pitch_mm(450.0, 10.0) is None
+    # from the supports' faces: 300 wide supports at 0 / 5000 / 9000, clear spans 4700 / 3700
+    bands = mr.support_strips_mm([0.0, 5000.0, 9000.0], 0.0, 9000.0, widths_mm={0.0: 300.0, 5000.0: 300.0,
+                                                                                 9000.0: 300.0})
+    assert bands[1] == (5000.0 - 150.0 - 0.3 * 4700.0, 5000.0 + 150.0 + 0.3 * 3700.0)
+
+
+def test_strip_bands():
+    bands = mr.strip_bands_mm(0.0, 12000.0, [0.0, 6000.0, 12000.0], 6000.0)
+    assert bands == [(0.0, 1500.0, mr.COLUMN_STRIP), (1500.0, 4500.0, mr.MIDDLE_STRIP),
+                     (4500.0, 7500.0, mr.COLUMN_STRIP), (7500.0, 10500.0, mr.MIDDLE_STRIP),
+                     (10500.0, 12000.0, mr.COLUMN_STRIP)]
+    assert mr.strip_bands_mm(0.0, 3000.0, [1000.0, 1500.0], 2000.0) == [(0.0, 500.0, mr.MIDDLE_STRIP),
+                                                                        (500.0, 2000.0, mr.COLUMN_STRIP),
+                                                                        (2000.0, 3000.0, mr.MIDDLE_STRIP)]

@@ -1457,10 +1457,11 @@ def opening_corner_diagonals_mm(topo, raw_holes, outer, large_holes, cover_mm, b
     return segments, skipped
 
 
-def _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft, tol_mm=50.0):
+def _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft, tol_mm=50.0, widths=None):
     """
     Walls and beams under the slab along X or Y: (x positions of the supports running along Y,
-    y positions of those running along X), mm, merged within 50 mm.
+    y positions of those running along X), mm, merged within 50 mm. widths: two dicts (the supports along
+    Y, along X) filled with {position: support width mm}, the widest at a merged position.
     """
     xmin, xmax, ymin, ymax = bounds_mm
     tol_ft = tol_mm / _MM_PER_FT
@@ -1484,16 +1485,25 @@ def _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft, tol_mm=50.0):
             d = curve.Direction
             if abs(d.Y) > 0.99:
                 along_y.append((x0 + x1) / 2.0)
+                width = (box.Max.X - box.Min.X) * _MM_PER_FT
             elif abs(d.X) > 0.99:
                 along_x.append((y0 + y1) / 2.0)
+                width = (box.Max.Y - box.Min.Y) * _MM_PER_FT
+            else:
+                continue
+            if widths is not None:
+                w, at = (widths[0], along_y[-1]) if abs(d.Y) > 0.99 else (widths[1], along_x[-1])
+                w[at] = max(w.get(at, 0.0), width)
 
-    def _merge(values):
+    def _merge(values, w):
         out = []
         for v in sorted(values):
             if not out or v - out[-1] > tol_mm:
                 out.append(v)
+            elif w is not None:
+                w[out[-1]] = max(w.get(out[-1], 0.0), w.get(v, 0.0))
         return out
-    return _merge(along_y), _merge(along_x)
+    return _merge(along_y, widths[0] if widths else None), _merge(along_x, widths[1] if widths else None)
 
 
 def _merge_lines(values, tol_mm=300.0):
@@ -1650,20 +1660,22 @@ def _alternate_bottom(doc, DB, bottom_mat, bounds_mm, bottom_z_ft, laps_mm, extr
         len(sup_x) + len(sup_y))]
 
 
-def _top_over_supports(doc, DB, top_mat, bounds_mm, bottom_z_ft):
+def _top_over_supports(doc, DB, top_mat, bounds_mm, bottom_z_ft, lbd_mm=(0.0, 0.0)):
     """
-    IStructE SMDSC MS1/MS2 (user option): the top mat only over the supports — the bars across a
-    support reach 0.3 x span either side (to the edge past the end supports), the bars along it
-    stay in that band. Plain straight Sets and bars only; the mat dict changes in place.
+    IStructE SMDSC 4th ed. MD S1 (user option): the top mat only over the supports — the bars across a
+    support reach 0.3 x clear span, or l_bd (lbd_mm: the x and y bars) if greater, past its faces (to the
+    edge past the end supports), the bars along it stay in that band. Plain straight Sets and bars only;
+    the mat dict changes in place.
     """
     from nosa_utils import mesh_rules
     xmin, xmax, ymin, ymax = bounds_mm
-    sup_x, sup_y = _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft)
+    widths = ({}, {})
+    sup_x, sup_y = _slab_supports_mm(doc, DB, bounds_mm, bottom_z_ft, widths=widths)
     if not sup_x and not sup_y:
         return [u'top bars over supports: no wall or beam along X/Y found under the slab — the full '
                 u'top mat is kept.']
-    x_bands = mesh_rules.support_strips_mm(sup_x, xmin, xmax)      # across supports running along Y
-    y_bands = mesh_rules.support_strips_mm(sup_y, ymin, ymax)
+    x_bands = mesh_rules.support_strips_mm(sup_x, xmin, xmax, widths_mm=widths[0], lbd_mm=lbd_mm[0])
+    y_bands = mesh_rules.support_strips_mm(sup_y, ymin, ymax, widths_mm=widths[1], lbd_mm=lbd_mm[1])
     kept_whole = 0
     for key, along, main_bands, dist_bands in ((u'along_x', 0, x_bands, y_bands),
                                                (u'along_y', 1, y_bands, x_bands)):
@@ -2145,7 +2157,9 @@ def build_floor_reinforcement(doc, host,
         if top_over_supports:
             result['top_notes'] = _top_over_supports(
                 doc, DB, result['top_mat'], (top_xmin_mm, top_xmax_mm, top_ymin_mm, top_ymax_mm),
-                bottom_z_ft)
+                bottom_z_ft, tuple(footing_mod.default_anchorage_length_mm(
+                    d, std=std, good_bond=footing_mod.good_bond_for_top_bars((top_z_ft - bottom_z_ft) * _MM_PER_FT))
+                    for d in (top_dia_x_mm, top_dia_y_mm)))
 
     column_lines = ((), ())
     if flat_slab:

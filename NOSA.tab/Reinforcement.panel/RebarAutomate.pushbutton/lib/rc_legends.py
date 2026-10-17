@@ -74,12 +74,13 @@ FIXING = {
               u'by the contractor.',
     u'Columns': u'Columns: starter bars fixed to a template before the base is cast, 75 mm kicker; links tied to '
                 u'every bar they restrain. Cages may be prefabricated.',
-    u'Slabs': u'Slabs: bottom mat on spacers, top mat on continuous chairs at 1.0 m centres max (BS 7973); bars '
-              u'tied at alternate intersections, at every one along edges and round openings.',
+    u'Slabs': u'Slabs: bottom mat on spacers, top mat on chairs to BS 7973 chosen by the contractor (SMDSC 4.2.6); '
+              u'bars tied at alternate intersections, at every one along edges and round openings.',
     u'Walls': u'Walls: the two faces held apart by spacers or links at 1.0 m centres max; horizontal bars outside '
               u'the vertical bars unless shown otherwise.',
     u'Foundations': u'Foundations: bottom mat on 50 mm spacers on the blinding; starter bars fixed to a template; '
-                    u'lacers tied to every bent-up leg.',
+                    u'lacers tied to every bent-up leg. Multi-column bases and rafts: top mat on chairs and edge '
+                    u'U-bars to BS 7973, sized for the pour sequence (SMDSC 6.7.2).',
     u'Stairs': u'Stairs: bars carried on spacers at 1.0 m centres max; landing bars lapped as dimensioned.',
 }
 
