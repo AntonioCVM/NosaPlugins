@@ -502,10 +502,11 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
             import bar_schedules
             bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0], force=True)
             grade = _buildability(doc, group['hosts'], report)
+            td_sheet, typical = _typical(doc, group['hosts'], group['rebars'], titleblock)
             for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                 if sheet.SheetNumber in sheets:
                     report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
-                                                                   grade))
+                                                                   grade, typical, td_sheet))
             import rebar_presentation
             own = set(get_id_value(r.Id) for r in group['rebars'])
             for view, _spec, _scale in created:
@@ -813,6 +814,29 @@ def _rollback_on_error():
             self.errors.extend(f.GetDescriptionText() for f in errors)
             return DB.FailureProcessingResult.ProceedWithRollBack
     return RollbackOnError()
+
+
+def _typical(doc, hosts, rebars, titleblock):
+    """
+    T9.21: the NOSA typical details these members call for (their kinds, the bar layers on them, piles under a
+    cap), placed on the typical details drawing. (its number, [(key, model detail)]).
+    """
+    import rc_legends
+    import rebar_presentation
+    from nosa_utils import typical_details
+    layers = set()
+    for r in rebars:
+        p = r.LookupParameter(u'NOSA_Rebar_Layer')
+        if p is not None and p.AsString():
+            layers.add(p.AsString())
+    piled = any(host_kind(h) == 'foundation' and rebar_presentation._piles_under(doc, h) for h in hosts)
+    keys = typical_details.needed([host_kind(h) for h in hosts], layers, piled)
+    try:
+        return rc_legends.typical_details(doc, keys, titleblock)
+    except Exception:
+        from nosa_utils.telemetry import log_swallowed
+        log_swallowed(u'rebarautomate', u'typical details')
+        return u'', []
 
 
 def _new_sheet(doc, titleblock, number, name):
@@ -1128,9 +1152,11 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 import bar_schedules
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
                 # SMDSC 3.7 (T9.6): each drawing's notes from what is on it
+                td_sheet, typical = _typical(doc, hosts, rebars, titleblock)
                 for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                     if sheet.SheetNumber in report['sheets']:
-                        report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars))
+                        report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars,
+                                                                       typical=typical, typical_drawing=td_sheet))
         if tag and rebars and sheet_group is None:
             # T8.27, SMDSC 6.2.2: bars detailed on another drawing, once the views are on their sheets
             own = set(get_id_value(r.Id) for r in rebars)

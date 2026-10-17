@@ -71,3 +71,9 @@ def test_fixing_notes_and_buildability_line():
     text, _w = rl.drawing_notes(u'4003', {u'Beams': u'C40/50'}, {u'Beams': (40.0, 40.0, 40.0)},
                                 buildability=(94.0, u'A', 0, 2))
     assert u'9. Fixing: Beams:' in text and u'10. Buildability check: A (94/100; 0 error(s), 2 warning(s))' in text
+
+
+def test_drawing_notes_call_up_the_typical_details():
+    text, _w = rl.drawing_notes(u'4004', {u'Slabs': u'C32/40'}, {}, details=[(u'OP1', u'SMDSC 4th ed. MD OP1 / 6.2.2')],
+                                details_drawing=u'4900')
+    assert u'Typical details: TD OP1 (MD OP1 / 6.2.2) on drawing 4900' in text

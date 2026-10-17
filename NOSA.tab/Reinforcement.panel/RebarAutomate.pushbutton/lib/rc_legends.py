@@ -91,11 +91,12 @@ def fixing_notes(kinds):
 
 
 def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'', deviation=u'', aggregate=u'',
-                  schedule_refs=(), ga_refs=u'', buildability=None):
+                  schedule_refs=(), ga_refs=u'', buildability=None, details=(), details_drawing=u''):
     """
     SMDSC 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
     disagree with the model. grades {element kind: grade or ''}; covers {element kind: (top, bottom, sides) mm};
-    project values are the general notes' (NOSA_GN_*). Returns (text, [warnings]).
+    project values are the general notes' (NOSA_GN_*). details: [(key, model detail)] of the NOSA typical
+    details the drawing calls for, on details_drawing (T9.21). Returns (text, [warnings]).
     """
     warnings = []
     kinds = sorted(set(grades) | set(covers))
@@ -162,6 +163,12 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         # T9.12: the drawing's buildability, from the reinforcement QA of its members
         lines.append(u'{}. Buildability check: {} ({:.0f}/100; {} error(s), {} warning(s)) - see the RC QA '
                      u'report.'.format(10 if fixing else 9, grade, score, errors, warns))
+    if details:
+        number = 9 + (1 if fixing else 0) + (1 if buildability is not None else 0)
+        lines.append(u'{}. Typical details: {}{} (NOSA details after the SMDSC 4th ed. model details; confirm with '
+                     u'design).'.format(number, u', '.join(u'TD {} ({})'.format(k, md.replace(u'SMDSC 4th ed. ', u''))
+                                                       for k, md in details),
+                                        u' on drawing {}'.format(details_drawing) if details_drawing else u''))
     return u'\r'.join(lines), warnings
 
 
@@ -386,7 +393,7 @@ def _covers(doc, host):
     return tuple(out) if any(out) else None
 
 
-def sheet_notes(doc, sheet, hosts, rebars, buildability=None):
+def sheet_notes(doc, sheet, hosts, rebars, buildability=None, typical=(), typical_drawing=u''):
     """
     The drawing's own notes block (T9.6) on the sheet, under the layer notation key in the legend box.
     Returns the warnings about data the model or the general notes do not give.
@@ -406,7 +413,7 @@ def sheet_notes(doc, sheet, hosts, rebars, buildability=None):
     text, warnings = drawing_notes(
         sheet.SheetNumber, grades, covers, project_grade, _project_value(doc, u'NOSA_GN_Cover_Typical'),
         _project_value(doc, u'NOSA_GN_Cover_Deviation'), _project_value(doc, u'NOSA_GN_Aggregate_Max'), refs,
-        _project_value(doc, u'NOSA_GN_GA_Drawings'), buildability)
+        _project_value(doc, u'NOSA_GN_GA_Drawings'), buildability, typical, typical_drawing)
     top = LEGEND_BOX[3]
     for port in [doc.GetElement(i) for i in sheet.GetAllViewports()]:
         view = doc.GetElement(port.ViewId)
@@ -441,3 +448,68 @@ def place(doc, sheet, legends):
     for port, (cx, cy) in zip(ports, stack_in_panel(sizes)):
         port.SetBoxCenter(_xyz(cx, cy))
     return ports
+
+
+TYPICAL_SHEET = u'4900'                  # the project's RC typical details drawing (SMDSC 4th ed. 4.1.2)
+TYPICAL_SHEET_NAME = u'RC typical details'
+TYPICAL_AREA = (40.0, 40.0, 710.0, 560.0)   # sheet mm the details fill, clear of the titleblock strip
+TYPICAL_PER_ROW = 3
+TYPICAL_ROW_MM = 250.0
+
+
+def typical_details(doc, keys, titleblock=None):
+    """
+    T9.21: the NOSA typical details `keys` as legends (drawn when missing) on the project's typical details
+    drawing, made with `titleblock` when missing. In a transaction. Returns (its number or '', [(key, model
+    detail)]).
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils import typical_details as td
+    if not keys:
+        return u'', []
+    views = []
+    for key in keys:
+        view, new = _legend(doc, td.view_name(key))
+        if view is None:
+            continue
+        if new:
+            td.draw(doc, view, key, _text_type_id(doc, LABEL_TYPE))
+        views.append(view)
+    sheet = None
+    for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+        if s.SheetNumber == TYPICAL_SHEET:
+            sheet = s
+            break
+    if sheet is None and titleblock is not None:
+        try:
+            sheet = DB.ViewSheet.Create(doc, titleblock.Id)
+            sheet.SheetNumber = TYPICAL_SHEET
+            sheet.Name = TYPICAL_SHEET_NAME
+        except Exception:
+            sheet = None
+    if sheet is None:
+        return u'', [(k, td.by_key()[k][1]) for k in keys]
+    doc.Regenerate()
+    from nosa_utils.revit_helpers import get_id_value
+    on = set(get_id_value(doc.GetElement(i).ViewId) for i in sheet.GetAllViewports())
+    placed = len(on)
+    cell = (TYPICAL_AREA[2] - TYPICAL_AREA[0]) / TYPICAL_PER_ROW
+    for view in views:
+        if get_id_value(view.Id) in on:
+            continue
+        col, row = placed % TYPICAL_PER_ROW, placed // TYPICAL_PER_ROW
+        try:
+            port = DB.Viewport.Create(doc, sheet.Id, view.Id, _xyz(TYPICAL_AREA[0] + cell * (col + 0.5),
+                                                                   TYPICAL_AREA[3] - TYPICAL_ROW_MM * (row + 0.5)))
+        except Exception:
+            continue
+        if port is None:
+            continue
+        doc.Regenerate()
+        # its top left at the cell's top left, whatever the detail's size
+        box = port.GetBoxOutline()
+        w = (box.MaximumPoint.X - box.MinimumPoint.X) * _FT
+        h = (box.MaximumPoint.Y - box.MinimumPoint.Y) * _FT
+        port.SetBoxCenter(_xyz(TYPICAL_AREA[0] + cell * col + w / 2.0, TYPICAL_AREA[3] - TYPICAL_ROW_MM * row - h / 2.0))
+        placed += 1
+    return sheet.SheetNumber, [(k, td.by_key()[k][1]) for k in keys]
