@@ -165,7 +165,7 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
                      u'report.'.format(10 if fixing else 9, grade, score, errors, warns))
     if details:
         number = 9 + (1 if fixing else 0) + (1 if buildability is not None else 0)
-        lines.append(u'{}. Typical details: {}{} (NOSA details after the SMDSC 4th ed. model details; confirm with '
+        lines.append(u'{}. Typical details: {}{} (after the SMDSC 4th ed. model details; confirm with '
                      u'design).'.format(number, u', '.join(u'TD {} ({})'.format(k, md.replace(u'SMDSC 4th ed. ', u''))
                                                        for k, md in details),
                                         u' on drawing {}'.format(details_drawing) if details_drawing else u''))
@@ -457,22 +457,42 @@ TYPICAL_PER_ROW = 3
 TYPICAL_ROW_MM = 250.0
 
 
-def typical_details(doc, keys, titleblock=None):
+def _empty(doc, view):
+    """Delete what a legend view holds (to draw it again)."""
+    from Autodesk.Revit import DB  # Lazy import
+    for eid in [e.Id for e in DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType()
+                if e.Id != view.Id and e.Category is not None]:
+        try:
+            doc.Delete(eid)
+        except Exception:  # nosa-lint: disable=NOSA006 - view-owned items Revit keeps
+            pass
+
+
+def typical_details(doc, keys, titleblock=None, redraw=False):
     """
-    T9.21: the NOSA typical details `keys` as legends (drawn when missing) on the project's typical details
-    drawing, made with `titleblock` when missing. In a transaction. Returns (its number or '', [(key, model
-    detail)]).
+    T9.21: the typical details `keys` as legends (drawn when missing, or again with redraw) on the project's
+    typical details drawing, made with `titleblock` when missing; legends still under their old 'NOSA TD' names
+    are renamed. In a transaction. Returns (its number or '', [(key, model detail)]).
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils import typical_details as td
+    from nosa_utils.revit_helpers import element_name
     if not keys:
         return u'', []
+    legends = dict((element_name(v), v) for v in DB.FilteredElementCollector(doc).OfClass(DB.View)
+                   if not v.IsTemplate and v.ViewType == DB.ViewType.Legend)
     views = []
     for key in keys:
+        old = legends.get(td.view_name(key, td.OLD_PREFIX))
+        if old is not None and td.view_name(key) not in legends:
+            old.Name = td.view_name(key)
+            legends[td.view_name(key)] = old
         view, new = _legend(doc, td.view_name(key))
         if view is None:
             continue
-        if new:
+        if redraw and not new:
+            _empty(doc, view)
+        if new or redraw:
             td.draw(doc, view, key, _text_type_id(doc, LABEL_TYPE))
         views.append(view)
     sheet = None

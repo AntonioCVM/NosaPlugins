@@ -22,3 +22,21 @@ def test_every_detail_cites_the_4th_edition_in_english():
         assert td.view_name(key).startswith(td.PREFIX + key + u' - ')
         texts = [d[2] for kind, d in sketch if kind == 'text']
         assert texts and all(t.isascii() for t in texts)
+
+
+def test_opening_corner_bars_stay_outside_the_opening():
+    x0, y0, x1, y1 = 600.0, 500.0, 1400.0, 1100.0
+    sketch = td.by_key()[u'OP1'][2]
+    corners = [d for kind, d in sketch if kind == 'poly' and len(d) == 2 and d[0][0] != d[1][0] and d[0][1] != d[1][1]]
+    assert len(corners) == 4
+    for (ax, ay), (bx, by) in corners:
+        for t in [k / 20.0 for k in range(21)]:
+            x, y = ax + t * (bx - ax), ay + t * (by - ay)
+            assert not (x0 < x < x1 and y0 < y < y1)
+        assert abs(abs(bx - ax) - abs(by - ay)) < 1e-6          # at 45 degrees
+
+
+def test_no_practice_name_in_the_details():
+    for key, title, md, sketch in td.DETAILS:
+        assert u'NOSA' not in title and u'NOSA' not in td.view_name(key)
+        assert all(u'NOSA' not in d[2] for kind, d in sketch if kind == 'text')

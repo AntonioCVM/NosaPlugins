@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.typical_details — NOSA's own typical details (T9.21, user decision 2026-10-17: drawn by NOSA after the
+nosa_utils.typical_details — the practice's own typical details (T9.21, user decision 2026-10-17: drawn after the
 SMDSC 4th edition model details, not copied from them), one legend each so a drawing can carry the ones its case
 needs, each citing the model detail and clauses it follows. Sketches are model mm at SCALE.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 SCALE = 20
-PREFIX = u'NOSA TD '
+PREFIX = u'TD '
+OLD_PREFIX = u'NOSA TD '          # the legends' names before 2026-10-17: renamed in place
 _FT = 304.8
+# the template's filled region types: concrete cut by a section, and seen in plan or elevation (user 2026-10-17)
+FILL_TYPES = {u'cut': u'NOSA concrete cut (light orange)',
+              u'seen': u'NOSA concrete elevation/plan (Light grey) Opaque'}
 
 
 def _u(x0, y0, w, h):
@@ -16,10 +20,22 @@ def _u(x0, y0, w, h):
     return ('poly', ((x0 + w, y0), (x0, y0), (x0, y0 + h), (x0 + w, y0 + h)))
 
 
-# kind: 'rect' (x0, y0, x1, y1) concrete | 'poly' ((x, y), ...) bar | 'dots' (x0, y, x1, step) cut bars |
-# 'text' (x, y, text) | 'thin' ((x, y), ...) a thin line (dimension / leader)
+def corner_bar(x, y, sx, sy, offset=150.0, half=400.0):
+    """
+    A corner diagonal of an opening at its corner (x, y), the opening lying towards (-sx, -sy): outside the
+    opening, square to the corner's bisector, `offset` out from the corner, 2 x `half` long (SMDSC 4th ed. MD OP1).
+    """
+    r = 2.0 ** 0.5
+    cx, cy = x + sx * offset / r, y + sy * offset / r
+    dx, dy = sx * half / r, -sy * half / r
+    return ('poly', ((cx - dx, cy - dy), (cx + dx, cy + dy)))
+
+
+# kind: 'fill' ('cut' | 'seen', outer (x0, y0, x1, y1), [holes]) concrete | 'rect' (x0, y0, x1, y1) outline |
+# 'poly' ((x, y), ...) bar | 'thin' ((x, y), ...) a thin line (leader) | 'text' (x, y, text)
 DETAILS = (
     (u'S1', u'SLAB TOP BARS AT AN INTERNAL SUPPORT', u'SMDSC 4th ed. MD S1', (
+        ('fill', (u'cut', (0.0, 0.0, 2400.0, 250.0), [])), ('fill', (u'cut', (1050.0, -600.0, 1350.0, 0.0), [])),
         ('rect', (0.0, 0.0, 2400.0, 250.0)), ('rect', (1050.0, -600.0, 1350.0, 0.0)),
         ('poly', ((40.0, 210.0), (2360.0, 210.0))),
         ('poly', ((450.0, 170.0), (1950.0, 170.0))),
@@ -31,36 +47,39 @@ DETAILS = (
         ('text', (0.0, -950.0, u'Distribution bars to the MD S1 table')),
     )),
     (u'S3', u'SLAB FREE EDGE', u'SMDSC 4th ed. MD S3', (
-        ('rect', (0.0, 0.0, 1600.0, 250.0)),
+        ('fill', (u'cut', (0.0, 0.0, 1600.0, 250.0), [])), ('rect', (0.0, 0.0, 1600.0, 250.0)),
         ('poly', ((0.0, 210.0), (1560.0, 210.0))), ('poly', ((0.0, 40.0), (1560.0, 40.0))),
         _u(1000.0, 60.0, 560.0, 130.0),
         ('text', (0.0, -150.0, u'U-bars the size of the bottom bars, one beside')),
         ('text', (0.0, -250.0, u'each bar, legs lapped with the mats')),
         ('text', (0.0, -350.0, u'50 % of the span steel continues to the support')),
     )),
-    (u'OP1', u'SLAB OPENING TRIMMING', u'SMDSC 4th ed. MD OP1 / 6.2.2', (
-        ('rect', (600.0, 500.0, 1400.0, 1100.0)),
+    (u'OP1', u'SLAB OPENING TRIMMING', u'SMDSC 4th ed. MD OP1 / 6.2.2.12', (
+        ('fill', (u'seen', (0.0, 0.0, 2000.0, 1600.0), [(600.0, 500.0, 1400.0, 1100.0)])),
+        ('rect', (0.0, 0.0, 2000.0, 1600.0)), ('rect', (600.0, 500.0, 1400.0, 1100.0)),
         ('poly', ((100.0, 420.0), (1900.0, 420.0))), ('poly', ((100.0, 1180.0), (1900.0, 1180.0))),
-        ('poly', ((520.0, 0.0), (520.0, 1600.0))), ('poly', ((1480.0, 0.0), (1480.0, 1600.0))),
-        ('poly', ((300.0, 200.0), (700.0, 600.0))), ('poly', ((1700.0, 200.0), (1300.0, 600.0))),
-        ('poly', ((300.0, 1400.0), (700.0, 1000.0))), ('poly', ((1700.0, 1400.0), (1300.0, 1000.0))),
+        ('poly', ((520.0, 60.0), (520.0, 1540.0))), ('poly', ((1480.0, 60.0), (1480.0, 1540.0))),
+        corner_bar(600.0, 500.0, -1.0, -1.0), corner_bar(1400.0, 500.0, 1.0, -1.0),
+        corner_bar(600.0, 1100.0, -1.0, 1.0), corner_bar(1400.0, 1100.0, 1.0, 1.0),
         ('text', (700.0, 830.0, u'OPENING')),
         ('text', (0.0, -150.0, u'Trimmers of the area cut, half each side,')),
-        ('text', (0.0, -250.0, u'45 dia. past the opening, clear of the mat')),
-        ('text', (0.0, -350.0, u'Openings 500-1000 in slabs over 250:')),
-        ('text', (0.0, -450.0, u'diagonals top and bottom')),
+        ('text', (0.0, -250.0, u'l_bd (450 min.) past the opening, clear of the mat')),
+        ('text', (0.0, -350.0, u'Openings 500-1000 in slabs over 250: corner')),
+        ('text', (0.0, -450.0, u'diagonals top and bottom, outside the opening')),
     )),
     (u'W4', u'WALL OPENING', u'SMDSC 4th ed. MD W4', (
-        ('rect', (500.0, 400.0, 1300.0, 1200.0)),
+        ('fill', (u'seen', (0.0, 0.0, 1800.0, 1600.0), [(500.0, 400.0, 1300.0, 1200.0)])),
+        ('rect', (0.0, 0.0, 1800.0, 1600.0)), ('rect', (500.0, 400.0, 1300.0, 1200.0)),
         ('poly', ((100.0, 340.0), (1700.0, 340.0))), ('poly', ((100.0, 1260.0), (1700.0, 1260.0))),
-        ('poly', ((440.0, 0.0), (440.0, 1600.0))), ('poly', ((1360.0, 0.0), (1360.0, 1600.0))),
+        ('poly', ((440.0, 60.0), (440.0, 1540.0))), ('poly', ((1360.0, 60.0), (1360.0, 1540.0))),
         ('text', (650.0, 830.0, u'OPENING')),
         ('text', (0.0, -150.0, u'Trimmers one size up from the verticals,')),
         ('text', (0.0, -250.0, u'tension anchorage past the opening')),
         ('text', (0.0, -350.0, u'U-bars the size of the horizontals, round it,')),
         ('text', (0.0, -450.0, u'enclosing the trimmers; wall 175 min.')),
     )),
-    (u'C1', u'COLUMN STARTERS AND KICKER', u'SMDSC 4th ed. MD C1 / MF1', (
+    (u'C1', u'COLUMN STARTERS AND KICKER', u'SMDSC 4th ed. MD C1 / MD F1', (
+        ('fill', (u'cut', (0.0, 0.0, 1800.0, 700.0), [])), ('fill', (u'cut', (650.0, 700.0, 1150.0, 775.0), [])),
         ('rect', (0.0, 0.0, 1800.0, 700.0)), ('rect', (650.0, 700.0, 1150.0, 775.0)),
         ('poly', ((700.0, 1500.0), (700.0, 75.0), (400.0, 75.0))),
         ('poly', ((1100.0, 1500.0), (1100.0, 75.0), (1400.0, 75.0))),
@@ -71,6 +90,8 @@ DETAILS = (
         ('text', (0.0, -250.0, u'Starters fixed to a template before the pour')),
     )),
     (u'PC1', u'PILE CAP', u'SMDSC 4th ed. MD PC1 / 6.7', (
+        ('fill', (u'cut', (0.0, 0.0, 2000.0, 900.0), [])),
+        ('fill', (u'cut', (250.0, -600.0, 750.0, 0.0), [])), ('fill', (u'cut', (1250.0, -600.0, 1750.0, 0.0), [])),
         ('rect', (0.0, 0.0, 2000.0, 900.0)),
         ('rect', (250.0, -600.0, 750.0, 0.0)), ('rect', (1250.0, -600.0, 1750.0, 0.0)),
         _u(100.0, 175.0, 1800.0, 625.0),
@@ -86,9 +107,9 @@ def by_key():
     return dict((key, (title, md, sketch)) for key, title, md, sketch in DETAILS)
 
 
-def view_name(key):
-    title, md, _s = by_key()[key]
-    return u'{}{} - {}'.format(PREFIX, key, title)
+def view_name(key, prefix=PREFIX):
+    title, _md, _s = by_key()[key]
+    return u'{}{} - {}'.format(prefix, key, title)
 
 
 def needed(host_kinds, layers, piled=False):
@@ -130,10 +151,28 @@ def wide_lines(doc):
     return None
 
 
-def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
-    """Draw detail `key` into an empty legend view, its title and model detail reference over it."""
-    import math
+def _fill_type(doc, kind):
     from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name
+    for frt in DB.FilteredElementCollector(doc).OfClass(DB.FilledRegionType):
+        if element_name(frt) == FILL_TYPES[kind]:
+            return frt
+    return None
+
+
+def _loop(x0, y0, x1, y1):
+    from Autodesk.Revit import DB  # Lazy import
+    loop = DB.CurveLoop()
+    pts = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+    for a, b in zip(pts, pts[1:]):
+        loop.Append(DB.Line.CreateBound(_xyz(*a), _xyz(*b)))
+    return loop
+
+
+def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
+    """Draw detail `key` into an empty legend view: concrete in its material colour, bars heavy, title over it."""
+    from Autodesk.Revit import DB  # Lazy import
+    from System.Collections.Generic import List
     title, md, sketch = by_key()[key]
     view.Scale = SCALE
     top = max([p[1] for kind, d in sketch if kind in ('poly', 'thin') for p in d] +
@@ -146,6 +185,21 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
         c = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_xyz(*a), _xyz(*b)))
         if style is not None:
             c.LineStyle = style
+    for kind, d in sketch:            # the concrete first, under the lines
+        if kind != 'fill':
+            continue
+        fill_kind, outer, holes = d
+        frt = _fill_type(doc, fill_kind)
+        if frt is None:
+            continue
+        loops = List[DB.CurveLoop]()
+        loops.Add(_loop(*outer))
+        for h in holes:
+            loops.Add(_loop(*h))
+        try:
+            DB.FilledRegion.Create(doc, frt.Id, view.Id, loops)
+        except Exception:
+            continue
     for kind, d in sketch:
         if kind == 'rect':
             x0, y0, x1, y1 = d
@@ -155,16 +209,10 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
         elif kind in ('poly', 'thin'):
             for a, b in zip(d, d[1:]):
                 line(a, b, bar_style if kind == 'poly' else thin_style)
-        elif kind == 'dots':
-            x0, y, x1, step = d
-            n = int(round((x1 - x0) / step))
-            for k in range(n + 1):
-                doc.Create.NewDetailCurve(view, DB.Arc.Create(_xyz(x0 + k * step, y), 8.0 / _FT, 0.0,
-                                                              2.0 * math.pi, DB.XYZ.BasisX, DB.XYZ.BasisY))
         elif kind == 'text':
             x, y, text = d
             DB.TextNote.Create(doc, view.Id, _xyz(x, y), text, text_type_id)
     DB.TextNote.Create(doc, view.Id, _xyz(0.0, top + 350.0), u'TYPICAL DETAIL {} - {}'.format(key, title),
                        text_type_id)
-    DB.TextNote.Create(doc, view.Id, _xyz(0.0, top + 220.0), u'After {} - NOSA detail, confirm with design'.format(md),
+    DB.TextNote.Create(doc, view.Id, _xyz(0.0, top + 220.0), u'After {} - confirm with design'.format(md),
                        text_type_id)
