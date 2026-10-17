@@ -941,6 +941,29 @@ def _title_on_sheet(view):
         return u''
 
 
+def _blocks(created):
+    """
+    A drawing of several columns: [(elevation indices A before B, section indices)] a member, in member order;
+    None for any other drawing.
+    """
+    indexed = list(enumerate(created))
+    if not any(e[1][1]['kind'] == 'column_elevation' for e in indexed):
+        return None
+    members = []
+    for _i, (_v, sp, _s) in indexed:
+        if sp.get('member') not in members:
+            members.append(sp.get('member'))
+    if len(members) < 2:
+        return None
+    out = []
+    for m in sorted(members, key=lambda x: u'{}'.format(x or u'')):
+        own = [e for e in indexed if e[1][1].get('member') == m]
+        secs = [i for i, (_v, sp, _s) in own if not sp['plan'] and sp.get('letter')]
+        mains = sorted([i for i, _e in own if i not in secs], key=lambda i: created[i][1]['title'])
+        out.append((mains, secs))
+    return out
+
+
 def _streams(created):
     """
     The views of a drawing in reading order (user 2026-10-12): each member's plans and elevations (A before B), then
@@ -1021,11 +1044,21 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
     anchors = dict((i, _datum_depth(ports[i], created[i][0])) for i in range(len(created))
                    if created[i][1]['kind'] in ('elevation', 'column_elevation'))
 
+    blocks = _blocks(created)
+
     def place():
-        rows = view_plan.layout_rows([[(sizes[i][0], sizes[i][1], anchors.get(i)) for i in st] for st in streams],
-                                     reserved=reserved)
+        if blocks:
+            # several columns: a block each, its section under its elevations (user 2026-10-17)
+            rows = view_plan.layout_blocks([([(sizes[i][0], sizes[i][1], anchors.get(i)) for i in mains],
+                                             [(sizes[i][0], sizes[i][1]) for i in secs]) for mains, secs in blocks],
+                                           reserved=reserved)
+            order = [i for mains, secs in blocks for i in mains + secs]
+        else:
+            rows = view_plan.layout_rows([[(sizes[i][0], sizes[i][1], anchors.get(i)) for i in st] for st in streams],
+                                         reserved=reserved)
+            order = [i for st in streams for i in st]
         out = [None] * len(created)
-        for i, r in zip([i for st in streams for i in st], rows):
+        for i, r in zip(order, rows):
             out[i] = r
         return out
     placement = place()

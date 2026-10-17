@@ -111,3 +111,16 @@ def test_next_mark():
     assert vp.next_mark(u'C', [u'C1', u'C2', u'C3', u'C21']) == u'C4'
     assert vp.next_mark(u'PC', [u'PC10']) == u'PC1'
     assert vp.next_mark(u'B', []) == u'B1'
+
+
+def test_layout_blocks_sections_under_their_elevations():
+    blocks = [([(60.0, 300.0, 250.0), (60.0, 300.0, 250.0)], [(50.0, 50.0)]),
+              ([(60.0, 280.0, 230.0), (60.0, 280.0, 230.0)], [(40.0, 60.0)])]
+    p = vp.layout_blocks(blocks, area=(0.0, 0.0, 800.0, 600.0), gap=10.0)
+    assert len(p) == 6
+    # datums level: block 2 is 20 shorter above its datum, so its top 20 lower
+    assert abs((p[0][2] + 150.0) - (p[3][2] + 140.0 + 20.0)) < 1e-6
+    # each section centred under its pair of elevations, feet level
+    assert abs(p[2][1] - (p[0][1] + p[1][1]) / 2.0) < 1e-6
+    assert abs((p[2][2] - 25.0) - (p[5][2] - 30.0)) < 1e-6
+    assert p[2][2] < p[0][2] - 150.0

@@ -190,3 +190,74 @@ def next_mark(prefix, taken):
     while u'{}{}'.format(prefix, n).upper() in taken:
         n += 1
     return u'{}{}'.format(prefix, n)
+
+
+def layout_blocks(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):
+    """
+    A drawing of several columns (user 2026-10-17: elevations, sections and titles lined up): one block a member,
+    its elevations side by side over its sections, centred under them. blocks [(mains [(w, h, anchor)], secs
+    [(w, h)])]; the blocks of a line have their elevations' datums level and their sections' feet level (their titles
+    in one line); lines go down the sheet and on to a new one, the reserved boxes kept free. Returns [(sheet index,
+    centre x, centre y)], each block's mains then its sections, in the blocks' order.
+    """
+    ax0, ay0, ax1, ay1 = area
+
+    def row_width(items):
+        return sum(w for w, _h in items) + gap * max(0, len(items) - 1)
+
+    def width(block):
+        mains, secs = block
+        return max(row_width([(w, h) for w, h, _a in mains]), row_width(secs))
+
+    def right_edge(y_top, y_bottom):
+        edge = ax1
+        for r in reserved:
+            if y_bottom < r[3] + gap and r[1] - gap < y_top:
+                edge = min(edge, r[0] - gap)
+        return edge
+
+    def heights(line):
+        mains = [m for b in line for m in b[0]]
+        lift = max([a for _w, _h, a in mains if a is not None] or [0.0])
+        top_h = max([(lift - a if a is not None else 0.0) + h for _w, h, a in mains] or [0.0])
+        sec_h = max([h for b in line for _w, h in b[1]] or [0.0])
+        return top_h, sec_h, lift
+
+    out = {}
+    sheet, top = 0, ay1
+    pending = list(range(len(blocks)))
+    while pending:
+        line = []
+        for k in pending:
+            trial = line + [k]
+            top_h, sec_h, _l = heights([blocks[i] for i in trial])
+            total = top_h + (gap + sec_h if sec_h else 0.0)
+            if line and ax0 + sum(width(blocks[i]) for i in trial) + gap * (len(trial) - 1) > \
+                    right_edge(top, top - total) + 1e-6:
+                break
+            line = trial
+        top_h, sec_h, lift = heights([blocks[i] for i in line])
+        total = top_h + (gap + sec_h if sec_h else 0.0)
+        if top - total < ay0 - 1e-6 and top < ay1 - 1e-6:
+            sheet, top = sheet + 1, ay1
+            continue
+        x = ax0
+        feet = top - top_h - gap - sec_h
+        for k in line:
+            mains, secs = blocks[k]
+            bw = width(blocks[k])
+            mx = x + (bw - row_width([(w, h) for w, h, _a in mains])) / 2.0
+            places = []
+            for w, h, a in mains:
+                y_top = top - (lift - a if a is not None else 0.0)
+                places.append((sheet, mx + w / 2.0, y_top - h / 2.0))
+                mx += w + gap
+            sx = x + (bw - row_width(secs)) / 2.0
+            for w, h in secs:
+                places.append((sheet, sx + w / 2.0, feet + h / 2.0))
+                sx += w + gap
+            out[k] = places
+            x += bw + gap
+        top -= total + gap
+        pending = pending[len(line):]
+    return [p for k in range(len(blocks)) for p in out[k]]

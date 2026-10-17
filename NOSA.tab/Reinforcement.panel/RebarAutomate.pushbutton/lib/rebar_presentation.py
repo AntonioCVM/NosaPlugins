@@ -453,7 +453,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     else:
         # a column's bars called up close beside it (user 2026-10-12)
         near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
-        made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report)
+        made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
+                      level=kind == 'column_elevation')
         if plan:
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters)
             if hosts and kind == 'plan':
@@ -1125,8 +1126,8 @@ def made_origin(zones, sid):
     return DB.XYZ.Zero
 
 
-def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report):
-    """Typical bar, indicator line and calling-up of every zone; {id: text box}."""
+def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, level=False):
+    """Typical bar, indicator line and calling-up of every zone; {id: text box}. level: every text horizontal."""
     from nosa_utils import callout_layout
     slots = presentation.layer_slots(zones)
     pending, lines = [], []
@@ -1171,7 +1172,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         if tag is None:
             continue
         a, b = _xy(view, a3), _xy(view, b3)
-        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not _is_plan(view):
+        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not (_is_plan(view) or level):
             try:
                 tag.TagOrientation = DB.TagOrientation.Vertical
             except Exception:
@@ -1186,11 +1187,17 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         w, h, offset = _size(view, tag, _full_label(doc, view, d, tag.GetTypeId()) or _zone_text(doc, d))
         a, b = _xy(view, a3), _xy(view, b3)
         line_vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
-        vertical = line_vertical and not _is_plan(view)            # a plan's calling-up reads level
+        # a plan's calling-up reads level, and a column elevation's link zones (user 2026-10-17: as the bars')
+        vertical = line_vertical and not (_is_plan(view) or level)
         # the text's extent along its line and across it (its box in the view)
         length, height = (h, w) if line_vertical else (w, h)
         if _is_plan(view) and _beside_typical(view, tag, a, b, _xy(view, junction), junction, w, h, offset, box,
                                               placed, lines, gap):
+            report['beside'] = report.get('beside', 0) + 1
+            made[d['id']] = placed[-1]
+            continue
+        if level and line_vertical and _beside_column(view, tag, a, b, _xy(view, junction), junction, w, h, offset,
+                                                      box, placed, gap, outside):
             report['beside'] = report.get('beside', 0) + 1
             made[d['id']] = placed[-1]
             continue
@@ -1218,6 +1225,40 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
 
 LEADER_OFF_BAR_PAPER_MM = 2.5      # a plan leader lands this far from the typical bar along the indicator line
 BESIDE_LIFT_PAPER_MM = 3.0         # a plan calling-up set beside its zone stands this far off the indicator line
+
+
+def _beside_column(view, tag, a, b, junction, like, w, h, offset, box, placed, gap, outside):
+    """
+    A column elevation's link zone called up level beside the column, at its typical link (user 2026-10-17: as the
+    main bars' marks), a straight leader to the indicator line next to it. False when no room within 8 rows.
+    """
+    from nosa_utils import callout_layout
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    off = LEADER_OFF_BAR_PAPER_MM * scale
+    up = 1.0 if b[1] >= a[1] else -1.0
+    # two rows off the typical link first: the main bars' mark stands level with the middle of the column
+    for k in (2, 3, -2, -3, 4, -4, 1, -1, 0, 5, -5, 6, -6, 7, -7, 8, -8):
+        land_y = junction[1] + up * off + k * (h + gap)
+        if not (min(a[1], b[1]) <= land_y <= max(a[1], b[1])):
+            continue
+        for sign, edge in ((1.0, box[2]), (-1.0, box[0])):
+            cx = edge + sign * (outside + w / 2.0)
+            bx = (cx - w / 2.0, land_y - h / 2.0, cx + w / 2.0, land_y + h / 2.0)
+            if any(callout_layout.overlap(bx, q, gap) for q in placed):
+                continue
+            placed.append(bx)
+            _move_head(view, tag, (cx, land_y), offset)
+            try:
+                tag.HasLeader = True
+                refs = list(tag.GetTaggedReferences())
+                if refs:
+                    tag.LeaderEndCondition = DB.LeaderEndCondition.Free
+                    tag.SetLeaderEnd(refs[0], _point(view, (junction[0], land_y), like))
+                    tag.SetLeaderElbow(refs[0], _point(view, (cx - sign * w / 2.0, land_y), like))
+            except Exception:
+                pass
+            return True
+    return False
 
 
 def _beside_typical(view, tag, a, b, junction, like, w, h, offset, box, placed, lines, gap):
@@ -2533,6 +2574,24 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
     items = merge_singles(doc, items, clusters)
     fractions = _pointer_fractions(items)
     bars = {}
+    ahead = list(placed)
+    if not mode and not per_set:
+        # a section's cut bars' marks stand past the faces, placed after the pointers: a pointer run where one of
+        # them goes crossed it (user 2026-10-17, W10 and C2 3-3) - their lanes kept clear when choosing anchors
+        frame0 = _crop_frame(view)
+        half = TEXT_PAPER_MM * scale
+        tall = (box[3] - box[1]) > 3.0 * (box[2] - box[0])
+        for d in cut:
+            for _i, _ref, point in _cut_bars(view, d, frame0):
+                p = _xy(view, point)
+                if tall:
+                    ahead.append((box[0] - 1e6, p[1] - half, box[2] + 1e6, p[1] + half))
+                    continue
+                s = callout_layout.side_of(p, box)
+                ahead.append({'top': (p[0] - 2 * half, p[1], p[0] + 2 * half, box[3] + 1e6),
+                              'bottom': (p[0] - 2 * half, box[1] - 1e6, p[0] + 2 * half, p[1]),
+                              'left': (box[0] - 1e6, p[1] - half, p[0], p[1] + half),
+                              'right': (p[0], p[1] - half, box[2] + 1e6, p[1] + half)}[s])
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
         try:
@@ -2540,7 +2599,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
                 doc, d, tag_types, det._tag_type_for_bar(doc, d['rebar'], base)))
         except Exception:
             continue
-        anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, placed, gap)
+        anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, ahead, gap)
         if tag is not None and anchor is not None:
             entries.append((d['id'], tag, anchor))
             bars[d['id']] = (d, index)
