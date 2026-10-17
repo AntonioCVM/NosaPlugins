@@ -448,7 +448,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, 'beam', clusters=clusters)
         _end_marks(doc, view, ended, tag_types, box, gap, scale, placed, report)
         report['curtailment'] = _curtailment(doc, view, pointers, box, placed, scale, total_style)
-        report['supports'] = _support_limits(doc, view, box, placed, scale, total_style)
+        if not zones:
+            # with links the supports go in their string (user 2026-10-17)
+            report['supports'] = _support_limits(doc, view, box, placed, scale, total_style)
         made = _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, total_style)
     else:
         # a column's bars called up close beside it (user 2026-10-12)
@@ -2099,16 +2101,21 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
         like = _main_line(main['rebar'], 0).Evaluate(0.5, True)
         _total_line(doc, view, lo, hi, y_total, like, scale, style)
         placed.append((lo, y_total - gap, hi, y_total + gap))
-        # SMDSC 4th ed. Fig. 6.24 / 3.13: every zone dimensioned, the first and last from the face of the support
+        # SMDSC 4th ed. Fig. 6.24 / 3.13: every zone dimensioned from the faces of the supports, SUPPORT under each -
+        # one string for both (user 2026-10-17: the beam drawing in less room)
         faces = supports if supports is not None else []
-        left = [f[1] for f in faces if f[1] <= lo + 1.0]
-        right = [f[0] for f in faces if f[0] >= hi - 1.0]
-        inner = [x for f in faces if f[0] > lo and f[1] < hi for x in f]   # both faces of the supports between
-        points = [x for e in pending for x in (e[2], e[3])] + ([max(left)] if left else []) + \
-            ([min(right)] if right else []) + inner
-        if _dimension_chain(doc, view, points, y_dims, like, scale, style) is not None:
+        points, labels = presentation.links_chain([(e[2], e[3]) for e in pending], faces)
+        dim = _dimension_chain(doc, view, points, y_dims, like, scale, style)
+        if dim is not None:
             report['dims'] = report.get('dims', 0) + 1
             placed.append((min(points), y_dims - row / 2.0, max(points), y_dims + row / 2.0))
+            try:
+                segments = list(dim.Segments) if dim.NumberOfSegments > 1 else [dim]
+                for seg, label in zip(segments, labels):
+                    if label:
+                        seg.Below = label
+            except Exception:
+                pass
         if callout_type is None or not callout:
             continue
         tag, _i = _tag_bar(doc, view, main['rebar'], _shown_bar(view, main['rebar'], main['count']), callout_type)

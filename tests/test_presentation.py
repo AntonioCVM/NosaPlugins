@@ -141,6 +141,13 @@ def test_column_ratio_and_confinement():
     assert pr.confinement_zones([(0, 30, 100), (30, 2400, 200), (2400, 3000, 100)]) == [(2400, 3000)]
 
 
+def test_links_chain_takes_the_supports_in():
+    xs, labels = pr.links_chain([(50.0, 1250.0), (1375.0, 4175.0)], [(-450.0, 0.0), (4225.0, 4675.0)])
+    assert xs == [-450.0, 0.0, 50.0, 1250.0, 1375.0, 4175.0, 4225.0, 4675.0]
+    assert labels[0] == pr.SUPPORT_TEXT and labels[-1] == pr.SUPPORT_TEXT and labels[1] == u''
+    assert pr.links_chain([], [(0.0, 450.0)]) == ([0.0, 450.0], [pr.SUPPORT_TEXT])
+
+
 def test_pile_table_and_starter_chain():
     rows = pr.pile_table([(37450.0, 39450.0, 600.0, -825.0), (38550.0, 40550.0, 600.0, -825.0),
                           (37450.0, 40550.0, 600.0, -825.0), (38550.0, 39450.0, 600.0, -825.0)], (38000.0, 40000.0))

@@ -316,6 +316,26 @@ def support_chain(supports, tol=1.0):
     return (xs, labels) if len(xs) >= 2 else ([], [])
 
 
+def links_chain(zones, supports, tol=1.0):
+    """
+    Under a beam elevation (user 2026-10-17: the same in less room) one dimension string for both its link zones
+    [(x0, x1)] and its supports [(a, b)] - both faces of every support the zones reach, SUPPORT under each - in
+    place of a string of its own for the supports. ([x], [label per segment]).
+    """
+    if not zones:
+        return support_chain(supports, tol)
+    lo, hi = min(z[0] for z in zones), max(z[1] for z in zones)
+    reached = [(a, b) for a, b in supports if b >= lo - 1000.0 and a <= hi + 1000.0]
+    xs = []
+    for x in sorted([x for z in zones for x in z] + [x for s in reached for x in s]):
+        if not xs or x - xs[-1] > tol:
+            xs.append(x)
+    labels = []
+    for x0, x1 in zip(xs, xs[1:]):
+        labels.append(SUPPORT_TEXT if any(abs(x0 - a) <= tol and abs(x1 - b) <= tol for a, b in reached) else u'')
+    return xs, labels
+
+
 def arc_stations(length_mm, step_mm=None, least_mm=500.0):
     """
     T9.17 curved beam plan: the chainages (mm along its axis) set out on the plan, from 0 to its length: at a round
