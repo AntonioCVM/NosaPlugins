@@ -392,9 +392,9 @@ def _continue_labels(doc, created, group, kind, label):
             if (view, spec, _s) in numbers + letters:
                 view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label,
                                                                         spec['title']))
-            # several members on one drawing: every title says whose view it is ('B1-B3 Elevation')
-            view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).Set(
-                u'{} {}'.format(label, spec['title']) if group['members'] > 1 else spec['title'])
+            # every title says whose view it is ('B1-B3 Elevation'), one member on the drawing too ('W10
+            # Elevation', 2026-10-17: a lone wall's read only 'Elevation')
+            view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).Set(u'{} {}'.format(label, spec['title']))
         except Exception:
             continue
 
@@ -421,6 +421,7 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
     from nosa_utils.revit_helpers import get_id_value
     report = {'views': [], 'sheets': [], 'tags': 0, 'errors': []}
     kinds = []
+    placed = []
     for g in groups:
         k = host_kind(g[0])
         if k not in kinds:
@@ -447,6 +448,16 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
         valid = [e for e in group['pending'] if e[0].IsValidObject]
         if valid:
             report['sheets'].extend(_place_group(doc, kind, valid, group, view_plan, sheet_numbers, report))
+            placed.extend(valid)
+    # the section marks of the drawings made after a view, out of its elevations and sections (2026-10-17: F10's
+    # section head sat on C3's confinement and kicker dimensions)
+    marked = [v for v, sp, _s in placed if v.IsValidObject and (sp.get('as_plan') or not sp.get('plan'))]
+    if marked:
+        t = DB.Transaction(doc, u'NOSA — Section marks of later drawings')
+        t.Start()
+        for v in marked:
+            _hide_viewers(doc, v)
+        t.Commit()
     return report
 
 
