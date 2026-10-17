@@ -84,6 +84,38 @@ def place_inline(item, box, placed, gap, outside_gap, tries=12):
     return accept('b', c, bx, False)
 
 
+def segment_box(p, q, pad):
+    """A line's box, `pad` round it."""
+    return (min(p[0], q[0]) - pad, min(p[1], q[1]) - pad, max(p[0], q[0]) + pad, max(p[1], q[1]) + pad)
+
+
+def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, lift, rows=4):
+    """
+    A plan's calling-up inside the member beside its zone (user 2026-10-17): a level text next to where the
+    indicator line (unit `u`) crosses the typical bar, past the leader's landing `off` along the line and `lift`
+    off it, clear of texts placed and of the lines in `obstacles`. Returns (centre, sign along u, side across) or
+    None; appends the box to `placed`.
+    """
+    nrm = (-u[1], u[0])
+    hx, hy = length / 2.0, height / 2.0
+    ext_n = abs(nrm[0]) * hx + abs(nrm[1]) * hy
+    ext_u = abs(u[0]) * hx + abs(u[1]) * hy
+    for k in range(rows):
+        for along in (1.0, -1.0):
+            for side in (1.0, -1.0):
+                t_n = side * (ext_n + lift + k * (height + gap))
+                t_u = along * (off + ext_u + gap)
+                c = (junction[0] + nrm[0] * t_n + u[0] * t_u, junction[1] + nrm[1] * t_n + u[1] * t_u)
+                bx = (c[0] - hx, c[1] - hy, c[0] + hx, c[1] + hy)
+                if bx[0] < box[0] or bx[1] < box[1] or bx[2] > box[2] or bx[3] > box[3]:
+                    continue
+                if any(overlap(bx, q, gap) for q in placed) or any(overlap(bx, q) for q in obstacles):
+                    continue
+                placed.append(bx)
+                return c, along, side
+    return None
+
+
 def pack(desired, widths, gap):
     """
     Centres along a line, in the order of `desired`, no two closer than half their widths plus gap, each

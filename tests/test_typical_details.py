@@ -66,3 +66,25 @@ def test_dots_and_library():
     keys = [k for k, _t, _m, _s in td.DETAILS]
     for k in (u'W1', u'W2', u'S2', u'S4', u'S6', u'ST1', u'RW1', u'C4', u'B3', u'CB1'):
         assert k in keys
+
+
+def _inside(pt, poly):
+    x, y, hit = pt[0], pt[1], False
+    for (x0, y0), (x1, y1) in zip(poly, poly[1:] + poly[:1]):
+        if (y0 > y) != (y1 > y) and x < x0 + (y - y0) * (x1 - x0) / (y1 - y0):
+            hit = not hit
+    return hit
+
+
+def test_st1_bars_inside_and_crossing_at_the_inside_corners():
+    sketch = td.by_key()[u'ST1'][2]
+    outline = list([d for kind, d in sketch if kind == 'fillpoly'][0][1])
+    bars = [d for kind, d in sketch if kind == 'poly']
+    for bar in bars:
+        for p in bar:
+            assert _inside(p, outline), p
+    # no bar bent round the soffit's inside corner (1900, 1000) nor the top's (723, 200)
+    for bar in bars:
+        for p in bar[1:-1]:
+            assert abs(p[0] - 1900.0) > 60.0 or abs(p[1] - 1000.0) > 60.0
+            assert abs(p[0] - 723.0) > 60.0 or abs(p[1] - 200.0) > 60.0

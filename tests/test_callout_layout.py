@@ -100,3 +100,22 @@ def test_free_marks_stand_over_their_bars():
     out = cl.place_pointers(items, slab, 20.0, 100.0)
     assert max(abs(out[i]['centre'][0] - items[i]['anchor'][0]) for i in range(12)) <= 40.0 + 1e-6
     assert max(out[i]['box'][3] for i in range(12)) <= -30.0 + 1e-6
+
+
+def test_place_beside_next_to_the_typical_bar():
+    box = (0.0, 0.0, 10000.0, 10000.0)
+    placed = []
+    # a vertical indicator line through (5000, 5000); text 1000 x 200, landing 125 off, 150 lift
+    spot = cl.place_beside((5000.0, 5000.0), (0.0, 1.0), 1000.0, 200.0, box, placed, [], 50.0, 125.0, 150.0)
+    c, along, side = spot
+    assert along == 1.0 and side == 1.0
+    assert abs(c[0] - (5000.0 - 650.0)) < 1e-6 and abs(c[1] - (5000.0 + 275.0)) < 1e-6
+    assert placed and not cl.overlap(placed[0], (4999.0, 0.0, 5001.0, 10000.0))
+    # the same spot taken: the next one is clear of it
+    spot2 = cl.place_beside((5000.0, 5000.0), (0.0, 1.0), 1000.0, 200.0, box, placed, [], 50.0, 125.0, 150.0)
+    assert spot2 is not None and not cl.overlap(placed[1], placed[0], 50.0)
+
+
+def test_place_beside_none_outside_the_member():
+    assert cl.place_beside((50.0, 50.0), (1.0, 0.0), 1000.0, 200.0, (0.0, 0.0, 300.0, 300.0), [], [], 50.0,
+                           125.0, 150.0) is None

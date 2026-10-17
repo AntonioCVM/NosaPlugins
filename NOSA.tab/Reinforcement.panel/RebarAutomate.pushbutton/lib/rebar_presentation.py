@@ -1071,8 +1071,9 @@ def made_origin(zones, sid):
 
 def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report):
     """Typical bar, indicator line and calling-up of every zone; {id: text box}."""
+    from nosa_utils import callout_layout
     slots = presentation.layer_slots(zones)
-    pending = []
+    pending, lines = [], []
     for d in sorted(zones, key=lambda z: (slots.get(z['id'], 0.5), z['id'])):
         rebar, n = d['rebar'], d['count']
         frac = slots.get(d['id'], 0.5)
@@ -1102,6 +1103,11 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             except Exception:
                 pass
         pending.append((d, mra, a3, b3, junction))
+        if _is_plan(view):
+            # the indicator line and the typical bar: no calling-up set beside another zone sits on them
+            p0, p1 = _xy(view, shown.GetEndPoint(0)), _xy(view, shown.GetEndPoint(1))
+            lines.append(callout_layout.segment_box(_xy(view, a3), _xy(view, b3), gap / 3.0))
+            lines.append(callout_layout.segment_box(p0, p1, gap / 3.0))
     doc.Regenerate()
     made, line_up = {}, []
     for d, mra, a3, b3, _o in pending:
@@ -1109,13 +1115,13 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         if tag is None:
             continue
         a, b = _xy(view, a3), _xy(view, b3)
-        if abs(b[1] - a[1]) > abs(b[0] - a[0]):
+        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not _is_plan(view):
             try:
                 tag.TagOrientation = DB.TagOrientation.Vertical
             except Exception:
                 pass
     doc.Regenerate()
-    for d, mra, a3, b3, _o in pending:
+    for d, mra, a3, b3, junction in pending:
         tag = doc.GetElement(mra.TagId)
         if tag is None:
             continue
@@ -1123,15 +1129,27 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         # one total over both ends of a wall with '(15)' at each read wrong)
         w, h, offset = _size(view, tag, _full_label(doc, view, d, tag.GetTypeId()) or _zone_text(doc, d))
         a, b = _xy(view, a3), _xy(view, b3)
-        vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
-        length, height = (h, w) if vertical else (w, h)
+        line_vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
+        vertical = line_vertical and not _is_plan(view)            # a plan's calling-up reads level
+        # the text's extent along its line and across it (its box in the view)
+        length, height = (h, w) if line_vertical else (w, h)
+        if _is_plan(view) and _beside_typical(view, tag, a, b, _xy(view, junction), junction, w, h, offset, box,
+                                              placed, lines, gap):
+            report['beside'] = report.get('beside', 0) + 1
+            made[d['id']] = placed[-1]
+            continue
         r = presentation_place(a, b, length, height, box, placed, gap, outside)
         _move_head(view, tag, r['centre'], offset)
         try:
             tag.HasLeader = bool(r['outside'])
         except Exception:
             pass
-        if r['outside']:
+        if r['outside'] and _is_plan(view):
+            # plans (user 2026-10-17): the leader lands on the indicator line beside the typical bar, square to
+            # it, so each calling-up shows its zone - not on the line's arrowed end
+            c = _leader_to_typical(view, tag, a, b, r, _xy(view, junction), junction, offset, gap)
+            r['box'] = (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)
+        elif r['outside']:
             if not _square_mra(view, tag, a, b, r, length, a3):
                 # on its line's extension: the leader's attach point put on the line
                 line_up.append((tag, 'v' if vertical else 'h', r['centre']))
@@ -1140,6 +1158,75 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         made[d['id']] = r['box']
     _line_up(doc, view, line_up)
     return made
+
+
+LEADER_OFF_BAR_PAPER_MM = 2.5      # a plan leader lands this far from the typical bar along the indicator line
+BESIDE_LIFT_PAPER_MM = 3.0         # a plan calling-up set beside its zone stands this far off the indicator line
+
+
+def _beside_typical(view, tag, a, b, junction, like, w, h, offset, box, placed, lines, gap):
+    """
+    A plan's calling-up set inside the member next to its typical bar, a short square leader to the indicator line
+    beside the bar (user 2026-10-17): it reads with its zone even where several zones meet. False when no room.
+    """
+    from nosa_utils import callout_layout
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    u = (b[0] - a[0], b[1] - a[1])
+    n_u = (u[0] ** 2 + u[1] ** 2) ** 0.5
+    if n_u < 1.0:
+        return False
+    u = (u[0] / n_u, u[1] / n_u)
+    off = LEADER_OFF_BAR_PAPER_MM * scale
+    spot = callout_layout.place_beside(junction, u, w, h, box, placed, lines, gap, off,
+                                       BESIDE_LIFT_PAPER_MM * scale)
+    if spot is None:
+        return False
+    c, along, _side = spot
+    _move_head(view, tag, c, offset)
+    nrm = (-u[1], u[0])
+    across = (c[0] - junction[0]) * nrm[0] + (c[1] - junction[1]) * nrm[1]
+    land = (junction[0] + u[0] * along * off, junction[1] + u[1] * along * off)
+    elbow = (land[0] + nrm[0] * across, land[1] + nrm[1] * across)
+    try:
+        tag.HasLeader = True
+        refs = list(tag.GetTaggedReferences())
+        if refs:
+            tag.LeaderEndCondition = DB.LeaderEndCondition.Free
+            tag.SetLeaderEnd(refs[0], _point(view, land, like))
+            tag.SetLeaderElbow(refs[0], _point(view, elbow, like))
+    except Exception:
+        pass
+    return True
+
+
+def _leader_to_typical(view, tag, a, b, r, junction, like, offset, gap):
+    """
+    An indicator line's calling-up on a plan with its leader square to the line, landing on it beside the typical
+    bar (user 2026-10-17, his 15H12-10-200 T2 example): text -> elbow -> a point of the line next to the bar.
+    Returns the text's centre.
+    """
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    end = b if r['end'] == 'b' else a
+    other = a if r['end'] == 'b' else b
+    u = (end[0] - other[0], end[1] - other[1])
+    n_u = (u[0] ** 2 + u[1] ** 2) ** 0.5 or 1.0
+    u = (u[0] / n_u, u[1] / n_u)
+    nrm = (-u[1], u[0])
+    # the text stays where it was placed clear of the others: moved a row it landed on its neighbours
+    c = r['centre']
+    across = (c[0] - junction[0]) * nrm[0] + (c[1] - junction[1]) * nrm[1]
+    off = LEADER_OFF_BAR_PAPER_MM * scale
+    land = (junction[0] + u[0] * off, junction[1] + u[1] * off)
+    elbow = (land[0] + nrm[0] * across, land[1] + nrm[1] * across)
+    try:
+        refs = list(tag.GetTaggedReferences())
+        if refs:
+            tag.LeaderEndCondition = DB.LeaderEndCondition.Free
+            tag.SetLeaderEnd(refs[0], _point(view, land, like))
+            tag.SetLeaderElbow(refs[0], _point(view, elbow, like))
+    except Exception:
+        pass
+    return c
 
 
 def _square_mra(view, tag, a, b, r, length, like):

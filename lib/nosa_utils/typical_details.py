@@ -184,18 +184,23 @@ DETAILS = (
         ('text', (0.0, -350.0, u'at 1.5d max. within 2d of the face, 2d max. beyond;')),
         ('text', (0.0, -450.0, u'H12 fixing bars where no main bar is present')),
     )),
+    # a 200 waist square to the flight; at the knees' inside corners (the top face low, the soffit high) the bars
+    # cross and run on straight to the far face - one bent round an inside corner pulls out of the concrete
+    # under tension (user 2026-10-17, his stair sketch)
     (u'ST1', u'STAIR WITH LANDINGS', u'SMDSC 4th ed. MD ST1', (
         ('fillpoly', (u'cut', ((0.0, 0.0), (800.0, 0.0), (1900.0, 1000.0), (2700.0, 1000.0), (2700.0, 1200.0),
-                               (2000.0, 1200.0), (900.0, 200.0), (0.0, 200.0)))),
+                               (1822.0, 1200.0), (723.0, 200.0), (0.0, 200.0)))),
         ('edge', ((0.0, 0.0), (800.0, 0.0), (1900.0, 1000.0), (2700.0, 1000.0))),
-        ('edge', ((0.0, 200.0), (900.0, 200.0), (2000.0, 1200.0), (2700.0, 1200.0))),
-        ('poly', ((0.0, 40.0), (790.0, 40.0), (1890.0, 1040.0), (2700.0, 1040.0))),
-        ('poly', ((0.0, 160.0), (1150.0, 160.0))),
-        ('poly', ((1650.0, 1160.0), (2700.0, 1160.0))),
-        ('text', (0.0, -150.0, u'Main bars continuous through the knees into the landings;')),
-        ('text', (0.0, -250.0, u'top bars at the knees reach A, the greatest of 0.1 x span,')),
-        ('text', (0.0, -350.0, u'a tension anchorage or 500; landing U-bars 50 % of the')),
-        ('text', (0.0, -450.0, u'main bottom steel; distribution bars as MD S1')),
+        ('edge', ((0.0, 200.0), (723.0, 200.0), (1822.0, 1200.0), (2700.0, 1200.0))),
+        ('poly', ((40.0, 40.0), (785.0, 40.0), (1978.0, 1125.0), (2450.0, 1125.0))),
+        ('poly', ((2660.0, 1160.0), (1838.0, 1160.0), (645.0, 75.0), (200.0, 75.0))),
+        ('poly', ((40.0, 160.0), (864.0, 160.0), (1234.0, 496.0))),
+        ('poly', ((2660.0, 1040.0), (1758.0, 1040.0), (1388.0, 704.0))),
+        ('text', (0.0, -150.0, u'Main bars continuous round the outside corners of the knees;')),
+        ('text', (0.0, -250.0, u'at the inside corners the bars cross, each run on straight to')),
+        ('text', (0.0, -350.0, u'the far face and anchored there; top bars at the knees reach')),
+        ('text', (0.0, -450.0, u'the greatest of 0.1 x span, a tension anchorage or 500;')),
+        ('text', (0.0, -550.0, u'distribution bars as MD S1')),
     )),
     (u'RW1', u'CANTILEVER RETAINING WALL', u'SMDSC 4th ed. MD RW1', (
         ('fill', (u'cut', (0.0, 0.0, 2400.0, 450.0), [])), ('fill', (u'cut', (900.0, 450.0, 1200.0, 600.0), [])),
