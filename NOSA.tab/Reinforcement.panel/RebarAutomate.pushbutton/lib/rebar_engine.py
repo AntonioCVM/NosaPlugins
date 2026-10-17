@@ -834,7 +834,7 @@ def build_contact_starters(doc, bar_points, inward_dirs, base_z_ft, main_dia_mm,
 
 def starter_link_set(bar_lines, hand, foundation, link_dia_mm, bar_dia_mm, cover_mm):
     """
-    IStructE SMDSC MF1 / MC1: one Set of closed links (H10-300, at least 3) round a rectangular cage
+    IStructE SMDSC 4th ed. MD F1 / MD C1: one Set of closed links (H10-300, at least 3) round a rectangular cage
     of column starters, inside the foundation from below its top cover down to above the feet.
     bar_lines run from the foot (start) up; hand is the column's width direction. None when the
     cage is not rectangular (a circular cage) or the foundation leaves no room.
@@ -1342,7 +1342,7 @@ def starter_l_curves(line, hook_dir, bar_dia_mm, foundation=None, cover_mm=None)
     [foot, vertical] centreline curves of an L-shaped dowel/starter.
 
     `line` runs from the top of the mat the foot rests on (its start) up to
-    the lap end. The foot is max(450 mm, 12 d) long (IStructE SMDSC 6.7:
+    the lap end. The foot is max(450 mm, 12 d) long (IStructE SMDSC 4th ed. 6.7:
     column starters need a horizontal leg of at least 450 mm) along
     hook_dir, shortened only where it would leave the foundation's cover.
     Built as explicit curves, not a hook type, so length and direction are

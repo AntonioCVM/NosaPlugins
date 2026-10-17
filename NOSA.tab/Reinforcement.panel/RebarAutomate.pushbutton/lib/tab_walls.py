@@ -131,7 +131,7 @@ class WallsMixin(object):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'wall'))
         try:
-            # T8.40, IStructE SMDSC 6.5: pitches within min(3t, 400), minimum steel, links over 2 %
+            # T8.40, IStructE SMDSC 4th ed. 6.5: pitches within min(3t, 400), minimum steel, links over 2 %
             from nosa_utils import wall_rules
             vs, hs, wall_notes = wall_rules.review(
                 host.Width * 304.8, values['vert_dia'], values['vert_spacing'], values['horiz_dia'],
@@ -139,7 +139,7 @@ class WallsMixin(object):
                 values.get('tie_spacing'), label=u'Wall {}'.format(get_id_value(host.Id)))
             errors.extend(wall_notes)
             if self.ra_project.get('water_retaining'):
-                # T8.53, SMDSC 9.2: vertical (tension) bars at 250 mm at most, horizontal (distribution) at 150
+                # T8.53, SMDSC 3rd ed. 9.2: vertical (tension) bars at 250 mm at most, horizontal (distribution) at 150
                 from nosa_utils import water_retaining
                 vs, hs, wr_notes = water_retaining.review(
                     host.Width * 304.8, cover_mm, vs, hs, int(self.ra_project.get('tightness', 1)),
@@ -220,7 +220,7 @@ class WallsMixin(object):
                 return
             bar_host = host
             if host_id is not None:
-                # MW2 corner bars stand in the concrete of the wall met, not this one
+                # MD W2 corner bars stand in the concrete of the wall met, not this one
                 from nosa_utils.revit_helpers import element_id_from_int
                 bar_host = self.doc.GetElement(element_id_from_int(host_id)) or host
             rebar = wrapper.create_from_curves(
@@ -308,7 +308,7 @@ class WallsMixin(object):
         ubar_dia = values.get('ubar_dia') or values['vert_dia']
         bar_type_u = bar_types.get(ubar_dia)
         holes = reinforcement.get('opening_bars') or {}
-        # IStructE SMDSC MW4: U-bars of the horizontal size and trimmer bars one size up
+        # IStructE SMDSC 4th ed. MD W4: U-bars of the horizontal size and trimmer bars one size up
         hole_ubars = holes.get('ubars') or {'sets': [], 'bars': []}
         if hole_ubars['sets'] or hole_ubars['bars']:
             self._create_grouped_bars(
@@ -319,7 +319,7 @@ class WallsMixin(object):
                            bar['normal'], u'Wall Trimmer Bar', layer=u'trimmer')
         corner = reinforcement.get('corner_ubars') or {'sets': [], 'bars': []}
         if corner['sets'] or corner['bars']:
-            # IStructE SMDSC MW2: U-bars of the horizontal size and pitch round the corner
+            # IStructE SMDSC 4th ed. MD W2: U-bars of the horizontal size and pitch round the corner
             self._create_grouped_bars(
                 wrapper, host, corner, bar_types.get(values['horiz_dia']), errors, created_rebars,
                 u'Wall Corner U-Bar', layer=u'corner_ubar')
@@ -355,7 +355,7 @@ class WallsMixin(object):
                 errors, created_rebars)
 
     def _wall_joints(self, walls):
-        """IStructE SMDSC MW2: how each end of the selected straight walls meets the others."""
+        """IStructE SMDSC 4th ed. MD W2: how each end of the selected straight walls meets the others."""
         import wall_joints
         plan = []
         for host in walls:

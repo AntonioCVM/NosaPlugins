@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — the tabular method (T8.54, IStructE SMDSC 4.1.1, 6.4.4, 6.7.4), the rules in
+NOSA.RebarAutomate — the tabular method (T8.54, IStructE SMDSC 4th ed. 4.1.1, 6.4.4, 6.7.4), the rules in
 nosa_utils.tabular: each reinforced column and base gets the calling-up of its bars in NOSA_Tab_* parameters and
 the references of the members alike in NOSA_Tab_Refs; two Revit schedules ('NOSA Column Schedule', 'NOSA Base
 Schedule') list one row per type of member with its number off. bind() outside a transaction, update() in one.
@@ -148,7 +148,7 @@ def _schedule(doc, name, category, fields, group_by):
 
 def ensure_schedules(doc):
     """
-    The column and base schedules of SMDSC 6.4.4 / 6.7.4, made on first use: [ViewSchedule]. One row per
+    The column and base schedules of SMDSC 4th ed. 6.4.4 / 6.7.4, made on first use: [ViewSchedule]. One row per
     NOSA_Tab_Refs: the members alike share it, so it groups them by itself (Revit takes at most 4 grouping fields).
     """
     columns = _schedule(doc, COLUMN_SCHEDULE, DB.BuiltInCategory.OST_StructuralColumns, (

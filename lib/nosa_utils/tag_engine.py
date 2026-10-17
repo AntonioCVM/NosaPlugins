@@ -52,7 +52,7 @@ def _ra_presentation():
 
 
 def present_rebar(doc, view, mra_type):
-    """T8.27, IStructE SMDSC 6.2.2: the bars of the view as typical bars with indicator lines and notes."""
+    """T8.27, IStructE SMDSC 4th ed. 6.2.2: the bars of the view as typical bars with indicator lines and notes."""
     from nosa_utils.revit_helpers import get_id_value
     rebars = elements(doc, view, 'rebar')
     if not rebars:
@@ -362,7 +362,7 @@ def tag_view(doc, view, keys, type_ids=None, rearrange=True, gap_paper_mm=1.5, l
     type_ids = type_ids or {}
     if 'rebar' in keys:
         try:
-            _ra_presentation().bind(doc)       # the one-calling-up-per-mark parameters (SMDSC 4.2.1)
+            _ra_presentation().bind(doc)       # the one-calling-up-per-mark parameters (SMDSC 4th ed. 4.2.1)
         except Exception as e:
             report['errors'].append(u'presentation parameters not bound: {}'.format(e))
     guard = _rollback_on_error()

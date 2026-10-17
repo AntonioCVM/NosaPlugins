@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.ties — structural tying for robustness (T8.50, IStructE SMDSC 5.1.9, EC2 9.10 with the UK NA), no
+nosa_utils.ties — structural tying for robustness (T8.50, IStructE SMDSC 4th ed. 5.1.10, EC2 9.10 with the UK NA), no
 Revit: the tie forces of a building, the steel they need (accidental situation: fyd = fyk) and whether the bars
 modelled along an edge or across a floor make a continuous tie.
 """
@@ -122,7 +122,7 @@ def _rows(doc, floor, axis):
 
 def check_floor(doc, floor, storeys, gk_qk_kpa, lr_m, fyk_mpa=FYK_MPA):
     """
-    Ties provided by a floor's own bars (SMDSC 5.1.9): along each edge of its box, the continuous lapped rows
+    Ties provided by a floor's own bars (SMDSC 4th ed. 5.1.10): along each edge of its box, the continuous lapped rows
     within 1.2 m against the peripheral force; in X and Y the continuous rows across the whole floor per metre
     against the internal force. [(check, ok, text)].
     """

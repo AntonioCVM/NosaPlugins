@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-IStructE SMDSC 6.2.2 presentation of bars on plans and elevations, no Revit: which sets are drawn as one
+IStructE SMDSC 4th ed. 6.2.2 presentation of bars on plans and elevations, no Revit: which sets are drawn as one
 typical bar, quantities in brackets for a mark in several zones, 'Alt.' / 'Stg.' between sets, and the
 short 30 degree obliques at curtailed bar ends. Sets are described in the view's own 2D frame (mm):
 {'id', 'mark', 'count', 'bar_dir': (x, y), 'spread_dir': (x, y) or None, 'first': (x, y), 'last': (x, y),
@@ -29,7 +29,7 @@ def is_typical_bar_set(bar_dir_3d_dot_view, spread_in_view):
 
 
 def zone_labels(sets):
-    """{id: '(n)'} for every set whose mark appears in more than one zone of the view (SMDSC 6.2.2)."""
+    """{id: '(n)'} for every set whose mark appears in more than one zone of the view (SMDSC 4th ed. 6.2.2)."""
     by_mark = {}
     for s in sets:
         if s.get('mark'):
@@ -101,7 +101,7 @@ def curtailed(end_mm, member_lo_mm, member_hi_mm, cover_mm, bar_dia_mm, margin_m
 
 
 def tick(end, outward, side, scale):
-    """The short 30 degree oblique at a curtailed bar end (SMDSC 6.2.2): ((x, y), (x, y)) in view mm."""
+    """The short 30 degree oblique at a curtailed bar end (SMDSC 4th ed. 6.2.2): ((x, y), (x, y)) in view mm."""
     length = TICK_PAPER_MM * scale
     a = math.radians(TICK_ANGLE_DEG)
     d = (outward[0] * math.cos(a) + side[0] * math.sin(a), outward[1] * math.cos(a) + side[1] * math.sin(a))
@@ -153,7 +153,7 @@ def zone_quantity(count, spacing_mm):
 def total_callout(label, total, note=u''):
     """
     The one calling-up of a mark drawn in several zones: its label without centres ('26H8-06'), the count
-    the total of the zones ('43H8-06'), then what kind of bar it is ('43H8-06 LINKS', SMDSC 6.2.3).
+    the total of the zones ('43H8-06'), then what kind of bar it is ('43H8-06 LINKS', SMDSC 4th ed. 6.2.3).
     """
     text = re.sub(u'^[0-9]+', u'{}'.format(total), (label or u'').strip())
     return u'{} {}'.format(text, note) if note else text

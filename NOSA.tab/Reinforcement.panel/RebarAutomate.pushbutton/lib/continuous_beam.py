@@ -61,7 +61,7 @@ def bottom_anchor_into_support(bar_dia, support_width, clearance=10.0):
 def lap_cuts(x_start, x_end, spans, stock_mm, lap_mm):
     """
     Segments [(x0, x1)] of one continuous bar from x_start to x_end, each no longer than
-    stock_mm, overlapping lap_mm. SMDSC 6.3: a top-bar lap lies wholly in the central third of a
+    stock_mm, overlapping lap_mm. SMDSC 4th ed. 6.3: a top-bar lap lies wholly in the central third of a
     clear span, at mid-span when the stock length reaches it; only a lap longer than the third
     falls back to a centre inside it. The farthest span that fits keeps the laps fewest.
     Returns (segments, warnings).
@@ -104,7 +104,7 @@ def support_bar_slots(n_hangers, n_extra, keep_free=0):
     """
     Where the extra support bars go across the width: ('between', i) = midway between hanger
     bars i and i+1 in the top layer; ('second', i) = under hanger bar i in a second layer.
-    keep_free: gaps between hangers left empty for the poker vibrator (SMDSC MB1), central first.
+    keep_free: gaps between hangers left empty for the poker vibrator (SMDSC 4th ed. MD B1), central first.
     """
     slots = []
     between = list(range(max(n_hangers - 1, 0)))
@@ -155,7 +155,7 @@ SPAN_VARIATION = 0.15
 
 
 def shift_al_mm(d_mm):
-    """al the detailer assumes when the designer gives none (SMDSC 6.3.2): 1.25 d."""
+    """al the detailer assumes when the designer gives none (SMDSC 4th ed. 6.3.2): 1.25 d."""
     return 1.25 * d_mm
 
 
@@ -189,25 +189,25 @@ def sagging_range_mm(x0, x1, start_kind, end_kind, d_mm=0.0):
     return (a, b) if b - a > 1.0 else None
 
 
-FLEX_BOTTOM_GAP_MM = 25.0     # SMDSC 4.2.3 / MB1 flexible detailing: span bottom bars stop 25 from the face
+FLEX_BOTTOM_GAP_MM = 25.0     # SMDSC 4th ed. 4.2.3 / MD B1 flexible detailing: span bottom bars stop 25 from the face
 FLEX_TOP_GAP_MM = 50.0        # ... hanger bars 50 from it
 FLEX_SPLICE_SHARE = 0.30      # bottom splice bars over an internal support: 30 % of the span bars
 
 
 def splice_bar_count(n_bottom):
-    """Bottom splice bars over an internal support (SMDSC MB1): 30 % of the span bars, at least two."""
+    """Bottom splice bars over an internal support (SMDSC 4th ed. MD B1): 30 % of the span bars, at least two."""
     return max(2, int(-(-FLEX_SPLICE_SHARE * n_bottom // 1)))
 
 
-END_UBAR_SHARE = 0.30         # SMDSC MB1: end U-bars, 30 % of the span bottom bars ...
+END_UBAR_SHARE = 0.30         # SMDSC 4th ed. MD B1: end U-bars, 30 % of the span bottom bars ...
 END_UBAR_SHARE_SIMPLE = 0.50  # ... 50 % at a simple support
-VIBRATOR_GAP_MM = 75.0        # SMDSC 4.2 / MB1: a 75 mm space for the poker for every 300 mm of width
+VIBRATOR_GAP_MM = 75.0        # SMDSC 4th ed. 4.2 / MD B1: a 75 mm space for the poker for every 300 mm of width
 VIBRATOR_WIDTH_MM = 300.0
-SPACER_PITCH_MM = 1000.0      # SMDSC MB1 / Fig. 4.2: spacer bars between layers
+SPACER_PITCH_MM = 1000.0      # SMDSC 4th ed. MD B1 / Fig. 4.2: spacer bars between layers
 
 
 def end_ubar_count(n_bottom, simple=False):
-    """End U-bars of the flexible detailing (SMDSC MB1): 30 % of the span bottom bars (50 % on a simple support), at least two."""
+    """End U-bars of the flexible detailing (SMDSC 4th ed. MD B1): 30 % of the span bottom bars (50 % on a simple support), at least two."""
     share = END_UBAR_SHARE_SIMPLE if simple else END_UBAR_SHARE
     return max(2, int(-(-share * n_bottom // 1)))
 
@@ -232,7 +232,7 @@ def spacer_positions_mm(lo, hi, pitch=SPACER_PITCH_MM, end=100.0):
 
 
 def flexible_hanger_runs(x_start, x_end, supports):
-    """Hanger bar runs that stop FLEX_TOP_GAP_MM short of every continuous support (SMDSC MB1)."""
+    """Hanger bar runs that stop FLEX_TOP_GAP_MM short of every continuous support (SMDSC 4th ed. MD B1)."""
     runs, a = [], x_start
     for sup in supports:
         if sup.get('continuous'):
@@ -246,7 +246,7 @@ def simplified_rules_warnings(spans_mm):
     """Why the SMDSC simplified curtailment may not apply to these clear spans (designer to confirm)."""
     out = []
     if len(spans_mm) < 3:
-        out.append(u'SMDSC 6.3.2 simplified curtailment assumes three or more spans ({} here): check the bar '
+        out.append(u'SMDSC 4th ed. 6.3.2 simplified curtailment assumes three or more spans ({} here): check the bar '
                    u'lengths against the bending moment diagram.'.format(len(spans_mm)))
     if spans_mm and max(spans_mm) > 0 and (max(spans_mm) - min(spans_mm)) > SPAN_VARIATION * max(spans_mm):
         out.append(u'spans differ by more than 15 % ({:.0f} to {:.0f} mm): the SMDSC simplified curtailment '

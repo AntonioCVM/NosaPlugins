@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — A4 bar schedules (T8.33/T8.34, IStructE SMDSC 4.5.1, BS 8666:2020).
+NOSA.RebarAutomate — A4 bar schedules (T8.33/T8.34, IStructE SMDSC 4th ed. 4.5.1, BS 8666:2020).
 
 Each reinforcement drawing gets its own schedules, separate A4 sheets numbered 01, 02 ... per
 drawing; the schedule reference is drawing + schedule + revision (4002-01-A, user decision
@@ -30,7 +30,7 @@ def schedule_key(drawing, number):
 
 
 def schedule_ref(key, revision):
-    """'4002-01', 'A' -> '4002-01-A' (SMDSC 4.5.1: last character reserved for the revision)."""
+    """'4002-01', 'A' -> '4002-01-A' (SMDSC 4th ed. 4.5.1: last character reserved for the revision)."""
     revision = (revision or u'').strip()
     return u'{}-{}'.format(key, revision) if revision else key
 
@@ -61,7 +61,7 @@ def pack(members, capacity=ROWS_PER_A4):
 def plan(drawings, capacity=ROWS_PER_A4):
     """
     {drawing: [(level elevation, member, rows)]} -> {member: schedule key}, schedules numbered
-    01, 02 ... per drawing, members level by level then in natural order (SMDSC 4.5.1).
+    01, 02 ... per drawing, members level by level then in natural order (SMDSC 4th ed. 4.5.1).
     """
     out = {}
     for drawing in sorted(drawings, key=natural_key):
@@ -74,7 +74,7 @@ def plan(drawings, capacity=ROWS_PER_A4):
 
 def schedule_marks(bars):
     """
-    SMDSC 4.5.1 / D9: marks unique within a schedule. bars: [(member order, old mark number,
+    SMDSC 4th ed. 4.5.1 / D9: marks unique within a schedule. bars: [(member order, old mark number,
     identity key, bar id)] of ONE schedule -> {bar id: new number}: 1, 2 ... in member order then
     old mark order; identical bars (same identity key) share a number across members.
     """

@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.fit — will the bars fit? IStructE SMDSC 5.2-5.3 (BS 8666), for every concrete element.
+nosa_utils.fit — will the bars fit? IStructE SMDSC 4th ed. 5.2-5.3 (BS 8666), for every concrete element.
 
-Bars are checked at their actual size (+10 %, SMDSC 5.3 examples), clear gaps at least
-max(phi, dg + 5, 20) (SMDSC 5.2 / EC2 8.2), and links between two concrete faces lose the
-"closed" detailing deduction of SMDSC Table 5.5. Pure Python: no Revit API.
+Bars are checked at their actual size (+10 %, SMDSC 4th ed. 5.3 examples), clear gaps at least
+max(phi, dg + 5, 20) (SMDSC 4th ed. 5.2 / EC2 8.2), and links between two concrete faces lose the
+"closed" detailing deduction of SMDSC 4th ed. Table 5.8. Pure Python: no Revit API.
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 ACTUAL_SIZE_FACTOR = 1.10        # deformations: an H16 may measure 18 mm
 DEFAULT_AGGREGATE_MM = 20.0
-MIN_PITCH_MM = 75.0              # SMDSC 6.2 (slabs): recommended minimum pitch of bars
+MIN_PITCH_MM = 75.0              # SMDSC 4th ed. 6.2 (slabs): recommended minimum pitch of bars
 MIN_PITCH_AT_LAPS_MM = 100.0
 
 
@@ -24,7 +24,7 @@ def min_clear_mm(bar_dia_mm, aggregate_mm=DEFAULT_AGGREGATE_MM):
 
 
 def closed_deduction_mm(distance_between_faces_mm, bent=True):
-    """SMDSC Table 5.5: links and bent bars 10 / 15 / 20 mm up to 1 / 2 / over 2 m; straight bars 40 mm."""
+    """SMDSC 4th ed. Table 5.8: links and bent bars 10 / 15 / 20 mm up to 1 / 2 / over 2 m; straight bars 40 mm."""
     if not bent:
         return 40.0
     if distance_between_faces_mm <= 1000.0:
@@ -71,17 +71,17 @@ def mesh_spacing_notes(spacing_mm, bar_dia_mm, aggregate_mm=DEFAULT_AGGREGATE_MM
     need = min_clear_mm(bar_dia_mm, aggregate_mm)
     if clear < need - 1e-6:
         notes.append(u'{} H{:.0f} at {:.0f} mm leave {:.0f} mm clear, under the {:.0f} mm minimum '
-                     u'(SMDSC 5.2).'.format(label, bar_dia_mm, spacing_mm, clear, need))
+                     u'(SMDSC 4th ed. 5.2).'.format(label, bar_dia_mm, spacing_mm, clear, need))
     if spacing_mm < MIN_PITCH_MM - 1e-6:
         notes.append(u'{} at {:.0f} mm are under the {:.0f} mm minimum pitch (100 mm where lapped, '
-                     u'SMDSC 6.2).'.format(label, spacing_mm, MIN_PITCH_MM))
+                     u'SMDSC 4th ed. 6.2).'.format(label, spacing_mm, MIN_PITCH_MM))
     elif spacing_mm < MIN_PITCH_AT_LAPS_MM - 1e-6:
         notes.append(u'{} at {:.0f} mm: keep laps staggered, a lapped zone needs a {:.0f} mm pitch '
-                     u'(SMDSC 6.2).'.format(label, spacing_mm, MIN_PITCH_AT_LAPS_MM))
+                     u'(SMDSC 4th ed. 6.2).'.format(label, spacing_mm, MIN_PITCH_AT_LAPS_MM))
     return notes
 
 
-VIBRATOR_GAP_MM = 75.0          # SMDSC 4.2 / MB1: a 75 mm space for the poker for every 300 mm of width
+VIBRATOR_GAP_MM = 75.0          # SMDSC 4th ed. 4.2 / MD B1: a 75 mm space for the poker for every 300 mm of width
 VIBRATOR_WIDTH_MM = 300.0
 
 
@@ -96,7 +96,7 @@ def vibrator_notes(width_mm, cover_mm, link_dia_mm, n_bars, bar_dia_mm, label=u'
     needed = max(1, int(width_mm // VIBRATOR_WIDTH_MM))
     if clear + 1e-6 >= VIBRATOR_GAP_MM and n_bars - 1 >= needed:
         return []
-    return [u'{}: {}H{:.0f} leave {:.0f} mm between bars; SMDSC 4.2/MB1 asks for {} clear space(s) of 75 mm '
+    return [u'{}: {}H{:.0f} leave {:.0f} mm between bars; SMDSC 4th ed. 4.2/MD B1 asks for {} clear space(s) of 75 mm '
             u'for the poker vibrator in a {:.0f} mm member: pair the bars (pitch 100) or use fewer, larger '
             u'ones.'.format(label, n_bars, float(bar_dia_mm), max(clear, 0.0), needed, width_mm)]
 
@@ -110,7 +110,7 @@ def layer_notes(width_mm, cover_mm, link_dia_mm, n_bars, bar_dia_mm, aggregate_m
     if fits:
         return []
     return [u'{} {}H{:.0f} do not fit in one layer of a {:.0f} mm member: {:.0f} mm inside the links '
-            u'(SMDSC Table 5.5, bars at +10 %), {:.0f} mm clear between bars against {:.0f} mm; at most '
+            u'(SMDSC 4th ed. Table 5.8, bars at +10 %), {:.0f} mm clear between bars against {:.0f} mm; at most '
             u'{} per layer.'.format(label, n_bars, bar_dia_mm, width_mm, space, gap,
                                     min_clear_mm(bar_dia_mm, aggregate_mm),
                                     max_bars_in(space, bar_dia_mm, aggregate_mm))]

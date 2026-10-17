@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — welded fabric to BS 4483 on a floor (T8.51, IStructE SMDSC 4.2.5 / 5.4.6), the rules in
+NOSA.RebarAutomate — welded fabric to BS 4483 on a floor (T8.51, IStructE SMDSC 4th ed. 4.2.5 / 5.4.6), the rules in
 nosa_utils.fabric: the designated sheet types (4.8 x 2.4 m, their wires) made on first use, one Fabric Area over
-the floor in its bottom or top face with the main wires along X or Y and the laps of SMDSC 5.4.6 / Table 5.8.
+the floor in its bottom or top face with the main wires along X or Y and the laps of SMDSC 4th ed. 5.4.5 / Table 5.8.
 In a transaction.
 """
 from Autodesk.Revit import DB
@@ -59,7 +59,7 @@ def _area_type(doc):
 def place(doc, floor, ref, face=u'bottom', main_along=u'x', fck_mpa=30.0):
     """
     One Fabric Area of `ref` over the floor (its own boundary and openings), in its bottom or top face, the main
-    wires along X or Y, laps of SMDSC 5.4.6 (main: a tension lap, alpha3 = 1.0) and Table 5.8 (secondary).
+    wires along X or Y, laps of SMDSC 4th ed. 5.4.5 (main: a tension lap, alpha3 = 1.0) and Table 5.8 (secondary).
     Returns (FabricArea, [notes]).
     """
     sid = sheet_type(doc, ref)
@@ -72,7 +72,7 @@ def place(doc, floor, ref, face=u'bottom', main_along=u'x', fck_mpa=30.0):
     doc.Regenerate()
     n = area.GetFabricSheetElementIds().Count
     notes = [u'{} fabric, {} face, main wires along {}: {} sheet(s) of 4.8 x 2.4 m, laps {:.0f} main / {:.0f} '
-             u'secondary (SMDSC 5.4.6, Table 5.8).'.format(ref, face, main_along.upper(), n, main_lap, cross_lap)]
+             u'secondary (SMDSC 4th ed. 5.4.5, Table 5.8).'.format(ref, face, main_along.upper(), n, main_lap, cross_lap)]
     return area, notes
 
 
@@ -82,7 +82,7 @@ SCHEDULE_FIELDS = (u'Type', u'Host Mark', u'Cut Overall Length', u'Cut Overall W
 
 def ensure_schedule(doc):
     """
-    The fabric schedule (SMDSC Table 4.3): one row per fabric type and size of sheet, its count and mass; made on
+    The fabric schedule (SMDSC 3rd ed. Table 4.3): one row per fabric type and size of sheet, its count and mass; made on
     first use. Returns the ViewSchedule.
     """
     for v in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):

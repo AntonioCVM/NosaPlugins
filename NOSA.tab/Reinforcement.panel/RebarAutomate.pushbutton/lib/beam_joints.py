@@ -78,7 +78,7 @@ def _main_beam_at_ends(doc, host, axis):
 
 def top_drop_mm(doc, host, axis, beam_cover_mm, bar_dia_mm, re_engine):
     """
-    (mm, notes): how much lower the beam's links and top bars go (SMDSC 4.2.2: under the top mat of a slab flush
+    (mm, notes): how much lower the beam's links and top bars go (SMDSC 4th ed. 4.2.2: under the top mat of a slab flush
     with its top; 4.2.1: under the top bars of the main beam it frames into).
     """
     notes, drop = [], 0.0
@@ -104,12 +104,12 @@ def top_drop_mm(doc, host, axis, beam_cover_mm, bar_dia_mm, re_engine):
         if d:
             drop += d
             notes.append(u'links and top bars {:.0f} mm lower, under the top mat of slab {} (cover {:.0f} + H{:.0f} '
-                         u'+ H{:.0f}, SMDSC 4.2.2).'.format(d, get_id_value(slab.Id), cover, sizes[0], sizes[1]))
+                         u'+ H{:.0f}, SMDSC 4th ed. 4.2.2).'.format(d, get_id_value(slab.Id), cover, sizes[0], sizes[1]))
     main = _main_beam_at_ends(doc, host, axis)
     if main is not None:
         top = _bars_of(doc, main, (u'top',)).get(u'top') or bar_dia_mm
         d = joints.secondary_drop_mm(top)
         drop += d
         notes.append(u'frames into beam {}: its top bars go {:.0f} mm lower, under the main beam\'s H{:.0f} top bars '
-                     u'(SMDSC 4.2.1).'.format(get_id_value(main.Id), d, top))
+                     u'(SMDSC 4th ed. 4.2.1).'.format(get_id_value(main.Id), d, top))
     return drop, notes

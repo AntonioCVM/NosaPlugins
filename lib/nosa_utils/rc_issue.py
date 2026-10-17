@@ -195,7 +195,7 @@ def check(doc):
         if unmarked:
             add(ERROR, u'Bar marks', u'{} set(s) of bars without a mark (e.g. id {}).'.format(
                 len(unmarked), get_id_value(unmarked[0].Id)))
-        # one mark, one bending (SMDSC 4.5.1)
+        # one mark, one bending (SMDSC 4th ed. 4.5.1)
         conflicts = mark_conflicts([(_mark(r), _signature(doc, r)) for r in own])
         for mark, sigs in sorted(conflicts.items()):
             add(ERROR, u'Bar marks', u'Mark {} is given to bars of different shape or size: {}.'.format(

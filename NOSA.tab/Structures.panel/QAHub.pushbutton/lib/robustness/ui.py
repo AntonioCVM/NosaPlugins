@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""T8.50 — Robustness ties (IStructE SMDSC 5.1.9 / EC2 9.10): tie forces and steel, and the ties a floor's bars give."""
+"""T8.50 — Robustness ties (IStructE SMDSC 4th ed. 5.1.10 / EC2 9.10): tie forces and steel, and the ties a floor's bars give."""
 import os
 
 from System.Collections.ObjectModel import ObservableCollection
@@ -61,7 +61,7 @@ class RobustnessWindow(NOSAWindow):
                                u'of one storey in the accidental situation (EN 1990 6.11b)'),
         ]
         self.TxtResult.Text = u'\n'.join(u'{}: {}'.format(a, b) for a, b in rows)
-        self.TxtStatus.Text = u'SMDSC 5.1.9 / EC2 9.10 with the UK NA; accidental situation, fyd = fyk = 500 MPa.'
+        self.TxtStatus.Text = u'SMDSC 4th ed. 5.1.10 / EC2 9.10 with the UK NA; accidental situation, fyd = fyk = 500 MPa.'
 
     def Check_Click(self, sender, args):
         try:

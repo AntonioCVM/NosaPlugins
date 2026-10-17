@@ -14,7 +14,7 @@ MATRIX_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'
 
 # name: (what it is for, where in the API)
 CAPABILITIES = (
-    (u'presentation_select', u'typical bar of a set (SMDSC 6.2.2)', u'RebarPresentationMode.Select'),
+    (u'presentation_select', u'typical bar of a set (SMDSC 4th ed. 6.2.2)', u'RebarPresentationMode.Select'),
     (u'multi_rebar_annotation', u'indicator lines (MRA)', u'DB.MultiReferenceAnnotation'),
     (u'varying_length', u'sets following inclined faces', u'DistributionType.VaryingLength'),
     (u'varying_suffix', u'sub-marks of varying sets', u'ReinforcementSettings.RebarVaryingLengthNumberSuffix'),

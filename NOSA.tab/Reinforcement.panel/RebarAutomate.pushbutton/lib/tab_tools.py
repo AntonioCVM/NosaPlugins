@@ -631,7 +631,7 @@ class ToolsMixin(object):
         self._in_revit(self._create_bar_schedules)
 
     def _create_bar_schedules(self):
-        """T8.33/T8.34 — A4 bar schedules per drawing (IStructE SMDSC 4.5.1)."""
+        """T8.33/T8.34 — A4 bar schedules per drawing (IStructE SMDSC 4th ed. 4.5.1)."""
         import bar_schedules
         try:
             bar_schedules.bind(self.doc)
@@ -678,7 +678,7 @@ class ToolsMixin(object):
         self._in_revit(self._type_schedules)
 
     def _type_schedules(self):
-        """T8.54 — SMDSC 4.1.1 / 6.4.4 / 6.7.4 tabular method: column and base schedules by type."""
+        """T8.54 — SMDSC 4th ed. 4.1.1 / 6.4.4 / 6.7.4 tabular method: column and base schedules by type."""
         import tabular_schedules
         from pyrevit import forms
         try:
@@ -690,7 +690,7 @@ class ToolsMixin(object):
             forms.alert(u'Column and base schedules not made: {}'.format(e), title=u'RebarAutomate')
             return
         forms.alert(u'{} column(s) and {} base(s) with bars, in {} type(s): see the schedules "{}" and "{}" '
-                    u'(IStructE SMDSC 6.4.4 / 6.7.4). Run it again after changing any reinforcement.'.format(
+                    u'(IStructE SMDSC 4th ed. 6.4.4 / 6.7.4). Run it again after changing any reinforcement.'.format(
                         n_cols, n_bases, n_groups, tabular_schedules.COLUMN_SCHEDULE,
                         tabular_schedules.BASE_SCHEDULE), title=u'RebarAutomate')
 
@@ -700,7 +700,7 @@ class ToolsMixin(object):
         self._in_revit(self._open_robustness)
 
     def _open_robustness(self):
-        """T8.50 — the QA Hub's robustness ties window (SMDSC 5.1.9)."""
+        """T8.50 — the QA Hub's robustness ties window (SMDSC 4th ed. 5.1.10)."""
         from nosa_utils.base_window import launch_nosa_window
         path = os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'QAHub.pushbutton', 'lib', 'robustness',
                             'ui.py')
@@ -708,7 +708,7 @@ class ToolsMixin(object):
         launch_nosa_window(mod.RobustnessWindow, self.doc)
 
     def _open_rebar_qa(self):
-        """T8.48 — the QA Hub's Rebar QA window (SMDSC 4.4 / 4.6 checks), shared with the hub."""
+        """T8.48 — the QA Hub's Rebar QA window (SMDSC 4th ed. 4.4 / 4.6 checks), shared with the hub."""
         from nosa_utils.base_window import launch_nosa_window
         path = os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'QAHub.pushbutton', 'lib', 'rebar_qa',
                             'ui.py')

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Where the calling-up of bars goes on a reinforcement drawing (IStructE SMDSC 3.3, 6.2.2), no Revit: on the
+Where the calling-up of bars goes on a reinforcement drawing (IStructE SMDSC 4th ed. 3.3, 6.2.2), no Revit: on the
 extension of a zone's indicator line, outside the member, else inside next to the zone; and the bar marks of
 sections and elevations in rows outside the member, each over its bar, packed so no two touch and the
 pointers stay as short and straight as they can. View coordinates in model mm; boxes (x0, y0, x1, y1).
@@ -32,7 +32,7 @@ def text_box(centre, along, length, height):
 
 def place_inline(item, box, placed, gap, outside_gap, tries=12):
     """
-    Calling-up of one zone (SMDSC 6.2.2): item {'a', 'b' (ends of the indicator line), 'length', 'height' (text)}.
+    Calling-up of one zone (SMDSC 4th ed. 6.2.2): item {'a', 'b' (ends of the indicator line), 'length', 'height' (text)}.
     First on the common baseline just outside the member past either end (nearest edge first), so the
     calling-ups of a side line up; then pushed further out past texts already placed; then next to an end
     inside the member. Returns {'centre', 'end' ('a'|'b'), 'outside', 'box'} and appends the box to `placed`.
@@ -161,7 +161,7 @@ def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None):
     'vertical' (optional: the text turned to run up the sheet), 'side' (optional: 'top' | 'bottom' | 'left' |
     'right'), 'outside' (optional: its own distance from the member), 'free' (optional: no pointer, so it stands
     over its bar)}]. Each goes in a row beyond its side of the member, packed along it, its near end a fixed
-    distance from the member so the texts of a row line up (SMDSC 6.2.2). Free marks of bars too close for them
+    distance from the member so the texts of a row line up (SMDSC 4th ed. 6.2.2). Free marks of bars too close for them
     side by side split into up to MAX_TIERS rows (tiers); marks with pointers go in a row beyond them.
     edges: {side: coordinate} where a row starts instead of the box's edge; free_gap: between free marks (they
     need less room than texts with pointers). Returns {id: {'centre', 'side', 'box'}}.

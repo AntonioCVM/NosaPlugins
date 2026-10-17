@@ -2,8 +2,8 @@
 """
 NOSA.RebarAutomate — legends on every reinforcement drawing (T8.31, T8.32).
 
-IStructE SMDSC 4.2.1: the layer notation (T1/T2, B1/B2, N1/N2, F1/F2) illustrated by a sketch on
-the drawings; SMDSC 3.7: notes with the GA references, abbreviations, concrete grade, covers and
+IStructE SMDSC 4th ed. 4.2.1: the layer notation (T1/T2, B1/B2, N1/N2, F1/F2) illustrated by a sketch on
+the drawings; SMDSC 4th ed. 3.7: notes with the GA references, abbreviations, concrete grade, covers and
 schedule references. They stand right-aligned in the bottom right corner of the drawing area,
 inside its frame, just above the title block; panel B is left for the project's own notes (user,
 2026-10-10). One legend view each, shared by every sheet, so the notes are edited in one place.
@@ -29,7 +29,7 @@ _FT = 304.8
 
 
 def notes_text(concrete_grade, cover_typical, cover_slabs):
-    """SMDSC 3.7 notes block from the project's general-notes values (NOSA_GN_*); unicode."""
+    """SMDSC 4th ed. 3.7 notes block from the project's general-notes values (NOSA_GN_*); unicode."""
     grade = concrete_grade or u'to the general notes'
     covers = u'{} typical'.format(cover_typical) if cover_typical else u'to the general notes'
     if cover_slabs:
@@ -74,13 +74,13 @@ FIXING = {
               u'by the contractor.',
     u'Columns': u'Columns: starter bars fixed to a template before the base is cast, 75 mm kicker; links tied to '
                 u'every bar they restrain. Cages may be prefabricated.',
-    u'Slabs': u'Slabs: bottom mat on spacers, top mat on chairs to BS 7973 chosen by the contractor (SMDSC 4.2.6); '
+    u'Slabs': u'Slabs: bottom mat on spacers, top mat on chairs to BS 7973 chosen by the contractor (SMDSC 4th ed. 4.2.6); '
               u'bars tied at alternate intersections, at every one along edges and round openings.',
     u'Walls': u'Walls: the two faces held apart by spacers or links at 1.0 m centres max; horizontal bars outside '
               u'the vertical bars unless shown otherwise.',
     u'Foundations': u'Foundations: bottom mat on 50 mm spacers on the blinding; starter bars fixed to a template; '
                     u'lacers tied to every bent-up leg. Multi-column bases and rafts: top mat on chairs and edge '
-                    u'U-bars to BS 7973, sized for the pour sequence (SMDSC 6.7.2).',
+                    u'U-bars to BS 7973, sized for the pour sequence (SMDSC 4th ed. 6.7.2).',
     u'Stairs': u'Stairs: bars carried on spacers at 1.0 m centres max; landing bars lapped as dimensioned.',
 }
 
@@ -93,7 +93,7 @@ def fixing_notes(kinds):
 def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'', deviation=u'', aggregate=u'',
                   schedule_refs=(), ga_refs=u'', buildability=None, details=(), details_drawing=u''):
     """
-    SMDSC 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
+    SMDSC 4th ed. 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
     disagree with the model. grades {element kind: grade or ''}; covers {element kind: (top, bottom, sides) mm};
     project values are the general notes' (NOSA_GN_*). details: [(key, model detail)] of the NOSA typical
     details the drawing calls for, on details_drawing (T9.21). Returns (text, [warnings]).
@@ -192,7 +192,7 @@ _DOT_R = 8.0
 
 
 def notation_sketch():
-    """SMDSC 4.2.1 key: slab section with T1/T2/B1/B2, wall plan section with N1/N2/F1/F2."""
+    """SMDSC 4th ed. 4.2.1 key: slab section with T1/T2/B1/B2, wall plan section with N1/N2/F1/F2."""
     items = [
         ('text', (0.0, 330.0, u'SLAB / BASE (SECTION)')),
         ('rect', (0.0, 0.0, 500.0, 250.0)),
@@ -259,7 +259,7 @@ def _legend(doc, name):
 
 
 def _solid_fill_type(doc):
-    """A solid black filled region type: cut bars are drawn as filled dots (SMDSC 4.2)."""
+    """A solid black filled region type: cut bars are drawn as filled dots (SMDSC 4th ed. 4.2)."""
     from Autodesk.Revit import DB  # Lazy import
     for frt in DB.FilteredElementCollector(doc).OfClass(DB.FilledRegionType):
         pattern = doc.GetElement(frt.ForegroundPatternId)

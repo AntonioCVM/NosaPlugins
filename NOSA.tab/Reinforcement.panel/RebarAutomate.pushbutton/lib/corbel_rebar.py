@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — column corbels (IStructE SMDSC 6.9, Model Detail MCB1). Revit side.
+NOSA.RebarAutomate — column corbels (IStructE SMDSC 4th ed. 6.9, Model Detail MD CB1). Revit side.
 
 Corbels are read from the column instance's own geometry: every solid beside the shaft, standing
 out of one of its four faces, is a corbel. That serves the NOSA corbel column families (one level

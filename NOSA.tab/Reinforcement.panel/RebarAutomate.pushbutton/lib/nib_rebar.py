@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — continuous nibs and half joints of beams (IStructE SMDSC 6.9). Revit side: reads the
+NOSA.RebarAutomate — continuous nibs and half joints of beams (IStructE SMDSC 4th ed. 6.9). Revit side: reads the
 NOSA "RC Beam - Nib" / "RC Beam - Half Joint" parameters and turns the section-frame layouts of
 nosa_utils.nibs into model lines.
 """

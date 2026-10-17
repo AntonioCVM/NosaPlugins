@@ -5,7 +5,7 @@ NOSA.RebarAutomate — bar marking (BS 8666:2020).
 Identical bars (diameter, shape code, outer dimensions, hooks, cut length) share one
 plain sequential mark per partition — 01, 02 ... — reused across batches. A varying
 set keeps one mark; its lengths are told apart in the schedule and the BVBS file by
-lower-case letter suffixes (05a, 05b ... z, aa, ab; SMDSC 4.5.1), in Revit's own sequence. Host ids never enter the mark.
+lower-case letter suffixes (05a, 05b ... z, aa, ab; SMDSC 4th ed. 4.5.1), in Revit's own sequence. Host ids never enter the mark.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 import sys, os
@@ -100,7 +100,7 @@ def variant_suffix(index):
 
 
 def suffix_range(variants):
-    """Label text after the mark of a varying set, '(a to h)' (SMDSC 4.5.1); '' for one length."""
+    """Label text after the mark of a varying set, '(a to h)' (SMDSC 4th ed. 4.5.1); '' for one length."""
     if variants < 2:
         return u''
     return u'({} to {})'.format(variant_suffix(0), variant_suffix(variants - 1))
@@ -264,7 +264,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
             # NOSA Rebar Tag 1.1.0 prints it right after the mark: 8H20-01(a to h)-150
             _write(doc, rebar.Id, "NOSA_Rebar_Mark_Suffix", suffixes.get(get_id_value(rebar.Id), u''))
             from nosa_utils import couplers
-            # SMDSC 5.5: 'E' just before the mark of a coupled bar (T8.52)
+            # SMDSC 4th ed. App. D: 'E' just before the mark of a coupled bar (T8.52)
             stamps = [(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK, couplers.schedule_mark(rebar, mark))]
             if drawing_known is None:            # a drawing's numbering keeps each bar's member (Partition)
                 stamps.append((DB.BuiltInParameter.NUMBER_PARTITION_PARAM, partition))
@@ -319,7 +319,7 @@ def assign_layers_and_lengths(doc, rebars, ctx):
 
 def renumber_drawing(doc, rebar_ids, ctx=None):
     """
-    SMDSC 4.5.1 (user decision 2026-10-11): marks are unique per drawing. The bars detailed on one
+    SMDSC 4th ed. 4.5.1 (user decision 2026-10-11): marks are unique per drawing. The bars detailed on one
     drawing are numbered 01 upwards together, identical bars of different members sharing one mark;
     each bar keeps its member (Partition). Finalized bars keep their marks and the others avoid them.
     """

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — T8.47 fitting checks for every element type (IStructE SMDSC 5.2/5.3).
+NOSA.RebarAutomate — T8.47 fitting checks for every element type (IStructE SMDSC 4th ed. 5.2/5.3).
 
 Meshes (slabs, foundations, walls) from the tab's own values; beams and columns per member from
 its section. The rules themselves live in nosa_utils.fit; this only knows the tabs' value names.
@@ -64,7 +64,7 @@ def column_notes(geometry, cover_mm, link_dia_mm, bar_dia_mm, bar_count, per_fac
         ring = math.pi * max(inside - fit.actual_size_mm(bar_dia_mm), 0.0)
         need = bar_count * (fit.actual_size_mm(bar_dia_mm) + fit.min_clear_mm(bar_dia_mm))
         if ring + 1e-6 < need:
-            return [u'{}: {}H{:.0f} do not fit round a {:.0f} mm column inside its links (SMDSC 5.2/5.3).'
+            return [u'{}: {}H{:.0f} do not fit round a {:.0f} mm column inside its links (SMDSC 4th ed. 5.2/5.3).'
                     .format(label, bar_count, bar_dia_mm, geometry['diameter_mm'])]
         return []
     n_u, n_v = per_face

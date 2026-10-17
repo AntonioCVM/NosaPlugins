@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — IStructE SMDSC 6.2.2 presentation of the bars in one view (T8.27), the rules in
+NOSA.RebarAutomate — IStructE SMDSC 4th ed. 6.2.2 presentation of the bars in one view (T8.27), the rules in
 nosa_utils.presentation and nosa_utils.callout_layout: each set lying in the view plane is drawn as one
 typical bar (layers drawn over each other show different bars) with a Multi-Rebar Annotation as its indicator
 line and the calling-up on its extension outside the member; under a beam elevation its link zones '(n@pitch)'
@@ -141,10 +141,10 @@ CROP_MARGIN_PAPER_MM = 4.0   # the view's crop round its calling-up
 ROW_PAPER_MM = 7.0           # between rows of indicator lines under a beam
 ZONE_TAG = u'Full label - Dot'
 POINTER_TAG = u'Mark only - Arrow'
-CUT_TAG = u'Mark only - Dot'            # a mark over every bar a section cuts (SMDSC 6.2.3, user 2026-10-10)
+CUT_TAG = u'Mark only - Dot'            # a mark over every bar a section cuts (SMDSC 4th ed. 6.2.3, user 2026-10-10)
 ELEVATION_TAG = u'Full label - Arrow'   # main bars of an elevation: 'No centres' for beams and columns
 SHORT_TAG = u'No centres - Dot'
-SPACER_TAG = u'No centres - Arrow'      # '4H25-01 SPACERS': the count of the set, no centres (SMDSC MB1)
+SPACER_TAG = u'No centres - Arrow'      # '4H25-01 SPACERS': the count of the set, no centres (SMDSC 4th ed. MD B1)
 TOTAL_STYLE = u'NOSA Total Lines'       # the line under a beam carrying a link mark's one calling-up
 ELEVATION_KINDS = ('elevation', 'column_elevation')
 PER_SET_KINDS = ('column_elevation',)   # one mark per cut set; sections mark every cut bar (user 2026-10-12)
@@ -353,7 +353,7 @@ def _cut_depth(view):
 
 def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, kind=None, sections=()):
     """
-    SMDSC 6.2.2 / 3.3 in `view` for `rebars` (det: the rebar_detailing module): typical bars, indicator lines
+    SMDSC 4th ed. 6.2.2 / 3.3 in `view` for `rebars` (det: the rebar_detailing module): typical bars, indicator lines
     with their calling-up outside the member, a mark over every bar a section or elevation cuts and one per set
     lying in it, in rows outside the member; under a beam elevation its link zones '(n@pitch)' over one total
     calling-up per mark; 'Alt.' / 'Stg.', 30 degree ends. kind: the view_plan kind of the view.
@@ -439,7 +439,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     # arrows at bar ends on beam elevations and sections only: a wall elevation's trimmers filled it with them
     ended = [d for d in pointers if (beam_elevation or kind in SIZE_KINDS) and _end_marked(view, d)]
     if beam_elevation:
-        # SMDSC 6.2.3 beam elevation: the main bars' calling-up close to the beam's faces, the arrows to where
+        # SMDSC 4th ed. 6.2.3 beam elevation: the main bars' calling-up close to the beam's faces, the arrows to where
         # each bar stops beyond it (user 2026-10-12), then where they stop dimensioned from the supports (T9.3) and
         # the link zones under them, each mark's '(n@pitch)' zones over its one total calling-up
         _marks(doc, view, pointers, cut, det, tag_types, box, gap, outside, placed, report, 'beam', clusters=clusters)
@@ -481,7 +481,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if _note(doc, view, point, label, text_type):
             report['notes'] += 1
     if hosts and not elevation:
-        # SMDSC 3.13 / 3.14.3 (T9.4): the member's size and levels from its own faces, so they follow the model
+        # SMDSC 4th ed. 3.13 / 3.14.3 (T9.4): the member's size and levels from its own faces, so they follow the model
         report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
         if kind == 'member_section':
             # under the section's own dimensions (T9.18)
@@ -1207,7 +1207,7 @@ def _dimension_chain(doc, view, xs, y, like, scale, style, vertical=False):
     """
     A dimension string along the view x through the points xs at height y (mm) — along the view y at x = y when
     vertical: one short witness tick per point (a detail line the dimension refers to) and Revit's own dimension,
-    so the figures stay true to the model (SMDSC 3.13: to faces and setting-out points, clear of the detail, read
+    so the figures stay true to the model (SMDSC 4th ed. 3.13: to faces and setting-out points, clear of the detail, read
     from the bottom).
     """
     def at(t, c):
@@ -1336,7 +1336,7 @@ def _openings(view, host):
 
 def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
     """
-    T9.2 on a slab or base plan (SMDSC 3.13, 4th ed. Fig. 6.24): each opening set out from the edges, a string
+    T9.2 on a slab or base plan (SMDSC 4th ed. 3.13, 4th ed. Fig. 6.24): each opening set out from the edges, a string
     under the plan and one beside it; each bar of a zone stopping short of an edge or an opening dimensioned from
     that face, along its typical bar. Returns how many dimensions.
     """
@@ -1382,7 +1382,7 @@ RADIUS_AT = 0.64     # where along a curved beam its radius is drawn: off its se
 
 def _arc_setting_out(doc, view, hosts, box, scale, style, text_type):
     """
-    T9.17 on a curved beam's plan (SMDSC 3.13: set out from a centre): its radius written along a line from its
+    T9.17 on a curved beam's plan (SMDSC 4th ed. 3.13: set out from a centre): its radius written along a line from its
     axis towards the centre, the centre crossed and labelled when it falls on the plan, and stations across the
     beam with their chainage from its start, inside the curve. Returns how many texts.
     """
@@ -1696,7 +1696,7 @@ def _pile_table(doc, view, hosts, box, placed, scale, text_type):
 def _starter_dims(doc, view, rebars, box, placed, scale, style):
     """
     T9.20 on a base section: the starter bars (dowels) dimensioned beside it - the cover under their feet, their
-    embedment and their projection above the base (SMDSC 4th ed. MF1 / 6.7.3). Returns 1 when drawn.
+    embedment and their projection above the base (SMDSC 4th ed. MD F1 / 6.7.3). Returns 1 when drawn.
     """
     from nosa_utils import presentation
     tops, feet = [], []
@@ -1807,7 +1807,7 @@ def _column_laps(doc, view, items, box, placed, scale, style):
 
 def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, style):
     """
-    Link zones under a beam elevation (SMDSC 6.2.3, fig. 'Beam on grid 1/A-B'): every zone of a mark on one
+    Link zones under a beam elevation (SMDSC 4th ed. 6.2.3, fig. 'Beam on grid 1/A-B'): every zone of a mark on one
     line, its indicator line labelled '(n@pitch)' ('Zone quantity' tag, NOSA_Rebar_Zone_Qty), and under them one
     line from the mark's first zone to its last carrying its one calling-up ('43H8-06 LINKS', 'Callout' tag,
     NOSA_Rebar_Callout). Marks whose zones overlap take further rows. {id: text box}.
@@ -2344,7 +2344,7 @@ def _cut_bars(view, d, frame):
 def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, report, mode, per_set=False,
            clusters=None, side=None):
     """
-    Bar marks of a section or elevation (SMDSC 6.2.3, 6.4.4, user 2026-10-10): its own mark over every bar the
+    Bar marks of a section or elevation (SMDSC 4th ed. 6.2.3, 6.4.4, user 2026-10-10): its own mark over every bar the
     view cuts ('Mark only - Dot', one per bar, no pointer: it stands just past the face in line with its bar,
     rows split when the bars are close), one mark per set lying in the view plane (in an elevation its
     calling-up without centres, 'Full label - Arrow'), all in rows beyond the member's nearest face, their near
@@ -2418,7 +2418,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
                 continue
             entries.append(((d['id'], i), tag, point))
         if _text(d['rebar'], u'NOSA_Rebar_Layer') == u'spacer' and bars:
-            # SMDSC MB1 (user 2026-10-11): each spacer keeps its mark, and the set gets one calling-up
+            # SMDSC 4th ed. MD B1 (user 2026-10-11): each spacer keeps its mark, and the set gets one calling-up
             # '4H25-01 SPACERS' pointing at the first
             try:
                 i, ref, point = bars[0]
@@ -2451,7 +2451,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             side = forced or callout_layout.side_of(a, member)
         item = {'id': key, 'anchor': a, 'length': w, 'height': h, 'side': side}
         if isinstance(key, tuple):
-            # a cut bar's mark stands next to the member over its bar, no pointer (SMDSC 6.2.3 sections)
+            # a cut bar's mark stands next to the member over its bar, no pointer (SMDSC 4th ed. 6.2.3 sections)
             item['free'], item['outside'] = True, CUT_OUTSIDE_PAPER_MM * scale
         layout.append(item)
     for side in ('top', 'bottom'):
@@ -2521,7 +2521,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
 
 
 def see_drawing(doc, view, rebars):
-    """Bars detailed on another drawing than the view's sheet: thick dashed, 'SEE DRG nnnn' (SMDSC 6.2.2)."""
+    """Bars detailed on another drawing than the view's sheet: thick dashed, 'SEE DRG nnnn' (SMDSC 4th ed. 6.2.2)."""
     sheet = view.get_Parameter(DB.BuiltInParameter.VIEWPORT_SHEET_NUMBER)
     view_drawing = (sheet.AsString() or u'') if sheet is not None else u''
     if not view_drawing:

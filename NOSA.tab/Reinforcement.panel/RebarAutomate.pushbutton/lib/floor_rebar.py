@@ -473,7 +473,7 @@ def _build_direction_bars(topo, footing_mod, engine, DB, outer, large_holes, own
          'bars': [{'curves','normal'}]}
     """
     from nosa_utils import standards
-    max_stock_length_mm = standards.bar_stock_length_mm(own_dia_mm, max_stock_length_mm)   # SMDSC 4.2.4
+    max_stock_length_mm = standards.bar_stock_length_mm(own_dia_mm, max_stock_length_mm)   # SMDSC 4th ed. 4.2.4
     own_inset_mm = own_dia_mm / 2.0
     perp_inset_mm = perp_dia_mm / 2.0
     if own_axis == 'x':
@@ -1399,7 +1399,7 @@ def _build_edge_ubars(topo, footing_mod, DB, outer, large_holes,
 # Orchestration
 # ══════════════════════════════════════════════════════════════════════════
 
-# Diagonal bars at opening corners (IStructE SMDSC 6.x(vii), D3 / T4.6):
+# Diagonal bars at opening corners (IStructE SMDSC 4th ed. 6.x(vii), D3 / T4.6):
 # one 45° bar per convex corner, an anchorage length either side of the
 # corner's bisector, set clear of the cover zone round the opening.
 _DIAGONAL_MAX_CORNER_COS = -0.5   # corners sharper than 120° only
@@ -1571,7 +1571,7 @@ def _restrip(DB, grouped, across, strips):
 
 def _flat_slab(doc, DB, mats, bounds_mm, bottom_z_ft, max_pitch_mm):
     """
-    IStructE SMDSC 6.2 / Fig. 6.6 / Table 6.2 (user option): over the columns standing under the slab, each mat
+    IStructE SMDSC 4th ed. 6.2 / Fig. 6.6 / Table 6.2 (user option): over the columns standing under the slab, each mat
     direction re-laid in column and middle strips at its share of the user's average pitch (top 75 % in the
     column strip, 2/3 of that in its central half; bottom 55 %). mats: [(mat dict, is top, pitch)].
     Returns (notes, column lines x, column lines y).
@@ -1586,7 +1586,7 @@ def _flat_slab(doc, DB, mats, bounds_mm, bottom_z_ft, max_pitch_mm):
     spans = [b - a for line in (xs, ys) for a, b in zip(line, line[1:])]
     short = min(spans) if spans else min(xmax - xmin, ymax - ymin)
     notes = [u'flat slab: {} column(s), column strips {:.0f} mm wide (half the {:.0f} mm shorter panel), '
-             u'pitches from the averages given by SMDSC Table 6.2.'.format(len(cols), short / 2.0, short)]
+             u'pitches from the averages given by SMDSC 4th ed. 6.2.2.9.'.format(len(cols), short / 2.0, short)]
     for mat, top, pitch in mats:
         if mat is None or not pitch:
             continue
@@ -1605,7 +1605,7 @@ def _flat_slab(doc, DB, mats, bounds_mm, bottom_z_ft, max_pitch_mm):
 
 def _alternate_bottom(doc, DB, bottom_mat, bounds_mm, bottom_z_ft, laps_mm, extra=((), ())):
     """
-    IStructE SMDSC MS1 (user option): the bottom bars of a continuous slab 0.8 x span + 0.5 x tension lap,
+    IStructE SMDSC 4th ed. MD S1 (user option): the bottom bars of a continuous slab 0.8 x span + 0.5 x tension lap,
     every other bar reversed, over the walls and beams under the slab (and the column lines of a flat slab).
     Returns notes.
     """
@@ -1656,7 +1656,7 @@ def _alternate_bottom(doc, DB, bottom_mat, bounds_mm, bottom_z_ft, laps_mm, extr
     if not done:
         return [u'bottom bars 0.8 x span: no interior wall, beam or column line under the slab - the bottom mat '
                 u'stays continuous.']
-    return [u'bottom bars 0.8 x span + 0.5 lap, alternately reversed over {} support line(s) (SMDSC MS1).'.format(
+    return [u'bottom bars 0.8 x span + 0.5 lap, alternately reversed over {} support line(s) (SMDSC 4th ed. MD S1).'.format(
         len(sup_x) + len(sup_y))]
 
 
@@ -1733,7 +1733,7 @@ def _top_over_supports(doc, DB, top_mat, bounds_mm, bottom_z_ft, lbd_mm=(0.0, 0.
             else:
                 new_bars.extend(dict(bar, curves=[c]) for c in _clip(curves[0], DB.Transform.Identity))
         grouped['sets'], grouped['bars'] = new_sets, new_bars
-    notes = [u'top bars over {} support line(s) only, 0.3 x span either side (SMDSC MS1/MS2); the bottom '
+    notes = [u'top bars over {} support line(s) only, 0.3 x span either side (SMDSC 4th ed. MD S1/MD S2); the bottom '
              u'mat stays continuous.'.format(len(sup_x) + len(sup_y))]
     if kept_whole:
         notes.append(u'top bars over supports: {} set(s) with legs kept whole.'.format(kept_whole))
@@ -1743,7 +1743,7 @@ def _top_over_supports(doc, DB, top_mat, bounds_mm, bottom_z_ft, lbd_mm=(0.0, 0.
 def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia_y, spacing,
                     top_dia_x, top_dia_y, top_spacing, top_cover_mm):
     """
-    IStructE SMDSC Fig. 6.9 / EC2 9.3.1.3 (corners held down, user option): over a fifth of the
+    IStructE SMDSC 4th ed. Fig. 6.7 / EC2 9.3.1.3 (corners held down, user option): over a fifth of the
     shorter span from every outer right-angled corner, extra top bars in both directions so the
     top holds 3/4 of the bottom steel; the bottom mat already runs through the corner. Placed
     under the top mat (or at the top cover without one). Returns ([(layer, dia, grouped)], notes).
@@ -1765,7 +1765,7 @@ def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia
         pitch = mesh_rules.torsion_extra_spacing_mm(dia, spacing, top_dia, top_spacing)
         if pitch is None:
             notes.append(u'corner torsion: the top {} bars already give 3/4 of the bottom ones — no extra '
-                         u'corner bars (SMDSC Fig. 6.9).'.format(axis.upper()))
+                         u'corner bars (SMDSC 4th ed. Fig. 6.7).'.format(axis.upper()))
             continue
         inset = side_cover_mm + dia / 2.0
         if reach - inset < pitch:
@@ -1795,7 +1795,7 @@ from nosa_utils.mesh_rules import TRIMMER_CLEAR_MM, clear_of_rows  # noqa: E402,
 
 def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals):
     """
-    IStructE SMDSC 6.2 (vi)-(vii): each hole over 150 mm is trimmed on all sides with bars of the
+    IStructE SMDSC 4th ed. 6.2 (vi)-(vii): each hole over 150 mm is trimmed on all sides with bars of the
     area the hole cuts, half each side, reaching 45 phi past it — in the bottom mat, and in the top
     one too over 500 mm. mats: [(layer, dia_x, dia_y, spacing, z_x_ft, z_y_ft)], bottom first.
     Returns ([(layer, dia_mm, {'sets', 'bars'})], notes).
@@ -1807,10 +1807,10 @@ def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, d
         x0, x1, y0, y1 = _hole_bbox(hole)
         kind = mesh_rules.slab_hole_class(x1 - x0, y1 - y0)
         if kind == u'design':
-            notes.append(u'opening {:.0f} x {:.0f} mm is over 1000 mm: SMDSC 6.2 leaves its trimming to the '
+            notes.append(u'opening {:.0f} x {:.0f} mm is over 1000 mm: SMDSC 4th ed. 6.2 leaves its trimming to the '
                          u'design — bottom trimmers added, check them.'.format(x1 - x0, y1 - y0))
         elif kind == u'both' and depth_mm > 250.0 and not diagonals:
-            notes.append(u'opening {:.0f} x {:.0f} mm in a {:.0f} mm slab: SMDSC 6.2 suggests diagonal bars '
+            notes.append(u'opening {:.0f} x {:.0f} mm in a {:.0f} mm slab: SMDSC 4th ed. 6.2 suggests diagonal bars '
                          u'top and bottom (tick Opening Diagonals).'.format(x1 - x0, y1 - y0, depth_mm))
         for k, (layer, dia_x, dia_y, spacing, z_x, z_y) in enumerate(mats):
             if k > 0 and kind == u'bottom':
@@ -1980,7 +1980,7 @@ def build_floor_reinforcement(doc, host,
 
     raw_loops = topo.extract_loops_mm(bottom_face.face)
     raw_outer, raw_holes, n_small_holes = topo.classify_loops(raw_loops)
-    # IStructE SMDSC 6.2: holes with sides of 150 mm or less are ignored, the bars run through
+    # IStructE SMDSC 4th ed. 6.2: holes with sides of 150 mm or less are ignored, the bars run through
     from nosa_utils import mesh_rules
     kept_holes = []
     for hole in raw_holes:
@@ -2025,7 +2025,7 @@ def build_floor_reinforcement(doc, host,
         x_leg_mm = footing_mod.default_lap_mm(x_anchor_ubar_dia_mm, std=std, good_bond=good)
         y_leg_mm = footing_mod.default_lap_mm(y_anchor_ubar_dia_mm, std=std, good_bond=good)
         # Slab edge U-bars: legs of at least twice the slab depth (EC2 9.3.1.4,
-        # IStructE SMDSC Fig. 6.8) — user decision 2026-09-30.
+        # IStructE SMDSC 4th ed. Fig. 6.8) — user decision 2026-09-30.
         two_h_mm = 2.0 * (top_z_ft - bottom_z_ft) * _MM_PER_FT
         x_leg_mm = max(x_leg_mm, two_h_mm)
         y_leg_mm = max(y_leg_mm, two_h_mm)
@@ -2188,7 +2188,7 @@ def build_floor_reinforcement(doc, host,
             y_leg_mm, y_anchor_ubar_spacing_mm, b2_z_ft, t2_z_ft,
             raw_holes=raw_holes, mat_rows=rows)
 
-    # SMDSC 6.2 (vii): openings of 500-1000 mm in slabs over 250 mm get corner diagonals top and bottom
+    # SMDSC 4th ed. 6.2 (vii): openings of 500-1000 mm in slabs over 250 mm get corner diagonals top and bottom
     auto_diagonal_holes = []
     if raw_holes and not include_opening_diagonals and _mm_depth(footing_mod, cover_mgr, bottom_z_ft) > 250.0:
         for hole in raw_holes:
@@ -2228,7 +2228,7 @@ def build_floor_reinforcement(doc, host,
         if not include_opening_diagonals:
             result['hole_notes'] = (result.get('hole_notes') or []) + [
                 u'{} opening(s) of 500-1000 mm in a slab over 250 mm: corner diagonals H{:.0f} added top and bottom '
-                u'(SMDSC 6.2).'.format(len(auto_diagonal_holes), dia)]
+                u'(SMDSC 4th ed. 6.2).'.format(len(auto_diagonal_holes), dia)]
         # Each diagonal sits on the inner face of its mat, clear of both layers.
         diag_bottom_z = b2_z_ft + (bottom_dia_y_mm + dia) / 2.0 / _MM_PER_FT
         step = dia / _MM_PER_FT

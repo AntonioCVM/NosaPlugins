@@ -338,7 +338,7 @@ cercos `(13@100)` por zona con cota + una llamada total; elementos del mismo tip
 | [x] | T9.19 | Muros | D | Estilos distintos vertical/horizontal, MW4 completo |
 | [x] | T9.20 | Cimentaciones | D | Bandas MF1, arranques acotados, tabla de pilotes |
 | [x] | T9.21 | Biblioteca de detalles tipo | D | MD de la 4.ª ed. insertados por condición |
-| [ ] | T9.22 | Reglas frente a la 4.ª ed. | – | Cada regla de `nosa_utils` con edición y cláusula; diferencias 3.ª → 4.ª aplicadas |
+| [x] | T9.22 | Reglas frente a la 4.ª ed. | – | Cada regla de `nosa_utils` con edición y cláusula; diferencias 3.ª → 4.ª aplicadas |
 
 ## Orden y dependencias
 

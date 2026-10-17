@@ -141,7 +141,7 @@ class StairsMixin(object):
         self.TxtStairResult.Text = u'\n'.join(lines)
 
     def _smdsc_stair_review(self, host, run, cover, values, errors):
-        """T8.42 — IStructE SMDSC 6.8 on this flight's waist: pitches over the maxima come down, the rest is reported."""
+        """T8.42 — IStructE SMDSC 4th ed. 6.8 on this flight's waist: pitches over the maxima come down, the rest is reported."""
         try:
             import math
             from nosa_utils import mesh_rules, standards
@@ -168,7 +168,7 @@ class StairsMixin(object):
             u_dia = stair_rebar.landing_ubar_dia_mm(values['ubar_dia'], values['top_spacing'],
                                                     values['main_dia'], values['main_spacing'])
             if u_dia > values['ubar_dia']:
-                errors.append(u'Landing U-bars H{:g} raised to H{:g}: SMDSC MST1 asks for 50 % of the area '
+                errors.append(u'Landing U-bars H{:g} raised to H{:g}: SMDSC 4th ed. MD ST1 asks for 50 % of the area '
                               u'of the main bottom bars (H{:g} at {:g}).'.format(
                                   values['ubar_dia'], u_dia, values['main_dia'], values['main_spacing']))
                 values = dict(values, ubar_dia=u_dia)
@@ -196,7 +196,7 @@ class StairsMixin(object):
             if values.get('no_finish'):
                 data['runs'], data['landings'] = stair_rebar.lower_tops(
                     data['runs'], data['landings'], stair_rebar.NO_FINISH_TOP_COVER_MM)
-                errors.append(u'Stair {}: no finish — top cover {:.0f} + {:.0f} mm (SMDSC 6.8).'.format(
+                errors.append(u'Stair {}: no finish — top cover {:.0f} + {:.0f} mm (SMDSC 4th ed. 6.8).'.format(
                     hid, cover, stair_rebar.NO_FINISH_TOP_COVER_MM))
             if values['landing_ubars']:
                 errors.extend(u'Stair {}: {}'.format(hid, note) for note in stair_host.apply_landing_ubars(
@@ -245,7 +245,7 @@ class StairsMixin(object):
         return created, {'created': len(created), 'errors': errors}
 
     def _pullout_jobs(self, host, data, cover, values, bar_types, errors):
-        """IStructE SMDSC MW3: pull-out U-bars in the walls a landing is cast against later."""
+        """IStructE SMDSC 4th ed. MD W3: pull-out U-bars in the walls a landing is cast against later."""
         jobs = []
         u_dia = min(values.get('ubar_dia') or values['main_dia'], stair_rebar.PULLOUT_MAX_DIA_MM)
         fix_dia = 12.0
@@ -264,12 +264,12 @@ class StairsMixin(object):
                 jobs += [(landing['frame'], s, wall) for s in sets]
                 if not sets:
                     errors.append(u'Stair {}: landing {:.0f} mm thick against wall {} — no room to bend H{:g} '
-                                  u'pull-out U-bars inside the covers (SMDSC MW3): use couplers or drilled '
+                                  u'pull-out U-bars inside the covers (SMDSC 4th ed. MD W3): use couplers or drilled '
                                   u'bars.'.format(get_id_value(host.Id), landing['top'] - landing['bottom'],
                                                   get_id_value(wall.Id), u_dia))
                 else:
                     errors.append(u'Stair {}: landing edge against wall {} — H{:g} pull-out U-bars cast in the '
-                                  u'wall, lapped {:.0f} mm (SMDSC MW3; class B or C steel).'.format(
+                                  u'wall, lapped {:.0f} mm (SMDSC 4th ed. MD W3; class B or C steel).'.format(
                                       get_id_value(host.Id), get_id_value(wall.Id), u_dia, lap))
         return jobs
 

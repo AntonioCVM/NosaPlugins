@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.fabric — welded fabric to BS 4483 (T8.51, IStructE SMDSC 4.2.5, 5.1.10, 5.4.6), no Revit: the
+nosa_utils.fabric — welded fabric to BS 4483 (T8.51, IStructE SMDSC 4th ed. 4.2.5, 5.1.10, 5.4.6), no Revit: the
 designated fabrics and their wires, laps of main wires (a tension lap, alpha3 = 1.0) and of secondary wires
-(SMDSC Table 5.8), the sheets an area needs, the lightest fabric for a steel area and the rows of a fabric
-schedule (SMDSC Table 4.3).
+(SMDSC 4th ed. Table 5.10), the sheets an area needs, the lightest fabric for a steel area and the rows of a fabric
+schedule (SMDSC 3rd ed. Table 4.3).
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 
@@ -37,7 +37,7 @@ def area_per_m(ref):
 
 
 def secondary_lap_mm(cross_dia_mm, cross_pitch_mm):
-    """SMDSC Table 5.8: >= 150 (1 pitch) up to 6 mm, >= 250 (2 pitches) to 8.5, >= 350 (2 pitches) to 12."""
+    """SMDSC 4th ed. Table 5.10: >= 150 (1 pitch) up to 6 mm, >= 250 (2 pitches) to 8.5, >= 350 (2 pitches) to 12."""
     if cross_dia_mm <= 6.0:
         return max(150.0, cross_pitch_mm)
     if cross_dia_mm <= 8.5:
@@ -46,7 +46,7 @@ def secondary_lap_mm(cross_dia_mm, cross_pitch_mm):
 
 
 def main_lap_mm(ref, fck_mpa=30.0, good_bond=True):
-    """Lap of the main wires, intermeshed: a full tension lap with alpha3 = 1.0 (SMDSC 5.4.6), up to 5 mm."""
+    """Lap of the main wires, intermeshed: a full tension lap with alpha3 = 1.0 (SMDSC 4th ed. 5.4.5), up to 5 mm."""
     from nosa_utils import laps
     lap = laps.lap_mm(FABRICS[ref][0], fck_mpa, good_bond, 100.0, alpha3=1.0)
     return 5.0 * math.ceil(lap / 5.0 - 1e-9)
@@ -85,7 +85,7 @@ def sheet_mass_kg(ref):
 
 def schedule_rows(entries):
     """
-    SMDSC Table 4.3 fabric schedule: entries [(member, mark, ref, sheets)] -> rows sorted by member and mark,
+    SMDSC 3rd ed. Table 4.3 fabric schedule: entries [(member, mark, ref, sheets)] -> rows sorted by member and mark,
     each (member, mark, ref, 'L x W', sheets, mass kg) with the sheet's mass from its wires (7850 kg/m3).
     """
     rows = []

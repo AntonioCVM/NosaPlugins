@@ -116,7 +116,7 @@ def face_codes(slab_beside, exterior):
 
 
 def layer_code(face, outer):
-    """SMDSC 4.2.1 layer code: N1/N2 near face, F1/F2 far face (1 = outer layer); None without a face."""
+    """SMDSC 4th ed. 4.2.1 layer code: N1/N2 near face, F1/F2 far face (1 = outer layer); None without a face."""
     return u'{}{}'.format(face, 1 if outer else 2) if face else None
 
 
@@ -287,13 +287,13 @@ def top_ubar_positions_mm(vert_positions_mm, length_mm, vert_dia_mm, ubar_dia_mm
     return out
 
 
-# ── IStructE SMDSC MW4: holes in walls ──────────────────────────────────────────────────────────
+# ── IStructE SMDSC 4th ed. MD W4: holes in walls ──────────────────────────────────────────────────────────
 
 BAR_SIZES_MM = (8.0, 10.0, 12.0, 16.0, 20.0, 25.0, 32.0, 40.0, 50.0)
 
 
 def next_bar_size_mm(dia_mm):
-    """The standard bar one size larger (trimmer bars, SMDSC MW4)."""
+    """The standard bar one size larger (trimmer bars, SMDSC 4th ed. MD W4)."""
     for size in BAR_SIZES_MM:
         if size > dia_mm + 1e-6:
             return size
@@ -301,7 +301,7 @@ def next_bar_size_mm(dia_mm):
 
 
 def single_bar_for_pair_mm(dia_mm):
-    """One bar of at least the area of two of dia_mm (one trimmer in a thin wall, SMDSC MW4)."""
+    """One bar of at least the area of two of dia_mm (one trimmer in a thin wall, SMDSC 4th ed. MD W4)."""
     need = 2.0 * dia_mm ** 2
     for size in BAR_SIZES_MM:
         if size ** 2 >= need - 1e-6:
@@ -416,7 +416,7 @@ def cut_sets_at_openings(sets, openings, p0, axis_dir, z0, clear_mm, vertical):
 
 
 def opening_trims(openings, vert_spacing_mm, horiz_spacing_mm):
-    """The holes that need trimming: isolated holes smaller than the bar pitch need none (SMDSC 6.5)."""
+    """The holes that need trimming: isolated holes smaller than the bar pitch need none (SMDSC 4th ed. 6.5)."""
     return [o for o in openings
             if (o['s1'] - o['s0']) >= vert_spacing_mm - 1e-6 or (o['z1'] - o['z0']) >= horiz_spacing_mm - 1e-6]
 
@@ -472,12 +472,12 @@ def build_opening_bars(openings, p0, axis_dir, z0, length_mm, height_mm, cover_m
                        vert_dia_mm, horiz_dia_mm, face_layers, horiz_layers, lap_mm, anchorage_mm,
                        vert_bottom_z, vert_top_z, vert_rows=(), horiz_rows=()):
     """
-    IStructE SMDSC MW4 round each trimmed hole: U-bars of the horizontal size closing the cut bars
+    IStructE SMDSC 4th ed. MD W4 round each trimmed hole: U-bars of the horizontal size closing the cut bars
     (top/bottom: a vertical U in the vertical layer, legs a lap up/down; sides: a horizontal U in the
     horizontal layer, legs a lap along the wall) and trimmer bars one size larger than the verticals
     inside the U-bars, a tension anchorage past the hole (one bar of equal area in thin walls).
     face_layers / horiz_layers: [(unit normal, depth ft)] of the vertical / horizontal layer per face.
-    vert_rows / horiz_rows (mm along / up the wall): the mesh rows the trimmers keep clear of (SMDSC 5.2.5).
+    vert_rows / horiz_rows (mm along / up the wall): the mesh rows the trimmers keep clear of (SMDSC 4th ed. 5.2.5).
     Returns {'ubars': {'sets', 'bars'}, 'trimmers': [{'curves', 'dia_mm', 'normal'}]}: the U-bars of
     each hole edge are one Rebar Set.
     """
@@ -666,10 +666,10 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               earth_normal=None, earth_cover_mm=50.0):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
-    earth_normal (IStructE SMDSC MRW1/MRW2, retaining walls): the face looking this way is the earth
+    earth_normal (IStructE SMDSC 4th ed. MD RW1/MD RW2, retaining walls): the face looking this way is the earth
     face — its verticals sit outside, at no less than earth_cover_mm; the other face keeps
     vert_is_outer and cover_mm.
-    end_conditions (IStructE SMDSC MW2, wall_joints.classify): per end, 'free' keeps the end
+    end_conditions (IStructE SMDSC 4th ed. MD W2, wall_joints.classify): per end, 'free' keeps the end
     U-bars; 'through' runs the horizontals on to the other wall's outer face; 'stop' ends the
     mesh at the other wall's inner face and closes it with U-bars of the horizontal size and
     pitch looped round the corner (returned as 'corner_ubars'), two vertical bars inside the
@@ -827,7 +827,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         vert_inset_mm = cover_mm + horiz_dia_mm + vert_dia_mm / 2.0
 
     def _horiz_reach(k):
-        """Distance from the line end to the horizontals' end: negative runs past it (MW2)."""
+        """Distance from the line end to the horizontals' end: negative runs past it (MD W2)."""
         if _mode(k) == u'through':
             return -(_half(k) - cover_mm - horiz_dia_mm / 2.0)
         if _mode(k) == u'stop':
@@ -846,7 +846,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         face_normal = face.normal.Normalize()
         outer_v, v_inset, h_inset = vert_is_outer, vert_inset_mm, horiz_inset_mm
         if earth_normal is not None and face_normal.DotProduct(earth_normal) > 0.5:
-            c = max(cover_mm, earth_cover_mm)          # earth face: verticals outside (MRW1)
+            c = max(cover_mm, earth_cover_mm)          # earth face: verticals outside (MD RW1)
             outer_v = True
             v_inset = c + vert_dia_mm / 2.0
             h_inset = c + vert_dia_mm + horiz_dia_mm / 2.0
@@ -979,7 +979,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         end_ubar_sets, end_ubar_bars = [], []
         for k, (d_end, inward) in enumerate(((back_mm, axis_dir), (length_mm - back_mm, axis_dir.Multiply(-1.0)))):
             if _mode(k) != u'free':
-                continue        # a wall end met by another wall: MW2 corner bars instead
+                continue        # a wall end met by another wall: MD W2 corner bars instead
             base = p0 + axis_dir.Multiply(d_end / _MM_PER_FT)
 
             def _u_at(h_mm, base=base, inward=inward):
@@ -1010,7 +1010,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
     elif include_end_ubars and face_b is None:
         warnings.append(u'End U-bars require both wall faces — skipped.')
 
-    # IStructE SMDSC MW2 (Detail A): a wall end stopping against another wall is closed by U-bars
+    # IStructE SMDSC 4th ed. MD W2 (Detail A): a wall end stopping against another wall is closed by U-bars
     # of the horizontal size and pitch, their back inside the other wall's outer horizontals and
     # their legs a full lap with this wall's horizontals; vertical bars stand inside the loop.
     corner_ubars = {'sets': [], 'bars': []}
@@ -1068,7 +1068,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                         'count': 1, 'label': u'Wall Corner Bar', 'host_id': (ends[k] or {}).get('other_id'),
                         'location': layer_code(locations.get(id(face_k)), vert_is_outer)})
     elif stop_ends:
-        warnings.append(u'Corner U-bars (SMDSC MW2) need both wall faces: skipped.')
+        warnings.append(u'Corner U-bars (SMDSC 4th ed. MD W2) need both wall faces: skipped.')
 
     # Top U-bars — horizontal closure at wall head (both faces).
     # BUG FIX (2026-09-01) — reported live: End U-bars (capa vertical)
@@ -1127,7 +1127,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
     elif include_top_ubars and face_b is None:
         warnings.append(u'Top U-bars require both wall faces — skipped.')
 
-    # IStructE SMDSC MW4: holes cut the mesh, closed by U-bars with trimmer bars inside them
+    # IStructE SMDSC 4th ed. MD W4: holes cut the mesh, closed by U-bars with trimmer bars inside them
     opening_bars = {'ubars': {'sets': [], 'bars': []}, 'trimmers': []}
     openings = wall_openings_mm(doc, host, p0, axis_dir, z0, length_mm, height_mm)
     if openings:
@@ -1149,13 +1149,13 @@ def build_wall_reinforcement(doc, host, cover_mm,
                 horiz_dia_mm, [(na, va), (nb, vb)], [(na, ha), (nb, hb)], hole_lap, hole_anchor,
                 vert_bottom_z, vert_top_z, vert_rows=vert_rows, horiz_rows=horiz_rows)
             if thickness_mm < 175.0:
-                warnings.append(u'Wall {:.0f} mm thick with a trimmed hole: SMDSC 6.5 asks for 175 mm.'.format(
+                warnings.append(u'Wall {:.0f} mm thick with a trimmed hole: SMDSC 4th ed. 6.5 asks for 175 mm.'.format(
                     thickness_mm))
         if trimmed and (face_b is None or len(faces) < 2):
             warnings.append(u'{} hole(s) to trim in a single-mesh wall: U-bars and trimmers not added - detail '
                             u'them to SMDSC 4th ed. MD W4 / MD OP1.'.format(len(trimmed)))
         warnings.append(u'{} hole(s): mesh cut round them{}.'.format(
-            len(openings), u', U-bars and trimmer bars added (SMDSC MW4)' if trimmed else u''))
+            len(openings), u', U-bars and trimmer bars added (SMDSC 4th ed. MD W4)' if trimmed else u''))
 
     # Explicit starter bars (when mesh already extended, still list for marking)
     if include_starter_bars and starter_mm > 0:
@@ -1196,7 +1196,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
             bar is shorter (stock − 1.3 l0), so only half the bars are lapped in any section.
             """
             from nosa_utils import standards
-            own_stock_mm = standards.bar_stock_length_mm(own_dia_mm, stock_length_mm)   # SMDSC 4.2.4
+            own_stock_mm = standards.bar_stock_length_mm(own_dia_mm, stock_length_mm)   # SMDSC 4th ed. 4.2.4
             out = []
             for ms in mesh_sets:
                 c0 = ms['curves'][0] if ms.get('curves') else None
@@ -1377,7 +1377,7 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
     horiz_lap = _resolve_lap(horiz_lap_length_mm if horiz_lap_length_mm is not None else lap_length_mm)
     stock = stock_length_mm if stock_length_mm and stock_length_mm >= 500.0 else 12000.0
     from nosa_utils import standards
-    vstock = standards.bar_stock_length_mm(vert_dia_mm, stock)     # SMDSC 4.2.4, per bar size
+    vstock = standards.bar_stock_length_mm(vert_dia_mm, stock)     # SMDSC 4th ed. 4.2.4, per bar size
     stock = standards.bar_stock_length_mm(horiz_dia_mm, stock)
 
     vertical_sets, horizontal_sets = [], []

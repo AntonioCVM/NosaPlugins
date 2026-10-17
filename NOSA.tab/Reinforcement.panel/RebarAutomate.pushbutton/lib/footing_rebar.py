@@ -1556,7 +1556,7 @@ def pile_centres_ft(host, tol_mm=10.0):
 def pile_cap_anchorage_notes(host, side_cover_mm, cover_mm, top_cover_mm, dia_x_mm, dia_y_mm,
                              anchorage_x_mm, anchorage_y_mm):
     """
-    IStructE SMDSC 6.7 / MF2: a full tension anchorage from the centre line of the edge pile to the end
+    IStructE SMDSC 4th ed. 6.7 / MD F2: a full tension anchorage from the centre line of the edge pile to the end
     of the bar (along the mat, then up the bent end). Notes where the cap is too small for it.
     """
     engine = _ensure_engine()
@@ -1574,7 +1574,7 @@ def pile_cap_anchorage_notes(host, side_cover_mm, cover_mm, top_cover_mm, dia_x_
         have = reach + leg_mm
         if have < need - 1.0:
             notes.append(u'pile cap {} bars: {:.0f} mm from the edge pile centre to the bar end, under the '
-                         u'{:.0f} mm tension anchorage SMDSC MF2 asks for — larger bends or a bigger cap.'.format(
+                         u'{:.0f} mm tension anchorage SMDSC 4th ed. MD F2 asks for — larger bends or a bigger cap.'.format(
                              axis, have, need))
     return notes
 
@@ -1595,7 +1595,7 @@ def pile_size_mm(host, default_mm=300.0):
 def build_pile_cap_bands(doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm, bar_dia_mm, pitch_mm,
                          lacer_dia_mm, lacer_spacing_mm):
     """
-    IStructE SMDSC Table 6.10, 3- and 7-pile caps: design bars in bands over the lines joining the piles
+    IStructE SMDSC 4th ed. Table 6.7, 3- and 7-pile caps: design bars in bands over the lines joining the piles
     (nosa_utils.pile_caps), one layer per direction, bent up at both ends (shape 21), and lacers round
     the cap's own outline above the nominal mat. None for any other cap.
     Returns {'bands': [[chain]], 'layers': n, 'reach_mm', 'leg_mm', 'nominal_cover_mm', 'lacers'}.
@@ -1650,7 +1650,7 @@ def _plan_extent_ft(bbox, direction):
 
 def apply_column_band(doc, host, mat, cover_mm, dia_x_mm, dia_y_mm, max_pitch_mm=300.0):
     """
-    IStructE SMDSC 6.7: where a footing is longer than 1.5 (c + 3d) across a mat direction, two thirds
+    IStructE SMDSC 4th ed. 6.7: where a footing is longer than 1.5 (c + 3d) across a mat direction, two thirds
     of that direction's bars go in a band c + 3d wide centred on the column, the rest in the outer
     strips (at most max_pitch apart). Only for one column on a plain rectangular mat (one Set per
     direction); the mat dict is changed in place and a note added.
@@ -1693,7 +1693,7 @@ def apply_column_band(doc, host, mat, cover_mm, dia_x_mm, dia_y_mm, max_pitch_mm
                                            centre + band / 2.0, max_pitch_mm)
         notes = grouped.setdefault('notes', [])
         if layout is None:
-            notes.append(u'Footing {}: SMDSC 6.7 asks for two thirds of the {} bars in a {:.0f} mm band '
+            notes.append(u'Footing {}: SMDSC 4th ed. 6.7 asks for two thirds of the {} bars in a {:.0f} mm band '
                          u'under the column: at this bar count they would be closer than 100 mm. Use a larger bar '
                          u'size or detail the band by hand.'.format(get_id_value(host.Id), key.replace(u'_', u' '), band))
             continue
@@ -1712,7 +1712,7 @@ def apply_column_band(doc, host, mat, cover_mm, dia_x_mm, dia_y_mm, max_pitch_mm
             new_sets.append(piece)
         grouped['sets'], grouped['bars'] = new_sets, new_bars
         notes.append(u'Footing {}: {} of {} {} bars in a {:.0f} mm band under the column '
-                     u'(SMDSC 6.7: footing {:.0f} mm > 1.5 (c + 3d)).'.format(
+                     u'(SMDSC 4th ed. 6.7: footing {:.0f} mm > 1.5 (c + 3d)).'.format(
                          get_id_value(host.Id), len(layout[0]), sum(len(r) for r in layout),
                          key.replace(u'_', u' '), band, (f1 - f0) * _MM_PER_FT))
 

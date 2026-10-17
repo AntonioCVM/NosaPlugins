@@ -240,7 +240,7 @@ def round_down_mm(length_mm, step_mm=DETAILING_STEP_MM):
 
 def bar_stock_length_mm(bar_diameter_mm, stock_length_mm=None):
     """
-    Longest bar to schedule (IStructE SMDSC 4.2.4): 12 m for 12 mm bars and over, 6 m for 10 mm
+    Longest bar to schedule (IStructE SMDSC 4th ed. 4.2.4): 12 m for 12 mm bars and over, 6 m for 10 mm
     and under, and never more than the stock length the user set.
     """
     cap = 12000.0 if bar_diameter_mm >= 11.5 else 6000.0
@@ -248,14 +248,14 @@ def bar_stock_length_mm(bar_diameter_mm, stock_length_mm=None):
 
 
 def transportable(width_mm, height_mm):
-    """A bent bar travels when its enclosing rectangle's shorter side is within 2.75 m (SMDSC 5.1.6)."""
+    """A bent bar travels when its enclosing rectangle's shorter side is within 2.75 m (SMDSC 4th ed. 5.1.7)."""
     return min(width_mm, height_mm) <= 2750.0 + 1e-6
 
 
 # IStructE SMDSC Tables 6.4/6.5: beams and columns, confined by their links, take alpha3 = 0.9
 CONFINED_ALPHA3 = 0.9
 
-# IStructE SMDSC MF1 / MC1 / MW1: foundation starters project a compression lap plus 150 mm above the
+# IStructE SMDSC 4th ed. MD F1 / MD C1 / MD W1: foundation starters project a compression lap plus 150 mm above the
 # kicker, for foundation level tolerance
 FOUNDATION_LEVEL_TOLERANCE_MM = 150.0
 
@@ -272,7 +272,7 @@ def standard_mandrel_mm(bar_dia_mm):
 
 def bearing_mandrel_mm(bar_dia_mm, spacing_mm, side_cover_mm, fck_mpa, fyk_mpa=500.0):
     """
-    EC2 8.3 (3) / SMDSC 5.1.8: mandrel diameter that keeps the concrete inside a bend of a fully
+    EC2 8.3 (3) / SMDSC 4th ed. 5.1.9: mandrel diameter that keeps the concrete inside a bend of a fully
     stressed bar within its bearing limit, phi_m >= Fbt (1/ab + 1/(2 phi)) / fcd, ab the lesser of half
     the bar centres and cover + phi/2, Fbt = As fyd (UK: alpha_cc 0.85, gamma_c 1.5, gamma_s 1.15).
     """

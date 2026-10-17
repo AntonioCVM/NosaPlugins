@@ -267,7 +267,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
-                    import fit_checks   # T8.47, SMDSC 5.2: clear gaps and pitch of the meshes
+                    import fit_checks   # T8.47, SMDSC 4th ed. 5.2: clear gaps and pitch of the meshes
                     summary['errors'] = list(batch_result.errors) + fit_checks.mesh_notes('walls', values)
                 except Exception as e:
                     forms.alert(u'Wall reinforcement generation failed:\n{}'.format(e))
@@ -327,7 +327,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
                     summary = dict(batch_result.summary)
-                    import fit_checks   # T8.47, SMDSC 5.2: clear gaps and pitch of the meshes
+                    import fit_checks   # T8.47, SMDSC 4th ed. 5.2: clear gaps and pitch of the meshes
                     summary['errors'] = (list(batch_result.errors)
                                          + fit_checks.mesh_notes('footings_floors', values))
                 except Exception as e:
@@ -1765,13 +1765,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
     def _create_starter_links(self, wrapper, groups, bar_dia_mm, cover_mm, errors, created_rebars,
                               label, host):
-        """IStructE SMDSC MF1 / MC1: H10-300 links (3 at least) round each rectangular cage of starters."""
+        """IStructE SMDSC 4th ed. MD F1 / MD C1: H10-300 links (3 at least) round each rectangular cage of starters."""
         from nosa_utils import links
         if not groups:
             return
         bar_type = re_engine.get_bar_type_by_diameter(self.doc, links.STARTER_LINK_DIA_MM)
         if bar_type is None:
-            errors.append(u'{} {}: no H10 bar type in the project — starter links (SMDSC MF1) '
+            errors.append(u'{} {}: no H10 bar type in the project — starter links (SMDSC 4th ed. MD F1) '
                           u'not created.'.format(label, get_id_value(host.Id)))
             return
         skipped = 0
@@ -1787,11 +1787,11 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                                       layer=u'starter_link')
         if skipped:
             errors.append(u'{} {}: {} starter cage(s) without links — not rectangular or no room in '
-                          u'the foundation; add H10-300 (3 at least, SMDSC MF1) by hand.'.format(
+                          u'the foundation; add H10-300 (3 at least, SMDSC 4th ed. MD F1) by hand.'.format(
                               label, get_id_value(host.Id), skipped))
 
     def _foundation_starter_mm(self, typed_mm, bar_dia_mm, host, errors, min_kicker_mm=0.0):
-        """Foundation starter projection (SMDSC MF1 / MC1 / MW1): lap + kicker + 150 level tolerance."""
+        """Foundation starter projection (SMDSC 4th ed. MD F1 / MD C1 / MD W1): lap + kicker + 150 level tolerance."""
         try:
             base_ft = host.get_BoundingBox(None).Min.Z
         except Exception:
@@ -1811,11 +1811,11 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         return 0.0
 
     def _kicker_at_mm(self, base_ft, host, errors):
-        """Kicker height at a base: the set one, at least 150 mm below ground (SMDSC MF1 / MC1 / MW1)."""
+        """Kicker height at a base: the set one, at least 150 mm below ground (SMDSC 4th ed. MD F1 / MD C1 / MD W1)."""
         kicker = self._kicker_mm()
         if base_ft is None or kicker >= 150.0 or base_ft >= self._ground_level_ft() - 50.0 / 304.8:
             return kicker
-        errors.append(u'{} {}: base below ground — kicker 150 mm (SMDSC MF1 / MW1), not {:.0f}.'.format(
+        errors.append(u'{} {}: base below ground — kicker 150 mm (SMDSC 4th ed. MD F1 / MD W1), not {:.0f}.'.format(
             host.Category.Name if host.Category else u'Element', get_id_value(host.Id), kicker))
         return 150.0
 
@@ -2228,7 +2228,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 need = standards.bearing_mandrel_mm(dia, values['spacing'], side_cover_mm, fck)
                 if need > standards.standard_mandrel_mm(dia) + 1.0:
                     errors.append(u'Pile cap {}: {} bars bent at the ends need a large radius bend — mandrel '
-                                  u'{:.0f} mm for a fully stressed H{:.0f} at {:.0f} (EC2 8.3, SMDSC 5.1.8; '
+                                  u'{:.0f} mm for a fully stressed H{:.0f} at {:.0f} (EC2 8.3, SMDSC 4th ed. 5.1.9; '
                                   u'BS 8666 standard {:.0f}); specify it (shape 99) or check the bar stress.'.format(
                                       get_id_value(host.Id), axis.upper(), 25.0 * math.ceil(need / 25.0), dia,
                                       values['spacing'], standards.standard_mandrel_mm(dia)))
@@ -2241,7 +2241,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 need = self._anchorage_mm(host, values['dia_x'])
                 if bands['reach_mm'] + bands['leg_mm'] < need - 1.0:
                     errors.append(u'Pile cap {}: tie bars {:.0f} mm from the edge pile centre to the bar end, under '
-                                  u'the {:.0f} mm tension anchorage SMDSC MF2 asks for — larger bends or a bigger '
+                                  u'the {:.0f} mm tension anchorage SMDSC 4th ed. MD F2 asks for — larger bends or a bigger '
                                   u'cap.'.format(get_id_value(host.Id), bands['reach_mm'] + bands['leg_mm'], need))
             else:
                 errors.extend(u'Pile cap {}: {}'.format(get_id_value(host.Id), n)
@@ -2315,7 +2315,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
     def _pile_cap_band_mats(self, host, reinforcement, bands, values, bottom_cover_mm, top_cover_mm, bar_types,
                             errors):
         """
-        IStructE SMDSC Table 6.10, 3- and 7-pile caps: the design bars go in the tie bands over the pile
+        IStructE SMDSC 4th ed. Table 6.7, 3- and 7-pile caps: the design bars go in the tie bands over the pile
         lines; the mat above them is nominal H16 at 200 and the lacers follow the cap's outline.
         """
         from nosa_utils import pile_caps
@@ -2334,7 +2334,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             reinforcement['side_rebar'] = bands['lacers']
         errors.append(u'Pile cap {}: {} piles — H{:.0f} tie bars at {:.0f} in bands over the pile lines ({} layers, '
                       u'bent up at both ends), nominal H16 at 200 above them and lacers round the cap '
-                      u'(SMDSC Table 6.10).'.format(get_id_value(host.Id), len(footing_rebar.pile_centres_ft(host)),
+                      u'(SMDSC 4th ed. Table 6.7).'.format(get_id_value(host.Id), len(footing_rebar.pile_centres_ft(host)),
                                                    float(values['dia_x']), float(values['spacing']), bands['layers']))
         return reinforcement
 
@@ -2365,23 +2365,23 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             return False
 
     def _pile_cap_values(self, host, values, bar_types, errors):
-        """IStructE SMDSC MF2 / Table 6.10: main bars bent at both ends, two layers of H12 lacers."""
+        """IStructE SMDSC 4th ed. MD F2 / Table 6.10: main bars bent at both ends, two layers of H12 lacers."""
         if not self._is_pile_cap(host):
             return values
         label = u'Pile cap {}'.format(get_id_value(host.Id))
         if not values.get('bottom_hooks'):
             values = dict(values, bottom_hooks=True)
-            errors.append(u'{}: main bars bent up at both ends (SMDSC MF2, Table 6.10).'.format(label))
+            errors.append(u'{}: main bars bent up at both ends (SMDSC 4th ed. MD F2, Table 6.10).'.format(label))
         if not values.get('include_side_rebar'):
             values = dict(values, include_side_rebar=True, side_diameter=12.0, side_spacing=10000.0)
             if bar_types.get(12.0) is None:
                 bar_types[12.0] = re_engine.get_bar_type_by_diameter(self.doc, 12.0)
-            errors.append(u'{}: two layers of H12 lacers added (SMDSC MF2).'.format(label))
+            errors.append(u'{}: two layers of H12 lacers added (SMDSC 4th ed. MD F2).'.format(label))
         return values
 
     def _smdsc_mesh_review(self, host, values, bottom_cover_mm, top_cover_mm, errors, foundation):
         """
-        T8.39/T8.41 — IStructE SMDSC 6.2 (slabs) / 6.7 (foundations) for this host's mats: pitches
+        T8.39/T8.41 — IStructE SMDSC 4th ed. 6.2 (slabs) / 6.7 (foundations) for this host's mats: pitches
         over the maxima come down (values copied, never the shared dict), the rest is reported.
         """
         try:
@@ -2421,7 +2421,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     label=label)
             errors.extend(notes)
             if self.ra_project.get('water_retaining'):
-                # T8.53, SMDSC 9.2: both directions of a slab carry tension: 250 mm at most
+                # T8.53, SMDSC 3rd ed. 9.2: both directions of a slab carry tension: 250 mm at most
                 from nosa_utils import water_retaining
                 spacing, _d, wr_notes = water_retaining.review(
                     h_mm, bottom_cover_mm, spacing, water_retaining.MAX_DISTRIBUTION_PITCH_MM,
@@ -2434,7 +2434,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 if top:
                     values['top_spacing'] = top_spacing
             if not foundation and values.get('include_perimeter_ubars'):
-                # SMDSC MS2: the edge U-bars carry half the area of the bottom bars they close
+                # SMDSC 4th ed. MD S2: the edge U-bars carry half the area of the bottom bars they close
                 for axis in (u'x', u'y'):
                     key, sp_key = u'{}_anchor_ubar_dia'.format(axis), u'{}_anchor_ubar_spacing'.format(axis)
                     if not values.get(key) or not values.get(sp_key):
@@ -2442,7 +2442,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     need = mesh_rules.edge_ubar_dia_mm(values[key], values[sp_key], values[u'dia_' + axis],
                                                        values['spacing'])
                     if need > values[key]:
-                        errors.append(u'{}: {} edge U-bars H{:g} raised to H{:g} — SMDSC MS2 asks for half the '
+                        errors.append(u'{}: {} edge U-bars H{:g} raised to H{:g} — SMDSC 4th ed. MD S2 asks for half the '
                                       u'area of the bottom bars (H{:g} at {:g}).'.format(
                                           label, axis.upper(), values[key], need, values[u'dia_' + axis],
                                           values['spacing']))
@@ -2512,7 +2512,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 with nosa_tx.revit_transaction(u'NOSA — Welded Fabric'):
                     _area, notes = fabric_rebar.place(self.doc, host, values['fabric_ref'], fabric_face,
                                                       values.get('fabric_dir', u'x'), fck)
-                    fabric_rebar.ensure_schedule(self.doc)       # SMDSC Table 4.3
+                    fabric_rebar.ensure_schedule(self.doc)       # SMDSC 3rd ed. Table 4.3
                 errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n) for n in notes)
             except Exception as e:
                 errors.append(u'Floor {}: welded fabric not placed — {}'.format(get_id_value(host.Id), e))
@@ -2594,7 +2594,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                       for n in reinforcement.get('hole_notes') or [])
 
         if reinforcement.get('n_small_holes_ignored'):
-            errors.append(u'Floor {}: {} small opening(s) (sides ≤ 150 mm, SMDSC 6.2) ignored — '
+            errors.append(u'Floor {}: {} small opening(s) (sides ≤ 150 mm, SMDSC 4th ed. 6.2) ignored — '
                           u'main reinforcement runs through uncut, by design.'.format(
                               get_id_value(host.Id), reinforcement['n_small_holes_ignored']))
 

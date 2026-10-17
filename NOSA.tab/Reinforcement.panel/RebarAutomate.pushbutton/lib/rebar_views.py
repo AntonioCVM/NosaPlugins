@@ -299,7 +299,7 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         section_kind = 'footing_section' if kind == 'foundation' else 'slab_section'
         faces = set(rebar_face(r, box) for r in host_rebars(host)) if kind == 'floor' else set()
         if len(faces) > 1:
-            # a slab with bars in both faces: one plan each (SMDSC 6.2.4, user 2026-10-10: one plan of both
+            # a slab with bars in both faces: one plan each (SMDSC 4th ed. 6.2.4, user 2026-10-10: one plan of both
             # mats is hard to read)
             for face, title in ((u'bottom', u'Bottom reinforcement'), (u'top', u'Top reinforcement')):
                 spec = _plan(title, 'plan', level, box, _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0)
@@ -315,7 +315,7 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
             solid = None
         # their marks look up the plan and to its left (user 2026-10-12)
         for letter, right, other in ((u'A', x.Negate(), y), (u'B', y.Negate(), x)):
-            # user 2026-10-11: two real sections (60 mm deep, SMDSC 3.17), not views of the whole slab, through
+            # user 2026-10-11: two real sections (60 mm deep, SMDSC 4th ed. 3.17), not views of the whole slab, through
             # it clear of openings, their marks named A / B on the plans
             lo, hi = _extent(box, right)
             olo, ohi = _extent(box, other)
@@ -365,7 +365,7 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
                                _mm(box.Max.Z) + 200.0, _mm(box.Min.Z) - 200.0, margin=400.0))
     number = 1
     for spec in specs:
-        # SMDSC 3.18 / 4th ed. Fig. 6.24 (user 2026-10-11): member sections numbered 1-1, 2-2 ... on the drawing,
+        # SMDSC 4th ed. 3.18 / 4th ed. Fig. 6.24 (user 2026-10-11): member sections numbered 1-1, 2-2 ... on the drawing,
         # each referenced on the elevation it cuts
         if not spec['plan'] and spec['kind'] in ('member_section', 'wall_section') and not spec.get('letter'):
             spec['letter'] = u'{}'.format(number)
@@ -404,7 +404,7 @@ def _continue_labels(doc, created, group, kind, label):
 
 
 def _letter(index):
-    """A ... Z, then AA, AB ... (SMDSC 3.19 omits I and O)."""
+    """A ... Z, then AA, AB ... (SMDSC 4th ed. 3.19 omits I and O)."""
     alphabet = [c for c in u'ABCDEFGHIJKLMNOPQRSTUVWXYZ' if c not in u'IO']
     out = u''
     index += 1
@@ -436,7 +436,7 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
             t = DB.Transaction(doc, u'NOSA — Marks of the {} drawing'.format(_PLURAL.get(kind, kind)))
             t.Start()
             import rebar_marking
-            rebar_marking.renumber_drawing(doc, [r.Id for r in rebars])      # SMDSC 4.5.1: one drawing
+            rebar_marking.renumber_drawing(doc, [r.Id for r in rebars])      # SMDSC 4th ed. 4.5.1: one drawing
             from nosa_utils import rule_flags
             rule_flags.stamp(rebars)                                           # T9.15: bars added by a rule
             t.Commit()
@@ -735,7 +735,7 @@ def hide_section_marks(view):
 def ensure_coarse(view):
     """
     Detail level Coarse (user decision 2026-10-10, replacing Fine of 2026-10-06): a bar is one thick line
-    and a cut bar a filled dot to scale (IStructE SMDSC 3.10), legible on A1 and reduced to A3. When the
+    and a cut bar a filled dot to scale (IStructE SMDSC 4th ed. 3.10), legible on A1 and reduced to A3. When the
     view template controls the detail level, the RC template itself is set; otherwise the view. In a
     transaction; True when it is Coarse.
     """
@@ -911,7 +911,7 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
     need a second sheet, the largest section or elevation that can (then plan) goes to its next coarser
     scale (tags re-laid out by `retag`); only then does a view move to another sheet. Every sheet gets the legends
     (layer notation, reinforcement notes) in the corner of the drawing area kept for them
-    (IStructE SMDSC 3.7, 4.2.1).
+    (IStructE SMDSC 4th ed. 3.7, 4.2.1).
     """
     from Autodesk.Revit import DB  # Lazy import
     sheets = [_new_sheet(doc, titleblock, sheet_numbers.pop(0), name)]
@@ -992,7 +992,7 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
                 pass
     for port, (_view, spec, _scale) in zip(ports, created):
         if spec.get('letter'):
-            # the section's mark on the plans reads A / B, its title Section A-A (SMDSC 3.17)
+            # the section's mark on the plans reads A / B, its title Section A-A (SMDSC 4th ed. 3.17)
             try:
                 port.get_Parameter(DB.BuiltInParameter.VIEWPORT_DETAIL_NUMBER).Set(spec['letter'])
             except Exception:
@@ -1040,7 +1040,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
     if tag and rebars:
         try:
             import rebar_presentation
-            rebar_presentation.bind(doc)       # the one-calling-up-per-mark parameters (SMDSC 4.2.1)
+            rebar_presentation.bind(doc)       # the one-calling-up-per-mark parameters (SMDSC 4th ed. 4.2.1)
         except Exception as e:
             report['errors'].append(u'presentation parameters not bound: {}'.format(e))
     guard = _rollback_on_error()
@@ -1104,13 +1104,13 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
         if sheet_group is not None:
             _continue_labels(doc, created, sheet_group, kind, label)
         if rebars and place_on_sheets and sheet_group is None:
-            # SMDSC 4.5.1: these members make one new drawing, so their marks run 01 upwards across it —
+            # SMDSC 4th ed. 4.5.1: these members make one new drawing, so their marks run 01 upwards across it —
             # before the calling-up, whose callout texts carry the marks
             import rebar_marking
             report['marks'] = rebar_marking.renumber_drawing(doc, [r.Id for r in rebars]).get('total_positions', 0)
         doc.Regenerate()
         if tag and rebars:
-            # T8.27, SMDSC 6.2.2 / 3.3: typical bars, indicator lines and marks laid out outside the members,
+            # T8.27, SMDSC 4th ed. 6.2.2 / 3.3: typical bars, indicator lines and marks laid out outside the members,
             # before the sheets so each viewport takes its calling-up in
             import rebar_presentation
             from nosa_utils import tag_engine
@@ -1148,17 +1148,17 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
                                                 retag=retag, legends=legends)
             if report['sheets']:
-                # SMDSC 4.5.1: the member's bar schedules belong to the drawing it is detailed on
+                # SMDSC 4th ed. 4.5.1: the member's bar schedules belong to the drawing it is detailed on
                 import bar_schedules
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
-                # SMDSC 3.7 (T9.6): each drawing's notes from what is on it
+                # SMDSC 4th ed. 3.7 (T9.6): each drawing's notes from what is on it
                 td_sheet, typical = _typical(doc, hosts, rebars, titleblock)
                 for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                     if sheet.SheetNumber in report['sheets']:
                         report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars,
                                                                        typical=typical, typical_drawing=td_sheet))
         if tag and rebars and sheet_group is None:
-            # T8.27, SMDSC 6.2.2: bars detailed on another drawing, once the views are on their sheets
+            # T8.27, SMDSC 4th ed. 6.2.2: bars detailed on another drawing, once the views are on their sheets
             own = set(get_id_value(r.Id) for r in rebars)
             for view, _spec, _scale in created:
                 others = [r for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Structure.Rebar)

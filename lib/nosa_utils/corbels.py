@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.corbels — in-situ column corbels, IStructE SMDSC 6.9 / Model Detail MCB1 (no welds). Pure Python, mm.
+nosa_utils.corbels — in-situ column corbels, IStructE SMDSC 4th ed. 6.9 / Model Detail MD CB1 (no welds). Pure Python, mm.
 
 A corbel is described in its own frame: o out of the column face (0 at the face), a along the face (0
 at the corbel's centre line), z absolute level. Main tension bars are horizontal U-loops round the
@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import math
 
-MAX_MAIN_DIA_MM = 16.0          # MCB1 without welds; larger bars need MCB2 (welded cross bar)
+MAX_MAIN_DIA_MM = 16.0          # MD CB1 without welds; larger bars need MD CB2 (welded cross bar)
 SECONDARY_SHARE = 0.5           # secondary horizontal bars: 50 % of the main tension area
 COMPRESSION_MM2_PER_M = 1000.0  # compression bars: 1000 mm2 per metre width of corbel
 MIN_GAP_MM = 25.0               # vertical gap between bar layers: max(25, phi)
@@ -73,7 +73,7 @@ def build(corbel, column, bars):
     dm, ds, dc = float(bars['main_dia']), float(bars['secondary_dia']), float(bars['compression_dia'])
     notes = []
     if dm > MAX_MAIN_DIA_MM:
-        notes.append(u'main bars H{:.0f} over 16 mm: SMDSC MCB2 asks for them welded to a cross bar or plate '
+        notes.append(u'main bars H{:.0f} over 16 mm: SMDSC 4th ed. MD CB2 asks for them welded to a cross bar or plate '
                      u'— detail the welds.'.format(dm))
     inside_col = column['cover'] + column['link_dia'] + column['bar_dia']
     o_far = -(column['depth'] - inside_col)                       # just inside the column's far bars
@@ -91,7 +91,7 @@ def build(corbel, column, bars):
         down = max(column['base'] + c, z - bars['lap_mm'])
         main.append([(o_far, y_main, down), (o_far, y_main, z), (o_tip, y_main, z),
                      (o_tip, -y_main, z), (o_far, -y_main, z), (o_far, -y_main, down)])
-    notes.append(u'main loops round the corbel face need a large radius bend (SMDSC MCB1); keep the bearing '
+    notes.append(u'main loops round the corbel face need a large radius bend (SMDSC 4th ed. MD CB1); keep the bearing '
                  u'at least max(phi, 0.75 cover) = {:.0f} mm inside them.'.format(max(dm, 0.75 * c)))
 
     # secondary horizontal U-bars, half the main area, spread down the rest of the depth

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.couplers — mechanical couplers (T8.52, IStructE SMDSC 5.5), no Revit: where the bars of a congested
+nosa_utils.couplers — mechanical couplers (T8.52, IStructE SMDSC 4th ed. App. D), no Revit: where the bars of a congested
 column join end to end instead of lapping, and the 'E' written just before the mark of a bar with a special end
 preparation, on the drawings and the schedules.
 """
@@ -19,7 +19,7 @@ def type_name(dia_mm):
 
 
 def mark_with_end_prep(mark, prepared):
-    """SMDSC 5.5: 'E' just before the mark of a bar with a coupler; the plain mark otherwise."""
+    """SMDSC 4th ed. App. D: 'E' just before the mark of a bar with a coupler; the plain mark otherwise."""
     mark = (mark or u'').strip()
     if prepared and mark and not mark.startswith(END_PREP):
         return END_PREP + mark

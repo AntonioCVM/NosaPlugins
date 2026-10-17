@@ -5,7 +5,7 @@ nosa_utils.laps — anchorage and lap lengths (BS EN 1992-1-1 with UK NA; BS 811
 EC2 (8.4, 8.7): lb,rqd = (phi/4)(sigma_sd/fbd), fbd = 2.25 eta1 eta2 fctd,
 fctd = alpha_ct 0.7 fctm / gamma_c (UK NA alpha_ct = 1.0), l0 = alpha6 lb,rqd with
 alpha1..alpha5 = 1.0 (conservative; alpha3 may be given, IStructE SMDSC Tables 6.4/6.5 take 0.9 for
-beams and columns) and sigma_sd = fyd. SMDSC 5.4.3-5.4.5 arrangement rules (lap gaps, adjacent laps,
+beams and columns) and sigma_sd = fyd. SMDSC 4th ed. 5.4.2 arrangement rules (lap gaps, adjacent laps,
 lapped percentage, transverse bars at laps, large bars, bundles) are the pure checks at the end. BS 8110 (Table 3.27, type 2
 deformed bars): tension / compression multiples by cube strength, x1.4 for poor bond.
 Every lap, in either mode, is at least max(15 phi, 300 mm) (user rule 2026-09-30).
@@ -132,7 +132,7 @@ def fck_from_material_name(name):
     return float(fck) if 8 <= fck <= 100 and fcu > fck else None
 
 
-# ── IStructE SMDSC 5.4.3-5.4.5 (EC2 8.7, 8.8, 8.9): arrangement of laps ──────────────────────────
+# ── IStructE SMDSC 4th ed. 5.4.2 (EC2 8.7, 8.8, 8.9): arrangement of laps ──────────────────────────
 
 def lap_gap_extension_mm(clear_gap_mm, bar_dia_mm):
     """Extra lap length when the lapped bars are more than max(4 phi, 50) apart: the clear gap itself."""
@@ -152,7 +152,7 @@ def max_pct_lapped(layers):
 
 def lap_transverse_bars(bar_dia_mm, pct_lapped, adjacent_clear_mm=None):
     """
-    Transverse reinforcement a tension lap needs (SMDSC 5.4.3): None when the links there for other
+    Transverse reinforcement a tension lap needs (SMDSC 4th ed. 5.4.3): None when the links there for other
     reasons do (phi < 20 or < 25 % lapped); else {'area_mm2': sum Ast >= As of one bar, half within
     each outer third of the lap, 'links': True when > 50 % lapped with laps <= 10 phi apart (links or
     U-bars anchored into the section)}.
@@ -188,7 +188,7 @@ def lap_link_pitch_mm(bar_dia_mm, lap_length_mm, link_dia_mm, link_legs=2, pct_l
 
 
 def large_bar_notes(bar_dia_mm, min_section_mm):
-    """SMDSC 5.4.4 / EC2 8.8: bars over 40 mm are not lapped unless the section is at least 1 m."""
+    """SMDSC 4th ed. 5.4.4 / EC2 8.8: bars over 40 mm are not lapped unless the section is at least 1 m."""
     notes = []
     bar_dia_mm = float(bar_dia_mm)
     if bar_dia_mm > 40.0:

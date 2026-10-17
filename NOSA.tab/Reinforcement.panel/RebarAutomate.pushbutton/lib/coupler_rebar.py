@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — mechanical couplers between bars that meet end to end (T8.52, IStructE SMDSC 5.5), the rules
+NOSA.RebarAutomate — mechanical couplers between bars that meet end to end (T8.52, IStructE SMDSC 4th ed. App. D), the rules
 in nosa_utils.couplers: the NOSA Rebar Coupler family (content/couplers) loaded on first use, its type for the
 bar size given that size, one Revit Rebar Coupler at every joint of two bars (sets included). In a transaction.
 """

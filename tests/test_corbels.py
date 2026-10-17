@@ -47,7 +47,7 @@ def test_main_loops_cross_the_column_and_turn_down_a_lap():
 def test_rectangular_corbel_and_welded_note():
     rect = dict(SLOPED, depth_tip=500.0)
     out = cb.build(rect, COLUMN, dict(BARS, main_dia=20.0))
-    assert any(u'MCB2' in n for n in out['notes'])
+    assert any(u'MD CB2' in n for n in out['notes'])
     bar = out['compression'][0]
     assert abs(bar[1][2] - bar[2][2]) < 1e-6                    # along a level soffit
 

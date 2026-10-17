@@ -56,7 +56,7 @@ _OST_REBAR_LIKE_CATEGORY_NAMES = (
 
 # IStructE / BS 8666 bar location shown on the bar label (read from Comments).
 LOCATION_CODES = {u'bottom_x': u'B1', u'bottom_y': u'B2', u'top_x': u'T1', u'top_y': u'T2'}
-# near face = towards the slab, far face = outside the building; 1 = outer layer (SMDSC 4.2.1)
+# near face = towards the slab, far face = outside the building; 1 = outer layer (SMDSC 4th ed. 4.2.1)
 WALL_FACE_CODES = (u'N1', u'N2', u'F1', u'F2')
 _LEGACY_FACE_CODES = (u'NF', u'FF')   # before 2026-10-07: replaced on the next generation
 
@@ -166,7 +166,7 @@ class BatchResult(object):
         self.summary = summary    # the raw dict generate_fn() returned, untouched
 
 
-# lower-case sub-marks 1a, 1b ... (IStructE SMDSC 4.5.1, decision D8 2026-10-07)
+# lower-case sub-marks 1a, 1b ... (IStructE SMDSC 4th ed. 4.5.1, decision D8 2026-10-07)
 SUBMARK_SUFFIX = u'a'
 
 
@@ -213,7 +213,7 @@ def short_end_leg_mm(rebar):
 
 def ensure_varying_submarks(doc):
     """
-    Varying rebar sets numbered as a whole, bars suffixed a, b, c ... (SMDSC 4.5.1): the BBS then
+    Varying rebar sets numbered as a whole, bars suffixed a, b, c ... (SMDSC 4th ed. 4.5.1): the BBS then
     lists every bar of a set cut by a chamfer as its own sub-mark (01a, 01b) with its real
     dimensions. In a transaction; True when the project setting had to change.
     """
@@ -349,7 +349,7 @@ class RebarBatch(object):
                                 if size and not standards.transportable(*size):
                                     stamp_errors.append(
                                         u'Element {}: bent bar {:.0f} x {:.0f} mm does not travel (shorter side '
-                                        u'over 2.75 m, SMDSC 5.1.6): split it with a lap or a coupler.'.format(
+                                        u'over 2.75 m, SMDSC 4th ed. 5.1.7): split it with a lap or a coupler.'.format(
                                             get_id_value(elem.Id), size[0], size[1]))
                     except Exception as shape_err:
                         stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))

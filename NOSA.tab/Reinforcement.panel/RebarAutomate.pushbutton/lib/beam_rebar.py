@@ -225,7 +225,7 @@ def cb_rules():
 
 
 def _vibrator_gaps_to_keep(base_lines, bar_dia_mm):
-    """Gaps of a top row to leave empty for the poker vibrator (SMDSC MB1): one per 300 mm of width, if 75 mm clear."""
+    """Gaps of a top row to leave empty for the poker vibrator (SMDSC 4th ed. MD B1): one per 300 mm of width, if 75 mm clear."""
     import continuous_beam as cb
     if len(base_lines) < 2:
         return 0
@@ -241,7 +241,7 @@ def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir
     [(kind, point at x_mm)] for n extra bars beside a row of main bars (base_lines, axis order):
     between two main bars with their outer faces level, then in a second layer behind the row.
     to_face: unit vector from the bars towards their face (up for top bars, down for bottom).
-    vibrator: a top row, which keeps its central gap(s) free for the poker (SMDSC MB1).
+    vibrator: a top row, which keeps its central gap(s) free for the poker (SMDSC 4th ed. MD B1).
     """
     import continuous_beam as cb
     drop = (bar_dia_mm / 2.0 + max(bar_dia_mm, 25.0) + dia_mm / 2.0) / _MM_PER_FT
@@ -262,7 +262,7 @@ def _slot_points(base_lines, n_bars, dia_mm, bar_dia_mm, to_face, x_mm, axis_dir
 
 def _spacer_groups(chains_by_key, base_lines, bar_dia_mm, to_face, axis_dir, label=u'Beam Spacer Bars'):
     """
-    Spacer bars (SMDSC MB1 / Fig. 4.2) under every second layer of chains_by_key ((kind, ...) keys,
+    Spacer bars (SMDSC 4th ed. MD B1 / Fig. 4.2) under every second layer of chains_by_key ((kind, ...) keys,
     kind 'second'): across the row from outer bar to outer bar, in the gap between the layers, at
     1 m centres. Groups as group_parallel_bar_chains_into_sets, plus 'diameter_mm'.
     """
@@ -306,7 +306,7 @@ def additional_bar_sets(axis, spans_mm, top_lines, bottom_lines, top_ext_mm, bot
                         n_support, support_dia_mm, n_span, span_dia_mm, support_inset_mm=0.0):
     """
     Extra bars of one beam element (x mm along `axis` from its start; spans_mm = clear spans
-    between support faces), SMDSC 6.3.2 simplified rules (L = clear span + d): support bars over
+    between support faces), SMDSC 4th ed. 6.3.2 simplified rules (L = clear span + d): support bars over
     every intermediate support, at least 60 % to 0.25 L and none shorter than max(0.15 L, 45 bar
     diameters), each side by its own span; at an end support with a column (not a support of a
     continuous line) the same reach, from the column's far face with a leg (top leg of the end
@@ -700,7 +700,7 @@ def support_extensions_mm(doc, axis, end_inset_mm, foundations=False):
     (start, end) mm a beam bar runs on past each end of `axis` to reach the far face of the
     structural column it frames into, less end_inset_mm; 0 where no column is found.
     foundations: a ground beam, whose supports are also the pile caps and pads it runs into; its
-    main bars then continue right across them (IStructE SMDSC 6.7).
+    main bars then continue right across them (IStructE SMDSC 4th ed. 6.7).
     """
     from nosa_utils.revit_helpers import is_ground_beam
     categories = [DB.BuiltInCategory.OST_StructuralColumns]
@@ -1064,7 +1064,7 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     of a continuous line (continuous_beam's rules).
     """
     from nosa_utils import standards
-    stock_length_mm = standards.bar_stock_length_mm(bar_diameter_mm, stock_length_mm)   # SMDSC 4.2.4
+    stock_length_mm = standards.bar_stock_length_mm(bar_diameter_mm, stock_length_mm)   # SMDSC 4th ed. 4.2.4
     engine = _ensure_engine()
     axis = get_beam_axis(host)
     # BUG FIX (2026-09-01) — see _clamp_axis_to_bbox's own docstring:
@@ -1105,10 +1105,10 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     # straight into it (no leg) and the top bars are the line's own continuous hanger bars.
     b_ext0 = internal_bottom_ext_mm[0] if continuous_ends[0] else ext0_mm
     b_ext1 = internal_bottom_ext_mm[1] if continuous_ends[1] else ext1_mm
-    # SMDSC MB1 flexible detailing: at an end column the bottom bars stop short, lapping the end U-bars
+    # SMDSC 4th ed. MD B1 flexible detailing: at an end column the bottom bars stop short, lapping the end U-bars
     b_leg0, b_leg1 = (0.0 if continuous_ends[0] else ext0_mm), (0.0 if continuous_ends[1] else ext1_mm)
-    # a half joint (SMDSC 6.9): the bottom bars stop at the notch and turn up behind the hanger links
-    # T8.49, SMDSC MB1: the legs in one column nest, the top bars outermost, the support bars inside them, the
+    # a half joint (SMDSC 4th ed. 6.9): the bottom bars stop at the notch and turn up behind the hanger links
+    # T8.49, SMDSC 4th ed. MD B1: the legs in one column nest, the top bars outermost, the support bars inside them, the
     # bottom bars inside both (they coincided, found by the rebar QA)
     from nosa_utils import joints
     insets = joints.nested_leg_insets_mm(bar_diameter_mm, bar_diameter_mm,
@@ -1542,7 +1542,7 @@ def build_curved_beam_curves(doc, host, cover_mm, bar_diameter_mm, n_top_bars, n
 def _end_ubar_sets(axis0, top, bottom, side_a, side_b, cover_mm, bar_dia_mm, link_dia_mm, normal, height,
                    at, ordered, exts, n_bottom, lap_mm, warnings):
     """
-    End U-bars of the flexible detailing (SMDSC MB1): in the elevation plane, round the far face of
+    End U-bars of the flexible detailing (SMDSC 4th ed. MD B1): in the elevation plane, round the far face of
     each end column, the bottom leg lapping the span bottom bars (which stop 25 short of it) and the
     top leg the hanger bars (which stop 50 short); 30 % of the span bottom bars, at least two.
     [(host, group)].
@@ -1560,7 +1560,7 @@ def _end_ubar_sets(axis0, top, bottom, side_a, side_b, cover_mm, bar_dia_mm, lin
     for end, ext in enumerate(exts):
         if not ext:
             warnings.append(u'flexible detailing: no column found at the {} end, so no end U-bars there '
-                            u'(SMDSC MB1: 50 % of the span bottom bars at a simple support).'.format(
+                            u'(SMDSC 4th ed. MD B1: 50 % of the span bottom bars at a simple support).'.format(
                                 u'start' if end == 0 else u'finish'))
             continue
         sign = 1.0 if end == 0 else -1.0
@@ -1584,7 +1584,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
     """
     Hanger (continuous top) bars and support bars of one line of spans, plus how each span's
     own bars must end (continuous_beam's rules — see that module).
-    flexible (IStructE SMDSC 4.2.3 / MB1): span bottom bars stop 25 short of the internal supports and
+    flexible (IStructE SMDSC 4th ed. 4.2.3 / MD B1): span bottom bars stop 25 short of the internal supports and
     lap with bottom splice bars across them (30 %, at least two, second layer); hanger bars stop 50
     short of them, the support bars giving the continuity.
     Returns {'hanger_sets': [(host, group)], 'support_sets': [(host, group)], 'splice_sets': [...],
@@ -1592,7 +1592,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
              'warnings': [...]} — group dicts as group_parallel_bar_chains_into_sets returns.
     """
     from nosa_utils import standards
-    stock_length_mm = standards.bar_stock_length_mm(bar_diameter_mm, stock_length_mm)   # SMDSC 4.2.4
+    stock_length_mm = standards.bar_stock_length_mm(bar_diameter_mm, stock_length_mm)   # SMDSC 4th ed. 4.2.4
     import continuous_beam as cb
     from nosa_utils.revit_compat import get_id_value
     direction = get_beam_axis(hosts[0]).Direction.Normalize()
@@ -1658,7 +1658,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
         return last
 
     if flexible:
-        # SMDSC MB1: at an end support with a column the hangers stop 50 short of it too, the
+        # SMDSC 4th ed. MD B1: at an end support with a column the hangers stop 50 short of it too, the
         # end U-bars giving the continuity into the column
         if ext0:
             x_start = ordered[0]['x0'] + cb.FLEX_TOP_GAP_MM
@@ -1701,7 +1701,7 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
             hanger_sets.append((host_at((a + b) / 2.0), group))
 
     support_sets, spacer_sets = [], []
-    # support bars over the line's supports, SMDSC 6.3.2: at least 60 % to 0.25 L, none shorter than
+    # support bars over the line's supports, SMDSC 4th ed. 6.3.2: at least 60 % to 0.25 L, none shorter than
     # max(0.15 L, 45 diameters), each side by its own span, L = clear span + d (user decision 2026-10-06)
     d_mm = clear_mm + longitudinal_bar_inset_mm(cover_mm, bar_diameter_mm, stirrup_bar_diameter_mm)
     warnings.extend(cb.simplified_rules_warnings([s['x1'] - s['x0'] for s in ordered]) if n_support_bars else [])

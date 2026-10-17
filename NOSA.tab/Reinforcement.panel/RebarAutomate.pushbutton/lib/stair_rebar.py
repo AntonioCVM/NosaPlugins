@@ -20,19 +20,19 @@ import math
 
 _MIN_LEG_MM = 50.0
 MIN_STARTER_FOOT_MM = 450.0
-A_MIN_MM = 500.0                 # SMDSC MST1: 'A' = max(0.1 design span, tension anchorage, 500)
-NO_FINISH_TOP_COVER_MM = 10.0    # SMDSC 6.8: 10 mm more top cover where the stair has no finish
-UBAR_AREA_SHARE = 0.5            # SMDSC MST1: landing U-bars 50 % of the main bottom area
+A_MIN_MM = 500.0                 # SMDSC 4th ed. MD ST1: 'A' = max(0.1 design span, tension anchorage, 500)
+NO_FINISH_TOP_COVER_MM = 10.0    # SMDSC 4th ed. 6.8: 10 mm more top cover where the stair has no finish
+UBAR_AREA_SHARE = 0.5            # SMDSC 4th ed. MD ST1: landing U-bars 50 % of the main bottom area
 
 
 def a_length_mm(span_mm, anchorage_mm):
-    """SMDSC MST1 'A': how far the top bars reach into the flight from each knee (25 mm up)."""
+    """SMDSC 4th ed. MD ST1 'A': how far the top bars reach into the flight from each knee (25 mm up)."""
     a = max(0.1 * float(span_mm), float(anchorage_mm), A_MIN_MM)
     return 25.0 * math.ceil(a / 25.0 - 1e-9)
 
 
 def landing_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing):
-    """The smallest bar from u_dia up whose U-bars at u_spacing give 50 % of the main bottom area (MST1)."""
+    """The smallest bar from u_dia up whose U-bars at u_spacing give 50 % of the main bottom area (MD ST1)."""
     from nosa_utils import mesh_rules
     return mesh_rules.edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, UBAR_AREA_SHARE)
 
@@ -59,7 +59,7 @@ def _slope_span(pts):
 
 def split_top_bar(pts, run, cover, dia, a_mm, min_gap_mm=100.0):
     """
-    SMDSC MST1: the flight top bar as two bars, each reaching 'A' along the slope from its knee;
+    SMDSC 4th ed. MD ST1: the flight top bar as two bars, each reaching 'A' along the slope from its knee;
     (lower, upper, (s_a, s_b)) or None when they would meet (keep it continuous).
     """
     i = _slope_span(pts)
@@ -319,7 +319,7 @@ def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anc
     slab_anchor: with no landing at the top, lap the bars into the floor slab beyond (else stop
                  at the end face).
     starters: None, or {'dia', 'lap', 'support'} (see starter_bars) for a flight on a support.
-    a_mm: SMDSC MST1 'A' — the top bars (and their distribution bars) stop this far along the
+    a_mm: SMDSC 4th ed. MD ST1 'A' — the top bars (and their distribution bars) stop this far along the
           slope from each knee; None keeps them continuous.
     Returns a list of {'label','layer','dia','points':[(s,z)],'axis':'v'|'slope',
                        'first','array','count','spacing'} (for axis 'v' points are in the s-z plane
@@ -506,12 +506,12 @@ def build_landing(landing, cover, main_dia, dist_dia, dist_spacing, infill_spaci
     return sets
 
 
-PULLOUT_MAX_DIA_MM = 12.0     # SMDSC MW3: pull-out U-bars class B/C, size 12 at most
+PULLOUT_MAX_DIA_MM = 12.0     # SMDSC 4th ed. MD W3: pull-out U-bars class B/C, size 12 at most
 
 
 def pullout_bars(landing, edge, cover, wall_cover, u_dia, lap, spacing, fix_dia):
     """
-    IStructE SMDSC MW3 (half landing cast after the wall): U-bars cast in the wall along a landing
+    IStructE SMDSC 4th ed. MD W3 (half landing cast after the wall): U-bars cast in the wall along a landing
     edge, back behind the wall face at the wall cover, legs running a tension lap into the landing
     at its top and bottom cover; two fixing bars inside the U. edge: 's_max', 'v_min' or 'v_max'.
     Returns stair_rebar sets in the landing frame (hosted in the wall by the caller).

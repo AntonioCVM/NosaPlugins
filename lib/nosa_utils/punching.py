@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Punching shear at slab-column connections (EC2 6.4 with the UK National Annex) and the layout of
-shear stud rails round the column (EC2 9.4.3 / IStructE SMDSC 6.2: first perimeter 0.5 d from the
+shear stud rails round the column (EC2 9.4.3 / IStructE SMDSC 4th ed. 6.2: first perimeter 0.5 d from the
 face, perimeters 0.75 d apart, the last within 1.5 d of u_out, studs no further apart round a
 perimeter than 1.5 d inside u1 and 2 d outside it). Plan geometry in mm in the column's own frame
 (centre at the origin, c1 along x, c2 along y); stresses in N/mm2. No Revit.

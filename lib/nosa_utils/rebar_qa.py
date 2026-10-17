@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.rebar_qa — reinforcement QA (T8.48, IStructE SMDSC 4.4, 4.6, 5.2): per host and per drawing,
+nosa_utils.rebar_qa — reinforcement QA (T8.48, IStructE SMDSC 4th ed. 4.4, 4.6, 5.2): per host and per drawing,
 cover against the bar size and the aggregate, clear spacing with the real bar size (+10 %), the vibrator gap of
 a beam's top layer, pitches and steel ratios within the element's limits, bars within the stock length, bars
 that clash or crowd each other. The rules are pure; audit(doc) reads the model and changes nothing.
@@ -10,11 +10,11 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import math
 import re
 
-REAL_DIA = 1.10            # SMDSC Table 5.2: a deformed bar is about 10 % over its nominal size
+REAL_DIA = 1.10            # SMDSC 4th ed. Table 5.3: a deformed bar is about 10 % over its nominal size
 AGGREGATE_MM = 20.0
 DELTA_CDEV_MM = 10.0
-STOCK_MM = 12000.0         # SMDSC 4.2.4: commercial length
-VIBRATOR_GAP_MM = 75.0     # SMDSC MB1: a 75 mm poker gap for every 300 mm of beam width
+STOCK_MM = 12000.0         # SMDSC 4th ed. 4.2.4: commercial length
+VIBRATOR_GAP_MM = 75.0     # SMDSC 4th ed. MD B1: a 75 mm poker gap for every 300 mm of beam width
 VIBRATOR_WIDTH_MM = 300.0
 CLASH_TOL_MM = 3.0        # modelling tolerance between straight bars
 CONTACT_TOL_MM = 2.0      # two parallel bars this close to touching (real size) are a pair or a lap in contact
@@ -38,7 +38,7 @@ class Finding(object):
 
 
 def min_clear_mm(dia_mm, aggregate_mm=AGGREGATE_MM):
-    """SMDSC 5.2.5 / EC2 8.2: minimum clear distance between bars, max(bar size, aggregate + 5, 20)."""
+    """SMDSC 4th ed. 5.2.5 / EC2 8.2: minimum clear distance between bars, max(bar size, aggregate + 5, 20)."""
     return max(float(dia_mm), float(aggregate_mm) + 5.0, 20.0)
 
 
@@ -46,7 +46,7 @@ def cover_issues(cover_mm, dia_mm, nominal_mm=None, aggregate_mm=AGGREGATE_MM):
     """[(severity, text)]: cover to a bar under its size or the aggregate, or under the nominal less the deviation."""
     out = []
     if cover_mm < dia_mm - 0.5:
-        out.append((ERROR, u'cover {:.0f} mm under the bar size {:.0f} (SMDSC 5.2.2)'.format(cover_mm, dia_mm)))
+        out.append((ERROR, u'cover {:.0f} mm under the bar size {:.0f} (SMDSC 4th ed. 5.2.2)'.format(cover_mm, dia_mm)))
     elif cover_mm < aggregate_mm - 0.5:
         out.append((ERROR, u'cover {:.0f} mm under the aggregate size {:.0f}'.format(cover_mm, aggregate_mm)))
     if nominal_mm and cover_mm < nominal_mm - DELTA_CDEV_MM - 0.5:
@@ -60,13 +60,13 @@ def spacing_issue(spacing_mm, dia_mm, aggregate_mm=AGGREGATE_MM):
     clear = spacing_mm - REAL_DIA * dia_mm
     need = min_clear_mm(dia_mm, aggregate_mm)
     if clear < need - 0.5:
-        return u'clear gap {:.0f} mm at {:.0f} centres (real size {:.0f}) under {:.0f} (SMDSC 5.2.5)'.format(
+        return u'clear gap {:.0f} mm at {:.0f} centres (real size {:.0f}) under {:.0f} (SMDSC 4th ed. 5.2.5)'.format(
             clear, spacing_mm, REAL_DIA * dia_mm, need)
     return None
 
 
 def max_pitch_mm(kind, depth_mm):
-    """Largest pitch of the main bars of a slab, wall or base (SMDSC 6.2, 6.5, 6.7); None for other members."""
+    """Largest pitch of the main bars of a slab, wall or base (SMDSC 4th ed. 6.2, 6.5, 6.7); None for other members."""
     if kind == u'slab':
         return min(3.0 * depth_mm, 400.0)
     if kind == u'wall':
@@ -105,7 +105,7 @@ def vibrator_issue(width_mm, gaps_clear_mm):
     need = max(1, int(width_mm // VIBRATOR_WIDTH_MM))
     have = sum(1 for g in gaps_clear_mm if g >= VIBRATOR_GAP_MM - 0.5)
     if have < need:
-        return u'{} gap(s) of 75 mm in the top layer, {} needed for a {:.0f} mm beam (SMDSC MB1)'.format(
+        return u'{} gap(s) of 75 mm in the top layer, {} needed for a {:.0f} mm beam (SMDSC 4th ed. MD B1)'.format(
             have, need, width_mm)
     return None
 
@@ -155,7 +155,7 @@ def pair_issue(dist_mm, cos, overlap_mm, dia1_mm, dia2_mm, aggregate_mm=AGGREGAT
     limit = max(touch - (min(dia1_mm, dia2_mm) if bend else CLASH_TOL_MM), 0.5 * touch)
     if dist_mm < limit:
         return ERROR, u'clash: centrelines {:.0f} mm apart, bars {:.0f} + {:.0f}'.format(dist_mm, dia1_mm, dia2_mm)
-    # bars in contact, a pair or a lap (SMDSC 5.2.5, EC2 8.7.2), are not congestion: only a gap under the minimum
+    # bars in contact, a pair or a lap (SMDSC 4th ed. 5.2.5, EC2 8.7.2), are not congestion: only a gap under the minimum
     if cos >= PARALLEL_COS and overlap_mm > 0.0 and dist_mm > REAL_DIA * touch + CONTACT_TOL_MM:
         clear = dist_mm - REAL_DIA * touch
         need = min_clear_mm(max(dia1_mm, dia2_mm), aggregate_mm)
@@ -776,7 +776,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
                    for i in sorted(set((0, n - 1)))]
         if max(lengths) > STOCK_MM + 1.0:
             add(rebar, mark, u'Stock length', WARNING, u'bar {:.0f} mm over the {:.0f} mm stock length: lap or '
-                u'split it (SMDSC 4.2.4)'.format(max(lengths), STOCK_MM))
+                u'split it (SMDSC 4th ed. 4.2.4)'.format(max(lengths), STOCK_MM))
         main = max(first, key=lambda s: _dot(_sub(s[1], s[0]), _sub(s[1], s[0])))
         mlen = math.sqrt(_dot(_sub(main[1], main[0]), _sub(main[1], main[0])))
         u = tuple(c / mlen for c in _sub(main[1], main[0])) if mlen > 1e-6 else (1.0, 0.0, 0.0)
@@ -800,7 +800,7 @@ def _audit_host(doc, DB, host, rebars, fck_mpa, aggregate_mm, element_name, get_
             from nosa_utils import rule_flags
             meshed = not rule_flags.rule_for(_text(rebar, u'NOSA_Rebar_Layer'))
             if most and flat and meshed and spacing > most + 1.0:
-                add(rebar, mark, u'Pitch', WARNING, u'pitch {:.0f} mm over the {:.0f} allowed (SMDSC 6.{})'.format(
+                add(rebar, mark, u'Pitch', WARNING, u'pitch {:.0f} mm over the {:.0f} allowed (SMDSC 4th ed. 6.{})'.format(
                     spacing, most, {u'slab': 2, u'wall': 5, u'foundation': 7}[kind]))
             if meshed and (kind in (u'slab', u'foundation') and flat or kind == u'wall' and abs(u[2]) > 0.7):
                 key = (_text(rebar, u'NOSA_Rebar_Layer'), round(u[0], 1), round(u[1], 1), round(u[2], 1))

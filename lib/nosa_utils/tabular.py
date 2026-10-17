@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.tabular — the tabular (representative) method (T8.54, IStructE SMDSC 4.1.1, 6.4.4, 6.7.4), no Revit:
+nosa_utils.tabular — the tabular (representative) method (T8.54, IStructE SMDSC 4th ed. 4.1.1, 6.4.4, 6.7.4), no Revit:
 the calling-up of a member's bars written once per type of member, the members alike grouped with their
 references listed together ('A1, A3, A5'), as in the column and base schedules of the SMDSC.
 """
@@ -46,5 +46,5 @@ def groups(members):
 
 
 def references_text(refs):
-    """'A1, A3, A5' (SMDSC Table 6.x 'Column reference')."""
+    """'A1, A3, A5' (SMDSC 4th ed. Table 6.x 'Column reference')."""
     return u', '.join(refs)

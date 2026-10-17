@@ -2,7 +2,7 @@
 """
 NOSA.RebarAutomate — Create Views (T7.3): view scales and sheet layout. Pure, mm, no Revit.
 
-Scales (IStructE SMDSC 3.5, adopted 2026-10-07 over the 2026-10-03 brief): beam and column
+Scales (IStructE SMDSC 4th ed. 3.5, adopted 2026-10-07 over the 2026-10-03 brief): beam and column
 sections 1:20, slab sections 1:25 when they fit (a mark over every cut bar, user 2026-10-10),
 beam/column/wall elevations and slab details 1:50, general plans 1:100; a view that
 does not fit its room on an A1 sheet takes the next preferred scale (BS 1192: 1:20, 1:50, 1:100,

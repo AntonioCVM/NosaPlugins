@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Pile caps of IStructE SMDSC 6.7 / Table 6.10 laid out as tie bands: the 3- and 7-pile caps carry their
+Pile caps of IStructE SMDSC 4th ed. 6.7 / Table 6.10 laid out as tie bands: the 3- and 7-pile caps carry their
 design bars in bands over the lines joining the piles (one layer per direction), nominal H16 at 200
 above them and lacers round the cap's own outline. Plan geometry in mm, no Revit.
 """
