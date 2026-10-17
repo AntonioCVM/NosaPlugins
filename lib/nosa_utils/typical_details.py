@@ -27,8 +27,10 @@ def corner_bar(x, y, sx, sy, offset=150.0, half=400.0):
 
 
 # kind: 'fill' ('cut' | 'seen', outer (x0, y0, x1, y1), [holes]) concrete, its boundary invisible |
+# 'fillpoly' ('cut' | 'seen', ((x, y), ...)) concrete of any outline |
 # 'edge' ((x, y), ...) a real face of the concrete, thin - none where the member runs on (user 2026-10-17) |
-# 'poly' ((x, y), ...) bar | 'thin' ((x, y), ...) a thin line (leader) | 'text' (x, y, text)
+# 'poly' ((x, y), ...) bar | 'dots' (x0, y0, x1, n[, dy]) bars cut: n along y0 from x0 to x1, or n up from y0 at
+# dy when x0 == x1 | 'thin' ((x, y), ...) a thin line (leader) | 'text' (x, y, text)
 DETAILS = (
     (u'S1', u'SLAB TOP BARS AT AN INTERNAL SUPPORT', u'SMDSC 4th ed. MD S1', (
         ('fill', (u'cut', (0.0, 0.0, 2400.0, 250.0), [])), ('fill', (u'cut', (1050.0, -600.0, 1350.0, 0.0), [])),
@@ -102,10 +104,154 @@ DETAILS = (
         ('edge', ((250.0, -600.0), (250.0, 0.0))), ('edge', ((750.0, -600.0), (750.0, 0.0))),
         ('edge', ((1250.0, -600.0), (1250.0, 0.0))), ('edge', ((1750.0, -600.0), (1750.0, 0.0))),
         ('poly', ((100.0, 800.0), (100.0, 175.0), (1900.0, 175.0), (1900.0, 800.0))),
-        ('poly', ((140.0, 800.0), (140.0, 215.0), (1860.0, 215.0), (1860.0, 800.0))),
-        ('text', (0.0, -750.0, u'Bars over the piles, 100 cover above the pile heads')),
-        ('text', (0.0, -850.0, u'Lacers round the U-bar legs; piles cut off')),
-        ('text', (0.0, -950.0, u'75 into the cap (see the pile table)')),
+        ('dots', (180.0, 215.0, 1820.0, 6)),
+        ('dots', (140.0, 400.0, 140.0, 2, 200.0)), ('dots', (1860.0, 400.0, 1860.0, 2, 200.0)),
+        ('text', (0.0, -750.0, u'U-bars over the piles, 100 cover above the pile heads;')),
+        ('text', (0.0, -850.0, u'bars the other way above them; lacers round the legs')),
+        ('text', (0.0, -950.0, u'Piles cut off 75 into the cap (see the piling drawing)')),
+    )),
+    (u'W1', u'WALL BASE, KICKER AND TOP', u'SMDSC 4th ed. MD W1', (
+        ('fill', (u'cut', (0.0, 0.0, 1600.0, 500.0), [])), ('fill', (u'cut', (650.0, 500.0, 900.0, 575.0), [])),
+        ('fill', (u'cut', (650.0, 575.0, 900.0, 1800.0), [])),
+        ('edge', ((650.0, 500.0), (0.0, 500.0), (0.0, 0.0), (1600.0, 0.0), (1600.0, 500.0), (900.0, 500.0))),
+        ('edge', ((650.0, 500.0), (650.0, 1800.0), (900.0, 1800.0), (900.0, 500.0))),
+        ('thin', ((650.0, 575.0), (900.0, 575.0))),
+        ('poly', ((700.0, 1150.0), (700.0, 75.0), (400.0, 75.0))),
+        ('poly', ((850.0, 1150.0), (850.0, 75.0), (1150.0, 75.0))),
+        ('poly', ((710.0, 900.0), (710.0, 1740.0))), ('poly', ((840.0, 900.0), (840.0, 1740.0))),
+        ('poly', ((725.0, 1400.0), (725.0, 1725.0), (825.0, 1725.0), (825.0, 1400.0))),
+        ('dots', (700.0, 1300.0, 700.0, 3, 200.0)), ('dots', (850.0, 1300.0, 850.0, 3, 200.0)),
+        ('text', (1000.0, 600.0, u'KICKER 75 (150 below ground)')),
+        ('text', (1000.0, 1000.0, u'Starters lapped above the kicker')),
+        ('text', (1000.0, 1650.0, u'U-bar at a free top, legs the greater')),
+        ('text', (1000.0, 1560.0, u'of 450 or 2 x the mat spacing')),
+        ('text', (0.0, -150.0, u'Bars to Table 6.6 where the design gives none;')),
+        ('text', (0.0, -250.0, u'horizontal bars outside the verticals')),
+    )),
+    (u'W2', u'WALL CORNER', u'SMDSC 4th ed. MD W2', (
+        ('fillpoly', (u'cut', ((0.0, 0.0), (1600.0, 0.0), (1600.0, 250.0), (250.0, 250.0), (250.0, 1600.0),
+                               (0.0, 1600.0)))),
+        ('edge', ((1600.0, 0.0), (0.0, 0.0), (0.0, 1600.0))), ('edge', ((1600.0, 250.0), (250.0, 250.0),
+                                                                       (250.0, 1600.0))),
+        ('poly', ((1560.0, 45.0), (45.0, 45.0), (45.0, 1560.0))),
+        ('poly', ((1560.0, 205.0), (205.0, 205.0), (205.0, 1560.0))),
+        ('poly', ((700.0, 65.0), (65.0, 65.0), (65.0, 185.0), (700.0, 185.0))),
+        ('poly', ((65.0, 700.0), (65.0, 65.0), (185.0, 65.0), (185.0, 700.0))),
+        ('dots', (85.0, 85.0, 165.0, 2)), ('dots', (85.0, 165.0, 165.0, 2)),
+        ('text', (500.0, 700.0, u'PLAN')),
+        ('text', (0.0, -150.0, u'U-bars lapped with the horizontal bars round')),
+        ('text', (0.0, -250.0, u'the corner; two bars in each loop up to 300 thick,')),
+        ('text', (0.0, -350.0, u'four over 300; large opening moments: design')),
+    )),
+    (u'S2', u'SLAB RESTRAINED END SUPPORT', u'SMDSC 4th ed. MD S2', (
+        ('fill', (u'cut', (0.0, 0.0, 2000.0, 250.0), [])), ('fill', (u'cut', (0.0, -800.0, 250.0, 0.0), [])),
+        ('edge', ((2000.0, 250.0), (0.0, 250.0), (0.0, -800.0))), ('edge', ((250.0, -800.0), (250.0, 0.0),
+                                                                        (2000.0, 0.0))),
+        ('poly', ((1500.0, 210.0), (45.0, 210.0), (45.0, -500.0))),
+        ('poly', ((2000.0, 40.0), (80.0, 40.0))),
+        ('poly', ((900.0, 60.0), (65.0, 60.0), (65.0, 190.0), (900.0, 190.0))),
+        ('text', (300.0, -300.0, u'Top bars bent down into the wall:')),
+        ('text', (300.0, -400.0, u'a tension anchorage past the bend')),
+        ('text', (0.0, -950.0, u'Top bars the greater of 0.3 x clear span or l_bd;')),
+        ('text', (0.0, -1050.0, u'U-bars half the bottom steel at mid span;')),
+        ('text', (0.0, -1150.0, u'wall starters detailed with the wall drawings')),
+    )),
+    (u'S4', u'CANTILEVER SLAB', u'SMDSC 4th ed. MD S4', (
+        ('fill', (u'cut', (0.0, 0.0, 2600.0, 250.0), [])), ('fill', (u'cut', (1000.0, -600.0, 1300.0, 0.0), [])),
+        ('edge', ((0.0, 250.0), (2600.0, 250.0), (2600.0, 0.0), (1300.0, 0.0), (1300.0, -600.0))),
+        ('edge', ((0.0, 0.0), (1000.0, 0.0), (1000.0, -600.0))),
+        ('poly', ((100.0, 210.0), (2560.0, 210.0), (2560.0, 120.0))),
+        ('poly', ((550.0, 175.0), (2400.0, 175.0))),
+        ('poly', ((0.0, 40.0), (2560.0, 40.0))),
+        ('thin', ((1300.0, 320.0), (2600.0, 320.0))), ('text', (1700.0, 420.0, u'k')),
+        ('text', (0.0, -750.0, u'Top: 100 % back the greater of 0.75 k or 0.15 l + d;')),
+        ('text', (0.0, -850.0, u'60 % back the greater of 1.5 k or 0.3 l + d')),
+        ('text', (0.0, -950.0, u'Bottom: at least 0.5 k into the cantilever')),
+    )),
+    (u'S6', u'PUNCHING SHEAR LINKS', u'SMDSC 4th ed. MD S6', (
+        ('fill', (u'seen', (0.0, 0.0, 2000.0, 2000.0), [(800.0, 800.0, 1200.0, 1200.0)])),
+        ('fill', (u'cut', (800.0, 800.0, 1200.0, 1200.0), [])),
+        ('edge', ((800.0, 800.0), (1200.0, 800.0), (1200.0, 1200.0), (800.0, 1200.0), (800.0, 800.0))),
+        ('thin', ((700.0, 700.0), (1300.0, 700.0), (1300.0, 1300.0), (700.0, 1300.0), (700.0, 700.0))),
+        ('thin', ((550.0, 550.0), (1450.0, 550.0), (1450.0, 1450.0), (550.0, 1450.0), (550.0, 550.0))),
+        ('thin', ((400.0, 400.0), (1600.0, 400.0), (1600.0, 1600.0), (400.0, 1600.0), (400.0, 400.0))),
+        ('dots', (700.0, 700.0, 1300.0, 5)), ('dots', (700.0, 1300.0, 1300.0, 5)),
+        ('dots', (550.0, 550.0, 1450.0, 7)), ('dots', (550.0, 1450.0, 1450.0, 7)),
+        ('dots', (400.0, 400.0, 1600.0, 9)), ('dots', (400.0, 1600.0, 1600.0, 9)),
+        ('text', (850.0, 1000.0, u'COLUMN')),
+        ('text', (0.0, -150.0, u'First perimeter 0.3d to 0.5d from the column face,')),
+        ('text', (0.0, -250.0, u'then at no more than 0.75d; links round each perimeter')),
+        ('text', (0.0, -350.0, u'at 1.5d max. within 2d of the face, 2d max. beyond;')),
+        ('text', (0.0, -450.0, u'H12 fixing bars where no main bar is present')),
+    )),
+    (u'ST1', u'STAIR WITH LANDINGS', u'SMDSC 4th ed. MD ST1', (
+        ('fillpoly', (u'cut', ((0.0, 0.0), (800.0, 0.0), (1900.0, 1000.0), (2700.0, 1000.0), (2700.0, 1200.0),
+                               (2000.0, 1200.0), (900.0, 200.0), (0.0, 200.0)))),
+        ('edge', ((0.0, 0.0), (800.0, 0.0), (1900.0, 1000.0), (2700.0, 1000.0))),
+        ('edge', ((0.0, 200.0), (900.0, 200.0), (2000.0, 1200.0), (2700.0, 1200.0))),
+        ('poly', ((0.0, 40.0), (790.0, 40.0), (1890.0, 1040.0), (2700.0, 1040.0))),
+        ('poly', ((0.0, 160.0), (1150.0, 160.0))),
+        ('poly', ((1650.0, 1160.0), (2700.0, 1160.0))),
+        ('text', (0.0, -150.0, u'Main bars continuous through the knees into the landings;')),
+        ('text', (0.0, -250.0, u'top bars at the knees reach A, the greatest of 0.1 x span,')),
+        ('text', (0.0, -350.0, u'a tension anchorage or 500; landing U-bars 50 % of the')),
+        ('text', (0.0, -450.0, u'main bottom steel; distribution bars as MD S1')),
+    )),
+    (u'RW1', u'CANTILEVER RETAINING WALL', u'SMDSC 4th ed. MD RW1', (
+        ('fill', (u'cut', (0.0, 0.0, 2400.0, 450.0), [])), ('fill', (u'cut', (900.0, 450.0, 1200.0, 600.0), [])),
+        ('fill', (u'cut', (900.0, 600.0, 1200.0, 2600.0), [])),
+        ('edge', ((900.0, 450.0), (0.0, 450.0), (0.0, 0.0), (2400.0, 0.0), (2400.0, 450.0), (1200.0, 450.0))),
+        ('edge', ((900.0, 450.0), (900.0, 2600.0), (1200.0, 2600.0), (1200.0, 450.0))),
+        ('thin', ((900.0, 600.0), (1200.0, 600.0))),
+        ('poly', ((1125.0, 2540.0), (1125.0, 75.0), (2300.0, 75.0))),
+        ('poly', ((975.0, 2540.0), (975.0, 75.0), (500.0, 75.0))),
+        ('poly', ((100.0, 375.0), (2300.0, 375.0))),
+        ('text', (1300.0, 1800.0, u'EARTH FACE: bars to design')),
+        ('text', (0.0, 1800.0, u'EXPOSED FACE:')),
+        ('text', (0.0, 1700.0, u'MD W1 table')),
+        ('text', (1300.0, 700.0, u'KICKER 150')),
+        ('text', (0.0, -150.0, u'c_nom 75 against soil, 50 on blinding, 40 to formed faces;')),
+        ('text', (0.0, -250.0, u'large radius bends as the design asks')),
+    )),
+    (u'C4', u'COLUMN TOP DETAIL', u'SMDSC 4th ed. MD C4', (
+        ('fill', (u'cut', (0.0, 1500.0, 2000.0, 1750.0), [])), ('fill', (u'cut', (750.0, 0.0, 1150.0, 1500.0), [])),
+        ('edge', ((0.0, 1750.0), (2000.0, 1750.0))), ('edge', ((0.0, 1500.0), (750.0, 1500.0), (750.0, 0.0))),
+        ('edge', ((2000.0, 1500.0), (1150.0, 1500.0), (1150.0, 0.0))),
+        ('poly', ((800.0, 0.0), (800.0, 1690.0), (1300.0, 1690.0))),
+        ('poly', ((1100.0, 0.0), (1100.0, 1690.0), (600.0, 1690.0))),
+        ('poly', ((790.0, 1200.0), (1110.0, 1200.0))), ('poly', ((790.0, 1350.0), (1110.0, 1350.0))),
+        ('poly', ((790.0, 1050.0), (1110.0, 1050.0))),
+        ('text', (1250.0, 1250.0, u'Links at the lap: 12 dia., 0.6 x the')),
+        ('text', (1250.0, 1150.0, u'lesser side or 240, 150 max., 3 min.')),
+        ('text', (0.0, -150.0, u'Bars bent into the slab when it is at least 200 deep')),
+        ('text', (0.0, -250.0, u'(H20), 250 (H25), 300 (H32); else Detail B of MD C4')),
+    )),
+    (u'B3', u'CANTILEVER BEAM', u'SMDSC 4th ed. MD B3', (
+        ('fill', (u'cut', (0.0, 0.0, 3000.0, 600.0), [])), ('fill', (u'cut', (800.0, -700.0, 1200.0, 0.0), [])),
+        ('edge', ((0.0, 600.0), (3000.0, 600.0), (3000.0, 0.0), (1200.0, 0.0), (1200.0, -700.0))),
+        ('edge', ((0.0, 0.0), (800.0, 0.0), (800.0, -700.0))),
+        ('poly', ((150.0, 545.0), (2950.0, 545.0), (2950.0, 300.0))),
+        ('poly', ((450.0, 495.0), (2600.0, 495.0))),
+        ('poly', ((0.0, 55.0), (2950.0, 55.0))),
+        ('thin', ((1200.0, 680.0), (3000.0, 680.0))), ('text', (2000.0, 780.0, u'k')),
+        ('text', (0.0, -850.0, u'Top: 100 % back the greater of 0.75 k or 0.15 l + 1.1 d;')),
+        ('text', (0.0, -950.0, u'60 % back the greater of 1.5 k or 0.3 l + d;')),
+        ('text', (0.0, -1050.0, u'links to the end of the cantilever')),
+    )),
+    (u'CB1', u'CORBEL', u'SMDSC 4th ed. MD CB1', (
+        ('fillpoly', (u'cut', ((0.0, 0.0), (400.0, 0.0), (400.0, 900.0), (800.0, 1100.0), (800.0, 1400.0),
+                               (400.0, 1400.0), (400.0, 2200.0), (0.0, 2200.0)))),
+        ('edge', ((0.0, 0.0), (0.0, 2200.0))),
+        ('edge', ((400.0, 0.0), (400.0, 900.0), (800.0, 1100.0), (800.0, 1400.0), (400.0, 1400.0),
+                  (400.0, 2200.0))),
+        ('poly', ((60.0, 900.0), (60.0, 1340.0), (740.0, 1340.0), (740.0, 1150.0))),
+        ('poly', ((350.0, 1250.0), (700.0, 1250.0))), ('poly', ((350.0, 1170.0), (700.0, 1170.0))),
+        ('poly', ((340.0, 0.0), (340.0, 2200.0))), ('poly', ((60.0, 0.0), (60.0, 2200.0))),
+        ('text', (900.0, 1300.0, u'Main loop round the face,')),
+        ('text', (900.0, 1200.0, u'its bend starting at the load')),
+        ('text', (900.0, 1050.0, u'Horizontal links over 2/3 d')),
+        ('text', (0.0, -150.0, u'a_v no more than 0.5 h; H16 max. without welds')),
+        ('text', (0.0, -250.0, u'(MD CB2 with welded cross bars)')),
     )),
 )
 
@@ -119,14 +265,25 @@ def view_name(key, prefix=PREFIX):
     return u'{}{} - {}'.format(prefix, key, title)
 
 
-def needed(host_kinds, layers, piled=False):
+def needed(host_kinds, layers, piled=False, flags=()):
     """
-    The typical details a drawing calls for (T9.21): host_kinds ('floor', 'wall', 'foundation', ...) and the rebar
-    layers on it. Keys in DETAILS order.
+    The typical details a drawing calls for (T9.21): host_kinds ('floor', 'wall', 'foundation', ...), the rebar
+    layers on it and flags ('column_top': a column with none above). Keys in DETAILS order. The others (S2, S4,
+    S6, RW1, B3) stay in the template's library for the detailer to place.
     """
     layers = set((l or u'').strip().lower() for l in layers)
     kinds = set(host_kinds)
     want = set()
+    if 'wall' in kinds:
+        want.add(u'W1')
+        if u'corner_ubar' in layers:
+            want.add(u'W2')
+    if 'stairs' in kinds:
+        want.add(u'ST1')
+    if layers & set((u'corbel_compression', u'corbel')):
+        want.add(u'CB1')
+    if 'column' in kinds and u'column_top' in flags:
+        want.add(u'C4')
     if 'floor' in kinds:
         if layers & set((u'top_x', u'top_y')):
             want.add(u'S1')
@@ -167,6 +324,46 @@ def _fill_type(doc, kind):
     return None
 
 
+DOT_R_MM = 10.0       # a bar cut, drawn as a filled dot at SCALE
+
+
+def dot_points(d):
+    """The centres of a 'dots' item (x0, y0, x1, n[, dy])."""
+    x0, y0, x1, n = d[0], d[1], d[2], int(d[3])
+    dy = d[4] if len(d) > 4 else 0.0
+    if abs(x1 - x0) < 1e-6 and dy:
+        return [(x0, y0 + k * dy) for k in range(n)]
+    if n < 2:
+        return [((x0 + x1) / 2.0, y0)]
+    return [(x0 + k * (x1 - x0) / (n - 1), y0) for k in range(n)]
+
+
+def _dot(doc, view, x, y):
+    import math
+    from Autodesk.Revit import DB  # Lazy import
+    from System.Collections.Generic import List
+    frt = None
+    for t in DB.FilteredElementCollector(doc).OfClass(DB.FilledRegionType):
+        pat = doc.GetElement(t.ForegroundPatternId)
+        c = t.ForegroundPatternColor
+        try:
+            if pat is not None and pat.GetFillPattern().IsSolidFill and c.Red + c.Green + c.Blue == 0:
+                frt = t
+                break
+        except Exception:
+            continue
+    c0, r = _xyz(x, y), DOT_R_MM / _FT
+    if frt is None:
+        doc.Create.NewDetailCurve(view, DB.Arc.Create(c0, r, 0.0, 2.0 * math.pi, DB.XYZ.BasisX, DB.XYZ.BasisY))
+        return
+    loop = DB.CurveLoop()
+    loop.Append(DB.Arc.Create(c0, r, 0.0, math.pi, DB.XYZ.BasisX, DB.XYZ.BasisY))
+    loop.Append(DB.Arc.Create(c0, r, math.pi, 2.0 * math.pi, DB.XYZ.BasisX, DB.XYZ.BasisY))
+    loops = List[DB.CurveLoop]()
+    loops.Add(loop)
+    DB.FilledRegion.Create(doc, frt.Id, view.Id, loops)
+
+
 def _loop(x0, y0, x1, y1):
     from Autodesk.Revit import DB  # Lazy import
     loop = DB.CurveLoop()
@@ -184,7 +381,7 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
     view.Scale = SCALE
     top = max([p[1] for kind, d in sketch if kind in ('poly', 'thin', 'edge') for p in d] +
               [d[1][3] for kind, d in sketch if kind == 'fill'] + [d[1] + 60.0 for kind, d in sketch if kind == 'text']
-              + [0.0])
+              + [p[1] for kind, d in sketch if kind == 'fillpoly' for p in d[1]] + [0.0])
     invisible = [g for g in DB.FilteredElementCollector(doc).OfClass(DB.GraphicsStyle)
                  if g.Name == u'<Invisible lines>']
     if bar_style is None:
@@ -195,16 +392,22 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
         if style is not None:
             c.LineStyle = style
     for kind, d in sketch:            # the concrete first, under the lines
-        if kind != 'fill':
+        if kind not in ('fill', 'fillpoly'):
             continue
-        fill_kind, outer, holes = d
-        frt = _fill_type(doc, fill_kind)
+        frt = _fill_type(doc, d[0])
         if frt is None:
             continue
         loops = List[DB.CurveLoop]()
-        loops.Add(_loop(*outer))
-        for h in holes:
-            loops.Add(_loop(*h))
+        if kind == 'fill':
+            loops.Add(_loop(*d[1]))
+            for h in d[2]:
+                loops.Add(_loop(*h))
+        else:
+            loop = DB.CurveLoop()
+            pts = list(d[1]) + [d[1][0]]
+            for a, b in zip(pts, pts[1:]):
+                loop.Append(DB.Line.CreateBound(_xyz(*a), _xyz(*b)))
+            loops.Add(loop)
         try:
             region = DB.FilledRegion.Create(doc, frt.Id, view.Id, loops)
             if invisible:
@@ -215,6 +418,9 @@ def draw(doc, view, key, text_type_id, bar_style=None, thin_style=None):
         if kind in ('poly', 'thin', 'edge'):
             for a, b in zip(d, d[1:]):
                 line(a, b, bar_style if kind == 'poly' else thin_style)
+        elif kind == 'dots':
+            for x, y in dot_points(d):
+                _dot(doc, view, x, y)
         elif kind == 'text':
             x, y, text = d
             DB.TextNote.Create(doc, view.Id, _xyz(x, y), text, text_type_id)

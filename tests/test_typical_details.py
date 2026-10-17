@@ -11,7 +11,11 @@ from nosa_utils import typical_details as td  # noqa: E402
 def test_needed_by_case():
     assert td.needed(['floor'], [u'bottom_x', u'trimmer_bottom', u'diagonal_bottom', u'end_ubar']) == [u'S3', u'OP1']
     assert td.needed(['floor'], [u'top_x', u'bottom_x']) == [u'S1']
-    assert td.needed(['wall'], [u'vertical', u'trimmer', u'opening_ubar']) == [u'W4']
+    assert td.needed(['wall'], [u'vertical', u'trimmer', u'opening_ubar']) == [u'W4', u'W1']
+    assert td.needed(['wall'], [u'vertical', u'corner_ubar']) == [u'W1', u'W2']
+    assert td.needed(['stairs'], [u'stair_landing']) == [u'ST1']
+    assert td.needed(['column'], [u'vertical'], flags=[u'column_top']) == [u'C4']
+    assert td.needed(['column'], [u'vertical', u'corbel_compression']) == [u'CB1']
     assert td.needed(['foundation'], [u'bottom_x', u'dowel'], piled=True) == [u'C1', u'PC1']
     assert td.needed(['beam'], [u'top', u'bottom', u'stirrup']) == []
 
@@ -54,3 +58,11 @@ def test_faces_drawn_only_where_the_member_ends():
     for key, title, md, sketch in td.DETAILS:
         assert not [k for k, _d in sketch if k == 'rect'], key
         assert [k for k, _d in sketch if k == 'edge'], key
+
+
+def test_dots_and_library():
+    assert td.dot_points((0.0, 0.0, 100.0, 3)) == [(0.0, 0.0), (50.0, 0.0), (100.0, 0.0)]
+    assert td.dot_points((140.0, 400.0, 140.0, 2, 200.0)) == [(140.0, 400.0), (140.0, 600.0)]
+    keys = [k for k, _t, _m, _s in td.DETAILS]
+    for k in (u'W1', u'W2', u'S2', u'S4', u'S6', u'ST1', u'RW1', u'C4', u'B3', u'CB1'):
+        assert k in keys

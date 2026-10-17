@@ -856,6 +856,23 @@ def _rollback_on_error():
     return RollbackOnError()
 
 
+def _column_above(doc, column):
+    """True when another column stands on this one (its base within 100 mm of this top, over its plan)."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    bb = column.get_BoundingBox(None)
+    if bb is None:
+        return False
+    tol = 100.0 / _FT
+    for c in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_StructuralColumns)             .WhereElementIsNotElementType():
+        if get_id_value(c.Id) == get_id_value(column.Id):
+            continue
+        b = c.get_BoundingBox(None)
+        if b is not None and abs(b.Min.Z - bb.Max.Z) < tol and b.Min.X < bb.Max.X and b.Max.X > bb.Min.X                 and b.Min.Y < bb.Max.Y and b.Max.Y > bb.Min.Y:
+            return True
+    return False
+
+
 def _typical(doc, hosts, rebars, titleblock, sheet_numbers=None):
     """
     T9.21: the typical details these members call for (their kinds, the bar layers on them, piles under a cap),
@@ -872,7 +889,8 @@ def _typical(doc, hosts, rebars, titleblock, sheet_numbers=None):
         if p is not None and p.AsString():
             layers.add(p.AsString())
     piled = any(host_kind(h) == 'foundation' and rebar_presentation._piles_under(doc, h) for h in hosts)
-    keys = typical_details.needed([host_kind(h) for h in hosts], layers, piled)
+    flags = [u'column_top'] if any(host_kind(h) == 'column' and not _column_above(doc, h) for h in hosts) else []
+    keys = typical_details.needed([host_kind(h) for h in hosts], layers, piled, flags)
     try:
         return rc_legends.typical_details(doc, keys, titleblock, number=(
             (lambda: sheet_numbers.pop(0)) if sheet_numbers else None))

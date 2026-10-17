@@ -168,7 +168,8 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         lines.append(u'{}. Typical details: {}{} (after the SMDSC 4th ed. model details; confirm with '
                      u'design).'.format(number, u', '.join(u'TD {} ({})'.format(k, md.replace(u'SMDSC 4th ed. ', u''))
                                                        for k, md in details),
-                                        u' on drawing {}'.format(details_drawing) if details_drawing else u''))
+                                        u' on drawing{} {}'.format(u's' if u',' in details_drawing else u'', details_drawing)
+                                        if details_drawing else u''))
     return u'\r'.join(lines), warnings
 
 
@@ -472,7 +473,8 @@ def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
     T9.21: the typical details `keys` as legends (drawn when missing, or again with redraw) on the project's
     typical details drawing, made with `titleblock` when missing; legends still under their old 'NOSA TD' names
     are renamed. number: a callable giving the drawing's number when it has to be made (the caller's reserved
-    numbers), else the next free RC number. In a transaction. Returns (its number or '', [(key, model detail)]).
+    numbers), else the next free RC number. In a transaction. Returns (the numbers of the drawings they are on,
+    '' if none, [(key, model detail)]).
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils import typical_details as td
@@ -496,27 +498,37 @@ def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
             td.draw(doc, view, key, _text_type_id(doc, LABEL_TYPE))
         views.append(view)
     import view_plan
-    sheets = list(DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet))
-    # found by its name: it takes the next free RC number when first made, among the drawings (user 2026-10-17)
-    sheet = next((s for s in sheets if s.Name == TYPICAL_SHEET_NAME), None)
-    if sheet is None and titleblock is not None:
-        try:
-            sheet = DB.ViewSheet.Create(doc, titleblock.Id)
-            sheet.SheetNumber = number() if number is not None else \
-                view_plan.next_sheet_numbers([s.SheetNumber for s in sheets], 1)[0]
-            sheet.Name = TYPICAL_SHEET_NAME
-        except Exception:
-            sheet = None
-    if sheet is None:
-        return u'', [(k, td.by_key()[k][1]) for k in keys]
-    doc.Regenerate()
     from nosa_utils.revit_helpers import get_id_value
-    on = set(get_id_value(doc.GetElement(i).ViewId) for i in sheet.GetAllViewports())
-    placed = len(on)
+    # found by their names - 'RC typical details', '... (2)'...: each takes the next free RC number when first
+    # made, among the drawings (user 2026-10-17); six details to a sheet
+    pages = sorted([s for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet)
+                    if s.Name == TYPICAL_SHEET_NAME or s.Name.startswith(TYPICAL_SHEET_NAME + u' (')],
+                   key=lambda s: s.SheetNumber)
+    where = {}                                     # view id -> sheet number
+    for sheet in pages:
+        for i in sheet.GetAllViewports():
+            where[get_id_value(doc.GetElement(i).ViewId)] = sheet.SheetNumber
     cell = (TYPICAL_AREA[2] - TYPICAL_AREA[0]) / TYPICAL_PER_ROW
+    per_sheet = TYPICAL_PER_ROW * int((TYPICAL_AREA[3] - TYPICAL_AREA[1]) // TYPICAL_ROW_MM)
     for view in views:
-        if get_id_value(view.Id) in on:
+        if get_id_value(view.Id) in where:
             continue
+        sheet = next((s for s in pages if len(s.GetAllViewports()) < per_sheet), None)
+        if sheet is None:
+            if titleblock is None:
+                break
+            try:
+                existing = [s.SheetNumber for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet)]
+                sheet = DB.ViewSheet.Create(doc, titleblock.Id)
+                sheet.SheetNumber = number() if number is not None else \
+                    view_plan.next_sheet_numbers(existing, 1)[0]
+                sheet.Name = TYPICAL_SHEET_NAME if not pages else u'{} ({})'.format(TYPICAL_SHEET_NAME,
+                                                                                    len(pages) + 1)
+                pages.append(sheet)
+                doc.Regenerate()
+            except Exception:
+                break
+        placed = len(sheet.GetAllViewports())
         col, row = placed % TYPICAL_PER_ROW, placed // TYPICAL_PER_ROW
         try:
             port = DB.Viewport.Create(doc, sheet.Id, view.Id, _xyz(TYPICAL_AREA[0] + cell * (col + 0.5),
@@ -531,5 +543,6 @@ def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
         w = (box.MaximumPoint.X - box.MinimumPoint.X) * _FT
         h = (box.MaximumPoint.Y - box.MinimumPoint.Y) * _FT
         port.SetBoxCenter(_xyz(TYPICAL_AREA[0] + cell * col + w / 2.0, TYPICAL_AREA[3] - TYPICAL_ROW_MM * row - h / 2.0))
-        placed += 1
-    return sheet.SheetNumber, [(k, td.by_key()[k][1]) for k in keys]
+        where[get_id_value(view.Id)] = sheet.SheetNumber
+    numbers = sorted(set(where.get(get_id_value(v.Id)) for v in views) - set([None]))
+    return u', '.join(numbers), [(k, td.by_key()[k][1]) for k in keys]
