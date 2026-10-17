@@ -1793,11 +1793,13 @@ def _corner_torsion(DB, raw_outer, side_cover_mm, top_z_ft, cover_mm, dia_x, dia
 from nosa_utils.mesh_rules import TRIMMER_CLEAR_MM, clear_of_rows  # noqa: E402,F401 (shared with the walls)
 
 
-def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals):
+def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, depth_mm, diagonals,
+                   lbd_mm=lambda dia, top: 45.0 * dia):
     """
-    IStructE SMDSC 4th ed. 6.2 (vi)-(vii): each hole over 150 mm is trimmed on all sides with bars of the
-    area the hole cuts, half each side, reaching 45 phi past it — in the bottom mat, and in the top
-    one too over 500 mm. mats: [(layer, dia_x, dia_y, spacing, z_x_ft, z_y_ft)], bottom first.
+    IStructE SMDSC 4th ed. 6.2.2.12: each hole over 150 mm is trimmed on all sides with bars of the
+    area the hole cuts, half each side, reaching their tension anchorage past it (450 min.) — in the bottom
+    mat, and in the top one too over 500 mm. mats: [(layer, dia_x, dia_y, spacing, z_x_ft, z_y_ft)], bottom
+    first. lbd_mm(dia, top): the project's tension anchorage of a bar of that size in that mat.
     Returns ([(layer, dia_mm, {'sets', 'bars'})], notes).
     """
     from nosa_utils import mesh_rules
@@ -1822,7 +1824,7 @@ def _hole_trimmers(DB, raw_holes, bounds_mm, side_cover_mm, ubar_dia_mm, mats, d
                     lo, hi, c0, c1, b0, b1 = y0, y1, x0, x1, ymin, ymax
                 n = mesh_rules.trimmers_per_side(c1 - c0, spacing)
                 pitch = max(50.0, 3.0 * dia)
-                anchor = mesh_rules.TRIMMER_ANCHOR_PHI * dia
+                anchor = mesh_rules.trimmer_reach_mm(lbd_mm(dia, k > 0))
                 s0 = max(lo - anchor, b0 + dia / 2.0)
                 s1 = min(hi + anchor, b1 - dia / 2.0)
                 first = side_cover_mm + ubar_dia_mm + dia / 2.0
@@ -2203,7 +2205,10 @@ def build_floor_reinforcement(doc, host,
             + ([(u'trimmer_top', top_dia_x_mm, top_dia_y_mm, top_spacing_mm, t1_z_ft, t2_z_ft)]
                if include_top_mat else []),
             (top_z_ft - bottom_z_ft) * _MM_PER_FT if top_z_ft is not None else 0.0,
-            include_opening_diagonals or bool(auto_diagonal_holes))
+            include_opening_diagonals or bool(auto_diagonal_holes),
+            lambda dia, top: footing_mod.default_anchorage_length_mm(
+                dia, std=std, good_bond=not top or footing_mod.good_bond_for_top_bars(
+                    (top_z_ft - bottom_z_ft) * _MM_PER_FT if top_z_ft is not None else 0.0)))
 
     if corner_torsion:
         if top_z_ft is None:
@@ -2221,7 +2226,7 @@ def build_floor_reinforcement(doc, host,
             raise ValueError(u'include_opening_diagonals requires opening_diagonal_dia_mm.')
         dia = opening_diagonal_dia_mm if include_opening_diagonals else max(bottom_dia_x_mm, bottom_dia_y_mm)
         result['opening_diagonal_dia_mm'] = dia
-        half_mm = footing_mod.default_anchorage_length_mm(dia, std=std)
+        half_mm = mesh_rules.trimmer_reach_mm(footing_mod.default_anchorage_length_mm(dia, std=std))
         segments, n_skipped = opening_corner_diagonals_mm(
             topo, raw_holes if include_opening_diagonals else auto_diagonal_holes, bottom_outer, bottom_holes,
             side_cover_mm, dia, half_mm)

@@ -66,6 +66,8 @@ def _guard_pyrevit_transactions():
 
     class Guarded(original):
         def __init__(self, *args, **kwargs):
+            if len(args) < 2 and kwargs.get('doc') is None:
+                kwargs['doc'] = doc       # the document under test, not Revit's active one
             original.__init__(self, *args, **kwargs)
             ops = getattr(self, '_fhndlr_ops', None)
             if ops is not None:
@@ -86,6 +88,13 @@ try:
     from Autodesk.Revit.DB.Structure import RebarHostData
     ra_lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel',
                           'RebarAutomate.pushbutton', 'lib')
+    from nosa_utils import transactions as _transactions
+    _revit_transaction = _transactions.revit_transaction
+
+    def _on_doc(name=None, doc_=None, **kwargs):
+        # 2026-10-17: with the template active, every bar of the test model failed 'outside of transaction'
+        return _revit_transaction(name, doc_ or doc, **kwargs)
+    _transactions.revit_transaction = _on_doc
     ui = load_module('rebarautomate_ui', os.path.join(ra_lib, 'ui.py'))
 
     def _alert(msg, *args, **kwargs):

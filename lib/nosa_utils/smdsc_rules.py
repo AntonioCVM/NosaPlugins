@@ -17,8 +17,8 @@ REGISTER = (
     (u'mesh_rules', u'EDGE_UBAR_SHARE', 0.5, u'MD S2 / MD S3', u''),
     (u'mesh_rules', u'TORSION_SHARE', 0.75, u'6.2.2.11, Fig. 6.7', u'figure renumbered (was Fig. 6.9)'),
     (u'mesh_rules', u'TORSION_REACH', 0.2, u'6.2.2.11, Fig. 6.7', u'figure renumbered (was Fig. 6.9)'),
-    (u'mesh_rules', u'TRIMMER_ANCHOR_PHI', 45.0, u'6.2.2.12',
-     u'4th ed. asks for 450 min. (nominal anchorage) past the hole: 45 dia. meets it from H10'),
+    (u'mesh_rules', u'TRIMMER_MIN_MM', 450.0, u'6.2.2.12',
+     u'trimmers and diagonals reach max(450, l_bd) past the hole (was 45 dia.)'),
     (u'mesh_rules', u'FLAT_SLAB_POSITIVE', 0.55, u'6.2.2.9, MD S5', u'table cited as Table 6.2 in the text'),
     (u'mesh_rules', u'TRIMMER_CLEAR_MM', 25.0, u'5.2.5', u''),
     # beams

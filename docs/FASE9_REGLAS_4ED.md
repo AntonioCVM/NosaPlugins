@@ -22,7 +22,7 @@ Referencia: IStructE *Standard Method of Detailing Structural Concrete*, 4.ª ed
 | Barras de reparto en losas | — | Tabla de MD S1 (paso por canto y Ø) | QA `distribution_issues` |
 | Hanger bars | — | ≥ 20 % del acero de apoyo, H16 recomendado (6.3.2.9) | `links.hanger_issue` |
 | Sillas | detalladas | a cargo del contratista salvo encepados multipilar y losas de cimentación (4.2.6, 6.7.2) | notas de montaje |
-| Trimmers de losa | 45Ø más allá del hueco | mínimo 450 (anclaje nominal), 6.2.2.12 | se mantiene 45Ø (≥ 450 desde H10) |
+| Trimmers y diagonales de losa | 45Ø más allá del hueco | mínimo 450 (anclaje nominal), 6.2.2.12 | max(450, l_bd del proyecto) con la adherencia de cada capa (decisión 2026-10-17) |
 | Detalles tipo | — | 4.1.2: plano de detalles tipo | `typical_details`, plano 4900 |
 
 ## Renumeraciones aplicadas a las citas
@@ -50,7 +50,3 @@ Referencia: IStructE *Standard Method of Detailing Structural Concrete*, 4.ª ed
 - **Tablas 6.4 / 6.5 de la 3.ª** (α3 confinado): en la 4.ª esos números son tablas de paso mínimo.
 - **MN2**: la 4.ª sólo tiene MD N1.
 - **Banda bajo pilar en zapatas, l > 1,5 (c + 3d)** (3.ª ed. 6.7): la 4.ª no lo repite; se mantiene la regla.
-
-## Pendiente de criterio del usuario
-
-- La 4.ª ed. permite trimmers de 450 en losas; seguimos con 45Ø (más conservador). ¿Bajar a max(450, anclaje)?

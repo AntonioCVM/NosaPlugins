@@ -135,7 +135,16 @@ def edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, share=EDGE_UBAR_S
 
 
 HOLE_IGNORE_MM, HOLE_BOTTOM_MM, HOLE_TOP_MM = 150.0, 500.0, 1000.0   # SMDSC 4th ed. 6.2 holes in slabs
-TRIMMER_ANCHOR_PHI = 45.0
+TRIMMER_MIN_MM = 450.0      # SMDSC 4th ed. 6.2.2.12: trimmers 450 min. (nominal anchorage) past the hole
+
+
+def trimmer_reach_mm(lbd_mm):
+    """
+    How far a slab trimmer or corner diagonal runs past the hole (user 2026-10-17): its tension anchorage l_bd
+    (it replaces the area of the bars cut, so it must develop its stress), never under the 450 of SMDSC 4th ed.
+    6.2.2.12. Was 45 dia. (3rd ed.).
+    """
+    return max(TRIMMER_MIN_MM, float(lbd_mm or 0.0))
 
 
 def slab_hole_class(width_mm, length_mm):

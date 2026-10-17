@@ -140,3 +140,9 @@ def test_trimmers_contact_or_clear_never_between():
     for t in out:
         d = min(abs(t - r) for r in rows)
         assert d >= 17.6 + 25.0 - 1e-6 or 17.6 - 1e-6 <= d <= 17.6 + 1.0
+
+
+def test_trimmer_reach_is_the_anchorage_450_min():
+    assert mr.trimmer_reach_mm(400.0) == 450.0          # H10: the 4th ed. minimum governs
+    assert mr.trimmer_reach_mm(640.0) == 640.0          # H16: its l_bd
+    assert mr.trimmer_reach_mm(None) == 450.0
