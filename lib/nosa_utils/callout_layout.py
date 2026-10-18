@@ -161,9 +161,16 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
             return nearer
         return 'left' if cl < cr else 'right'
 
+    def is_level(it):
+        # a bar seen as little more than a point (a diagonal marked where it is) is called up as a level one: an
+        # upright line from it ran metres along no bar (S1, 2026-10-18)
+        a, b = it['a'], it['b']
+        short = ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5 < 2.0 * it['height']
+        return short or abs(b[0] - a[0]) >= abs(b[1] - a[1])
+
     for key, it in items.items():
         a, b = it['a'], it['b']
-        if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
+        if is_level(it):
             lo, hi = (a, b) if a[0] <= b[0] else (b, a)
             level[key] = (lo, hi, pick(key, it, lo, hi, 'right' if box[2] - hi[0] <= lo[0] - box[0] else 'left'))
     risers = {}
@@ -171,6 +178,8 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
         # zones end to end on one row: the inner one's line would run out over the outer one's, so it rises square
         # from its own middle to a height of its own (2026-10-18: two such lines read as one closed box)
         y, h = lo[1], items[key]['height']
+        if hi[0] - lo[0] < 2.0 * h:
+            continue                         # a bar marked at a point jogs beside the member, it does not rise
         for other, (olo, ohi, oside) in level.items():
             if other == key or oside != side or abs(olo[1] - y) > h / 2.0:
                 continue
@@ -193,12 +202,12 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
             side = pick(key, it, (x, under), (x, under), 'right' if box[2] - x <= x - box[0] else 'left')
             end = (x, under)
         sides.setdefault(side, []).append((key, end, span, under + it['height'] / 2.0 + lift))
-    out = {}
-    for side, rows in sides.items():
-        rows.sort(key=lambda r: r[3])
+
+    def lay(side, rows, desired):
+        # one side's texts in the order of rows, their lines from the indicator lines or bars
         keys = [r[0] for r in rows]
         heights = [items[k]['height'] for k in keys]
-        at = pack([r[3] for r in rows], heights, gap)
+        at = pack(desired, heights, gap)
         reach = max(items[k]['length'] for k in keys)
         lo_band = min(c - h / 2.0 for c, h in zip(at, heights))
         hi_band = max(c + h / 2.0 for c, h in zip(at, heights))
@@ -210,6 +219,7 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
                 break
             start = (max(q[2] for q in hits) - box[2] if side == 'right' else box[0] - min(q[0] for q in hits)) + gap
         sign = 1.0 if side == 'right' else -1.0
+        res = {}
         near = box[2] + start if side == 'right' else box[0] - start
         edge = box[2] if side == 'right' else box[0]
         # lines packed off their own height jog square in the gap beside the member, each at its own distance, in
@@ -217,6 +227,12 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
         # those going down the lowest (2026-10-18: jogs sharing one upright read as one line)
         lifted = [(r[0], r[1][1], c - items[r[0]]['height'] / 2.0 - lift) for r, c in zip(rows, at)
                   if r[2] is None and r[0] not in risers]
+        # an upright bar whose row is past its end leaves from that end and jogs in the gap as the others do: run
+        # on along its line it crossed the others' lines where there is no bar (S1, 2026-10-18)
+        for r, c in zip(rows, at):
+            u = c - items[r[0]]['height'] / 2.0 - lift
+            if r[2] is not None and not (r[2][0] - 1e-6 <= u <= r[2][1] + 1e-6):
+                lifted.append((r[0], min(max(u, r[2][0]), r[2][1]), u))
         ups = sorted([k for k, y, u in lifted if u > y + 1e-6], key=lambda k: -dict((a, y) for a, y, _u in lifted)[k])
         downs = sorted([k for k, y, u in lifted if u < y - 1e-6], key=lambda k: dict((a, y) for a, y, _u in lifted)[k])
         ys = dict((a, (y, u)) for a, y, u in lifted)
@@ -255,12 +271,54 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
                     path = [end, (jog, end[1]), (jog, u), far]
             else:
                 foot = (end[0], min(max(u, span[0]), span[1]))
-                path = [foot, far] if abs(foot[1] - u) < 1e-6 else [foot, (end[0], u), far]
+                if abs(foot[1] - u) < 1e-6:
+                    path = [foot, far]
+                else:
+                    jog = jog_at.get(key, near - sign * min(outside, start) / 2.0)
+                    path = [foot, (jog, foot[1]), (jog, u), far]
             centre = (near + sign * n / 2.0, c)
             bx = (min(near, far[0]), c - h / 2.0, max(near, far[0]), c + h / 2.0)
-            placed.append(bx)
-            out[key] = {'centre': centre, 'path': path, 'box': bx, 'side': side}
+            res[key] = {'centre': centre, 'path': path, 'box': bx, 'side': side}
+        return res
+
+    out = {}
+    for side, rows in sides.items():
+        rows.sort(key=lambda r: r[3])
+        # the rows' heights stay where they are wanted; which text takes which may change: a line rising
+        # along its bar to its row runs level across the whole gap and cut through another's jog (S1,
+        # 2026-10-18), so rows swap while that leaves fewer lines crossing
+        desired = [r[3] + 1e-9 * i for i, r in enumerate(rows)]
+        best = lay(side, rows, desired)
+        best_n = path_crossings(best)
+        for _ in range(len(rows) * len(rows)):
+            if not best_n:
+                break
+            better = False
+            for i in range(len(rows)):
+                for j in range(len(rows)):
+                    if i == j:
+                        continue
+                    trial = list(rows)                 # a swap, then a row taken out and put back elsewhere
+                    if i < j:
+                        trial[i], trial[j] = trial[j], trial[i]
+                    else:
+                        trial.insert(j, trial.pop(i))
+                    laid = lay(side, trial, desired)
+                    n = path_crossings(laid)
+                    if n < best_n:
+                        rows, best, best_n, better = trial, laid, n, True
+            if not better:
+                break
+        for key in [r[0] for r in rows]:
+            placed.append(best[key]['box'])
+            out[key] = best[key]
     return out
+
+
+def path_crossings(laid):
+    """How many pairs of segments of different calling-ups' lines cross."""
+    segs = [(k, seg) for k, r in laid.items() for seg in zip(r['path'], r['path'][1:])]
+    return sum(1 for i, (k1, s1) in enumerate(segs) for k2, s2 in segs[i + 1:] if k1 != k2 and _crosses(s1, s2))
 
 
 def jog_order(keys, ys):

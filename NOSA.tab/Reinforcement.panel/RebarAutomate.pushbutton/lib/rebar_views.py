@@ -966,7 +966,44 @@ def _new_sheet(doc, titleblock, number, name):
     sheet = DB.ViewSheet.Create(doc, titleblock.Id)
     sheet.SheetNumber = number
     sheet.Name = name
+    classify_sheet(doc, sheet)
     return sheet
+
+
+RC_PACKAGE = u"4500's - RC details"
+PACKAGE_PARAM = u'Package'
+# the sheet browser's grouping, taken from the package's own sheet (4500 RC details) so a new sheet sits with it
+PACKAGE_PARAMS = (PACKAGE_PARAM, u'Functional Breakdown', u'Form', u'Spatial Breakdown', u'Discipline')
+
+
+def classify_sheet(doc, sheet, package=RC_PACKAGE):
+    """
+    A sheet made by RebarAutomate filed in the RC details package (user 2026-10-18): its Package and the other
+    browser grouping values as the package's first sheet has them, the Package alone when there is none.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    head = None
+    for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+        p = s.LookupParameter(PACKAGE_PARAM)
+        if s.Id != sheet.Id and p is not None and (p.AsString() or u'') == package and                 (head is None or s.SheetNumber < head.SheetNumber):
+            head = s
+    values = {PACKAGE_PARAM: package}
+    if head is not None:
+        for name in PACKAGE_PARAMS:
+            p = head.LookupParameter(name)
+            if p is not None and p.StorageType == DB.StorageType.String and p.AsString():
+                values[name] = p.AsString()
+    done = 0
+    for name, value in values.items():
+        p = sheet.LookupParameter(name)
+        if p is None or p.IsReadOnly or p.StorageType != DB.StorageType.String:
+            continue
+        try:
+            p.Set(value)
+            done += 1
+        except Exception:
+            continue
+    return done
 
 
 def _title_on_sheet(view):

@@ -558,6 +558,8 @@ def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
                     view_plan.next_sheet_numbers(existing, 1)[0]
                 sheet.Name = TYPICAL_SHEET_NAME if not pages else u'{} ({})'.format(TYPICAL_SHEET_NAME,
                                                                                     len(pages) + 1)
+                import rebar_views
+                rebar_views.classify_sheet(doc, sheet)
                 pages.append(sheet)
                 doc.Regenerate()
             except Exception:

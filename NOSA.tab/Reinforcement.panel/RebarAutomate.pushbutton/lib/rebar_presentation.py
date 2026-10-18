@@ -516,8 +516,10 @@ def _seen_bars(view):
             except Exception:
                 continue
             for c in curves:
-                if isinstance(c, DB.Line):
-                    a, b = _xy(view, c.GetEndPoint(0)), _xy(view, c.GetEndPoint(1))
+                # arcs too, as their tessellation: a curved wall's horizontals seen in elevation (W2, 2026-10-18)
+                pts = [c.GetEndPoint(0), c.GetEndPoint(1)] if isinstance(c, DB.Line) else list(c.Tessellate())
+                for p, q in zip(pts, pts[1:]):
+                    a, b = _xy(view, p), _xy(view, q)
                     if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
                         out.append((a, b))
     return out
@@ -710,7 +712,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             # a group of loose bars drawn as a zone is: its middle bar, the one called up, and a line across them
             # (W2, 2026-10-18: every vertical of a curved wall was drawn, its marks bunched with no telling whose)
             report['typical_singles'] = _typical_singles(doc, view, rebars, clusters, total_style,
-                                                         ranges=joint.setdefault('ranges', {}))
+                                                         ranges=joint.setdefault('ranges', {}),
+                                                         leads=joint.setdefault('leads', {}))
         if plan or panel or column:
             _pointers(doc, view, pointers, det, tag_types, box, gap, near if column else outside, placed, report,
                       clusters=clusters, joint=joint)
@@ -1063,7 +1066,16 @@ def _clear_range(view, typical, first, last, seen, tol):
 
 
 
-def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
+TYPICAL_AT = (0.35, 0.65, 0.2, 0.8, 0.5)   # where in its group each group's typical bar is: groups apart, and
+                                            # off the middle where the zones' typical bars are (W2, 2026-10-18)
+
+
+def _typical_index(n, k):
+    """The index of the bar shown of a group of n, the k-th group of the view."""
+    return int(round(TYPICAL_AT[k % len(TYPICAL_AT)] * (n - 1)))
+
+
+def _typical_singles(doc, view, rebars, clusters, style, ranges=None, leads=None):
     """
     Each group of loose single bars (clusters) shown as SMDSC shows a set: its middle bar - the one merge_singles
     calls up - and a line across the group from its first bar to its last; the others hidden in the view.
@@ -1077,7 +1089,10 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
             groups.setdefault(gid, []).append(by_id[rid])
     hide = List[DB.ElementId]()
     lines = []                                   # (rebar id, typical, first, last) of each group's line
-    for bars in groups.values():
+    plan = _is_plan(view)
+    k = -1
+    for gid in sorted(groups):
+        bars = groups[gid]
         placed_ = []
         for r in bars:
             line = _main_line(r, 0)
@@ -1086,18 +1101,22 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
         if len(placed_) < TYPICAL_SINGLES_MIN:
             continue
         placed_.sort(key=lambda e: (round(e[0][0], 3), round(e[0][1], 3)))
-        lead = placed_[len(placed_) // 2][1]
+        k += 1
+        mid = _typical_index(len(placed_), k)
+        lead = placed_[mid][1]
+        if leads is not None:
+            leads[gid] = get_id_value(lead.Id)
         for _p, r, _l in placed_:
             if r.Id != lead.Id and r.CanBeHidden(view):
                 hide.Add(r.Id)
         pts = [placed_[0][0], placed_[len(placed_) // 2][0], placed_[-1][0]]
-        if _bowed(pts):
+        if plan and _bowed(pts):
             # loose bars laid round a curve (a curved beam's links): an arc through their middles (user 2026-10-18)
-            _draw_arc(doc, view, pts, placed_[len(placed_) // 2][2].Evaluate(0.5, True), style)
+            _draw_arc(doc, view, pts, placed_[mid][2].Evaluate(0.5, True), style)
             if ranges is not None:
                 ranges[get_id_value(lead.Id)] = (pts[0], pts[2], pts[1])
             continue
-        lines.append((get_id_value(lead.Id), placed_[len(placed_) // 2][2], placed_[0][0], placed_[-1][0]))
+        lines.append((get_id_value(lead.Id), placed_[mid][2], placed_[0][0], placed_[-1][0]))
     shown = 0
     for r in by_id.values():
         # a FreeForm group of bars (a curved wall's verticals) shows its middle bar the same way
@@ -1108,12 +1127,14 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
         except Exception:
             continue
         first, last = _main_line(r, 0), _main_line(r, n - 1)
-        if _show_one(r, view, n, n // 2) is None or first is None or last is None:
+        k += 1
+        idx = _typical_index(n, k)
+        if _show_one(r, view, n, idx) is None or first is None or last is None:
             continue
         shown += 1
-        typical = _main_line(r, n // 2) or first
+        typical = _main_line(r, idx) or first
         pts = [_xy(view, c.Evaluate(0.5, True)) for c in (first, typical, last)]
-        if _bowed(pts):
+        if plan and _bowed(pts):
             # bars laid round a curve (a curved beam's links): the line across them is an arc through their middles,
             # not a chord across the whole plan (user 2026-10-18, B2)
             _draw_arc(doc, view, pts, typical.Evaluate(0.5, True), style)
@@ -3086,7 +3107,7 @@ def _pointer_fractions(items):
     return out
 
 
-def merge_singles(doc, items, clusters=None):
+def merge_singles(doc, items, clusters=None, leads=None):
     """
     Loose single bars of one mark in a view: one calling-up per group of them on the member (clusters, from
     _single_groups: the eight bars of a round column read '8H20-01' though an elevation shows five, user
@@ -3110,6 +3131,9 @@ def merge_singles(doc, items, clusters=None):
         size = clusters[members[0]['id']][1]
         members.sort(key=lambda d: (round(d['first'][0], 3), round(d['first'][1], 3)))
         lead = members[len(members) // 2]
+        chosen = (leads or {}).get(gid)
+        # the bar the view shows of the group (_typical_singles), so the calling-up is on the bar drawn
+        lead = next((d for d in members if d['id'] == chosen), lead)
         out.append(dict(lead, total=size) if size > 1 else lead)
     return out
 
@@ -3184,7 +3208,7 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
     from nosa_utils import callout_layout
     if not items:
         return
-    items = merge_singles(doc, items, clusters)
+    items = merge_singles(doc, items, clusters, leads=(joint or {}).get('leads'))
     kind = ZONE_TAG if (_is_plan(view) or joint is not None) else POINTER_TAG
     type_id = tag_types.get(kind) or det.tag_type_for_view(doc, view)
     fractions = _pointer_fractions(items)
