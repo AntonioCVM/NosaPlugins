@@ -122,73 +122,77 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
 
 def align_rows(items, box, gap, outside, placed=(), lift=0.0):
     """
-    Calling-ups of a plan's or a wall elevation's zones as the SMDSC 4th ed. working drawings draw them (Figs 6.13,
-    6.33, 6.40; user 2026-10-18): each text outside the member on the straight extension of its indicator line - the
-    texts of level lines in a column right or left of it, those of upright lines turned, in a row above or below -
-    each side packed in the order of its lines so no extension crosses another. items {id: {'a', 'b' (indicator line
-    ends), 'length' (text along its reading), 'height'}}. Returns {id: {'centre', 'end' (the line end the leader
-    starts from), 'elbow' (at the text's near end), 'vertical', 'box', 'side'}}; the boxes are added to placed.
+    Calling-ups of a plan's or a wall elevation's zones as Arup's detailing manual (R. Whittle, 1.5.1) and the SMDSC
+    4th ed. working drawings draw them (user 2026-10-18): every text level, written on a line that underlines it;
+    that line leaves the zone's indicator line square to the member's side - from its end for a level indicator line,
+    from a point along it for an upright one - and runs straight out to a column of texts beside the member. All
+    those lines are level and at different heights, so none crosses another and each text is read back to its zone.
+    items {id: {'a', 'b' (indicator line ends), 'length', 'height' (text), 'at' (optional: where along an upright
+    line to leave it)}}. Returns {id: {'centre' (text), 'path' ([points] from the indicator line to the far end of
+    the underline), 'box', 'side'}}; the boxes are added to placed.
     """
     placed = list(placed)
     sides = {}
     for key, it in items.items():
         a, b = it['a'], it['b']
-        level = abs(b[0] - a[0]) >= abs(b[1] - a[1])
-        if level:
+        if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
             lo, hi = (a, b) if a[0] <= b[0] else (b, a)
             side, end = ('right', hi) if box[2] - hi[0] <= lo[0] - box[0] else ('left', lo)
-            want = end[1] + lift          # the text on its line's extension, the line running into its end
+            span, under = None, end[1]
         else:
             lo, hi = (a, b) if a[1] <= b[1] else (b, a)
-            side, end = ('top', hi) if box[3] - hi[1] <= lo[1] - box[1] else ('bottom', lo)
-            want = end[0] - lift
-        sides.setdefault(side, []).append((key, end, want))
+            x = (a[0] + b[0]) / 2.0
+            side = 'right' if box[2] - x <= x - box[0] else 'left'
+            span = (lo[1], hi[1])
+            under = min(max(it.get('at', (lo[1] + hi[1]) / 2.0), lo[1]), hi[1])
+            end = (x, under)
+        sides.setdefault(side, []).append((key, end, span, under + it['height'] / 2.0 + lift))
     out = {}
     for side, rows in sides.items():
-        keys = [k for k, _e, _w in rows]
+        rows.sort(key=lambda r: r[3])
+        keys = [r[0] for r in rows]
         heights = [items[k]['height'] for k in keys]
-        at = pack([w for _k, _e, w in rows], heights, gap)
+        at = pack([r[3] for r in rows], heights, gap)
         reach = max(items[k]['length'] for k in keys)
         lo_band = min(c - h / 2.0 for c, h in zip(at, heights))
         hi_band = max(c + h / 2.0 for c, h in zip(at, heights))
         start = outside
         for _ in range(12):
-            if side in ('right', 'left'):
-                x0 = box[2] + start if side == 'right' else box[0] - start - reach
-                band = (x0, lo_band, x0 + reach, hi_band)
-            else:
-                y0 = box[3] + start if side == 'top' else box[1] - start - reach
-                band = (lo_band, y0, hi_band, y0 + reach)
-            hits = [q for q in placed if overlap(band, q, gap)]
+            x0 = box[2] + start if side == 'right' else box[0] - start - reach
+            hits = [q for q in placed if overlap((x0, lo_band, x0 + reach, hi_band), q, gap)]
             if not hits:
                 break
-            if side == 'right':
-                start = max(q[2] for q in hits) - box[2] + gap
-            elif side == 'left':
-                start = box[0] - min(q[0] for q in hits) + gap
-            elif side == 'top':
-                start = max(q[3] for q in hits) - box[3] + gap
+            start = (max(q[2] for q in hits) - box[2] if side == 'right' else box[0] - min(q[0] for q in hits)) + gap
+        sign = 1.0 if side == 'right' else -1.0
+        near = box[2] + start if side == 'right' else box[0] - start
+        edge = box[2] if side == 'right' else box[0]
+        # lines packed off their own height jog square in the gap beside the member, each at its own distance, in
+        # the order that keeps them from crossing: of those going up the highest jogs nearest the member, of
+        # those going down the lowest (2026-10-18: jogs sharing one upright read as one line)
+        lifted = [(r[0], r[1][1], c - items[r[0]]['height'] / 2.0 - lift) for r, c in zip(rows, at) if r[2] is None]
+        ups = sorted([k for k, y, u in lifted if u > y + 1e-6], key=lambda k: -dict((a, y) for a, y, _u in lifted)[k])
+        downs = sorted([k for k, y, u in lifted if u < y - 1e-6], key=lambda k: dict((a, y) for a, y, _u in lifted)[k])
+        jog_at = {}
+        for group in (ups, downs):
+            for i, k in enumerate(group):
+                jog_at[k] = edge + sign * start * (i + 1.0) / (len(group) + 1.0)
+        for (key, end, span, _w), c in zip(rows, at):
+            n, h = items[key]['length'], items[key]['height']
+            u = c - h / 2.0 - lift                    # the underline's height
+            far = (near + sign * n, u)
+            if span is None:
+                if abs(u - end[1]) < 1e-6:
+                    path = [end, far]
+                else:                                 # packed off its line: a square jog in the gap beside the member
+                    jog = jog_at.get(key, near - sign * min(outside, start) / 2.0)
+                    path = [end, (jog, end[1]), (jog, u), far]
             else:
-                start = box[1] - min(q[1] for q in hits) + gap
-        for (key, end, _w), c in zip(rows, at):
-            it = items[key]
-            n, h = it['length'], it['height']
-            if side == 'right':
-                centre = (box[2] + start + n / 2.0, c)
-                elbow = (box[2] + start, c - lift)
-            elif side == 'left':
-                centre = (box[0] - start - n / 2.0, c)
-                elbow = (box[0] - start, c - lift)
-            elif side == 'top':
-                centre = (c, box[3] + start + n / 2.0)
-                elbow = (c + lift, box[3] + start)
-            else:
-                centre = (c, box[1] - start - n / 2.0)
-                elbow = (c + lift, box[1] - start)
-            vertical = side in ('top', 'bottom')
-            bx = text_box(centre, (0.0, 1.0) if vertical else (1.0, 0.0), n, h)
+                foot = (end[0], min(max(u, span[0]), span[1]))
+                path = [foot, far] if abs(foot[1] - u) < 1e-6 else [foot, (end[0], u), far]
+            centre = (near + sign * n / 2.0, c)
+            bx = (min(near, far[0]), c - h / 2.0, max(near, far[0]), c + h / 2.0)
             placed.append(bx)
-            out[key] = {'centre': centre, 'end': end, 'elbow': elbow, 'vertical': vertical, 'box': bx, 'side': side}
+            out[key] = {'centre': centre, 'path': path, 'box': bx, 'side': side}
     return out
 
 

@@ -464,10 +464,15 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
         bars_x = [x for d in pointers for x in _vertical_x(d)] if kind in LEVEL_ZONE_KINDS else []
         panel = kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members)
+        joint = {'gap': gap} if (plan or panel) else None
         made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
-                      level=kind in LEVEL_ZONE_KINDS, avoid=bars_x, panel=panel)
+                      level=kind in LEVEL_ZONE_KINDS, avoid=bars_x, panel=panel, joint=joint)
         if plan:
-            _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters)
+            _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters,
+                      joint=joint)
+        if joint is not None:
+            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style)
+        if plan:
             if hosts and kind == 'plan':
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
                 report['strips'] = _strips(doc, view, hosts, box, placed, scale, total_style, text_type)
@@ -1138,7 +1143,7 @@ def made_origin(zones, sid):
 
 
 def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, level=False, avoid=(),
-           panel=False):
+           panel=False, joint=None):
     """
     Typical bar, indicator line and calling-up of every zone; {id: text box}. level: every text horizontal. panel:
     a wall's elevation, laid out as a plan is (user 2026-10-18, W10: texts beside their zones, not round the wall).
@@ -1201,14 +1206,14 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         if tag is None:
             continue
         a, b = _xy(view, a3), _xy(view, b3)
-        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not level:
+        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not (flat or level):
             try:
                 tag.TagOrientation = DB.TagOrientation.Vertical
             except Exception:
                 pass
     doc.Regenerate()
     if flat:
-        return _aligned_zones(doc, view, pending, box, gap, outside, placed, report)
+        return _aligned_zones(doc, view, pending, joint if joint is not None else {'gap': gap})
     for d, mra, a3, b3, junction in pending:
         tag = doc.GetElement(mra.TagId)
         if tag is None:
@@ -1219,7 +1224,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         a, b = _xy(view, a3), _xy(view, b3)
         line_vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
         # a plan's calling-up reads level, and a column elevation's link zones (user 2026-10-17: as the bars')
-        vertical = line_vertical and not level
+        vertical = line_vertical and not (flat or level)
         # the text's extent along its line and across it (its box in the view)
         length, height = (h, w) if line_vertical else (w, h)
         if level and line_vertical and _beside_column(view, tag, a, b, _xy(view, junction), junction, w, h, offset,
@@ -1281,43 +1286,71 @@ def _beside_column(view, tag, a, b, junction, like, w, h, offset, box, placed, g
 LEADER_OFF_BAR_PAPER_MM = 2.5      # a column elevation's link leader lands this far off the typical link
 
 
-def _aligned_zones(doc, view, pending, box, gap, outside, placed, report):
+UNDERLINE_LIFT_PAPER_MM = 0.6      # a calling-up's text stands this far above the line under it
+
+
+def _draw_path(doc, view, path, like, style):
+    """The detail lines from an indicator line (or a bar) to the far end of its calling-up's underline."""
+    for p0, p1 in zip(path, path[1:]):
+        if abs(p1[0] - p0[0]) + abs(p1[1] - p0[1]) < 1.0:
+            continue
+        try:
+            curve = doc.Create.NewDetailCurve(view, DB.Line.CreateBound(_point(view, p0, like), _point(view, p1, like)))
+            if style is not None:
+                curve.LineStyle = style
+        except Exception:
+            continue
+
+
+def _aligned_zones(doc, view, pending, joint):
     """
-    The zones of a plan or a wall elevation called up as the SMDSC 4th ed. working drawings do (Figs 6.13, 6.33,
-    6.40; user 2026-10-18 with KS Digital's slab drawing): each text outside on the straight extension of its
-    indicator line, level texts in columns beside the member, the upright ones turned in rows above or below it,
-    in the order of their lines so no extension crosses another. {id: text box}.
+    The zones of a plan or a wall elevation, kept for one layout with the plan's loose bars (_layout_joint): Arup's
+    detailing manual (R. Whittle, 1.5.1) and the SMDSC 4th ed. working drawings. Returns the {id: text box} filled
+    when that layout runs.
     """
-    from nosa_utils import callout_layout
-    items, tags = {}, {}
     for d, mra, a3, b3, junction in pending:
         tag = doc.GetElement(mra.TagId)
         if tag is None:
             continue
         w, h, offset = _size(view, tag, _full_label(doc, view, d, tag.GetTypeId()) or _zone_text(doc, d))
-        a, b = _xy(view, a3), _xy(view, b3)
-        upright = abs(b[1] - a[1]) > abs(b[0] - a[0])
-        # the view box of a turned text is h along its line
-        items[d['id']] = {'a': a, 'b': b, 'length': h if upright else w, 'height': w if upright else h}
-        tags[d['id']] = (tag, offset, junction)
-    out = callout_layout.align_rows(items, box, gap, outside, placed)
-    made = {}
-    for key, r in out.items():
-        tag, offset, junction = tags[key]
+        # an upright indicator line is left a text's height off its typical bar: on the bar, the line read as it
+        joint.setdefault('items', []).append((d['id'], {
+            'a': _xy(view, a3), 'b': _xy(view, b3), 'length': w, 'height': h,
+            'at': _xy(view, junction)[1] + h + joint.get('gap', 0.0)}, tag, offset, junction, True))
+    return joint.setdefault('made', {})
+
+
+def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style):
+    """
+    Every calling-up of a plan or a wall elevation, its zones' and its loose bars', in one layout (user 2026-10-18:
+    which bar each text is for must be plain): every text level on a line under it, the line leaving the zone's
+    indicator line or the bar and running level out to one column each side of the member; no two lines cross.
+    The lines are detail lines; the calling-ups have no leader of their own.
+    """
+    from nosa_utils import callout_layout
+    entries = joint.get('items', [])
+    if not entries:
+        return
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    out = callout_layout.align_rows(dict((e[0], e[1]) for e in entries), box, gap, outside, placed,
+                                    lift=UNDERLINE_LIFT_PAPER_MM * scale)
+    made = joint.setdefault('made', {})
+    for key, _item, tag, offset, like, zone in entries:
+        r = out.get(key)
+        if r is None:
+            continue
         _move_head(view, tag, r['centre'], offset)
         try:
-            tag.HasLeader = True
-            refs = list(tag.GetTaggedReferences())
-            if refs:
-                tag.LeaderEndCondition = DB.LeaderEndCondition.Free
-                tag.SetLeaderEnd(refs[0], _point(view, r['end'], junction))
-                tag.SetLeaderElbow(refs[0], _point(view, r['elbow'], junction))
+            tag.HasLeader = False
         except Exception:
             pass
+        _draw_path(doc, view, r['path'], like, style)
         placed.append(r['box'])
-        made[key] = r['box']
-        report['aligned'] = report.get('aligned', 0) + 1
-    return made
+        if zone:
+            made[key] = r['box']
+            report['aligned'] = report.get('aligned', 0) + 1
+        else:
+            report['marks'] = report.get('marks', 0) + 1
 
 
 def _square_mra(view, tag, a, b, r, length, like):
@@ -2416,7 +2449,7 @@ def _no_real_pitch(rebar):
         return False
 
 
-def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, report, clusters=None):
+def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, report, clusters=None, joint=None):
     """Marks of the bars that are not zones, in rows outside the member, each with a pointer to its bar."""
     from nosa_utils import callout_layout
     if not items:
@@ -2449,6 +2482,19 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
             continue
         sizes[d['id']] = size
         layout.append({'id': d['id'], 'anchor': _xy(view, anchor), 'length': size[0], 'height': size[1]})
+    straight = [(d, tag, anchor) for d, tag, anchor in tags
+                if d['id'] in sizes and d.get('ends') and _arc_of(d['rebar'], indices.get(d['id'])) is None]
+    if _is_plan(view) and straight and joint is not None:
+        # a plan's loose bars called up as its zones are, in the same columns (Arup manual 1.5.1)
+        for d, tag, anchor in straight:
+            joint.setdefault('items', []).append((('bar', d['id']), {
+                'a': d['ends'][0], 'b': d['ends'][1], 'length': sizes[d['id']][0], 'height': sizes[d['id']][1],
+                'at': _xy(view, anchor)[1]}, tag, sizes[d['id']][2], anchor, False))
+        done = set(d['id'] for d, _t, _a in straight)
+        tags = [t for t in tags if t[0]['id'] not in done]
+        layout = [it for it in layout if it['id'] not in done]
+        if not tags:
+            return
     if placed:
         box = (min([box[0]] + [b[0] for b in placed]), min([box[1]] + [b[1] for b in placed]),
                max([box[2]] + [b[2] for b in placed]), max([box[3]] + [b[3] for b in placed]))
