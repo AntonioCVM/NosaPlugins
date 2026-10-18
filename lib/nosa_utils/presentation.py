@@ -316,6 +316,15 @@ def support_chain(supports, tol=1.0):
     return (xs, labels) if len(xs) >= 2 else ([], [])
 
 
+def clearest(xs, avoid):
+    """Index of the x in xs farthest from every x in avoid (an indicator line between bars), None with no xs."""
+    if not xs:
+        return None
+    if not avoid:
+        return len(xs) // 2
+    return max(range(len(xs)), key=lambda i: (min(abs(xs[i] - a) for a in avoid), -abs(i - len(xs) // 2)))
+
+
 def links_chain(zones, supports, tol=1.0):
     """
     Under a beam elevation (user 2026-10-17: the same in less room) one dimension string for both its link zones

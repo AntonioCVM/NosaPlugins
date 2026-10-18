@@ -462,8 +462,11 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     else:
         # a column's bars called up close beside it (user 2026-10-12)
         near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
+        bars_x = [x for d in pointers for x in _vertical_x(d)] if kind in LEVEL_ZONE_KINDS else []
+        panel = kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members)
         made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
-                      level=kind in LEVEL_ZONE_KINDS)
+                      level=kind in LEVEL_ZONE_KINDS, avoid=bars_x, panel=panel,
+                      bars=[d['ends'] for d in pointers if d.get('ends')])
         if plan:
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters)
             if hosts and kind == 'plan':
@@ -1135,11 +1138,30 @@ def made_origin(zones, sid):
     return DB.XYZ.Zero
 
 
-def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, level=False):
-    """Typical bar, indicator line and calling-up of every zone; {id: text box}. level: every text horizontal."""
+def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, report, level=False, avoid=(),
+           panel=False, bars=()):
+    """
+    Typical bar, indicator line and calling-up of every zone; {id: text box}. level: every text horizontal. panel:
+    a wall's elevation, laid out as a plan is (user 2026-10-18, W10: texts beside their zones, not round the wall).
+    """
     from nosa_utils import callout_layout
+    flat = _is_plan(view) or panel
+    from nosa_utils import callout_layout as _cl
+    # the loose bars (trimmers, diagonals) drawn on a plan: no calling-up set over them (user 2026-10-18, S1)
+    bar_lines = [_cl.segment_box(a, b, gap / 3.0) for a, b in bars] if flat else []
     slots = presentation.layer_slots(zones)
-    pending, lines = [], []
+    pending, lines = [], list(bar_lines)
+    if _is_plan(view):
+        # a slab's openings: no calling-up in the hole (user 2026-10-18, S1 trimmers)
+        seen = set()
+        for z in zones:
+            hid = get_id_value(z['rebar'].GetHostId())
+            if hid in seen:
+                continue
+            seen.add(hid)
+            host = doc.GetElement(z['rebar'].GetHostId())
+            if host is not None:
+                lines.extend(_openings(view, host))
     for d in sorted(zones, key=lambda z: (slots.get(z['id'], 0.5), z['id'])):
         rebar, n = d['rebar'], d['count']
         frac = slots.get(d['id'], 0.5)
@@ -1153,7 +1175,14 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             continue
         # the indicator line crosses the typical bar off its middle: through the middle it ran along the other
         # direction's typical bar (user 2026-10-12, PC10 plan)
-        junction = shown.Evaluate(presentation.junction_fraction(frac) if _is_plan(view) else frac, True)
+        junction = shown.Evaluate(presentation.junction_fraction(frac) if flat else frac, True)
+        if avoid and not flat:
+            # the indicator line between the bars seen along it, not over one (user 2026-10-18, C1 elevation)
+            ts = [k / 40.0 for k in range(4, 37)]
+            xs = [_xy(view, shown.Evaluate(t, True))[0] for t in ts]
+            best = presentation.clearest(xs, avoid)
+            if best is not None:
+                junction = shown.Evaluate(ts[best], True)
         t = sorted((ln.Evaluate(0.5, True) - junction).DotProduct(direction) for ln in (first, last))
         a3, b3 = junction + direction.Multiply(t[0]), junction + direction.Multiply(t[1])
         mra = _mra(doc, view, mra_type, rebar, junction, direction, b3, False)
@@ -1169,7 +1198,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             except Exception:
                 pass
         pending.append((d, mra, a3, b3, junction))
-        if _is_plan(view):
+        if flat:
             # the indicator line and the typical bar: no calling-up set beside another zone sits on them
             p0, p1 = _xy(view, shown.GetEndPoint(0)), _xy(view, shown.GetEndPoint(1))
             lines.append(callout_layout.segment_box(_xy(view, a3), _xy(view, b3), gap / 3.0))
@@ -1181,7 +1210,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         if tag is None:
             continue
         a, b = _xy(view, a3), _xy(view, b3)
-        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not (_is_plan(view) or level):
+        if abs(b[1] - a[1]) > abs(b[0] - a[0]) and not (flat or level):
             try:
                 tag.TagOrientation = DB.TagOrientation.Vertical
             except Exception:
@@ -1197,10 +1226,10 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         a, b = _xy(view, a3), _xy(view, b3)
         line_vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
         # a plan's calling-up reads level, and a column elevation's link zones (user 2026-10-17: as the bars')
-        vertical = line_vertical and not (_is_plan(view) or level)
+        vertical = line_vertical and not (flat or level)
         # the text's extent along its line and across it (its box in the view)
         length, height = (h, w) if line_vertical else (w, h)
-        if _is_plan(view) and _beside_typical(view, tag, a, b, _xy(view, junction), junction, w, h, offset, box,
+        if flat and _beside_typical(view, tag, a, b, _xy(view, junction), junction, w, h, offset, box,
                                               placed, lines, gap):
             report['beside'] = report.get('beside', 0) + 1
             made[d['id']] = placed[-1]
@@ -1216,7 +1245,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             tag.HasLeader = bool(r['outside'])
         except Exception:
             pass
-        if r['outside'] and _is_plan(view):
+        if r['outside'] and flat:
             # plans (user 2026-10-17): the leader lands on the indicator line beside the typical bar, square to
             # it, so each calling-up shows its zone - not on the line's arrowed end
             c = _leader_to_typical(view, tag, a, b, r, _xy(view, junction), junction, offset, gap)
@@ -1234,6 +1263,12 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
 
 LEADER_OFF_BAR_PAPER_MM = 2.5      # a plan leader lands this far from the typical bar along the indicator line
 BESIDE_LIFT_PAPER_MM = 3.0         # a plan calling-up set beside its zone stands this far off the indicator line
+
+
+def _vertical_x(d):
+    """The view x (mm) of a bar seen along its length up the view, else nothing."""
+    (ax, ay), (bx, by) = d['ends']
+    return [(ax + bx) / 2.0] if abs(by - ay) > 3.0 * abs(bx - ax) else []
 
 
 def _beside_column(view, tag, a, b, junction, like, w, h, offset, box, placed, gap, outside):
@@ -1497,7 +1532,7 @@ EDGE_TOL_MM = 100.0       # a bar stopping this close to a slab edge or an openi
 
 
 def _openings(view, host):
-    """View boxes (mm) of the openings through a slab or base: the inner loops of its top face."""
+    """View boxes (mm) of the openings through a slab, base or wall: the inner loops of the face the view sees."""
     out = []
     opts = DB.Options()
     try:
@@ -1511,7 +1546,9 @@ def _openings(view, host):
         if isinstance(g, DB.GeometryInstance):
             stack.extend(g.GetInstanceGeometry())
         elif isinstance(g, DB.Solid) and g.Volume > 0:
-            faces.extend(f for f in g.Faces if isinstance(f, DB.PlanarFace) and f.FaceNormal.Z > 0.99)
+            # the face the view looks at: a slab's top on a plan, a wall's face on its elevation
+            faces.extend(f for f in g.Faces if isinstance(f, DB.PlanarFace) and
+                         abs(f.FaceNormal.DotProduct(view.ViewDirection)) > 0.99)
     if not faces:
         return out
     top = max(faces, key=lambda f: f.Area)
