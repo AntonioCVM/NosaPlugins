@@ -1923,6 +1923,16 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         except Exception:
             return False
 
+    @staticmethod
+    def _straight_runs(bars):
+        """Straight bars in runs at one pitch (varying_sets.split_runs), each run a list of bars."""
+        if not bars:
+            return []
+        chains = [[(p.X * 304.8, p.Y * 304.8, p.Z * 304.8)
+                   for p in [b['curves'][0].GetEndPoint(0)] + [c.GetEndPoint(1) for c in b['curves']]]
+                  for b in bars]
+        return [[bars[i] for i in run] for run in varying_sets.split_runs(chains)]
+
     def _create_varying_runs(self, wrapper, host, bars, bar_type, style, label, layer, created_rebars):
         """Varying rebar sets for the runs of `bars` one set can hold; returns the bars left over."""
         chains = [[(p.X * 304.8, p.Y * 304.8, p.Z * 304.8)
@@ -2110,8 +2120,21 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         # drew S20's two edge rows, 4770 apart, as one set (2026-10-17)
         straight = [b for b in freeform_candidates
                     if len(b['curves']) == 1 and isinstance(b['curves'][0], DB.Line)]
-        fallback_bars = fallback_bars + straight
         freeform_candidates = [b for b in freeform_candidates if not any(b is s for s in straight)]
+        # but a run of them at one pitch along a curved edge (no varying set follows a curved face) is one
+        # group of bars varying in length, called up once (a to f) (user 2026-10-18, S3: six loose B2 bars)
+        for run in self._straight_runs(straight):
+            if len(run) < 2:
+                fallback_bars = fallback_bars + run
+                continue
+            rebar = wrapper.create_freeform_group(
+                host, [b['curves'] for b in run], bar_type,
+                transaction_name=u'NOSA — Create {} (varying lengths)'.format(label))
+            if rebar is None:
+                fallback_bars = fallback_bars + run
+                continue
+            self._stamp_layer(rebar, layer)
+            created_rebars.append(rebar)
 
         if len(freeform_candidates) >= 2:
             curve_groups = [b['curves'] for b in freeform_candidates]

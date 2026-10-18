@@ -443,6 +443,31 @@ def _figure_clear(view, dim, lo, hi, at, vertical, segments, height, text, like)
     return True
 
 
+def _dimension_lines(doc, view):
+    """Each dimension of the view (an indicator line too) as the segment along its box, view mm."""
+    out = []
+    for d in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Dimension):
+        # its line through its origin, as long as its box along it (an indicator line's box takes in its witnesses)
+        try:
+            bb = d.get_BoundingBox(view)
+            u = d.Curve.Direction
+            origin = d.Origin if d.NumberOfSegments == 0 else d.Segments[0].Origin
+        except Exception:
+            continue
+        if bb is None or origin is None:
+            continue
+        o = _xy(view, origin)
+        u = (u.DotProduct(view.RightDirection), u.DotProduct(view.UpDirection))
+        n = (u[0] ** 2 + u[1] ** 2) ** 0.5
+        if n < 1e-6:
+            continue
+        u = (u[0] / n, u[1] / n)
+        lo, hi = _xy(view, bb.Min), _xy(view, bb.Max)
+        ks = [(x - o[0]) * u[0] + (y - o[1]) * u[1] for x in (lo[0], hi[0]) for y in (lo[1], hi[1])]
+        out.append(((o[0] + min(ks) * u[0], o[1] + min(ks) * u[1]), (o[0] + max(ks) * u[0], o[1] + max(ks) * u[1])))
+    return out
+
+
 def _on_line(seg, c, vertical, tol=1.0):
     """A segment lying on the line at c (the bar the dimension measures)."""
     (p, q) = seg
@@ -634,7 +659,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     elevation = kind in ELEVATION_KINDS
     # every bar one weight (user 2026-10-18, from the KIHBIT drawings: bars of one size drew thick and thin; this
     # replaces T9.19's heavy verticals and light horizontals on wall elevations)
-    report['styles'] = bar_weights(view, visible)
+    # heavier on a plan, where the bars are the drawing (user 2026-10-18: pen 3 read as thin as the slab's edge)
+    report['styles'] = bar_weights(view, visible, PLAN_BAR_PEN if plan else BAR_PEN)
     beam_elevation = not plan and kind in (None, 'elevation') and any(
         m is not None and m.Category is not None and
         get_id_value(m.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFraming) for m in members)
@@ -682,7 +708,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if plan or panel:
             # a group of loose bars drawn as a zone is: its middle bar, the one called up, and a line across them
             # (W2, 2026-10-18: every vertical of a curved wall was drawn, its marks bunched with no telling whose)
-            report['typical_singles'] = _typical_singles(doc, view, rebars, clusters, total_style)
+            report['typical_singles'] = _typical_singles(doc, view, rebars, clusters, total_style,
+                                                         ranges=joint.setdefault('ranges', {}))
         if plan or panel or column:
             _pointers(doc, view, pointers, det, tag_types, box, gap, near if column else outside, placed, report,
                       clusters=clusters, joint=joint)
@@ -954,12 +981,12 @@ def _is_links(rebar):
 TYPICAL_SINGLES_MIN = 3     # a group this large shows only its middle bar
 
 
-def _range_line(view, typical, first, last):
+def _range_line(view, typical, first, last, at=0.5):
     """
     The line across a group of bars, view mm: through the typical bar's middle, square to it, from the first bar
     to the last (2026-10-18: joining the bars' middles ran it on the skew across a curved wall).
     """
-    m = _xy(view, typical.Evaluate(0.5, True))
+    m = _xy(view, typical.Evaluate(at, True))
     a, b = _xy(view, typical.GetEndPoint(0)), _xy(view, typical.GetEndPoint(1))
     u = (b[0] - a[0], b[1] - a[1])
     n = (u[0] ** 2 + u[1] ** 2) ** 0.5
@@ -974,7 +1001,34 @@ def _range_line(view, typical, first, last):
     return square(first), square(last)
 
 
-def _typical_singles(doc, view, rebars, clusters, style):
+RANGE_AT = (0.5, 0.35, 0.65, 0.25, 0.75)    # where along its typical bar a group's line may cross it
+
+
+def _clear_range(view, typical, first, last, seen, tol):
+    """A group's line (a, b, the point on its typical bar) at the first of RANGE_AT not lying along a bar drawn."""
+    out = None
+    for at in RANGE_AT:
+        a, b = _range_line(view, typical, first, last, at)
+        m = _xy(view, typical.Evaluate(at, True))
+        out = out or (a, b, m)
+        level = abs(b[0] - a[0]) >= abs(b[1] - a[1])
+        lo, hi = (min(a[0], b[0]), max(a[0], b[0])) if level else (min(a[1], b[1]), max(a[1], b[1]))
+        c = a[1] if level else a[0]
+        on = False
+        for p, q in seen:
+            if level and abs(p[1] - q[1]) < tol and abs((p[1] + q[1]) / 2.0 - c) < tol:
+                on = min(p[0], q[0]) < hi and max(p[0], q[0]) > lo
+            elif not level and abs(p[0] - q[0]) < tol and abs((p[0] + q[0]) / 2.0 - c) < tol:
+                on = min(p[1], q[1]) < hi and max(p[1], q[1]) > lo
+            if on:
+                break
+        if not on:
+            return a, b, m
+    return out
+
+
+
+def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
     """
     Each group of loose single bars (clusters) shown as SMDSC shows a set: its middle bar - the one merge_singles
     calls up - and a line across the group from its first bar to its last; the others hidden in the view.
@@ -987,6 +1041,7 @@ def _typical_singles(doc, view, rebars, clusters, style):
         if size >= TYPICAL_SINGLES_MIN and rid in by_id:
             groups.setdefault(gid, []).append(by_id[rid])
     hide = List[DB.ElementId]()
+    lines = []                                   # (rebar id, typical, first, last) of each group's line
     for bars in groups.values():
         placed_ = []
         for r in bars:
@@ -1000,10 +1055,7 @@ def _typical_singles(doc, view, rebars, clusters, style):
         for _p, r, _l in placed_:
             if r.Id != lead.Id and r.CanBeHidden(view):
                 hide.Add(r.Id)
-        mid = placed_[len(placed_) // 2]
-        a, b = _range_line(view, mid[2], placed_[0][0], placed_[-1][0])
-        if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
-            _draw_path(doc, view, [a, b], mid[2].Evaluate(0.5, True), style)
+        lines.append((get_id_value(lead.Id), placed_[len(placed_) // 2][2], placed_[0][0], placed_[-1][0]))
     shown = 0
     for r in by_id.values():
         # a FreeForm group of bars (a curved wall's verticals) shows its middle bar the same way
@@ -1017,15 +1069,25 @@ def _typical_singles(doc, view, rebars, clusters, style):
         if _show_one(r, view, n, n // 2) is None or first is None or last is None:
             continue
         shown += 1
-        typical = _main_line(r, n // 2) or first
-        a, b = _range_line(view, typical, _xy(view, first.Evaluate(0.5, True)), _xy(view, last.Evaluate(0.5, True)))
-        if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
-            _draw_path(doc, view, [a, b], typical.Evaluate(0.5, True), style)
+        lines.append((get_id_value(r.Id), _main_line(r, n // 2) or first, _xy(view, first.Evaluate(0.5, True)),
+                      _xy(view, last.Evaluate(0.5, True))))
     if hide.Count:
         try:
             view.HideElements(hide)
         except Exception:
-            return shown
+            pass
+    # the lines placed once only the typical bars are drawn, off them and off the zones' indicator lines (W2: with
+    # every bar still drawn no place was clear and each group's line fell on the zones' line)
+    doc.Regenerate()
+    seen = _seen_bars(view) + _dimension_lines(doc, view)
+    tol = GAP_PAPER_MM * max(1, int(getattr(view, 'Scale', 50) or 50))
+    for rid, typical, first, last in lines:
+        a, b, m = _clear_range(view, typical, first, last, seen, tol)
+        if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
+            _draw_path(doc, view, [a, b], typical.Evaluate(0.5, True), style)
+            seen.append((a, b))
+            if ranges is not None:
+                ranges[rid] = (a, b, m)
     return hide.Count + shown
 
 
@@ -1788,11 +1850,12 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
                 report['aligned'] = report.get('aligned', 0) + 1
             else:
                 report['marks'] = report.get('marks', 0) + 1
-        drawn.append((r, like, [t for _k, t, _o, _i in lines]))
+        drawn.append((r, like, [t for _k, t, _o, _i in lines], zone, item))
     # the texts measured as Revit writes them: each set flush with its column's edge, its line as long as the text
     # (2026-10-18 audit: estimated widths left a column's texts up to 2.7 mm out of line)
     doc.Regenerate()
-    for r, like, tags_ in drawn:
+    fill = None
+    for r, like, tags_, zone, item in drawn:
         sign = 1.0 if r['side'] == 'right' else -1.0
         near = r['box'][0] if r['side'] == 'right' else r['box'][2]
         reach = 0.0
@@ -1812,7 +1875,62 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
             path[-1] = (near + sign * reach, far[1])
             r['box'] = (min(near, path[-1][0]), r['box'][1], max(near, path[-1][0]), r['box'][3])
         _draw_path(doc, view, path, like, style)
+        if zone:
+            dot = _xy(view, like)                    # where the indicator line crosses its typical bar
+        else:
+            dot = item.get('dot') or (path[0] if _on_segment(path[0], item['a'], item['b'], gap / 2.0) else None)
+        if dot is not None:
+            # every calling-up's line has its dot on the bar it is for, a zone's where its indicator line crosses
+            # its typical bar, one size throughout (user 2026-10-18)
+            fill = fill or _solid_black(doc)
+            _dot(doc, view, dot, like, DOT_PAPER_MM * scale / 2.0, fill)
         placed.append(r['box'])
+
+
+DOT_PAPER_MM = 1.2          # a calling-up line's dot on its bar
+
+
+def _on_segment(p, a, b, tol):
+    """p within tol of the segment a-b (view mm)."""
+    d = (b[0] - a[0], b[1] - a[1])
+    n2 = d[0] ** 2 + d[1] ** 2
+    if n2 < 1e-9:
+        return ((p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2) ** 0.5 <= tol
+    k = max(0.0, min(1.0, ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / n2))
+    q = (a[0] + k * d[0], a[1] + k * d[1])
+    return ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5 <= tol
+
+
+def _solid_black(doc):
+    for frt in DB.FilteredElementCollector(doc).OfClass(DB.FilledRegionType):
+        try:
+            pattern = doc.GetElement(frt.ForegroundPatternId)
+            colour = frt.ForegroundPatternColor
+            if pattern is not None and pattern.GetFillPattern().IsSolidFill and                     colour.Red + colour.Green + colour.Blue == 0:
+                return frt
+        except Exception:
+            continue
+    return None
+
+
+def _dot(doc, view, xy, like, radius_mm, fill):
+    """A filled dot (an outlined circle without a solid fill type) at view coordinates xy."""
+    import math
+    from System.Collections.Generic import List
+    c = _point(view, xy, like)
+    r = radius_mm / _MM_PER_FT
+    a, b = view.RightDirection, view.UpDirection
+    try:
+        if fill is not None:
+            loop = DB.CurveLoop()
+            loop.Append(DB.Arc.Create(c, r, 0.0, math.pi, a, b))
+            loop.Append(DB.Arc.Create(c, r, math.pi, 2.0 * math.pi, a, b))
+            loops = List[DB.CurveLoop]()
+            loops.Add(loop)
+            return DB.FilledRegion.Create(doc, fill.Id, view.Id, loops)
+        return doc.Create.NewDetailCurve(view, DB.Arc.Create(c, r, 0.0, 2.0 * math.pi, a, b))
+    except Exception:
+        return None
 
 
 def _square_mra(view, tag, a, b, r, length, like):
@@ -2227,16 +2345,17 @@ def _strips(doc, view, hosts, box, placed, scale, style, text_type):
 
 BAR_PEN = 3     # every bar in every RC view: one weight, cut or seen (measured 2026-10-18 in Revit 2026: left to
                 # the category, bars of one size drew in two weights; pen 3 prints alike at 1:25 and 1:50)
+PLAN_BAR_PEN = 5    # a slab or base plan's bars, still one weight in the view
 
 
-def bar_weights(view, rebars):
-    """Every bar drawn at BAR_PEN, seen or cut, keeping any line pattern already given (SEE DRG dashes)."""
+def bar_weights(view, rebars, pen=BAR_PEN):
+    """Every bar drawn at one pen, seen or cut, keeping any line pattern already given (SEE DRG dashes)."""
     n = 0
     for r in rebars:
         try:
             ogs = view.GetElementOverrides(r.Id)
-            ogs.SetProjectionLineWeight(BAR_PEN)
-            ogs.SetCutLineWeight(BAR_PEN)
+            ogs.SetProjectionLineWeight(pen)
+            ogs.SetCutLineWeight(pen)
             view.SetElementOverrides(r.Id, ogs)
             n += 1
         except Exception:
@@ -2895,17 +3014,50 @@ def _single_type(doc, d, tag_types, fallback):
             dia = doc.GetElement(d['rebar'].GetTypeId()).BarNominalDiameter * _MM_PER_FT
         except Exception:
             dia = 0.0
-        text = presentation.total_callout(u'1H{:.0f}-{}{}'.format(dia, d['mark'],
-                                                                 _text(d['rebar'], u'NOSA_Rebar_Mark_Suffix')),
-                                          d['total'], _text(d['rebar'], NOTE_PARAM))
+        # with its location (B2, N1): the merged calling-up dropped it (2026-10-18, S3 and W2)
+        base = u' '.join(t for t in (u'1H{:.0f}-{}{}'.format(dia, d['mark'], _text(d['rebar'], u'NOSA_Rebar_Mark_Suffix')),
+                                     _location(d['rebar'])) if t)
+        text = presentation.total_callout(base, d['total'], _text(d['rebar'], NOTE_PARAM))
         _set(d['rebar'], CALLOUT_PARAM, text)
         return tag_types.get(CALLOUT_TAG) or fallback
+    text = _group_callout(doc, d['rebar'])
+    if text and tag_types.get(CALLOUT_TAG):
+        # a group of bars varying in length has no pitch: the tag's label dropped its location with it (S3, B2)
+        _set(d['rebar'], CALLOUT_PARAM, text)
+        return tag_types.get(CALLOUT_TAG)
     if _no_real_pitch(d['rebar']):
         if fallback == tag_types.get(ZONE_TAG):
             return tag_types.get(SHORT_TAG) or fallback
         if fallback == tag_types.get(ELEVATION_TAG):
             return tag_types.get(SPACER_TAG) or fallback        # 'No centres - Arrow'
     return fallback
+
+
+def _location(rebar):
+    """A bar's location code (B1, T2, N1 ...) as written to its Comments, '' when none."""
+    try:
+        p = rebar.get_Parameter(DB.BuiltInParameter.ALL_MODEL_INSTANCE_COMMENTS)
+        text = ((p.AsString() if p is not None else u'') or u'').strip()
+    except Exception:
+        return u''
+    return text if len(text) <= 3 else u''
+
+
+def _group_callout(doc, rebar):
+    """'6H16-06(a to f) B2' for a FreeForm group of bars, '' for any other bar."""
+    try:
+        n = rebar.NumberOfBarPositions
+        if n < 2 or rebar.IsRebarShapeDriven():
+            return u''
+        dia = doc.GetElement(rebar.GetTypeId()).BarNominalDiameter * _MM_PER_FT
+        where = _location(rebar)
+    except Exception:
+        return u''
+    mark = _text(rebar, u'NOSA_Rebar_Mark')
+    if not mark:
+        return u''
+    head = u'{}H{:.0f}-{}{}'.format(n, dia, mark, _text(rebar, u'NOSA_Rebar_Mark_Suffix'))
+    return u' '.join(t for t in (head, where, _text(rebar, NOTE_PARAM)) if t)
 
 
 def _no_real_pitch(rebar):
@@ -2960,11 +3112,16 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
         # 1.5.1); a bar on the skew (an opening's diagonals) by a level line leaving the bar where it is marked
         for d, tag, anchor in straight:
             a, b = d['ends']
+            dot = None
             if _skew(a, b):
                 a = b = _xy(view, anchor)
+            group = joint.get('ranges', {}).get(d['id'])
+            if group is not None:
+                # a group of bars: its line across them, as a zone's indicator line, the dot on its typical bar
+                a, b, dot = group
             joint.setdefault('items', []).append((('bar', d['id']), {
                 'a': a, 'b': b, 'length': sizes[d['id']][0], 'height': sizes[d['id']][1], 'side': joint.get('side'),
-                'at': _xy(view, anchor)[1]}, tag, sizes[d['id']][2], anchor, False))
+                'at': (dot or _xy(view, anchor))[1], 'dot': dot}, tag, sizes[d['id']][2], anchor, False))
         done = set(d['id'] for d, _t, _a in straight)
         tags = [t for t in tags if t[0]['id'] not in done]
         layout = [it for it in layout if it['id'] not in done]
