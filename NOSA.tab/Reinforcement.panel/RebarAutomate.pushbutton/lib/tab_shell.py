@@ -79,7 +79,7 @@ def looks_failed(text):
 def element_ids(line):
     """The Revit element ids a run log line names (5 to 9 digits, not a length with its unit)."""
     import re
-    return [int(m) for m in re.findall(u'(?<![\d.])(\d{5,9})(?![\d.]|\s?mm)', line or u'')]
+    return [int(m) for m in re.findall(u'(?<![\\d.])(\\d{5,9})(?![\\d.]|\\s?mm)', line or u'')]
 
 
 def number_ok(text, allow_auto=False):
