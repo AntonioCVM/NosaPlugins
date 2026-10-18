@@ -2049,7 +2049,7 @@
                         Margin="0,0,10,0" Visibility="Collapsed"
                         ToolTip="Next step: the reinforcement drawings of the selection."/>
                 <Button Grid.Column="4" Name="BtnGenerate" Content="GENERATE" Style="{DynamicResource ActionButton}"
-                        Height="38" Width="190" FontSize="14" FontWeight="Bold"
+                        Height="38" Width="190" FontSize="14" FontWeight="Bold" Padding="16,0"
                         ToolTip="Generate the reinforcement of the selected elements with this tab's values."/>
             </Grid>
         </Border>
