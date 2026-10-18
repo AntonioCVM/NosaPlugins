@@ -232,6 +232,15 @@ def test_side_with_fewer_crossings():
     assert out['z']['side'] == 'left'
 
 
+def test_column_away_from_the_next_member():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    # nearer the left edge, but the next slab stands 2 m off the left side
+    items = {'z': {'a': (500.0, 1000.0), 'b': (500.0, 5000.0), 'length': 1000.0, 'height': 250.0, 'at': 3000.0}}
+    out = cl.align_rows(items, box, 50.0, 600.0, lift=20.0, neighbours=[(-6000.0, 0.0, -1500.0, 6000.0)])
+    assert out['z']['side'] == 'right'
+    assert cl.align_rows(items, box, 50.0, 600.0, lift=20.0)['z']['side'] == 'left'
+
+
 def test_align_rows_jogs_never_cross():
     box = (0.0, 0.0, 10000.0, 6000.0)
     # five level lines bunched at nearly one height, all ending at the left: packed apart, jogged
