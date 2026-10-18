@@ -309,6 +309,8 @@ def create(doc, capacity=ROWS_PER_A4):
                 sheet = DB.ViewSheet.Create(doc, titleblock.Id)
                 sheet.SheetNumber = _next_number(doc, taken)
                 sheet.Name = u'Bar schedule {}'.format(key)
+                import rebar_views
+                rebar_views.classify_sheet(doc, sheet)
                 report['new_sheets'].append(sheet.SheetNumber)
             revision = _text(sheet, u'NOSA_BBS_Revision')
             if not _text(sheet, u'NOSA_BBS_Status'):

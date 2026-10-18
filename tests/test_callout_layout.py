@@ -315,3 +315,35 @@ def test_align_rows_many_packed_lines_never_cross():
         for k2, s2 in segs[i + 1:]:
             if k1 != k2:
                 assert not cl._crosses(s1, s2), (k1, k2)
+
+
+def test_align_rows_upright_bars_and_jogs_never_cross():
+    # bars of an opening crowd one column: upright bars rising to their rows and level bars jogging to theirs
+    box = (0.0, 0.0, 6000.0, 6000.0)
+    items = {}
+    for i, y in enumerate([2500.0, 2550.0, 2600.0, 2650.0, 2700.0, 2750.0]):
+        items[('l', i)] = {'a': (2000.0 + 50.0 * i, y), 'b': (3000.0, y), 'length': 700.0, 'height': 125.0,
+                           'side': 'left'}
+    for i, x in enumerate([2400.0, 2600.0, 2800.0]):
+        items[('u', i)] = {'a': (x, 2300.0), 'b': (x, 3000.0), 'length': 500.0, 'height': 125.0, 'side': 'left',
+                           'at': 2480.0 + 60.0 * i}
+    out = cl.align_rows(items, box, 75.0, 500.0)
+    assert cl.path_crossings(out) == 0
+
+
+def test_point_like_bar_and_bar_past_its_row_jog_in_the_gap():
+    # a diagonal marked where it is (a 50 mm stub) and a short upright bar both pushed off their height: their lines
+    # leave level and jog beside the member, never run along where there is no bar
+    box = (0.0, 0.0, 6000.0, 6000.0)
+    items = {'stub': {'a': (3000.0, 3000.0), 'b': (3000.0, 3050.0), 'length': 500.0, 'height': 125.0, 'side': 'left'},
+             'up': {'a': (3500.0, 2950.0), 'b': (3500.0, 3100.0), 'length': 500.0, 'height': 125.0, 'side': 'left',
+                    'at': 3020.0}}
+    for i in range(4):
+        items[i] = {'a': (2000.0, 2990.0 + 10.0 * i), 'b': (2500.0, 2990.0 + 10.0 * i), 'length': 500.0,
+                    'height': 125.0, 'side': 'left'}
+    out = cl.align_rows(items, box, 75.0, 500.0)
+    for k in ('stub', 'up'):
+        for p, q in zip(out[k]['path'], out[k]['path'][1:]):
+            if abs(p[0] - q[0]) < 1e-6 and abs(p[1] - q[1]) > 1e-6:
+                assert p[0] < box[0], (k, out[k]['path'])      # every upright piece beside the member
+    assert cl.path_crossings(out) == 0
