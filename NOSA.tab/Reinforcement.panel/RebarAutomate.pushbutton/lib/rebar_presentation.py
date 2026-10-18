@@ -123,10 +123,10 @@ def _clear(doc, view, styles):
             continue
 
 
-def _note(doc, view, point, text, type_id, right=False):
+def _note(doc, view, point, text, type_id, centre=False):
     try:
         opts = DB.TextNoteOptions(type_id)
-        opts.HorizontalAlignment = DB.HorizontalTextAlignment.Right if right else DB.HorizontalTextAlignment.Left
+        opts.HorizontalAlignment = DB.HorizontalTextAlignment.Center if centre else DB.HorizontalTextAlignment.Left
         return DB.TextNote.Create(doc, view.Id, point, text, opts)
     except Exception:
         return None
@@ -1290,7 +1290,7 @@ LEADER_OFF_BAR_PAPER_MM = 2.5      # a column elevation's link leader lands this
 
 
 UNDERLINE_LIFT_PAPER_MM = 0.6      # a calling-up's text stands this far above the line under it
-STACK_GAP_PAPER_MM = 0.5           # between the lines of a stacked calling-up (ALT / STG)
+STACK_GAP_PAPER_MM = 1.0           # between the lines of a stacked calling-up (ALT / STG)
 
 
 def _draw_path(doc, view, path, like, style):
@@ -1368,9 +1368,9 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style):
             centres = callout_layout.stack(r['box'], r['side'], [(item['length'], item['height']),
                                                                  (0.0, word_h), (b[1]['length'], b[1]['height'])],
                                            inner)
-            near = r['box'][0] if r['side'] == 'right' else r['box'][2]
-            word = _note(doc, view, _point(view, (near, centres[1][1] + word_h / 2.0), like), stacks[key][1],
-                         joint.get('text_type'), right=r['side'] != 'right')
+            # the word centred under the upper calling-up, as the manual's stacked calling-ups
+            word = _note(doc, view, _point(view, (centres[0][0], centres[1][1] + 0.75 * word_h), like),
+                         stacks[key][1], joint.get('text_type'), centre=True)
             if word is not None:
                 report['notes'] = report.get('notes', 0) + 1
             joint['stacked'].update([key, b[0]])
