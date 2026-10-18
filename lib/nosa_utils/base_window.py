@@ -345,14 +345,19 @@ class NOSAWindow(WPFWindow):
             # (assigning the Drawing colour failed silently, so dark mode never applied — T8, 2026-10-04)
             from System.Windows.Media import Color as MediaColor
             return MediaColor.FromArgb(c.A, c.R, c.G, c.B)
-        try:
-            self.Resources["BgColor"].Color     = media(colors['bg'])
-            self.Resources["PanelColor"].Color  = media(colors['panel'])
-            self.Resources["TextColor"].Color   = media(colors['text'])
-            self.Resources["AccentColor"].Color = media(colors['accent'])
-            self.Resources["BorderColor"].Color = media(colors['border'])
-        except Exception as e:
-            logger.debug("NOSAWindow.ApplyTheme: {}".format(e))
+        from System.Windows.Media import SolidColorBrush
+        for key, name in (("BgColor", 'bg'), ("PanelColor", 'panel'), ("TextColor", 'text'),
+                          ("AccentColor", 'accent'), ("BorderColor", 'border')):
+            try:
+                brush = self.Resources[key]
+                if brush.IsFrozen:
+                    # WPF freezes a brush a style or template shares: a new one, every DynamicResource follows it
+                    # (2026-10-18: dark mode left the panels white)
+                    self.Resources[key] = SolidColorBrush(media(colors[name]))
+                else:
+                    brush.Color = media(colors[name])
+            except Exception as e:
+                logger.debug("NOSAWindow.ApplyTheme {}: {}".format(key, e))
 
     def Theme_Toggled(self, sender, args):
         """Wire CheckBox.Click="Theme_Toggled" in XAML for dark-mode toggle."""

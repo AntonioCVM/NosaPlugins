@@ -245,9 +245,9 @@ class ColumnsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 1.5
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)
@@ -334,7 +334,7 @@ class ColumnsMixin(object):
         outline = SWS.Ellipse() if is_circle else SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 1.5
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))

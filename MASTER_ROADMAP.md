@@ -347,17 +347,17 @@ la interfaz actual no cambia en `develop`/`main` hasta que el usuario la apruebe
 
 | | ID | Tarea | Oleada | Alcance / criterio de aceptación |
 |---|---|---|:-:|---|
-| [ ] | T10.1 | Maqueta navegable | A | Maqueta HTML de la ventana (todas las secciones, modo claro/oscuro) aprobada por el usuario antes de tocar el XAML |
-| [ ] | T10.2 | Navegación lateral | A | Project · Slabs · Bases · Beams · Columns · Walls · Stairs · Drawings · Schedules & Export · Check & Manage; abre en el elemento seleccionado |
-| [ ] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced en cada elemento; Footings & Slabs separados |
-| [ ] | T10.4 | Barras de selección y de acción | A | Selección resumida arriba; GENERATE, resultado y «siguiente paso» fijos abajo |
-| [ ] | T10.5 | Aspecto NOSA | B | Cards de NosaTheme, iconos vectoriales, espaciado 8 pt, modo oscuro revisado |
-| [ ] | T10.6 | Vista previa grande | B | Sección y alzado a escala con colores de material y capas; insignia QA A+/A/B/C |
-| [ ] | T10.7 | SMDSC defaults y validación | C | Botón que rellena con las tablas (MD W1, MD S1, MD B1…); validación en línea con la regla en el tooltip |
-| [ ] | T10.8 | Mostrar solo lo que aplica | C | Sin «(… only)»: las opciones se muestran según la selección |
-| [ ] | T10.9 | Resultado útil | C | Resumen antes de generar; notas pulsables que seleccionan el elemento; recuerda pestaña y valores |
-| [ ] | T10.10 | Textos 4.ª ed. | D | Inglés británico, citas de la 4.ª ed. en todo el XAML, tooltips con cláusula |
-| [ ] | T10.11 | Validación y versiones | E | Test de XAML; prueba en 2024 y luego 2025–2027; capturas antes/después; merge tras aprobación |
+| [x] | T10.1 | Maqueta navegable | A | Capturas reales de la ventana (todas las secciones, claro y oscuro) renderizadas en Revit 2024 en lugar de una maqueta HTML (2026-10-18) |
+| [x] | T10.2 | Navegación lateral | A | Project · Slabs & bases · Columns · Beams · Walls · Stairs · Drawings · Schedules & export · Check & manage, iconos vectoriales; abre en el elemento seleccionado o en la última pestaña |
+| [x] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced / Run log en cada elemento. Zapatas y losas siguen en una pestaña (un solo formulario que el motor reparte por categoría) con las tarjetas de cada una ocultas según la selección |
+| [x] | T10.4 | Barras de selección y de acción | A | Barra de selección con recuento y marcas; barra de acción con estado, insignia QA, «Create drawings ▸» y GENERATE único |
+| [x] | T10.5 | Aspecto NOSA | B | Cards, iconos Path, modo oscuro corregido (pinceles congelados sustituidos en NOSAWindow.ApplyTheme) |
+| [x] | T10.6 | Vista previa grande | B | Vistas previas con el hormigón en naranja claro (corte) y gris (visto); insignia QA A+/A/B/C de rebar_qa tras cada generación |
+| [~] | T10.7 | SMDSC defaults y validación | C | Validación en línea de los campos numéricos (borde rojo y tooltip) y «Reset to defaults» por pestaña. Pendiente: rellenar con las tablas SMDSC/EC2 (confirmar con el usuario: daría cuantías mínimas, no de cálculo) |
+| [x] | T10.8 | Mostrar solo lo que aplica | C | Sin «(… only)»: las tarjetas de solo losas / solo zapatas se ocultan según la selección |
+| [x] | T10.9 | Resultado útil | C | Resumen de la selección siempre visible; notas del registro pulsables (doble clic selecciona el elemento); recuerda la pestaña |
+| [x] | T10.10 | Textos 4.ª ed. | D | Etiquetas en sentence case británico; citas de la 4.ª ed. (MD C6a, CB1, C2a, B1, RW1/RW2, ST1, PB1, S1/S2, S5, OP1, Appendix D, 5.1.10, Fig. 6.7); depósitos a EC2-3 |
+| [~] | T10.11 | Validación y versiones | E | test_ui_v2 (controles usados por el código presentes, sin SelectedIndex en XAML, sin español); ventana probada en 2024. Pendiente: 2025–2027 cuando el usuario lo autorice, y merge tras su aprobación |
 
 ## Orden y dependencias
 

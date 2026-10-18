@@ -228,9 +228,9 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(0.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)
@@ -373,7 +373,7 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
@@ -482,9 +482,9 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(0.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)

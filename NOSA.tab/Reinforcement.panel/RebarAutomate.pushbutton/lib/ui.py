@@ -91,7 +91,9 @@ def _cat_id(bic_name):
 
 _PREVIEW_BAR_FILL = SolidColorBrush(Color.FromRgb(51, 51, 51))
 _PREVIEW_SECTION_STROKE = SolidColorBrush(Color.FromRgb(255, 95, 0))
-_PREVIEW_SECTION_FILL = SolidColorBrush(Color.FromArgb(15, 255, 95, 0))
+_PREVIEW_SECTION_FILL = SolidColorBrush(Color.FromRgb(253, 198, 166))     # concrete cut, as on the drawings
+_PREVIEW_ELEVATION_FILL = SolidColorBrush(Color.FromRgb(232, 232, 232))  # concrete seen (Phase 10)
+_PREVIEW_CONCRETE_STROKE = SolidColorBrush(Color.FromRgb(51, 51, 51))
 # Phase 2.1 — Perimeter Closure U-Bars preview: 'primary' (X-Bars
 # Anchoring, B1/T1) drawn solid, matching the main mat's own bar
 # colour; 'weave' (Y-Bars Anchoring, B2/T2) drawn semi-transparent in
@@ -380,9 +382,11 @@ _tab_beams = load_module('ra_tab_beams', os.path.join(_HERE, 'tab_beams.py'))
 _tab_walls = load_module('ra_tab_walls', os.path.join(_HERE, 'tab_walls.py'))
 _tab_stairs = load_module('ra_tab_stairs', os.path.join(_HERE, 'tab_stairs.py'))
 _tab_tools = load_module('ra_tab_tools', os.path.join(_HERE, 'tab_tools.py'))
+_tab_shell = load_module('ra_tab_shell', os.path.join(_HERE, 'tab_shell.py'))
 
 
-class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab_walls.WallsMixin, _tab_stairs.StairsMixin, _tab_tools.ToolsMixin, NOSAWindow):
+class RebarAutomateWindow(_tab_shell.ShellMixin, _tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab_walls.WallsMixin,
+                          _tab_stairs.StairsMixin, _tab_tools.ToolsMixin, NOSAWindow):
 
     def __init__(self, doc):
         # PHASE 3.6 FIX — a live crash ("Initialization of
@@ -470,6 +474,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         # enough; no separate "diff the selection" tracking needed.
         self.Loaded += self._on_window_loaded
         self._wire_live_previews()
+        self._init_shell()            # Phase 10: navigation, selection bar, action bar
 
         self._is_loaded = True
         self._refresh_batch_list()
@@ -1008,10 +1013,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     for grandchild in descendants(child):
                         yield grandchild
 
-        for index, handler in enumerate(handlers):
-            if index >= self.MainTabControl.Items.Count:
-                break
-            for control in descendants(self.MainTabControl.Items[index]):
+        tabs = (self.TabSlabs, self.TabColumns, self.TabBeams, self.TabWalls, self.TabStairs)
+        for tab, handler in zip(tabs, handlers):
+            for control in descendants(tab):
                 if isinstance(control, SWC.CheckBox):
                     control.Click += handler
                 elif isinstance(control, SWC.TextBox):
@@ -1242,7 +1246,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 rect.Width = max(1.0, (sh['x1'] - sh['x0']) * scale)
                 rect.Height = max(1.0, (sh['y1'] - sh['y0']) * scale)
                 if kind == 'concrete':
-                    rect.Stroke, rect.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                    rect.Stroke, rect.Fill = _PREVIEW_CONCRETE_STROKE, _PREVIEW_SECTION_FILL
                 elif kind == 'ground':
                     rect.Stroke = colours['ghost']
                     rect.Fill = SolidColorBrush(Color.FromArgb(40, 128, 128, 128))
@@ -1257,13 +1261,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 poly = SWS.Polygon()
                 for x, y in sh['points']:
                     poly.Points.Add(System.Windows.Point(sx(x), sy(y)))
-                poly.Stroke, poly.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                poly.Stroke, poly.Fill = _PREVIEW_CONCRETE_STROKE, _PREVIEW_SECTION_FILL
                 poly.StrokeThickness = 1.2
                 canvas.Children.Add(poly)
             elif kind == 'circle':
                 ell = SWS.Ellipse()
                 ell.Width = ell.Height = 2 * sh['r'] * scale
-                ell.Stroke, ell.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                ell.Stroke, ell.Fill = _PREVIEW_CONCRETE_STROKE, _PREVIEW_SECTION_FILL
                 ell.StrokeThickness = 1.2
                 SWC.Canvas.SetLeft(ell, sx(sh['x'] - sh['r']))
                 SWC.Canvas.SetTop(ell, sy(sh['y'] + sh['r']))
@@ -1345,7 +1349,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 1.5
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
@@ -2717,5 +2721,5 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
 
 # the tab modules use the same shared names as this module
-for _tab in (_tab_columns, _tab_beams, _tab_walls, _tab_stairs, _tab_tools,):
+for _tab in (_tab_columns, _tab_beams, _tab_walls, _tab_stairs, _tab_tools, _tab_shell):
     _tab.bind(globals())
