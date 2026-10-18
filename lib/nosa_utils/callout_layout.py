@@ -228,13 +228,16 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
             base = (i + 1.0) / (len(order) + 1.0)
             y0, y1 = sorted(ys[k])
             # clear of what is drawn in the gap (a section mark's arrow beside a column, 2026-10-18)
-            for f in sorted([base] + [j / 20.0 for j in range(2, 19)], key=lambda q: abs(q - base)):
+            best = None
+            for f in sorted([base] + [j / 20.0 for j in range(1, 20)], key=lambda q: abs(q - base)):
                 x = edge + sign * start * f
-                if not any(q[0] - gap / 4.0 < x < q[2] + gap / 4.0 and q[1] < y1 and q[3] > y0 for q in placed):
+                over = sum(min(q[3], y1) - max(q[1], y0) for q in placed
+                           if q[0] - gap / 4.0 < x < q[2] + gap / 4.0 and q[1] < y1 and q[3] > y0)
+                if best is None or over < best[0] - 1e-6:
+                    best = (over, x)
+                if over <= 0.0:
                     break
-            else:
-                x = edge + sign * start * base
-            jog_at[k] = x
+            jog_at[k] = best[1]
         for (key, end, span, _w), c in zip(rows, at):
             n, h = items[key]['length'], items[key]['height']
             u = c - h / 2.0 - lift                    # the underline's height
@@ -305,29 +308,81 @@ def _riser(lo, hi, side, h, gap, box, obstacles):
     return (xs[0], y), y + 2 * step
 
 
-def clear_offset(lo, hi, c, vertical, offsets, boxes, segments, half):
+def _crosses_box(seg, box):
+    """A segment with a part inside the box (Liang-Barsky)."""
+    (x0, y0), (x1, y1) = seg
+    dx, dy = x1 - x0, y1 - y0
+    lo, hi = 0.0, 1.0
+    for p, q in ((-dx, x0 - box[0]), (dx, box[2] - x0), (-dy, y0 - box[1]), (dy, box[3] - y0)):
+        if abs(p) < 1e-12:
+            if q < 0:
+                return False
+            continue
+        r = q / p
+        if p < 0:
+            lo = max(lo, r)
+        else:
+            hi = min(hi, r)
+        if lo > hi:
+            return False
+    return hi - lo > 1e-9
+
+
+def _figure(lo, hi, at, vertical, m, text, height):
+    """The box of a dimension's figure at m along it: over a level dimension's line, left of an upright one's."""
+    if vertical:
+        return (at - height, m - text / 2.0, at, m + text / 2.0)
+    return (m - text / 2.0, at, m + text / 2.0, at + height)
+
+
+def clear_offset(lo, hi, c, vertical, offsets, boxes, segments, half, text=0.0, own=(), height=None):
     """
     Where a dimension along [lo, hi] beside a line at c (x for a vertical one, y else) goes: the first of offsets
-    (signed, from c) whose band (the dimension line +/- half) meets no box and is crossed by no segment running its
-    way, nor runs along one. Returns c + that offset, or c + offsets[0] when none is clear.
+    (signed, from c) whose band (the dimension line +/- half) meets no box and has no segment running along it, and
+    whose figure (text long, height high, in the middle) no segment crosses, own (the bar measured) included. When
+    none is clear, the one with fewest clashes (S2, Revit 2026: every offset clashed and the first was taken, its
+    figure on a zone's line).
     """
+    height = 2.0 * half if height is None else height
+    best, best_n = c + offsets[0], None
+    mid = (lo + hi) / 2.0
     for off in offsets:
         at = c + off
         band = (at - half, lo, at + half, hi) if vertical else (lo, at - half, hi, at + half)
-        if any(overlap(band, q) for q in boxes):
-            continue
-        hit = False
+        n = sum(1 for q in boxes if overlap(band, q))
+        if text:
+            words = _figure(lo, hi, at, vertical, mid, text, height)
+            n += sum(1 for seg in list(segments) + list(own) if _crosses_box(seg, words))
         for (p, q) in segments:
             sb = (min(p[0], q[0]), min(p[1], q[1]), max(p[0], q[0]), max(p[1], q[1]))
             if not overlap(band, sb):
                 continue
             along = abs(q[1] - p[1]) > abs(q[0] - p[0]) if vertical else abs(q[0] - p[0]) > abs(q[1] - p[1])
             if along:
-                hit = True               # a line running inside the band: the dimension would sit on it
-                break
-        if not hit:
+                n += 1                   # a line running inside the band: the dimension would sit on it
+        if n == 0:
             return at
-    return c + offsets[0]
+        if best_n is None or n < best_n:
+            best, best_n = at, n
+    return best
+
+
+def clear_along(lo, hi, at, vertical, segments, height, text):
+    """
+    Where along a dimension [lo, hi] at at its figure (text long, height high, on its side) is crossed by no
+    segment: the middle when clear, else the clear spot nearest it; None when there is none.
+    """
+    mid = (lo + hi) / 2.0
+    room = (hi - lo - text) / 2.0
+    if room <= 0:
+        return None
+    for k in range(0, 9):
+        for sign in ((1,) if k == 0 else (-1, 1)):
+            m = mid + sign * room * k / 8.0
+            words = _figure(lo, hi, at, vertical, m, text, height)
+            if not any(_crosses_box(seg, words) for seg in segments):
+                return m
+    return None
 
 
 def stack(box, side, lines, gap):

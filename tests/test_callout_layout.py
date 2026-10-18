@@ -263,6 +263,20 @@ def test_dimension_offset_clear_of_lines_and_texts():
     assert cl.clear_offset(0.0, 1000.0, 0.0, False, [75.0], [], [], 20.0) == 75.0
 
 
+def test_dimension_offset_fewest_clashes_when_none_clear():
+    # every side has a line along it; the one past two lines has one more: the nearer single clash is taken
+    segs = [((0.0, 75.0), (1000.0, 75.0)), ((0.0, -75.0), (1000.0, -75.0)), ((0.0, -80.0), (1000.0, -80.0))]
+    assert cl.clear_offset(0.0, 1000.0, 0.0, False, [-75.0, 75.0], [], segs, 20.0) == 75.0
+
+
+def test_dimension_figure_off_a_crossing_line():
+    # a vertical dimension 0..3000 at x 0 crossed in its middle by a bar at y 1500: the figure moves off it
+    segs = [((-500.0, 1500.0), (500.0, 1500.0))]
+    m = cl.clear_along(0.0, 3000.0, 0.0, True, segs, 20.0, 200.0)
+    assert m is not None and abs(m - 1500.0) >= 100.0
+    assert cl.clear_along(0.0, 3000.0, 0.0, True, [], 20.0, 200.0) == 1500.0
+
+
 def test_align_rows_jogs_never_cross():
     box = (0.0, 0.0, 10000.0, 6000.0)
     # five level lines bunched at nearly one height, all ending at the left: packed apart, jogged
