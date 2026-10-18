@@ -196,6 +196,21 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0):
     return out
 
 
+def stack(box, side, lines, gap):
+    """
+    Centres of texts stacked top down in one calling-up's box, each flush with the member's side of it (Arup's
+    detailing manual: two zones' calling-ups with ALT or STG between them, on one underline). lines [(length,
+    height)]; the box is sum(heights) + gap between them high.
+    """
+    sign = 1.0 if side == 'right' else -1.0
+    near = box[0] if side == 'right' else box[2]
+    y, out = box[3], []
+    for n, h in lines:
+        out.append((near + sign * n / 2.0, y - h / 2.0))
+        y -= h + gap
+    return out
+
+
 def pack(desired, widths, gap):
     """
     Centres along a line, in the order of `desired`, no two closer than half their widths plus gap, each

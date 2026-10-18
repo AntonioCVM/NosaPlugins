@@ -167,6 +167,13 @@ def _cross(p, q, r, s):
     return False
 
 
+def test_stack_flush_with_the_member():
+    right = cl.stack((100.0, 0.0, 160.0, 20.0), 'right', [(60.0, 5.0), (0.0, 5.0), (40.0, 5.0)], 2.5)
+    assert right == [(130.0, 17.5), (100.0, 10.0), (120.0, 2.5)]
+    left = cl.stack((0.0, 0.0, 60.0, 12.5), 'left', [(60.0, 5.0), (40.0, 5.0)], 2.5)
+    assert left == [(30.0, 10.0), (40.0, 2.5)]
+
+
 def test_align_rows_jogs_never_cross():
     box = (0.0, 0.0, 10000.0, 6000.0)
     # five level lines bunched at nearly one height, all ending at the left: packed apart, jogged

@@ -123,10 +123,10 @@ def _clear(doc, view, styles):
             continue
 
 
-def _note(doc, view, point, text, type_id):
+def _note(doc, view, point, text, type_id, right=False):
     try:
         opts = DB.TextNoteOptions(type_id)
-        opts.HorizontalAlignment = DB.HorizontalTextAlignment.Left
+        opts.HorizontalAlignment = DB.HorizontalTextAlignment.Right if right else DB.HorizontalTextAlignment.Left
         return DB.TextNote.Create(doc, view.Id, point, text, opts)
     except Exception:
         return None
@@ -448,6 +448,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
     # arrows at bar ends on beam elevations and sections only: a wall elevation's trimmers filled it with them
     ended = [d for d in pointers if (beam_elevation or kind in SIZE_KINDS) and _end_marked(view, d)]
+    joint = None
     if beam_elevation:
         # SMDSC 4th ed. 6.2.3 beam elevation: the main bars' calling-up close to the beam's faces, the arrows to where
         # each bar stops beyond it (user 2026-10-12), then where they stop dimensioned from the supports (T9.3) and
@@ -464,7 +465,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
         bars_x = [x for d in pointers for x in _vertical_x(d)] if kind in LEVEL_ZONE_KINDS else []
         panel = kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members)
-        joint = {'gap': gap} if (plan or panel) else None
+        joint = {'gap': gap, 'text_type': text_type, 'relations': presentation.relations(zones)} \
+            if (plan or panel) else None
         made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
                       level=kind in LEVEL_ZONE_KINDS, avoid=bars_x, panel=panel, joint=joint)
         if plan:
@@ -493,9 +495,10 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
                 report['kicker'] = _kicker(doc, view, hosts or members, box, placed, scale, total_style)
             elif kind == 'footing_section':
                 report['starters'] = _starter_dims(doc, view, visible, box, placed, scale, total_style)
+    stacked = joint.get('stacked', set()) if joint is not None else set()
     for a, _b, label in presentation.relations(zones):
         bx = made.get(a)
-        if bx is None:
+        if bx is None or a in stacked:
             continue
         point = _point(view, ((bx[0] + bx[2]) / 2.0, bx[1] - gap - TEXT_PAPER_MM * scale), made_origin(zones, a))
         if _note(doc, view, point, label, text_type):
@@ -1287,6 +1290,7 @@ LEADER_OFF_BAR_PAPER_MM = 2.5      # a column elevation's link leader lands this
 
 
 UNDERLINE_LIFT_PAPER_MM = 0.6      # a calling-up's text stands this far above the line under it
+STACK_GAP_PAPER_MM = 0.5           # between the lines of a stacked calling-up (ALT / STG)
 
 
 def _draw_path(doc, view, path, like, style):
@@ -1332,25 +1336,61 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style):
     if not entries:
         return
     scale = max(1, int(getattr(view, 'Scale', 50) or 50))
-    out = callout_layout.align_rows(dict((e[0], e[1]) for e in entries), box, gap, outside, placed,
-                                    lift=UNDERLINE_LIFT_PAPER_MM * scale)
+    inner = STACK_GAP_PAPER_MM * scale
+    word_h = TEXT_PAPER_MM * scale
+    # two related zones (ALT / STG) called up together, one over the other with the word between, on one line
+    by_key = dict((e[0], e) for e in entries if e[5])
+    stacks, under = {}, set()
+    for a, b, label in joint.get('relations', ()):
+        if a in by_key and b in by_key and a not in under and b not in under and a not in stacks and b not in stacks:
+            stacks[a] = (b, label)
+            under.add(b)
+    items = {}
+    for e in entries:
+        if e[0] in under:
+            continue
+        it = dict(e[1])
+        if e[0] in stacks:
+            other = by_key[stacks[e[0]][0]][1]
+            it['length'] = max(it['length'], other['length'])
+            it['height'] = it['height'] + word_h + other['height'] + 2.0 * inner
+        items[e[0]] = it
+    out = callout_layout.align_rows(items, box, gap, outside, placed, lift=UNDERLINE_LIFT_PAPER_MM * scale)
     made = joint.setdefault('made', {})
-    for key, _item, tag, offset, like, zone in entries:
+    joint['stacked'] = set()
+    for key, item, tag, offset, like, zone in entries:
         r = out.get(key)
         if r is None:
             continue
-        _move_head(view, tag, r['centre'], offset)
-        try:
-            tag.HasLeader = False
-        except Exception:
-            pass
+        lines = [(key, tag, offset, item)]
+        if key in stacks:
+            b = by_key[stacks[key][0]]
+            centres = callout_layout.stack(r['box'], r['side'], [(item['length'], item['height']),
+                                                                 (0.0, word_h), (b[1]['length'], b[1]['height'])],
+                                           inner)
+            near = r['box'][0] if r['side'] == 'right' else r['box'][2]
+            word = _note(doc, view, _point(view, (near, centres[1][1] + word_h / 2.0), like), stacks[key][1],
+                         joint.get('text_type'), right=r['side'] != 'right')
+            if word is not None:
+                report['notes'] = report.get('notes', 0) + 1
+            joint['stacked'].update([key, b[0]])
+            lines = [(key, tag, offset, dict(item, centre=centres[0])),
+                     (b[0], b[2], b[3], dict(b[1], centre=centres[2]))]
+        else:
+            lines = [(key, tag, offset, dict(item, centre=r['centre']))]
+        for k, t, off, it in lines:
+            _move_head(view, t, it['centre'], off)
+            try:
+                t.HasLeader = False
+            except Exception:
+                pass
+            if zone:
+                made[k] = r['box']
+                report['aligned'] = report.get('aligned', 0) + 1
+            else:
+                report['marks'] = report.get('marks', 0) + 1
         _draw_path(doc, view, r['path'], like, style)
         placed.append(r['box'])
-        if zone:
-            made[key] = r['box']
-            report['aligned'] = report.get('aligned', 0) + 1
-        else:
-            report['marks'] = report.get('marks', 0) + 1
 
 
 def _square_mra(view, tag, a, b, r, length, like):
