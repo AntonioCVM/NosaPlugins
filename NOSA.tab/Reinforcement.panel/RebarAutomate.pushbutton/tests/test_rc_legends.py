@@ -77,3 +77,12 @@ def test_drawing_notes_call_up_the_typical_details():
     text, _w = rl.drawing_notes(u'4004', {u'Slabs': u'C32/40'}, {}, details=[(u'OP1', u'SMDSC 4th ed. MD OP1 / 6.2.2')],
                                 details_drawing=u'4500')
     assert u'Typical details: TD OP1 (MD OP1 / 6.2.2) on drawing 4500 (after the SMDSC' in text
+
+
+def test_concrete_class_from_strength():
+    # T12.6: a material named without its class gives it by its compressive strength, cylinder or cube
+    assert rl.class_for_strength(32.0) == u'C32/40'
+    assert rl.class_for_strength(40.0) == u'C40/50'        # 40 is C40's cylinder value before C32's cube one
+    assert rl.class_for_strength(37.0) == u'C30/37'
+    assert rl.class_for_strength(33.3) == u''
+    assert rl.class_for_strength(0.0) == u''

@@ -1423,8 +1423,13 @@ def get_beam_arc(host):
     return None
 
 
-def _column_reach_mm(doc, point, outward, end_inset_mm):
-    """mm a bar runs on from point along outward to the far face of the column there, less end_inset_mm; 0 if none."""
+def _column_reach_mm(doc, point, outward, end_inset_mm, own_cover_mm=None):
+    """
+    mm a bar runs on from point along outward to the far face of the column there, less end_inset_mm; 0 if none.
+    With own_cover_mm (the beam's, included in end_inset_mm), the column's own cover governs there (T12.5).
+    """
+    from nosa_utils import cover_rules
+    import rebar_engine
     probe = point + outward.Multiply(20.0 / _MM_PER_FT)
     reach = DB.XYZ(30.0 / _MM_PER_FT, 30.0 / _MM_PER_FT, 300.0 / _MM_PER_FT)
     ext = 0.0
@@ -1434,7 +1439,11 @@ def _column_reach_mm(doc, point, outward, end_inset_mm):
                     DB.BoundingBoxIntersectsFilter(DB.Outline(probe - reach, probe + reach))):
             bbox = column.get_BoundingBox(None)
             corners = [DB.XYZ(x, y, point.Z) for x in (bbox.Min.X, bbox.Max.X) for y in (bbox.Min.Y, bbox.Max.Y)]
-            ext = max(ext, max((c - point).DotProduct(outward) for c in corners) * _MM_PER_FT - end_inset_mm)
+            inset = end_inset_mm
+            if own_cover_mm is not None:
+                col_cover = rebar_engine.get_native_cover_mm(doc, column, u'Exterior', own_cover_mm)
+                inset += cover_rules.governing_cover('beam', own_cover_mm, 'column', col_cover) - own_cover_mm
+            ext = max(ext, max((c - point).DotProduct(outward) for c in corners) * _MM_PER_FT - inset)
     except Exception:
         ext = 0.0
     return ext if ext > 1.0 else 0.0
@@ -1490,7 +1499,7 @@ def build_curved_beam_curves(doc, host, cover_mm, bar_diameter_mm, n_top_bars, n
     z_mid = (z_top + z_bot) / 2.0
     ends = []
     for t, outward in ((t_min, tangent(t_min).Negate()), (t_max, tangent(t_max))):
-        ext = _column_reach_mm(doc, xyz(r_mid, t, z_mid), outward, cover_mm + ld + bd / 2.0)
+        ext = _column_reach_mm(doc, xyz(r_mid, t, z_mid), outward, cover_mm + ld + bd / 2.0, own_cover_mm=cover_mm)
         ends.append(ext if ext else -cover_mm)
     if not all(e > 0 for e in ends):
         warnings.append(u'Curved beam: no column found at {} — the bars stop at the beam end cover; '

@@ -165,3 +165,12 @@ def test_pile_table_and_starter_chain():
     pts, labels = pr.starter_chain(-900.0, -818.0, 0.0, 1200.0, mat=-825.0)
     assert pts == [-900.0, -825.0, 0.0, 1200.0] and labels[0] == pr.COVER_TEXT
     assert pr.starter_chain(-900.0, -825.0, 0.0, -10.0) == ([], [])
+
+
+def test_curved_beam_section_between_stations():
+    stations = pr.arc_stations(6955.0)
+    assert stations[:3] == [0.0, 1000.0, 2000.0]
+    t = pr.between_stations(0.12, stations, 6955.0)         # 835 mm: between CH 0 and CH 1000
+    assert abs(t * 6955.0 - 500.0) < 1e-6
+    t = pr.between_stations(0.5, stations, 6955.0)
+    assert abs(t * 6955.0 - 3500.0) < 1e-6

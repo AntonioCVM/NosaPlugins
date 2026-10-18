@@ -177,8 +177,38 @@ def bind(doc):
 
 
 def _tag_types(doc):
-    return dict((DB.Element.Name.GetValue(t), t.Id) for t in DB.FilteredElementCollector(doc)
-                .OfCategory(DB.BuiltInCategory.OST_RebarTags).WhereElementIsElementType())
+    types = list(DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_RebarTags)
+                 .WhereElementIsElementType())
+    _dot_arrowheads(types)
+    return dict((DB.Element.Name.GetValue(t), t.Id) for t in types)
+
+
+def _dot_arrowheads(types):
+    """
+    Every '- Dot' rebar tag type with the dot its name says (Phase 12: the leaders are Revit's own, their dot the
+    type's arrowhead; 'Callout - Dot' had none in the NOSA template, 2026-10-18).
+    """
+    def arrow(t):
+        p = t.get_Parameter(DB.BuiltInParameter.LEADER_ARROWHEAD)
+        return p, (p.AsElementId() if p is not None else DB.ElementId.InvalidElementId)
+    dot = None
+    for t in types:
+        p, aid = arrow(t)
+        if DB.Element.Name.GetValue(t).endswith(u'- Dot') and aid != DB.ElementId.InvalidElementId:
+            dot = aid
+            break
+    if dot is None:
+        return 0
+    fixed = 0
+    for t in types:
+        p, aid = arrow(t)
+        if DB.Element.Name.GetValue(t).endswith(u'- Dot') and aid == DB.ElementId.InvalidElementId and                 p is not None and not p.IsReadOnly:
+            try:
+                p.Set(dot)
+                fixed += 1
+            except Exception:
+                continue
+    return fixed
 
 
 def _own_annotations(doc, view, ids):
@@ -425,24 +455,6 @@ def _grid_blocks(view):
     return out
 
 
-def _figure_clear(view, dim, lo, hi, at, vertical, segments, height, text, like):
-    """A dimension's figure moved along it to where no line crosses it, left in the middle when clear or nowhere is."""
-    from nosa_utils import callout_layout
-    m = callout_layout.clear_along(lo, hi, at, vertical, segments, height, text)
-    if m is None or abs(m - (lo + hi) / 2.0) < 1.0:
-        return False
-    try:
-        now = _xy(view, dim.TextPosition)
-        dim.TextPosition = _point(view, (now[0], m) if vertical else (m, now[1]), like)
-    except Exception:
-        return False
-    try:
-        dim.HasLeader = False            # moved along its line: no leader back to the middle
-    except Exception:
-        pass
-    return True
-
-
 def _dimension_lines(doc, view):
     """Each dimension of the view (an indicator line too) as the segment along its box, view mm."""
     out = []
@@ -465,36 +477,6 @@ def _dimension_lines(doc, view):
         lo, hi = _xy(view, bb.Min), _xy(view, bb.Max)
         ks = [(x - o[0]) * u[0] + (y - o[1]) * u[1] for x in (lo[0], hi[0]) for y in (lo[1], hi[1])]
         out.append(((o[0] + min(ks) * u[0], o[1] + min(ks) * u[1]), (o[0] + max(ks) * u[0], o[1] + max(ks) * u[1])))
-    return out
-
-
-def _on_line(seg, c, vertical, tol=1.0):
-    """A segment lying on the line at c (the bar the dimension measures)."""
-    (p, q) = seg
-    return abs(p[0] - c) < tol and abs(q[0] - c) < tol if vertical else abs(p[1] - c) < tol and abs(q[1] - c) < tol
-
-
-def _drawn_lines(doc, view):
-    """The detail lines and the dimension lines (indicator lines included) the view draws, view mm."""
-    out = []
-    for e in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.CurveElement):
-        if getattr(e, 'ViewSpecific', False):
-            try:
-                c = e.GeometryCurve
-                out.append((_xy(view, c.GetEndPoint(0)), _xy(view, c.GetEndPoint(1))))
-            except Exception:
-                continue
-    for d in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Dimension):
-        try:
-            direction = d.Curve.Direction
-            segs = [(s.Origin, s.Value) for s in d.Segments] if d.NumberOfSegments else [(d.Origin, d.Value)]
-        except Exception:
-            continue
-        for origin, value in segs:
-            if origin is None or value is None:
-                continue
-            half = direction.Multiply(value / 2.0)
-            out.append((_xy(view, origin - half), _xy(view, origin + half)))
     return out
 
 
@@ -535,6 +517,46 @@ def _text_box(view, tag):
            for z in (bb.Min.Z, bb.Max.Z)]
     box = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
     return annotation_audit.centred_box(_xy(view, tag.TagHeadPosition), box)
+
+
+LEADER_ATTACH_PAPER_MM = 0.46    # where a tag's shoulder meets it, over its head point (NOSA Rebar Tag)
+
+
+def _native_leader(view, tag, path, like):
+    """
+    A tag's own leader along path (view mm): its end free at path[0] on the bar or indicator line, its one elbow at
+    path[1] when the path has three points, its shoulder to the text. Returns whether Revit took it.
+    """
+    try:
+        refs = list(tag.GetTaggedReferences())
+    except Exception:
+        refs = []
+    if not refs or not path:
+        return False
+    try:
+        tag.HasLeader = True
+        tag.LeaderEndCondition = DB.LeaderEndCondition.Free
+        tag.SetLeaderEnd(refs[0], _point(view, path[0], like))
+        if len(path) >= 3:
+            tag.SetLeaderElbow(refs[0], _point(view, path[1], like))
+        return True
+    except Exception:
+        return False
+
+
+def _own_leader(item, centre, row):
+    """The square leader of the lower calling-up of a stacked pair: from its own line to its own text."""
+    a, b = item['a'], item['b']
+    side = row['side']
+    text = (row['box'][0] if side == 'right' else row['box'][2], centre[1])
+    if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
+        start = max((a, b), key=lambda q: q[0]) if side == 'right' else min((a, b), key=lambda q: q[0])
+    else:
+        lo, hi = sorted((a[1], b[1]))
+        start = ((a[0] + b[0]) / 2.0, min(max(centre[1], lo), hi))
+    if abs(start[1] - centre[1]) < 1e-6:
+        return [start, text]
+    return [start, (start[0], centre[1]), text]
 
 
 def _move_head(view, tag, centre, offset):
@@ -1911,7 +1933,7 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
         items[e[0]] = it
     out = callout_layout.align_rows(items, box, gap, outside, list(placed) + list(keep_off),
                                     lift=UNDERLINE_LIFT_PAPER_MM * scale,
-                                    obstacles=_seen_bars(view), neighbours=neighbours)
+                                    obstacles=_seen_bars(view), neighbours=neighbours, native=True)
     made = joint.setdefault('made', {})
     joint['stacked'] = set()
     drawn = []
@@ -1931,14 +1953,14 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
             if word is not None:
                 report['notes'] = report.get('notes', 0) + 1
             joint['stacked'].update([key, b[0]])
-            lines = [(key, tag, offset, dict(item, centre=centres[0])),
-                     (b[0], b[2], b[3], dict(b[1], centre=centres[2]))]
+            lines = [(key, tag, offset, dict(item, centre=centres[0], path=r['path'])),
+                     (b[0], b[2], b[3], dict(b[1], centre=centres[2], path=_own_leader(b[1], centres[2], r)))]
         else:
-            lines = [(key, tag, offset, dict(item, centre=r['centre']))]
+            lines = [(key, tag, offset, dict(item, centre=r['centre'], path=r['path']))]
         for k, t, off, it in lines:
             _move_head(view, t, it['centre'], off)
             try:
-                t.HasLeader = False
+                t.HasLeader = False             # measured bare first; its own leader goes on once it is placed
             except Exception:
                 pass
             if zone:
@@ -1946,87 +1968,33 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
                 report['aligned'] = report.get('aligned', 0) + 1
             else:
                 report['marks'] = report.get('marks', 0) + 1
-        drawn.append((r, like, [t for _k, t, _o, _i in lines], zone, item))
+        drawn.append((r, like, [(t, it['centre'][1], it['path']) for _k, t, _o, it in lines], zone, item))
     # the texts measured as Revit writes them: each set flush with its column's edge, its line as long as the text
     # (2026-10-18 audit: estimated widths left a column's texts up to 2.7 mm out of line)
     doc.Regenerate()
-    fill = None
     for r, like, tags_, zone, item in drawn:
         sign = 1.0 if r['side'] == 'right' else -1.0
         near = r['box'][0] if r['side'] == 'right' else r['box'][2]
         reach = 0.0
-        for t in tags_:
+        for t, mid, path in tags_:
             real = _text_box(view, t)
             if real is None:
+                _native_leader(view, t, path, like)
                 continue
             edge = real[0] if r['side'] == 'right' else real[2]
             shift = near - edge
-            if abs(shift) > 1e-3:
-                head = _xy(view, t.TagHeadPosition)
-                t.TagHeadPosition = _point(view, (head[0] + shift, head[1]), t.TagHeadPosition)
+            # Revit's shoulder meets a tag a little over its head point (LEADER_ATTACH_PAPER_MM, measured in Revit
+            # 2026, 2026-10-18): the head that far under the elbow keeps the shoulder level
+            head = _xy(view, t.TagHeadPosition)
+            t.TagHeadPosition = _point(view, (head[0] + shift, mid - LEADER_ATTACH_PAPER_MM * scale),
+                                       t.TagHeadPosition)
+            # Revit's own leader, square, with the tag type's dot (Phase 12, user 2026-10-18): no detail lines
+            _native_leader(view, t, path, like)
             reach = max(reach, real[2] - real[0])
-        path = list(r['path'])
         if reach > 0.0:
-            far = path[-1]
-            path[-1] = (near + sign * reach, far[1])
-            r['box'] = (min(near, path[-1][0]), r['box'][1], max(near, path[-1][0]), r['box'][3])
-        _draw_path(doc, view, path, like, style)
-        if zone or item.get('dot'):
-            dot = path[0]                            # where its line leaves the indicator line (user 2026-10-18)
-        else:
-            dot = path[0] if _on_segment(path[0], item['a'], item['b'], gap / 2.0) else None
-        if dot is not None:
-            # every calling-up's line starts at a dot: on the indicator line it is for, or on its bar (user
-            # 2026-10-18, marked on S2, W1, PC1 and F1)
-            fill = fill or _solid_black(doc)
-            _dot(doc, view, dot, like, DOT_PAPER_MM * scale / 2.0, fill)
+            far = near + sign * reach
+            r['box'] = (min(near, far), r['box'][1], max(near, far), r['box'][3])
         placed.append(r['box'])
-
-
-DOT_PAPER_MM = 1.2          # a calling-up line's dot on its bar
-
-
-def _on_segment(p, a, b, tol):
-    """p within tol of the segment a-b (view mm)."""
-    d = (b[0] - a[0], b[1] - a[1])
-    n2 = d[0] ** 2 + d[1] ** 2
-    if n2 < 1e-9:
-        return ((p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2) ** 0.5 <= tol
-    k = max(0.0, min(1.0, ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1]) / n2))
-    q = (a[0] + k * d[0], a[1] + k * d[1])
-    return ((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2) ** 0.5 <= tol
-
-
-def _solid_black(doc):
-    for frt in DB.FilteredElementCollector(doc).OfClass(DB.FilledRegionType):
-        try:
-            pattern = doc.GetElement(frt.ForegroundPatternId)
-            colour = frt.ForegroundPatternColor
-            if pattern is not None and pattern.GetFillPattern().IsSolidFill and                     colour.Red + colour.Green + colour.Blue == 0:
-                return frt
-        except Exception:
-            continue
-    return None
-
-
-def _dot(doc, view, xy, like, radius_mm, fill):
-    """A filled dot (an outlined circle without a solid fill type) at view coordinates xy."""
-    import math
-    from System.Collections.Generic import List
-    c = _point(view, xy, like)
-    r = radius_mm / _MM_PER_FT
-    a, b = view.RightDirection, view.UpDirection
-    try:
-        if fill is not None:
-            loop = DB.CurveLoop()
-            loop.Append(DB.Arc.Create(c, r, 0.0, math.pi, a, b))
-            loop.Append(DB.Arc.Create(c, r, math.pi, 2.0 * math.pi, a, b))
-            loops = List[DB.CurveLoop]()
-            loops.Add(loop)
-            return DB.FilledRegion.Create(doc, fill.Id, view.Id, loops)
-        return doc.Create.NewDetailCurve(view, DB.Arc.Create(c, r, 0.0, 2.0 * math.pi, a, b))
-    except Exception:
-        return None
 
 
 def _square_mra(view, tag, a, b, r, length, like):
@@ -2229,15 +2197,12 @@ OPENING_RULE_LAYERS = (u'trimmer', u'diagonal', u'opening_ubar')
 def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
     """
     T9.2 on a slab or base plan (SMDSC 4th ed. 3.13, 4th ed. Fig. 6.24): each opening set out from the edges, a string
-    under the plan and one beside it; each bar of a zone stopping short of an edge or an opening dimensioned from
-    that face, along its typical bar. Returns how many dimensions.
+    under the plan and one beside it. Returns how many dimensions.
     """
-    from nosa_utils import callout_layout
-    gap, row = GAP_PAPER_MM * scale, ROW_PAPER_MM * scale
+    row = ROW_PAPER_MM * scale
     like = view.Origin
     holes = [o for h in hosts for o in _openings(view, h)]
     made = 0
-    lines = None
     if holes:
         y = min([box[1]] + [q[1] for q in placed if q[0] < box[2] and q[2] > box[0]]) - row
         if _dimension_chain(doc, view, [box[0], box[2]] + [x for o in holes for x in (o[0], o[2])], y, like, scale,
@@ -2249,41 +2214,7 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
                             style, vertical=True) is not None:
             placed.append((x - row / 2.0, box[1], x + row / 2.0, box[3]))
             made += 1
-    for d in zones:
-        if (d.get('layer') or u'').lower().startswith(OPENING_RULE_LAYERS):
-            continue                      # trimmers and diagonals: their reach is MD OP1's, not a dimension each
-        rebar = d['rebar']
-        line, free = _free_ends(_centreline(rebar, _shown_bar(view, rebar, d['count'])))
-        if line is None or not free:
-            continue                      # a U-bar's or a link's legs end at bends, not in the span
-        a, b = _xy(view, line.GetEndPoint(0)), _xy(view, line.GetEndPoint(1))
-        vertical = abs(b[1] - a[1]) > abs(b[0] - a[0])
-        k, c = (1, a[0]) if vertical else (0, a[1])
-        lo, hi = (box[1], box[3]) if vertical else (box[0], box[2])
-        near = [(o[k], o[k + 2]) for o in holes if o[1 - k] - 1000.0 < c < o[3 - k] + 1000.0]
-        supports = [(lo - 1e6, lo), (hi, hi + 1e6)] + near
-        ends = [(_xy(view, f)[k],) * 2 + (u'',) for f in free]
-        for kind, t0, t1, _layer in presentation.curtailment_dims(ends, supports, tol=EDGE_TOL_MM):
-            if kind != 'cut':
-                continue
-            if lines is None:
-                lines = _seen_bars(view) + _drawn_lines(doc, view)
-            # beside its bar, clear of the zones' lines, the calling-ups' and the texts (S2, Revit 2026: on them)
-            steps = [1.5, -1.5, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0, 7.5, -7.5]
-            others = [s for s in lines if not _on_line(s, c, vertical)]
-            own = [s for s in lines if _on_line(s, c, vertical)]
-            figure, half_ = 4.0 * TEXT_PAPER_MM * scale, 0.6 * TEXT_PAPER_MM * scale
-            high = 1.6 * TEXT_PAPER_MM * scale
-            at = callout_layout.clear_offset(min(t0, t1), max(t0, t1), c, vertical, [k * gap for k in steps],
-                                             placed, others, half_, text=figure, own=own, height=high)
-            dim = _dimension_chain(doc, view, [t0, t1], at, like, scale, style, vertical=vertical)
-            if dim is not None:
-                made += 1
-                # its figure off the lines crossing it (S2: the other zone's typical bar runs through its middle)
-                _figure_clear(view, dim, min(t0, t1), max(t0, t1), at, vertical, others + own, high, figure, like)
-                half = 0.8 * TEXT_PAPER_MM * scale
-                placed.append((at - half, min(t0, t1), at + half, max(t0, t1)) if vertical else
-                              (min(t0, t1), at - half, max(t0, t1), at + half))
+    # no bar lengths on a plan: the bar schedule gives them (user 2026-10-18, S2)
     report['dims'] = report.get('dims', 0) + made
     return made
 

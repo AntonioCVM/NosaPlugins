@@ -212,7 +212,7 @@ def arrange_block(mains, secs, gap=GAP_MM):
     row, row_w, row_h = [], 0.0, 0.0
     for w, h in list(secs) + [(None, None)]:
         if w is None or (row and row_w + gap + w > width + 1e-6):
-            cx = (width - row_w) / 2.0
+            cx = 0.0            # flush left under the plans: sections one under another line up (user 2026-10-18, 4503)
             for rw, rh in row:
                 out.append((cx + rw / 2.0, y + rh / 2.0))
                 cx += rw + gap

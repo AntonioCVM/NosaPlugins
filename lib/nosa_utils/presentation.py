@@ -345,6 +345,17 @@ def links_chain(zones, supports, tol=1.0):
     return xs, labels
 
 
+def between_stations(t, stations, length_mm):
+    """A normalised place t along a curved beam moved halfway between the two chainage stations it falls between."""
+    if not stations or length_mm <= 0.0:
+        return t
+    ch = t * length_mm
+    for a, b in zip(stations, stations[1:]):
+        if a <= ch <= b:
+            return (a + b) / 2.0 / length_mm
+    return t
+
+
 def arc_stations(length_mm, step_mm=None, least_mm=500.0):
     """
     T9.17 curved beam plan: the chainages (mm along its axis) set out on the plan, from 0 to its length: at a round
