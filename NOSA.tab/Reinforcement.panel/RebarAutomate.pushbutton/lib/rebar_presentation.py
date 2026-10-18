@@ -588,6 +588,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     Returns {'typical', 'mra', 'marks', 'notes', 'ticks', 'inside'}.
     """
     report = {'typical': 0, 'mra': 0, 'marks': 0, 'notes': 0, 'ticks': 0, 'inside': 0}
+    made_ticks = []
     scale = max(1, int(getattr(view, 'Scale', 50) or 50))
     gap, outside, row = GAP_PAPER_MM * scale, OUTSIDE_PAPER_MM * scale, ROW_PAPER_MM * scale
     style = _line_style(doc)
@@ -648,7 +649,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             cut.append(d)
             continue
         if d['view_dot'] < 0.5 and hosts is not None:
-            report['ticks'] += _ticks(doc, view, d, hosts, cover_mm, scale, style)
+            report['ticks'] += _ticks(doc, view, d, hosts, cover_mm, scale, style, made_ticks)
         pointers.append(d)
     if hosts and kind in ELEVATION_KINDS:
         # another member's bars ending inside these (a base's starter links up a column) are shown, not marked
@@ -722,7 +723,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             if hosts and kind == 'plan':
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
                 report['strips'] = _strips(doc, view, hosts, box, placed, scale, total_style, text_type)
-                report['arc'] = _arc_setting_out(doc, view, hosts, box, scale, total_style, text_type)
+                report['arc'] = _arc_setting_out(doc, view, hosts, box, scale, total_style, text_type, placed)
                 report['piles'] = _pile_table(doc, view, hosts, box, placed, scale, text_type)
         else:
             # a section: the bars lying in it are told by the arrows at their ends, not by another mark
@@ -757,6 +758,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if kind == 'member_section':
             # under the section's own dimensions (T9.18)
             report['ratio'] = _column_ratio(doc, view, hosts, visible, box, placed, scale, text_type)
+    # the ticks of bars the view no longer draws (a set's or a group's other bars) go: no loose tick (user 2026-10-18)
+    report['ticks'] -= _drop_loose_ticks(doc, view, made_ticks, TICK_REACH_PAPER_MM * scale)
     _fit_crop(view, [box] + [q for q in placed if q not in viewers and q not in grids], CROP_MARGIN_PAPER_MM * scale)
     if beam_elevation:
         # SMDSC 4th ed. Fig. 6.24: the columns as short stubs under the beam, so the link zones, their calling-up
@@ -913,6 +916,33 @@ def _other_concrete(doc, view, hosts):
 VIEWER_HEAD_PAPER_MM = 9.0     # round a section mark's head on a plan: its bubble and arrow
 
 
+def _skew_mark_boxes(view, viewer, line, head):
+    """Boxes along a skew section mark's line, every head's width, out to its drawn heads."""
+    a, b = line
+    L = ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
+    u = ((b[0] - a[0]) / L, (b[1] - a[1]) / L)
+    k0, k1 = 0.0, L
+    try:
+        bb = viewer.get_BoundingBox(view)
+        pts = [_xy(view, bb.Transform.OfPoint(DB.XYZ(x, y, z))) for x in (bb.Min.X, bb.Max.X)
+               for y in (bb.Min.Y, bb.Max.Y) for z in (bb.Min.Z, bb.Max.Z)]
+        ks = [(p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1] for p in pts]
+        k0, k1 = min(ks + [0.0]), max(ks + [L])
+    except Exception:
+        pass
+    out = []
+    step = head
+    k = k0
+    while k <= k1 + 1e-6:
+        c = (a[0] + u[0] * k, a[1] + u[1] * k)
+        # its heads and flags: at the ends of its box along it and round the ends of its cut line
+        ends = k - k0 < 2.0 * head or k1 - k < 2.0 * head or k < 1.5 * head or k > L - 1.5 * head
+        r = head if ends else head / 3.0
+        out.append((c[0] - r, c[1] - r, c[0] + r, c[1] + r))
+        k += step
+    return out
+
+
 def _viewer_boxes(doc, view):
     """
     View boxes (mm) of the section marks a plan draws, for the calling-up to keep off: each one's cut line and its
@@ -939,6 +969,11 @@ def _viewer_boxes(doc, view):
                         _xy(view, t.OfPoint(DB.XYZ(crop.Max.X, 0.0, crop.Max.Z))))
             except Exception:
                 line = None
+        if line is not None and _skew(line[0], line[1]):
+            # a mark on the skew (a curved beam's sections, square to it): small boxes along its line and its heads
+            # where Revit draws them, not the box of the whole diagonal (user 2026-10-18, B2: CH 1000 on mark 1)
+            out.extend(_skew_mark_boxes(view, viewer, line, head))
+            continue
         if line is not None and (abs(line[1][0] - line[0][0]) + abs(line[1][1] - line[0][1])) > 1.0:
             a, b = line
             out.append((min(a[0], b[0]) - head / 6.0, min(a[1], b[1]) - head / 6.0,
@@ -1055,6 +1090,13 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
         for _p, r, _l in placed_:
             if r.Id != lead.Id and r.CanBeHidden(view):
                 hide.Add(r.Id)
+        pts = [placed_[0][0], placed_[len(placed_) // 2][0], placed_[-1][0]]
+        if _bowed(pts):
+            # loose bars laid round a curve (a curved beam's links): an arc through their middles (user 2026-10-18)
+            _draw_arc(doc, view, pts, placed_[len(placed_) // 2][2].Evaluate(0.5, True), style)
+            if ranges is not None:
+                ranges[get_id_value(lead.Id)] = (pts[0], pts[2], pts[1])
+            continue
         lines.append((get_id_value(lead.Id), placed_[len(placed_) // 2][2], placed_[0][0], placed_[-1][0]))
     shown = 0
     for r in by_id.values():
@@ -1069,7 +1111,16 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None):
         if _show_one(r, view, n, n // 2) is None or first is None or last is None:
             continue
         shown += 1
-        lines.append((get_id_value(r.Id), _main_line(r, n // 2) or first, _xy(view, first.Evaluate(0.5, True)),
+        typical = _main_line(r, n // 2) or first
+        pts = [_xy(view, c.Evaluate(0.5, True)) for c in (first, typical, last)]
+        if _bowed(pts):
+            # bars laid round a curve (a curved beam's links): the line across them is an arc through their middles,
+            # not a chord across the whole plan (user 2026-10-18, B2)
+            _draw_arc(doc, view, pts, typical.Evaluate(0.5, True), style)
+            if ranges is not None:
+                ranges[get_id_value(r.Id)] = (pts[0], pts[2], pts[1])
+            continue
+        lines.append((get_id_value(r.Id), typical, _xy(view, first.Evaluate(0.5, True)),
                       _xy(view, last.Evaluate(0.5, True))))
     if hide.Count:
         try:
@@ -1751,6 +1802,30 @@ UNDERLINE_LIFT_PAPER_MM = 0.6      # a calling-up's text stands this far above t
 STACK_GAP_PAPER_MM = 1.0           # between the lines of a stacked calling-up (ALT / STG)
 
 
+def _bowed(pts, share=0.02):
+    """Three points (first, middle, last) off one line by more than share of its length: on a curve."""
+    (a, m, b) = pts
+    d = (b[0] - a[0], b[1] - a[1])
+    L = (d[0] ** 2 + d[1] ** 2) ** 0.5
+    if L < 1e-6:
+        return False
+    off = abs((m[0] - a[0]) * d[1] - (m[1] - a[1]) * d[0]) / L
+    return off > share * L
+
+
+def _draw_arc(doc, view, pts, like, style):
+    """A detail arc through three points (view mm), a line when they are in one line."""
+    try:
+        p = [_point(view, q, like) for q in pts]
+        curve = doc.Create.NewDetailCurve(view, DB.Arc.Create(p[0], p[2], p[1]))
+        if style is not None:
+            curve.LineStyle = style
+        return curve
+    except Exception:
+        _draw_path(doc, view, [pts[0], pts[2]], like, style)
+        return None
+
+
 def _draw_path(doc, view, path, like, style):
     """The detail lines from an indicator line (or a bar) to the far end of its calling-up's underline."""
     for p0, p1 in zip(path, path[1:]):
@@ -1875,13 +1950,13 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
             path[-1] = (near + sign * reach, far[1])
             r['box'] = (min(near, path[-1][0]), r['box'][1], max(near, path[-1][0]), r['box'][3])
         _draw_path(doc, view, path, like, style)
-        if zone:
-            dot = _xy(view, like)                    # where the indicator line crosses its typical bar
+        if zone or item.get('dot'):
+            dot = path[0]                            # where its line leaves the indicator line (user 2026-10-18)
         else:
-            dot = item.get('dot') or (path[0] if _on_segment(path[0], item['a'], item['b'], gap / 2.0) else None)
+            dot = path[0] if _on_segment(path[0], item['a'], item['b'], gap / 2.0) else None
         if dot is not None:
-            # every calling-up's line has its dot on the bar it is for, a zone's where its indicator line crosses
-            # its typical bar, one size throughout (user 2026-10-18)
+            # every calling-up's line starts at a dot: on the indicator line it is for, or on its bar (user
+            # 2026-10-18, marked on S2, W1, PC1 and F1)
             fill = fill or _solid_black(doc)
             _dot(doc, view, dot, like, DOT_PAPER_MM * scale / 2.0, fill)
         placed.append(r['box'])
@@ -2196,14 +2271,14 @@ ARC_NOTE = u'BEAM ON R {:.0f} TO ITS CENTRELINE - CENTRE OFF THE PLAN'
 RADIUS_AT = 0.64     # where along a curved beam its radius is drawn: off its sections (0.5, 0.12) and stations
 
 
-def _arc_setting_out(doc, view, hosts, box, scale, style, text_type):
+def _arc_setting_out(doc, view, hosts, box, scale, style, text_type, placed=()):
     """
     T9.17 on a curved beam's plan (SMDSC 4th ed. 3.13: set out from a centre): its radius written along a line from its
     axis towards the centre, the centre crossed and labelled when it falls on the plan, and stations across the
     beam with their chainage from its start, inside the curve. Returns how many texts.
     """
     import beam_rebar
-    from nosa_utils import presentation
+    from nosa_utils import presentation, callout_layout
     made = 0
     tick, text_h = 3.0 * scale, TEXT_PAPER_MM * scale
 
@@ -2268,9 +2343,41 @@ def _arc_setting_out(doc, view, hosts, box, scale, style, text_type):
             t_angle = math.atan2(o[1], o[0])
             if t_angle > math.pi / 2.0 or t_angle < -math.pi / 2.0:
                 t_angle += math.pi
-            at = (a[0] - o[0] * 3.0 * text_h, a[1] - o[1] * 3.0 * text_h)     # inside: the calling-up is outside
-            made += note(at, presentation.chainage_text(ch), like, t_angle)
+            text = presentation.chainage_text(ch)
+            # near its station line: inside (the calling-up is outside), beside it along the beam, then outside,
+            # deeper inside last, when a section mark stands there (user 2026-10-18, B2: CH 1000 on mark 1)
+            inner = (a[0] - o[0] * 3.0 * text_h, a[1] - o[1] * 3.0 * text_h)
+            outer = (b[0] + o[0] * 3.0 * text_h, b[1] + o[1] * 3.0 * text_h)
+            spots = []
+            for base in (inner, outer):
+                spots.append(base)
+                for j in (1.2, -1.2, 2.4, -2.4):
+                    spots.append((base[0] + o[1] * j * text_h, base[1] - o[0] * j * text_h))
+            # a mark lying along the station: further along its line, in or out, never by the next station
+            spots += [(a[0] - o[0] * k * text_h, a[1] - o[1] * k * text_h) for k in (5.0, 7.0, 9.0)]
+            spots += [(b[0] + o[0] * k * text_h, b[1] + o[1] * k * text_h) for k in (5.0, 7.0, 9.0)]
+            # the first clear, else the one with fewest clashes, a mark's head or a text worse than a mark's thin line
+            big = VIEWER_HEAD_PAPER_MM * scale
+            at = min(spots, key=lambda sp: sum((1 if _thin_mark_box(q, big) else 10)
+                                               for q in placed if callout_layout.overlap(
+                                                   _turned_box(sp, len(text) * 0.7 * text_h, text_h, t_angle), q)))
+            made += note(at, text, like, t_angle)
+            placed = list(placed) + [_turned_box(at, len(text) * 0.7 * text_h, text_h, t_angle)]
     return made
+
+
+def _thin_mark_box(q, head):
+    """One of the small boxes along a skew section mark's line (_skew_mark_boxes), not a head or a text."""
+    w, h = q[2] - q[0], q[3] - q[1]
+    return abs(w - h) < 1.0 and w < 0.8 * head
+
+
+def _turned_box(centre, w, h, angle):
+    """The box (view mm) of a text w by h centred at centre, turned by angle."""
+    c, s = math.cos(angle), math.sin(angle)
+    pts = [(centre[0] + x * c - y * s, centre[1] + x * s + y * c)
+           for x in (-w / 2.0, w / 2.0) for y in (-h / 2.0, h / 2.0)]
+    return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
 
 
 STRIP_MIN_COLUMNS = 2     # a flat slab: the slab stands on this many columns and on no wall or beam
@@ -3583,7 +3690,56 @@ def foreign_bars(doc, view, own_ids, hosts):
     return hide.Count, see_drawing(doc, view, keep, hosts)
 
 
-def _ticks(doc, view, d, hosts, cover_mm, scale, style):
+TICK_REACH_PAPER_MM = 1.5   # a tick this near a drawn bar's end is that end's
+
+
+def _drop_loose_ticks(doc, view, ticks, reach):
+    """Deletes the ticks no drawn bar ends at; returns how many."""
+    if not ticks:
+        return 0
+    doc.Regenerate()
+    ends = []
+    for a, b in _seen_ends(view):
+        ends.extend((a, b))
+    gone = 0
+    for t in ticks:
+        try:
+            c = t.GeometryCurve
+            m = _xy(view, c.Evaluate(0.5, True))
+        except Exception:
+            continue
+        if any(((m[0] - e[0]) ** 2 + (m[1] - e[1]) ** 2) ** 0.5 <= reach for e in ends):
+            continue
+        try:
+            doc.Delete(t.Id)
+            gone += 1
+        except Exception:
+            continue
+    return gone
+
+
+def _seen_ends(view):
+    """(first, last) point of each bar drawn in the view, view mm."""
+    out = []
+    for r in DB.FilteredElementCollector(view.Document, view.Id).OfClass(DBS.Rebar):
+        try:
+            count = r.NumberOfBarPositions
+        except Exception:
+            count = 1
+        for i in range(count):
+            try:
+                if r.IsBarHidden(view, i):
+                    continue
+                curves = list(r.GetTransformedCenterlineCurves(False, False, False,
+                                                               DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i))
+            except Exception:
+                continue
+            if curves:
+                out.append((_xy(view, curves[0].GetEndPoint(0)), _xy(view, curves[-1].GetEndPoint(1))))
+    return out
+
+
+def _ticks(doc, view, d, hosts, cover_mm, scale, style, made_ticks=None):
     """Short 30 degree obliques at the curtailed straight ends of a bar seen along its length."""
     chain = d['chain']
     if not chain:
@@ -3623,6 +3779,8 @@ def _ticks(doc, view, d, hosts, cover_mm, scale, style):
             curve_el = doc.Create.NewDetailCurve(view, line)
             if style is not None:
                 curve_el.LineStyle = style
+            if made_ticks is not None:
+                made_ticks.append(curve_el)
             made += 1
         except Exception:
             continue
