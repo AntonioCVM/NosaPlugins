@@ -288,3 +288,30 @@ def test_align_rows_jogs_never_cross():
         for k2, c, d in segs:
             if k1 != k2:
                 assert not _cross(a, b, c, d), (k1, k2)
+
+
+def test_jog_order_keeps_lines_apart():
+    # a goes up from 0 to 100, b starts at 50 (inside a's rise) and goes up to 150: a must stand beyond b
+    order = cl.jog_order(['a', 'b'], {'a': (0.0, 100.0), 'b': (50.0, 150.0)})
+    assert order == ['b', 'a']
+    # c drops from 100 to 0, e starts at 40 inside it and drops to -50: c must stand beyond e
+    order = cl.jog_order(['c', 'e'], {'c': (100.0, 0.0), 'e': (40.0, -50.0)})
+    assert order == ['e', 'c']
+
+
+def test_align_rows_many_packed_lines_never_cross():
+    # eight loose bars bunched round an opening, all to the left column: no two of their lines may cross
+    box = (0.0, 0.0, 4000.0, 4000.0)
+    items = {}
+    for i, y in enumerate([1900.0, 1950.0, 2000.0, 2020.0, 2050.0, 2100.0, 2130.0, 2160.0]):
+        x = 1500.0 + 40.0 * i
+        items[i] = {'a': (x, y), 'b': (x + 800.0, y), 'length': 600.0, 'height': 125.0, 'side': 'left'}
+    out = cl.align_rows(items, box, 75.0, 500.0)
+    segs = []
+    for k, r in out.items():
+        p = r['path']
+        segs.extend((k, s) for s in zip(p, p[1:]))
+    for i, (k1, s1) in enumerate(segs):
+        for k2, s2 in segs[i + 1:]:
+            if k1 != k2:
+                assert not cl._crosses(s1, s2), (k1, k2)

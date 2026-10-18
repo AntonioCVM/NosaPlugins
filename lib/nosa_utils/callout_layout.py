@@ -219,25 +219,28 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
                   if r[2] is None and r[0] not in risers]
         ups = sorted([k for k, y, u in lifted if u > y + 1e-6], key=lambda k: -dict((a, y) for a, y, _u in lifted)[k])
         downs = sorted([k for k, y, u in lifted if u < y - 1e-6], key=lambda k: dict((a, y) for a, y, _u in lifted)[k])
-        # one sequence for both: a line going up and one going down from one point never share an upright
-        # (C3 2026-10-18); the packing keeps their heights apart, so they never cross either
-        jog_at = {}
-        order = ups + downs
         ys = dict((a, (y, u)) for a, y, u in lifted)
+        order = jog_order(ups + downs, ys)
+        jog_at = {}
+        prev = 0.0
         for i, k in enumerate(order):
             base = (i + 1.0) / (len(order) + 1.0)
             y0, y1 = sorted(ys[k])
-            # clear of what is drawn in the gap (a section mark's arrow beside a column, 2026-10-18)
+            # clear of what is drawn in the gap (a section mark's arrow beside a column, 2026-10-18), but always
+            # beyond the jog before it, so the order that keeps the lines from crossing holds (S1, 2026-10-18)
+            room = 1.0 - (len(order) - i) * 0.02
+            fs = [f for f in [base] + [j / 40.0 for j in range(1, 40)] if prev + 0.01 <= f <= room] or [base]
             best = None
-            for f in sorted([base] + [j / 20.0 for j in range(1, 20)], key=lambda q: abs(q - base)):
+            for f in sorted(fs, key=lambda q: abs(q - base)):
                 x = edge + sign * start * f
                 over = sum(min(q[3], y1) - max(q[1], y0) for q in placed
                            if q[0] - gap / 4.0 < x < q[2] + gap / 4.0 and q[1] < y1 and q[3] > y0)
                 if best is None or over < best[0] - 1e-6:
-                    best = (over, x)
+                    best = (over, x, f)
                 if over <= 0.0:
                     break
             jog_at[k] = best[1]
+            prev = best[2]
         for (key, end, span, _w), c in zip(rows, at):
             n, h = items[key]['length'], items[key]['height']
             u = c - h / 2.0 - lift                    # the underline's height
@@ -257,6 +260,32 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
             bx = (min(near, far[0]), c - h / 2.0, max(near, far[0]), c + h / 2.0)
             placed.append(bx)
             out[key] = {'centre': centre, 'path': path, 'box': bx, 'side': side}
+    return out
+
+
+def jog_order(keys, ys):
+    """
+    The order, nearest the member first, of the square jogs of lines packed off their own height (ys {key: (from,
+    to)}) that keeps them from crossing: a line whose upright spans another's start runs beyond it, and one whose
+    upright spans another's end runs inside it. keys gives the order to keep where nothing forces one.
+    """
+    outer = dict((k, set()) for k in keys)          # outer[k]: the jogs k must stand beyond
+    for a in keys:
+        lo, hi = sorted(ys[a])
+        for b in keys:
+            if a == b:
+                continue
+            if lo < ys[b][0] < hi:
+                outer[a].add(b)                      # b's run in from its start crosses a's upright unless a is out
+            if lo < ys[b][1] < hi:
+                outer[b].add(a)                      # b's run out from its end crosses a's upright unless b is out
+    done, out = set(), []
+    while len(out) < len(keys):
+        free = [k for k in keys if k not in done and not (outer[k] - done)]
+        if not free:                                 # no order keeps every line clear: the fewest crossings
+            free = sorted([k for k in keys if k not in done], key=lambda k: len(outer[k] - done))[:1]
+        out.append(free[0])
+        done.add(free[0])
     return out
 
 
