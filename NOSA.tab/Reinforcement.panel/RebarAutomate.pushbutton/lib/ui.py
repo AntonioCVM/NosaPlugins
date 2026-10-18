@@ -307,8 +307,11 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                             get_id_value(e.Category.Id) == _cat_id('OST_StructuralFoundation')]
                 floors = [e for e in elements if e.Category is not None and
                           get_id_value(e.Category.Id) == _cat_id('OST_Floors')]
+                # Phase 10: the Slabs tab acts on floors and foundation slabs, Bases & pile caps on the rest
+                footings, floors = window._slab_tab_hosts(footings, floors)
                 if not footings and not floors:
-                    forms.alert(u'No Structural Foundations or Floors selected.')
+                    forms.alert(u'Nothing this tab reinforces is selected: floors and foundation slabs on Slabs, '
+                                u'pad and strip footings and pile caps on Bases & pile caps.')
                     return
 
                 footings_only_extras = (values['include_side_rebar'] or values['include_dowels']
@@ -1073,7 +1076,7 @@ class RebarAutomateWindow(_tab_shell.ShellMixin, _tab_columns.ColumnsMixin, _tab
         return re_engine.get_native_cover_mm(self.doc, host, face_type_name, default_mm)
 
     def _update_preview(self):
-        footings, floors = self._selected_hosts()
+        footings, floors = self._slab_tab_hosts(*self._selected_hosts())
         preview_host = (footings + floors)[0] if (footings or floors) else None
         preview_kind = u'foundation' if footings else (u'slab' if floors else None)
 

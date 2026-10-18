@@ -32,7 +32,7 @@ def test_selection_text_and_tab():
     t = sh.selection_text({'beam': 2, 'slab': 1}, [u'B10', u'B11', u''])
     assert t == u'Selected: 1 slab · 2 beams (B10, B11)'
     assert sh.tab_for({'beam': 2, 'slab': 1}) == 'TabBeams'
-    assert sh.tab_for({'base': 1}) == 'TabSlabs'
+    assert sh.tab_for({'base': 1}) == 'TabBases'
     assert sh.tab_for({}) is None
 
 
@@ -47,8 +47,9 @@ def test_status_number_and_visibility():
     assert not sh.looks_failed(u'Created 10 bars in 2 beams; no clashes')
     assert sh.number_ok(u'150') and not sh.number_ok(u'15o')
     assert sh.number_ok(u'Auto', allow_auto=True) and not sh.number_ok(u'Auto')
-    assert sh.visible_for(u'floors', {}) and sh.visible_for(u'footings', {'beam': 1})
-    assert not sh.visible_for(u'floors', {'base': 2}) and sh.visible_for(u'footings', {'base': 2})
+    assert sh.visible_for(u'floors', u'floors') and not sh.visible_for(u'footings', u'floors')
+    assert not sh.visible_for(u'floors', u'footings') and sh.visible_for(u'footings', u'footings')
+    assert sh.visible_for(None, u'footings')
 
 
 def test_xaml_is_well_formed_and_keeps_every_control_the_code_uses():

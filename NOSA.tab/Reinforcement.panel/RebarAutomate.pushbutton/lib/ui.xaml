@@ -283,7 +283,7 @@
                 <Path Data="M2,9 L22,9 L22,14 L2,14 Z M4,14 L4,20 M20,14 L20,20" Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.6"
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"
                       StrokeLineJoin="Round" Margin="0,0,12,0" VerticalAlignment="Center"/>
-                <TextBlock Text="Slabs &amp; bases" VerticalAlignment="Center"/>
+                <TextBlock Text="Slabs" VerticalAlignment="Center"/>
             </StackPanel>
         </TabItem.Header>
         <Grid>
@@ -293,12 +293,28 @@
             </Grid.ColumnDefinitions>
             <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="24,20,16,24">
-                    <TextBlock Text="Select floors and structural foundations in the model. Options that do not apply to the selection are hidden." Style="{StaticResource RA_Intro}"/>
+                    <TextBlock Name="TxtSlabsIntro" Text="Select floors and foundation slabs (rafts) in the model." Style="{StaticResource RA_Intro}"/>
                     <Grid Margin="0,0,0,8">
                         <TextBlock Text="DESIGN REINFORCEMENT" Style="{StaticResource RA_GroupTitle}" Margin="0"/>
                         <Button Name="BtnDefaultsSlabs" Content="Reset to defaults" Style="{StaticResource RA_LinkButton}"
                                 HorizontalAlignment="Right" ToolTip="Put back the values this tab opens with."/>
                     </Grid>
+            <Border Style="{DynamicResource Card}" Margin="0,0,0,12" Name="CardLimitsSlabs">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Detailing limits (EC2, UK NA)" Style="{StaticResource RA_SectionTitle}" Margin="0,0,0,4"/>
+                        <TextBlock Name="TxtLimitsSlabs" Text="Select an element to see its minimum steel and maximum pitch." FontSize="11"
+                                   TextWrapping="Wrap" Foreground="{DynamicResource TextColor}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Name="BtnMinSlabs" Content="Apply EC2 minimum" Margin="12,0,0,0" Padding="12,4"
+                            VerticalAlignment="Center"
+                            ToolTip="Fill the mats with the lightest bar and pitch meeting the EC2 minimum for the selected thickness (9.2.1.1 / 9.3.1.1). A minimum, not a design: check against the calculation."/>
+                </Grid>
+            </Border>
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Bottom mat" Style="{StaticResource RA_SectionTitle}"/>
@@ -706,6 +722,18 @@
             </Border>
         </Grid>
         </TabItem>
+        <!-- Bases & pile caps: the Slabs form, moved here when this tab is chosen (one form, two filters) -->
+        <TabItem Name="TabBases">
+        <TabItem.Header>
+            <StackPanel Orientation="Horizontal">
+                <Path Data="M9,3 L15,3 L15,11 L21,11 L21,18 L3,18 L3,11 L9,11 Z M6,18 L6,22 M18,18 L18,22" Width="18" Height="18" Stretch="Uniform" StrokeThickness="1.6"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"
+                      StrokeLineJoin="Round" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <TextBlock Text="Bases &amp; pile caps" VerticalAlignment="Center"/>
+            </StackPanel>
+        </TabItem.Header>
+        </TabItem>
+
         <TabItem Name="TabColumns">
         <TabItem.Header>
             <StackPanel Orientation="Horizontal">
@@ -1247,6 +1275,22 @@
                         <Button Name="BtnDefaultsWalls" Content="Reset to defaults" Style="{StaticResource RA_LinkButton}"
                                 HorizontalAlignment="Right" ToolTip="Put back the values this tab opens with."/>
                     </Grid>
+            <Border Style="{DynamicResource Card}" Margin="0,0,0,12" Name="CardLimitsWalls">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Detailing limits (EC2, UK NA)" Style="{StaticResource RA_SectionTitle}" Margin="0,0,0,4"/>
+                        <TextBlock Name="TxtLimitsWalls" Text="Select an element to see its minimum steel and maximum pitch." FontSize="11"
+                                   TextWrapping="Wrap" Foreground="{DynamicResource TextColor}"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Name="BtnMinWalls" Content="Apply EC2 minimum" Margin="12,0,0,0" Padding="12,4"
+                            VerticalAlignment="Center"
+                            ToolTip="Fill both meshes with the lightest bar and pitch meeting the EC2 minimum for the selected wall (9.6.2 / 9.6.3). A minimum, not a design: check against the calculation."/>
+                </Grid>
+            </Border>
                     <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                         <StackPanel>
                             <TextBlock Text="Vertical bars" Style="{StaticResource RA_SectionTitle}"/>
