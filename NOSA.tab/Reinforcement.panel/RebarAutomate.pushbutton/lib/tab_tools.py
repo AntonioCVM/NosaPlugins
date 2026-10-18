@@ -513,18 +513,24 @@ class ToolsMixin(object):
                     self.doc, group, re_engine, rebar_detailing, view_plan, numbers,
                     beam_rebar=beam_rebar, stair_host=stair_host, place_on_sheets=False,
                     tag=self.ChkViewsTags.IsChecked == True) for group in groups]
+            reviews = []
             for report in reports:
                 views += len(report['views'])
                 sheets += len(report['sheets'])
                 tags += report['tags']
                 errors.extend(report['errors'])
+                if report.get('review'):
+                    reviews.append(report['review']['text'])
         finally:
             self.SetLoading(False)
         msg = u'{} view(s), {} sheet(s) and {} tag(s) created for {} element(s).'.format(
             views, sheets, tags, len(groups))
         if update_text:
             msg += u'\n\n' + update_text
-        if errors:
+        if reviews:
+            # T12.8: the automatic review of the drawings just made, their warnings grouped
+            msg += u'\n\n' + u'\n'.join(reviews)
+        elif errors:
             msg += u'\n\n{} issue(s):\n{}'.format(len(errors), u'\n'.join(errors[:10]))
         self.TxtDetailingStatus.Text = msg
         forms.alert(msg, title=u'NOSA — Create Views')
