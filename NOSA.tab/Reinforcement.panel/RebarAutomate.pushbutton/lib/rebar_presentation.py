@@ -1151,7 +1151,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
     bar_lines = [_cl.segment_box(a, b, gap / 3.0) for a, b in bars] if flat else []
     slots = presentation.layer_slots(zones)
     pending, lines = [], list(bar_lines)
-    if _is_plan(view):
+    if flat:
         # a slab's openings: no calling-up in the hole (user 2026-10-18, S1 trimmers)
         seen = set()
         for z in zones:
@@ -1161,7 +1161,9 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             seen.add(hid)
             host = doc.GetElement(z['rebar'].GetHostId())
             if host is not None:
-                lines.extend(_openings(view, host))
+                holes = _openings(view, host)
+                lines.extend(holes)
+                placed.extend(holes)      # every later text too, the fallbacks inside the member included
     for d in sorted(zones, key=lambda z: (slots.get(z['id'], 0.5), z['id'])):
         rebar, n = d['rebar'], d['count']
         frac = slots.get(d['id'], 0.5)
