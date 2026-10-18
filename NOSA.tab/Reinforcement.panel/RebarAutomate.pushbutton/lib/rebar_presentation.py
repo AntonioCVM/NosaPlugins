@@ -310,6 +310,102 @@ def _zone_text(doc, d):
                                               _text(rebar, NOTE_PARAM)).strip()
 
 
+def _view_grids(view):
+    """
+    The grids a view shows. A plan shows them all, those its crop still leaves out too: the crop is the member's
+    while the calling-ups are laid out, then grows round them (2026-10-18: grid C, past the slab, was missed).
+    """
+    if isinstance(view, DB.ViewPlan):
+        return list(DB.FilteredElementCollector(view.Document).OfClass(DB.Grid))
+    return list(DB.FilteredElementCollector(view.Document, view.Id).OfClass(DB.Grid))
+
+
+def _grid_curves(grid, view):
+    """
+    A grid's lines in the view, at the model's extents: a new view's own are cut to its crop, which is still the
+    member's when the calling-ups are laid out (2026-10-18: grid C, past the slab, was not there yet).
+    """
+    for extent in (DB.DatumExtentType.Model, DB.DatumExtentType.ViewSpecific):
+        try:
+            curves = list(grid.GetCurvesInView(extent, view))
+            if curves:
+                return curves
+        except Exception:
+            continue
+    try:
+        return [grid.Curve]
+    except Exception:
+        return []
+
+
+def _grid_boxes(view, pad):
+    """
+    The upright grid lines the view draws as thin boxes, view mm: the side columns of texts keep off them (a level
+    one would push a column the whole width of the view away).
+    """
+    out = []
+    for g in _view_grids(view):
+        curves = _grid_curves(g, view)
+        for c in curves:
+            a, b = _xy(view, c.GetEndPoint(0)), _xy(view, c.GetEndPoint(1))
+            if abs(a[0] - b[0]) < 1.0:
+                out.append((a[0] - pad, min(a[1], b[1]), a[0] + pad, max(a[1], b[1])))
+    return out
+
+
+def _grid_blocks(view):
+    """The grid lines the view draws, as rows of marks meet them: {'top'/'bottom': [x], 'left'/'right': [y]}."""
+    out = {'top': [], 'bottom': [], 'left': [], 'right': []}
+    for g in _view_grids(view):
+        curves = _grid_curves(g, view)
+        for c in curves:
+            a, b = _xy(view, c.GetEndPoint(0)), _xy(view, c.GetEndPoint(1))
+            if abs(a[0] - b[0]) < 1.0:
+                out['top'].append(a[0])
+                out['bottom'].append(a[0])
+            elif abs(a[1] - b[1]) < 1.0:
+                out['left'].append(a[1])
+                out['right'].append(a[1])
+    return out
+
+
+def _seen_bars(view):
+    """The straight bits of the bars drawn in the view, view mm: what a calling-up's line must not run along."""
+    out = []
+    doc = view.Document
+    for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
+        try:
+            count = r.NumberOfBarPositions
+        except Exception:
+            count = 1
+        for i in range(count):
+            try:
+                if r.IsBarHidden(view, i):
+                    continue
+                curves = r.GetTransformedCenterlineCurves(False, False, False,
+                                                          DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i)
+            except Exception:
+                continue
+            for c in curves:
+                if isinstance(c, DB.Line):
+                    a, b = _xy(view, c.GetEndPoint(0)), _xy(view, c.GetEndPoint(1))
+                    if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
+                        out.append((a, b))
+    return out
+
+
+def _text_box(view, tag):
+    """A tag's text as Revit writes it, view mm: its box less the part run on to the bar it tags."""
+    from nosa_utils import annotation_audit
+    bb = tag.get_BoundingBox(view)
+    if bb is None:
+        return None
+    pts = [_xy(view, DB.XYZ(x, y, z)) for x in (bb.Min.X, bb.Max.X) for y in (bb.Min.Y, bb.Max.Y)
+           for z in (bb.Min.Z, bb.Max.Z)]
+    box = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+    return annotation_audit.centred_box(_xy(view, tag.TagHeadPosition), box)
+
+
 def _move_head(view, tag, centre, offset):
     """Put the tag's text box centre at `centre` (view mm)."""
     head = (centre[0] - offset[0], centre[1] - offset[1])
@@ -449,6 +545,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     # arrows at bar ends on beam elevations and sections only: a wall elevation's trimmers filled it with them
     ended = [d for d in pointers if (beam_elevation or kind in SIZE_KINDS) and _end_marked(view, d)]
     joint = None
+    grids = []
     if beam_elevation:
         # SMDSC 4th ed. 6.2.3 beam elevation: the main bars' calling-up close to the beam's faces, the arrows to where
         # each bar stops beyond it (user 2026-10-12), then where they stop dimensioned from the supports (T9.3) and
@@ -465,15 +562,22 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
         bars_x = [x for d in pointers for x in _vertical_x(d)] if kind in LEVEL_ZONE_KINDS else []
         panel = kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members)
+        column = kind == 'column_elevation'
         joint = {'gap': gap, 'text_type': text_type, 'relations': presentation.relations(zones)} \
-            if (plan or panel) else None
+            if (plan or panel or column) else None
+        if column:
+            # a column's calling-ups in one column on its right, clear of the levels on its left (user 2026-10-12),
+            # each on a line leaving its bar or indicator line square (2026-10-18 audit: oblique leaders)
+            joint['side'] = 'right'
         made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
                       level=kind in LEVEL_ZONE_KINDS, avoid=bars_x, panel=panel, joint=joint)
-        if plan:
-            _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters,
-                      joint=joint)
+        if plan or panel or column:
+            _pointers(doc, view, pointers, det, tag_types, box, gap, near if column else outside, placed, report,
+                      clusters=clusters, joint=joint)
         if joint is not None:
-            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style)
+            # the grid lines drawn: a column of texts stands clear of them (2026-10-18 audit, S1: on grid C)
+            grids = _grid_boxes(view, gap / 2.0)
+            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style, keep_off=grids)
         if plan:
             if hosts and kind == 'plan':
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
@@ -484,6 +588,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             # a section: the bars lying in it are told by the arrows at their ends, not by another mark
             ends = set(d['id'] for d in ended)
             items = pointers if elevation else [d for d in pointers if d['id'] not in ends]
+            if panel or column:
+                items = []                           # its loose bars went with its zones (_layout_joint)
             # a column's main bars on its right, clear of the levels on its left (user 2026-10-12)
             _marks(doc, view, items, cut, det, tag_types, box, gap, near, placed, report, elevation,
                    per_set=kind in PER_SET_KINDS, clusters=clusters,
@@ -509,7 +615,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if kind == 'member_section':
             # under the section's own dimensions (T9.18)
             report['ratio'] = _column_ratio(doc, view, hosts, visible, box, placed, scale, text_type)
-    _fit_crop(view, [box] + [q for q in placed if q not in viewers], CROP_MARGIN_PAPER_MM * scale)
+    _fit_crop(view, [box] + [q for q in placed if q not in viewers and q not in grids], CROP_MARGIN_PAPER_MM * scale)
     if beam_elevation:
         # SMDSC 4th ed. Fig. 6.24: the columns as short stubs under the beam, so the link zones, their calling-up
         # and dimensions below read clear (a crop would hide the dimensions: Revit drops those whose references
@@ -630,6 +736,22 @@ def _viewer_boxes(doc, view):
                         max(a[0], b[0]) + head / 6.0, max(a[1], b[1]) + head / 6.0))
             for p in (a, b):
                 out.append((p[0] - head, p[1] - head, p[0] + head, p[1] + head))
+            # and the heads where Revit draws them: the ends of the mark's own box (2026-10-18 audit: a text in
+            # the column ran into head E, drawn past the crop's end)
+            try:
+                drawn = _box_in_view(view, viewer.get_BoundingBox(view))
+            except Exception:
+                drawn = None
+            if drawn is not None:
+                # along the line to the drawn ends only: across it the box is the section's depth
+                if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
+                    y = (a[1] + b[1]) / 2.0
+                    out.append((drawn[0], y - head, drawn[0] + 2.0 * head, y + head))
+                    out.append((drawn[2] - 2.0 * head, y - head, drawn[2], y + head))
+                else:
+                    x = (a[0] + b[0]) / 2.0
+                    out.append((x - head, drawn[1], x + head, drawn[1] + 2.0 * head))
+                    out.append((x - head, drawn[3] - 2.0 * head, x + head, drawn[3]))
             continue
         try:
             bb = viewer.get_BoundingBox(view)
@@ -1215,7 +1337,7 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             except Exception:
                 pass
     doc.Regenerate()
-    if flat:
+    if flat or joint is not None:
         return _aligned_zones(doc, view, pending, joint if joint is not None else {'gap': gap})
     for d, mra, a3, b3, junction in pending:
         tag = doc.GetElement(mra.TagId)
@@ -1250,6 +1372,19 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
         made[d['id']] = r['box']
     _line_up(doc, view, line_up)
     return made
+
+
+def _skew(a, b, lo_deg=20.0, hi_deg=70.0):
+    """A bar neither level nor upright in the view: lo_deg to hi_deg off the level."""
+    import math
+    angle = math.degrees(math.atan2(abs(b[1] - a[1]), abs(b[0] - a[0])))
+    return lo_deg < angle < hi_deg
+
+
+def _vertical_x(d):
+    """The view x (mm) of a bar seen along its length up the view, else nothing."""
+    (ax, ay), (bx, by) = d['ends']
+    return [(ax + bx) / 2.0] if abs(by - ay) > 3.0 * abs(bx - ax) else []
 
 
 def _beside_column(view, tag, a, b, junction, like, w, h, offset, box, placed, gap, outside):
@@ -1319,12 +1454,12 @@ def _aligned_zones(doc, view, pending, joint):
         w, h, offset = _size(view, tag, _full_label(doc, view, d, tag.GetTypeId()) or _zone_text(doc, d))
         # an upright indicator line is left a text's height off its typical bar: on the bar, the line read as it
         joint.setdefault('items', []).append((d['id'], {
-            'a': _xy(view, a3), 'b': _xy(view, b3), 'length': w, 'height': h,
+            'a': _xy(view, a3), 'b': _xy(view, b3), 'length': w, 'height': h, 'side': joint.get('side'),
             'at': _xy(view, junction)[1] + h + joint.get('gap', 0.0)}, tag, offset, junction, True))
     return joint.setdefault('made', {})
 
 
-def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style):
+def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, keep_off=()):
     """
     Every calling-up of a plan or a wall elevation, its zones' and its loose bars', in one layout (user 2026-10-18:
     which bar each text is for must be plain): every text level on a line under it, the line leaving the zone's
@@ -1355,9 +1490,12 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style):
             it['length'] = max(it['length'], other['length'])
             it['height'] = it['height'] + word_h + other['height'] + 2.0 * inner
         items[e[0]] = it
-    out = callout_layout.align_rows(items, box, gap, outside, placed, lift=UNDERLINE_LIFT_PAPER_MM * scale)
+    out = callout_layout.align_rows(items, box, gap, outside, list(placed) + list(keep_off),
+                                    lift=UNDERLINE_LIFT_PAPER_MM * scale,
+                                    obstacles=_seen_bars(view))
     made = joint.setdefault('made', {})
     joint['stacked'] = set()
+    drawn = []
     for key, item, tag, offset, like, zone in entries:
         r = out.get(key)
         if r is None:
@@ -1389,7 +1527,30 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style):
                 report['aligned'] = report.get('aligned', 0) + 1
             else:
                 report['marks'] = report.get('marks', 0) + 1
-        _draw_path(doc, view, r['path'], like, style)
+        drawn.append((r, like, [t for _k, t, _o, _i in lines]))
+    # the texts measured as Revit writes them: each set flush with its column's edge, its line as long as the text
+    # (2026-10-18 audit: estimated widths left a column's texts up to 2.7 mm out of line)
+    doc.Regenerate()
+    for r, like, tags_ in drawn:
+        sign = 1.0 if r['side'] == 'right' else -1.0
+        near = r['box'][0] if r['side'] == 'right' else r['box'][2]
+        reach = 0.0
+        for t in tags_:
+            real = _text_box(view, t)
+            if real is None:
+                continue
+            edge = real[0] if r['side'] == 'right' else real[2]
+            shift = near - edge
+            if abs(shift) > 1e-3:
+                head = _xy(view, t.TagHeadPosition)
+                t.TagHeadPosition = _point(view, (head[0] + shift, head[1]), t.TagHeadPosition)
+            reach = max(reach, real[2] - real[0])
+        path = list(r['path'])
+        if reach > 0.0:
+            far = path[-1]
+            path[-1] = (near + sign * reach, far[1])
+            r['box'] = (min(near, path[-1][0]), r['box'][1], max(near, path[-1][0]), r['box'][3])
+        _draw_path(doc, view, path, like, style)
         placed.append(r['box'])
 
 
@@ -2495,7 +2656,7 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
     if not items:
         return
     items = merge_singles(doc, items, clusters)
-    kind = ZONE_TAG if _is_plan(view) else POINTER_TAG
+    kind = ZONE_TAG if (_is_plan(view) or joint is not None) else POINTER_TAG
     type_id = tag_types.get(kind) or det.tag_type_for_view(doc, view)
     fractions = _pointer_fractions(items)
     tags, indices = [], {}
@@ -2524,11 +2685,15 @@ def _pointers(doc, view, items, det, tag_types, box, gap, outside, placed, repor
         layout.append({'id': d['id'], 'anchor': _xy(view, anchor), 'length': size[0], 'height': size[1]})
     straight = [(d, tag, anchor) for d, tag, anchor in tags
                 if d['id'] in sizes and d.get('ends') and _arc_of(d['rebar'], indices.get(d['id'])) is None]
-    if _is_plan(view) and straight and joint is not None:
-        # a plan's loose bars called up as its zones are, in the same columns (Arup manual 1.5.1)
+    if straight and joint is not None:
+        # a plan's or a wall elevation's loose bars called up as its zones are, in the same columns (Arup manual
+        # 1.5.1); a bar on the skew (an opening's diagonals) by a level line leaving the bar where it is marked
         for d, tag, anchor in straight:
+            a, b = d['ends']
+            if _skew(a, b):
+                a = b = _xy(view, anchor)
             joint.setdefault('items', []).append((('bar', d['id']), {
-                'a': d['ends'][0], 'b': d['ends'][1], 'length': sizes[d['id']][0], 'height': sizes[d['id']][1],
+                'a': a, 'b': b, 'length': sizes[d['id']][0], 'height': sizes[d['id']][1], 'side': joint.get('side'),
                 'at': _xy(view, anchor)[1]}, tag, sizes[d['id']][2], anchor, False))
         done = set(d['id'] for d, _t, _a in straight)
         tags = [t for t in tags if t[0]['id'] not in done]
@@ -2807,7 +2972,7 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             elif forced == 'left':
                 edges = {'left': min([member[0]] + [q[0] for q in near if q[2] <= member[0] + 1.0])}
     places = callout_layout.place_pointers(layout, box, gap, outside, edges=edges,
-                                           free_gap=FREE_GAP_PAPER_MM * scale)
+                                           free_gap=FREE_GAP_PAPER_MM * scale, blocks=_grid_blocks(view))
     pending = []
     for key, tag, anchor in entries:
         if key not in places or not tag.IsValidObject:
@@ -2840,8 +3005,11 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
     _line_up(doc, view, pending)
 
 
-def see_drawing(doc, view, rebars):
-    """Bars detailed on another drawing than the view's sheet: thick dashed, 'SEE DRG nnnn' (SMDSC 4th ed. 6.2.2)."""
+def see_drawing(doc, view, rebars, hosts=()):
+    """
+    Bars detailed on another drawing than the view's sheet: thick dashed, 'SEE DRG nnnn' (SMDSC 4th ed. 6.2.2), the
+    note level outside the member on a line leaving the bar (2026-10-18 audit: it stood over the column's bars).
+    """
     sheet = view.get_Parameter(DB.BuiltInParameter.VIEWPORT_SHEET_NUMBER)
     view_drawing = (sheet.AsString() or u'') if sheet is not None else u''
     if not view_drawing:
@@ -2862,10 +3030,67 @@ def see_drawing(doc, view, rebars):
         if see in noted:
             continue            # one note a drawing: eight starters up a column wrote it eight times over (2026-10-18)
         line = _main_line(rebar, 0)
-        if line is not None and _note(doc, view, line.Evaluate(0.5, True), see, text_type):
+        if line is not None and _see_note(doc, view, line, see, text_type, hosts):
             noted.add(see)
             n += 1
     return n
+
+
+def _see_note(doc, view, line, text, text_type, hosts):
+    """'SEE DRG nnnn' beside the member, clear of what is written, on a level line from the bar."""
+    scale = max(1, int(getattr(view, 'Scale', 50) or 50))
+    boxes = [_box_in_view(view, h.get_BoundingBox(None)) for h in hosts if h is not None]
+    boxes = [b for b in boxes if b is not None]
+    if not boxes:
+        return _note(doc, view, line.Evaluate(0.5, True), text, text_type)
+    member = (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+    taken = _written(doc, view)
+    h = TEXT_PAPER_MM * scale
+    w = (len(text) * 0.62 + 0.4) * h
+    lift, gap = UNDERLINE_LIFT_PAPER_MM * scale, GAP_PAPER_MM * scale
+    out = OUTSIDE_PAPER_MM * scale
+    for t in (0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8):
+        p = _xy(view, line.Evaluate(t, True))
+        if not (member[1] <= p[1] <= member[3]):
+            continue
+        right = member[2] - p[0] <= p[0] - member[0]
+        x0 = member[2] + out if right else member[0] - out - w
+        bx = (x0, p[1] + lift, x0 + w, p[1] + lift + h)
+        if any(_hit(bx, q, gap) for q in taken):
+            continue
+        note = _note(doc, view, _point(view, (x0, p[1] + lift + 1.2 * h), line.GetEndPoint(0)), text, text_type)
+        if note is None:
+            return None
+        far = x0 + w if right else x0
+        _draw_path(doc, view, [p, (far, p[1])], line.GetEndPoint(0), _line_style(doc, TOTAL_STYLE, 1))
+        return note
+    return None
+
+
+def _hit(a, b, gap):
+    return a[0] < b[2] + gap and b[0] < a[2] + gap and a[1] < b[3] + gap and b[1] < a[3] + gap
+
+
+def _box_in_view(view, bb):
+    if bb is None:
+        return None
+    pts = [_xy(view, DB.XYZ(x, y, z)) for x in (bb.Min.X, bb.Max.X) for y in (bb.Min.Y, bb.Max.Y)
+           for z in (bb.Min.Z, bb.Max.Z)]
+    return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+
+
+def _written(doc, view):
+    """The texts already in the view (tags as they write, notes), view mm."""
+    out = []
+    for tag in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag):
+        b = _text_box(view, tag)
+        if b is not None:
+            out.append(b)
+    for note in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.TextNote):
+        b = _box_in_view(view, note.get_BoundingBox(view))
+        if b is not None:
+            out.append(b)
+    return out
 
 
 END_INSIDE_TOL_MM = 5.0
@@ -2914,7 +3139,7 @@ def foreign_bars(doc, view, own_ids, hosts):
             view.HideElements(hide)
         except Exception:
             pass
-    return hide.Count, see_drawing(doc, view, keep)
+    return hide.Count, see_drawing(doc, view, keep, hosts)
 
 
 def _ticks(doc, view, d, hosts, cover_mm, scale, style):

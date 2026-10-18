@@ -174,6 +174,64 @@ def test_stack_flush_with_the_member():
     assert left == [(30.0, 10.0), (40.0, 2.5)]
 
 
+def test_align_rows_zones_end_to_end_keep_apart():
+    # two zones on one row, the inner one past the outer: its line rises from its middle, never runs over the outer
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = {'outer': {'a': (100.0, 3000.0), 'b': (400.0, 3000.0), 'length': 1200.0, 'height': 250.0},
+             'inner': {'a': (600.0, 3000.0), 'b': (3000.0, 3000.0), 'length': 1500.0, 'height': 250.0}}
+    out = cl.align_rows(items, box, 50.0, 600.0, lift=20.0)
+    inner = out['inner']['path']
+    # it rises a quarter along, nearer the column: its typical bar is at its middle
+    assert inner[0] == (1200.0, 3000.0) and inner[1][0] == 1200.0 and inner[1][1] > 3000.0
+    outer = out['outer']['path']
+    for a, b in zip(inner, inner[1:]):
+        for c, d in zip(outer, outer[1:]):
+            assert not _cross(a, b, c, d)
+    # no part of the inner one's line lies on the row the outer one's runs along
+    assert all(abs(p[1] - 3000.0) > 1.0 for p in inner[1:])
+
+
+def test_riser_clear_of_bars():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = {'outer': {'a': (100.0, 3000.0), 'b': (400.0, 3000.0), 'length': 1200.0, 'height': 250.0},
+             'inner': {'a': (600.0, 3000.0), 'b': (3000.0, 3000.0), 'length': 1500.0, 'height': 250.0}}
+    # a bar standing where the rise would be, and a level bar at the first height it would run out at
+    bars = [((1200.0, 2000.0), (1200.0, 5000.0)), ((0.0, 3300.0), (8000.0, 3300.0))]
+    out = cl.align_rows(items, box, 50.0, 600.0, lift=20.0, obstacles=bars)
+    rise, run = out['inner']['path'][0], out['inner']['path'][1]
+    assert abs(rise[0] - 1200.0) > 150.0 and abs(run[1] - 3300.0) >= 150.0
+
+
+def test_up_and_down_jogs_from_one_point_apart():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = dict(('k%d' % i, {'a': (100.0, 3000.0), 'b': (8000.0, 3000.0), 'length': 1200.0, 'height': 250.0})
+                 for i in range(3))
+    out = cl.align_rows(items, box, 50.0, 600.0, lift=20.0)
+    xs = [r['path'][1][0] for r in out.values() if len(r['path']) == 4]
+    assert len(xs) == 2 and abs(xs[0] - xs[1]) > 1.0
+
+
+def test_marks_keep_off_grid_lines():
+    box = (0.0, 0.0, 10000.0, 300.0)
+    items = [{'id': i, 'anchor': (x, 300.0), 'length': 100.0, 'height': 120.0, 'side': 'top', 'free': True}
+             for i, x in enumerate((1000.0, 2000.0, 3000.0))]
+    out = cl.place_pointers(items, box, 50.0, 100.0, free_gap=25.0, blocks={'top': [2010.0]})
+    b = out[1]['box']
+    assert not (b[0] < 2010.0 < b[2])
+    assert out[0]['centre'][0] == 1000.0 and out[2]['centre'][0] == 3000.0
+
+
+def test_side_with_fewer_crossings():
+    # an upright zone nearer the right edge, but three other upright lines stand between it and the right side
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = {'z': {'a': (6000.0, 1000.0), 'b': (6000.0, 5000.0), 'length': 1000.0, 'height': 250.0, 'at': 3000.0}}
+    for i, x in enumerate((7000.0, 8000.0, 9000.0)):
+        items['o%d' % i] = {'a': (x, 2000.0), 'b': (x, 4000.0), 'length': 1000.0, 'height': 250.0, 'at': 2500.0,
+                            'side': 'right'}
+    out = cl.align_rows(items, box, 50.0, 600.0, lift=20.0)
+    assert out['z']['side'] == 'left'
+
+
 def test_align_rows_jogs_never_cross():
     box = (0.0, 0.0, 10000.0, 6000.0)
     # five level lines bunched at nearly one height, all ending at the left: packed apart, jogged
