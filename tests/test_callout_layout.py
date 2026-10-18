@@ -241,6 +241,28 @@ def test_column_away_from_the_next_member():
     assert cl.align_rows(items, box, 50.0, 600.0, lift=20.0)['z']['side'] == 'left'
 
 
+def test_jog_keeps_off_a_section_mark():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = {'a': {'a': (100.0, 3000.0), 'b': (10000.0, 3000.0), 'length': 1200.0, 'height': 250.0},
+             'b': {'a': (100.0, 3010.0), 'b': (10000.0, 3010.0), 'length': 1200.0, 'height': 250.0}}
+    free = cl.align_rows(items, box, 50.0, 600.0, lift=20.0)
+    jogs = [r['path'][1][0] for r in free.values() if len(r['path']) == 4]
+    mark = (jogs[0] - 30.0, 2800.0, jogs[0] + 30.0, 3300.0)
+    out = cl.align_rows(items, box, 50.0, 600.0, placed=[mark], lift=20.0)
+    for r in out.values():
+        if len(r['path']) == 4:
+            assert not (mark[0] - 12.5 < r['path'][1][0] < mark[2] + 12.5)
+
+
+def test_dimension_offset_clear_of_lines_and_texts():
+    # a level dimension along x 0..1000 beside a bar at y 0: the first side is taken by a zone line, the next by text
+    segs = [((0.0, 75.0), (1000.0, 75.0))]
+    boxes = [(200.0, -90.0, 600.0, -60.0)]
+    at = cl.clear_offset(0.0, 1000.0, 0.0, False, [75.0, -75.0, 150.0], boxes, segs, 20.0)
+    assert at == 150.0
+    assert cl.clear_offset(0.0, 1000.0, 0.0, False, [75.0], [], [], 20.0) == 75.0
+
+
 def test_align_rows_jogs_never_cross():
     box = (0.0, 0.0, 10000.0, 6000.0)
     # five level lines bunched at nearly one height, all ending at the left: packed apart, jogged

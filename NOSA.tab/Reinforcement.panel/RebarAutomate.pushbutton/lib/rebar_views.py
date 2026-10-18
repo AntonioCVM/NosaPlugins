@@ -282,17 +282,24 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         depth = _mm(z1 - z0)
         specs.append(_section(u'Elevation', 'elevation', mid, d, z_axis, _mm(hi - lo) / 2 + 600,
                               depth / 2 + 300, 1.0, width / 2 + 60))
+        # an inclined beam's sections square to it (2026-10-18, B1: vertical cuts missed its links, which stand
+        # square to the beam) and centred on it where they cut it, not at the middle of its box
+        up = d.CrossProduct(w).Normalize() if abs(d.Z) > 1e-3 else z_axis
+        if up.Z < 0:
+            up = up.Negate()
+        beam_h = _beam_depth(hosts[0]) or depth
         for n, axis in enumerate(axes):
             label = u'' if len(axes) == 1 else u' span {}'.format(n + 1)
+            lift = (z0 + z1) / 2.0 - axis.Evaluate(0.5, True).Z
             centre = axis.Evaluate(0.5, True)
-            centre = DB.XYZ(centre.X, centre.Y, (z0 + z1) / 2.0)
-            specs.append(_section(u'Section mid{}'.format(label), 'member_section', centre, w, z_axis,
-                                  width / 2 + 150, depth / 2 + 150, 0.0, 60.0))
+            centre = DB.XYZ(centre.X, centre.Y, centre.Z + lift)
+            specs.append(_section(u'Section mid{}'.format(label), 'member_section', centre, w, up,
+                                  width / 2 + 150, beam_h / 2 + 150, 0.0, 60.0))
             near = min(_ft(500.0), axis.Length / 4.0)
             at_support = axis.GetEndPoint(0) + axis.Direction.Multiply(near)
-            at_support = DB.XYZ(at_support.X, at_support.Y, (z0 + z1) / 2.0)
+            at_support = DB.XYZ(at_support.X, at_support.Y, at_support.Z + lift)
             specs.append(_section(u'Section support{}'.format(label), 'member_section', at_support, w,
-                                  z_axis, width / 2 + 150, depth / 2 + 150, 0.0, 60.0))
+                                  up, width / 2 + 150, beam_h / 2 + 150, 0.0, 60.0))
         # T9.8 (SMDSC 4th ed. 4.2.1): where the bars congest a section, a section of its own at 1:10
         from nosa_utils import rebar_qa
         taken = [sp['origin'] for sp in specs if not sp['plan']]
@@ -970,6 +977,23 @@ def _title_on_sheet(view):
         return u''
 
 
+def _beam_depth(beam):
+    """A beam's own depth (mm) from its type, None when the type does not say."""
+    for name in (u'h', u'Depth', u'd'):
+        try:
+            p = beam.Symbol.LookupParameter(name)
+            if p is not None and p.AsDouble() > 0:
+                return _mm(p.AsDouble())
+        except Exception:
+            continue
+    return None
+
+
+def _is_section(spec):
+    """A numbered or lettered section: it goes under its member's plans and elevations."""
+    return not spec.get('plan') and bool(spec.get('letter'))
+
+
 def _blocks(created):
     """
     A drawing of several columns: [(elevation indices A before B, section indices)] a member, in member order;
@@ -1083,9 +1107,14 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
                                            reserved=reserved)
             order = [i for mains, secs in blocks for i in mains + secs]
         else:
-            rows = view_plan.layout_rows([[(sizes[i][0], sizes[i][1], anchors.get(i)) for i in st] for st in streams],
-                                         reserved=reserved)
-            order = [i for st in streams for i in st]
+            # each member a compact block, the blocks packed into the sheet's free room (user 2026-10-18: half the A1
+            # was empty, and the typical details went to a sheet of their own)
+            packs = [([i for i in st if not _is_section(created[i][1])], [i for i in st if _is_section(created[i][1])])
+                     for st in streams]
+            rows = view_plan.layout_packed([([(sizes[i][0], sizes[i][1], anchors.get(i)) for i in mains],
+                                             [(sizes[i][0], sizes[i][1]) for i in secs]) for mains, secs in packs],
+                                           reserved=reserved)
+            order = [i for mains, secs in packs for i in mains + secs]
         out = [None] * len(created)
         for i, r in zip(order, rows):
             out[i] = r
