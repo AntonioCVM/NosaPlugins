@@ -120,6 +120,78 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
     return None
 
 
+def align_rows(items, box, gap, outside, placed=(), lift=0.0):
+    """
+    Calling-ups of a plan's or a wall elevation's zones as the SMDSC 4th ed. working drawings draw them (Figs 6.13,
+    6.33, 6.40; user 2026-10-18): each text outside the member on the straight extension of its indicator line - the
+    texts of level lines in a column right or left of it, those of upright lines turned, in a row above or below -
+    each side packed in the order of its lines so no extension crosses another. items {id: {'a', 'b' (indicator line
+    ends), 'length' (text along its reading), 'height'}}. Returns {id: {'centre', 'end' (the line end the leader
+    starts from), 'elbow' (at the text's near end), 'vertical', 'box', 'side'}}; the boxes are added to placed.
+    """
+    placed = list(placed)
+    sides = {}
+    for key, it in items.items():
+        a, b = it['a'], it['b']
+        level = abs(b[0] - a[0]) >= abs(b[1] - a[1])
+        if level:
+            lo, hi = (a, b) if a[0] <= b[0] else (b, a)
+            side, end = ('right', hi) if box[2] - hi[0] <= lo[0] - box[0] else ('left', lo)
+            want = end[1] + lift          # the text on its line's extension, the line running into its end
+        else:
+            lo, hi = (a, b) if a[1] <= b[1] else (b, a)
+            side, end = ('top', hi) if box[3] - hi[1] <= lo[1] - box[1] else ('bottom', lo)
+            want = end[0] - lift
+        sides.setdefault(side, []).append((key, end, want))
+    out = {}
+    for side, rows in sides.items():
+        keys = [k for k, _e, _w in rows]
+        heights = [items[k]['height'] for k in keys]
+        at = pack([w for _k, _e, w in rows], heights, gap)
+        reach = max(items[k]['length'] for k in keys)
+        lo_band = min(c - h / 2.0 for c, h in zip(at, heights))
+        hi_band = max(c + h / 2.0 for c, h in zip(at, heights))
+        start = outside
+        for _ in range(12):
+            if side in ('right', 'left'):
+                x0 = box[2] + start if side == 'right' else box[0] - start - reach
+                band = (x0, lo_band, x0 + reach, hi_band)
+            else:
+                y0 = box[3] + start if side == 'top' else box[1] - start - reach
+                band = (lo_band, y0, hi_band, y0 + reach)
+            hits = [q for q in placed if overlap(band, q, gap)]
+            if not hits:
+                break
+            if side == 'right':
+                start = max(q[2] for q in hits) - box[2] + gap
+            elif side == 'left':
+                start = box[0] - min(q[0] for q in hits) + gap
+            elif side == 'top':
+                start = max(q[3] for q in hits) - box[3] + gap
+            else:
+                start = box[1] - min(q[1] for q in hits) + gap
+        for (key, end, _w), c in zip(rows, at):
+            it = items[key]
+            n, h = it['length'], it['height']
+            if side == 'right':
+                centre = (box[2] + start + n / 2.0, c)
+                elbow = (box[2] + start, c - lift)
+            elif side == 'left':
+                centre = (box[0] - start - n / 2.0, c)
+                elbow = (box[0] - start, c - lift)
+            elif side == 'top':
+                centre = (c, box[3] + start + n / 2.0)
+                elbow = (c + lift, box[3] + start)
+            else:
+                centre = (c, box[1] - start - n / 2.0)
+                elbow = (c + lift, box[1] - start)
+            vertical = side in ('top', 'bottom')
+            bx = text_box(centre, (0.0, 1.0) if vertical else (1.0, 0.0), n, h)
+            placed.append(bx)
+            out[key] = {'centre': centre, 'end': end, 'elbow': elbow, 'vertical': vertical, 'box': bx, 'side': side}
+    return out
+
+
 def pack(desired, widths, gap):
     """
     Centres along a line, in the order of `desired`, no two closer than half their widths plus gap, each

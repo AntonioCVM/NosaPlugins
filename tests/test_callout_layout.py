@@ -126,3 +126,29 @@ def test_side_of_a_bar_standing_out_is_beside():
     assert cl.side_of((600.0, 900.0), box) == 'right'
     assert cl.side_of((300.0, 900.0), box) == 'left'
     assert cl.side_of((500.0, 480.0), box) == 'top'
+
+
+def test_align_rows_columns_and_rows_outside():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = {
+        'h1': {'a': (1000.0, 2000.0), 'b': (9000.0, 2000.0), 'length': 1500.0, 'height': 250.0},
+        'h2': {'a': (500.0, 2100.0), 'b': (9500.0, 2100.0), 'length': 1500.0, 'height': 250.0},
+        'v1': {'a': (3000.0, 500.0), 'b': (3000.0, 3000.0), 'length': 1500.0, 'height': 250.0},
+    }
+    out = cl.align_rows(items, box, 50.0, 400.0)
+    # the level lines: a column right of the member, packed apart, in their lines' order
+    assert out['h1']['side'] == 'right' and out['h2']['side'] == 'right'
+    assert out['h1']['centre'][0] == out['h2']['centre'][0] == 10000.0 + 400.0 + 750.0
+    assert out['h2']['centre'][1] - out['h1']['centre'][1] >= 250.0 + 50.0 - 1e-6
+    assert out['h1']['end'] == (9000.0, 2000.0)
+    # the upright line: turned, in a row below (its lower end is nearer the edge)
+    assert out['v1']['side'] == 'bottom' and out['v1']['vertical']
+    assert out['v1']['centre'][1] == -400.0 - 750.0 and out['v1']['end'] == (3000.0, 500.0)
+    assert not cl.overlap(out['h1']['box'], out['h2']['box'])
+
+
+def test_align_rows_clear_of_what_is_placed():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    items = {'h': {'a': (2000.0, 3000.0), 'b': (9000.0, 3000.0), 'length': 1000.0, 'height': 250.0}}
+    out = cl.align_rows(items, box, 50.0, 400.0, placed=[(10200.0, 2800.0, 11000.0, 3400.0)])
+    assert out['h']['box'][0] >= 11000.0
