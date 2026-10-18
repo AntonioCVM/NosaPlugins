@@ -222,7 +222,13 @@ def _main_line(rebar, i, view=None):
         return line                          # bends are short arcs: a straight leg is the bar's main line
     at = (arc.GetEndParameter(0) + arc.GetEndParameter(1)) / 2.0
     if view is not None and not _is_plan(view):
+        # where the view's plane cuts the arc (a radial section); an arc wholly behind the plane - a curved wall's
+        # horizontals in its elevation - is seen as its chord (W2, 2026-10-18: taken for bars seen end on)
         try:
+            normal = view.ViewDirection
+            sides = [(arc.Evaluate(t, True) - view.Origin).DotProduct(normal) for t in (0.0, 0.5, 1.0)]
+            if min(sides) > 0 or max(sides) < 0:
+                return DB.Line.CreateBound(arc.GetEndPoint(0), arc.GetEndPoint(1))
             at = arc.Project(view.Origin).Parameter
         except Exception:
             pass
@@ -417,6 +423,24 @@ def _grid_blocks(view):
                 out['left'].append(a[1])
                 out['right'].append(a[1])
     return out
+
+
+def _figure_clear(view, dim, lo, hi, at, vertical, segments, height, text, like):
+    """A dimension's figure moved along it to where no line crosses it, left in the middle when clear or nowhere is."""
+    from nosa_utils import callout_layout
+    m = callout_layout.clear_along(lo, hi, at, vertical, segments, height, text)
+    if m is None or abs(m - (lo + hi) / 2.0) < 1.0:
+        return False
+    try:
+        now = _xy(view, dim.TextPosition)
+        dim.TextPosition = _point(view, (now[0], m) if vertical else (m, now[1]), like)
+    except Exception:
+        return False
+    try:
+        dim.HasLeader = False            # moved along its line: no leader back to the middle
+    except Exception:
+        pass
+    return True
 
 
 def _on_line(seg, c, vertical, tol=1.0):
@@ -930,6 +954,26 @@ def _is_links(rebar):
 TYPICAL_SINGLES_MIN = 3     # a group this large shows only its middle bar
 
 
+def _range_line(view, typical, first, last):
+    """
+    The line across a group of bars, view mm: through the typical bar's middle, square to it, from the first bar
+    to the last (2026-10-18: joining the bars' middles ran it on the skew across a curved wall).
+    """
+    m = _xy(view, typical.Evaluate(0.5, True))
+    a, b = _xy(view, typical.GetEndPoint(0)), _xy(view, typical.GetEndPoint(1))
+    u = (b[0] - a[0], b[1] - a[1])
+    n = (u[0] ** 2 + u[1] ** 2) ** 0.5
+    if n < 1e-6:
+        return first, last
+    u = (u[0] / n, u[1] / n)
+
+    def square(p):
+        d = (p[0] - m[0], p[1] - m[1])
+        k = d[0] * u[0] + d[1] * u[1]
+        return (m[0] + d[0] - k * u[0], m[1] + d[1] - k * u[1])
+    return square(first), square(last)
+
+
 def _typical_singles(doc, view, rebars, clusters, style):
     """
     Each group of loose single bars (clusters) shown as SMDSC shows a set: its middle bar - the one merge_singles
@@ -956,15 +1000,33 @@ def _typical_singles(doc, view, rebars, clusters, style):
         for _p, r, _l in placed_:
             if r.Id != lead.Id and r.CanBeHidden(view):
                 hide.Add(r.Id)
-        a, b = placed_[0][0], placed_[-1][0]
+        mid = placed_[len(placed_) // 2]
+        a, b = _range_line(view, mid[2], placed_[0][0], placed_[-1][0])
         if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
-            _draw_path(doc, view, [a, b], placed_[0][2].Evaluate(0.5, True), style)
+            _draw_path(doc, view, [a, b], mid[2].Evaluate(0.5, True), style)
+    shown = 0
+    for r in by_id.values():
+        # a FreeForm group of bars (a curved wall's verticals) shows its middle bar the same way
+        try:
+            n = r.NumberOfBarPositions
+            if n < TYPICAL_SINGLES_MIN or r.IsRebarShapeDriven():
+                continue
+        except Exception:
+            continue
+        first, last = _main_line(r, 0), _main_line(r, n - 1)
+        if _show_one(r, view, n, n // 2) is None or first is None or last is None:
+            continue
+        shown += 1
+        typical = _main_line(r, n // 2) or first
+        a, b = _range_line(view, typical, _xy(view, first.Evaluate(0.5, True)), _xy(view, last.Evaluate(0.5, True)))
+        if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
+            _draw_path(doc, view, [a, b], typical.Evaluate(0.5, True), style)
     if hide.Count:
         try:
             view.HideElements(hide)
         except Exception:
-            return 0
-    return hide.Count
+            return shown
+    return hide.Count + shown
 
 
 def _single_groups(doc, rebars):
@@ -1993,12 +2055,18 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
             if lines is None:
                 lines = _seen_bars(view) + _drawn_lines(doc, view)
             # beside its bar, clear of the zones' lines, the calling-ups' and the texts (S2, Revit 2026: on them)
-            steps = [1.5, -1.5, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0]
+            steps = [1.5, -1.5, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0, 7.5, -7.5]
+            others = [s for s in lines if not _on_line(s, c, vertical)]
+            own = [s for s in lines if _on_line(s, c, vertical)]
+            figure, half_ = 4.0 * TEXT_PAPER_MM * scale, 0.6 * TEXT_PAPER_MM * scale
+            high = 1.6 * TEXT_PAPER_MM * scale
             at = callout_layout.clear_offset(min(t0, t1), max(t0, t1), c, vertical, [k * gap for k in steps],
-                                             placed, [s for s in lines if not _on_line(s, c, vertical)],
-                                             0.8 * TEXT_PAPER_MM * scale)
-            if _dimension_chain(doc, view, [t0, t1], at, like, scale, style, vertical=vertical) is not None:
+                                             placed, others, half_, text=figure, own=own, height=high)
+            dim = _dimension_chain(doc, view, [t0, t1], at, like, scale, style, vertical=vertical)
+            if dim is not None:
                 made += 1
+                # its figure off the lines crossing it (S2: the other zone's typical bar runs through its middle)
+                _figure_clear(view, dim, min(t0, t1), max(t0, t1), at, vertical, others + own, high, figure, like)
                 half = 0.8 * TEXT_PAPER_MM * scale
                 placed.append((at - half, min(t0, t1), at + half, max(t0, t1)) if vertical else
                               (min(t0, t1), at - half, max(t0, t1), at + half))
@@ -3296,6 +3364,16 @@ def _written(doc, view):
         b = _box_in_view(view, note.get_BoundingBox(view))
         if b is not None:
             out.append(b)
+    # the level marks (+3.000 m) and other symbols (C1, 2026-10-18: SEE DRG written over the level)
+    for cat in (DB.BuiltInCategory.OST_GenericAnnotation, DB.BuiltInCategory.OST_SpotElevations):
+        try:
+            found = DB.FilteredElementCollector(doc, view.Id).OfCategory(cat).WhereElementIsNotElementType()
+        except Exception:
+            continue
+        for e in found:
+            b = _box_in_view(view, e.get_BoundingBox(view))
+            if b is not None:
+                out.append(b)
     return out
 
 
