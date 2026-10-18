@@ -58,3 +58,12 @@ Las imágenes están en `%TEMP%\smdsc_figs`.
    Es lo contrario de lo que se eligió el 2026-10-17 («al punto de la barra tipo»), así que **lo decide el usuario**.
 2. **Familia de etiqueta con el texto subrayado** (el trazo bajo el texto forma parte de la etiqueta), para que los rótulos se lean como en las figuras.
 3. **ALT/STG apilados** en el mismo rótulo cuando dos juegos comparten zona.
+
+## Estado (2026-10-18)
+
+Aplicado con el manual de Arup (R. Whittle, 1.5.1), que el usuario aportó porque los rótulos «no dejaban saber dónde va cada barra»:
+
+- **Texto sobre su subrayado**: cada rótulo es nivelado y se apoya en una línea de detalle (estilo NOSA Total Lines) que lo subraya. Esa línea sale en escuadra de la línea indicadora de la zona, o de la propia barra suelta, y llega a una columna de textos a cada lado del elemento (`callout_layout.align_rows`). No hace falta una familia de etiqueta nueva.
+- **Zonas y barras sueltas juntas**: una sola maquetación por planta o alzado de muro (`_layout_joint`), de modo que ninguna línea cruza a otra.
+- **Quiebros escalonados**: los que se apartan de su altura quiebran en escuadra en el hueco junto al elemento, cada uno a su distancia.
+- **ALT/STG apilados**: dos zonas relacionadas van en un solo rótulo, una encima de otra con la palabra entre ellas y una sola línea (`callout_layout.stack`). Sustituye a la nota aparte.

@@ -1926,11 +1926,85 @@
                 <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
                     <StackPanel>
                         <TextBlock Text="Visibility" Style="{StaticResource RA_SectionTitle}"/>
+                        <TextBlock Text="Bars by layer or by bar mark in the active view, isolated or hidden for now (Reset view shows them all again)." Style="{StaticResource RA_Hint}"/>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Layer:" VerticalAlignment="Center" Foreground="{DynamicResource TextColor}"/>
+                            <ComboBox Grid.Column="1" Name="CmbLayerGroup"/>
+                        </Grid>
+                        <UniformGrid Columns="3" Margin="0,8,0,0">
+                            <Button Name="BtnIsolateLayer" Content="Isolate layer" Click="IsolateLayer_Click" Margin="0,0,4,0"
+                                    ToolTip="Show only the bars of this layer in the active view (temporary)."/>
+                            <Button Name="BtnHideLayer" Content="Hide layer" Click="HideLayer_Click" Margin="4,0,4,0"
+                                    ToolTip="Hide the bars of this layer in the active view (temporary)."/>
+                            <Button Name="BtnSelectLayer" Content="Select layer" Click="SelectLayer_Click" Margin="4,0,0,0"
+                                    ToolTip="Select the bars of this layer in the active view."/>
+                        </UniformGrid>
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Bar marks:" VerticalAlignment="Center" Foreground="{DynamicResource TextColor}"/>
+                            <TextBox Grid.Column="1" Name="TxtMarks" Text=""
+                                     ToolTip="One or more bar marks, e.g. 01, 05 12. '1' also finds 01."/>
+                        </Grid>
+                        <CheckBox Name="ChkMarksWholeModel" Content="Select in the whole model, not only the active view" Margin="0,8,0,0"
+                                  Foreground="{DynamicResource TextColor}"/>
+                        <UniformGrid Columns="3" Margin="0,8,0,0">
+                            <Button Name="BtnSelectMarks" Content="Select marks" Click="SelectMarks_Click" Margin="0,0,4,0"/>
+                            <Button Name="BtnIsolateMarks" Content="Isolate marks" Click="IsolateMarks_Click" Margin="4,0,4,0"
+                                    ToolTip="Show only the bars with these marks in the active view (temporary)."/>
+                            <Button Name="BtnResetVisibility" Content="Reset view" Click="ResetVisibility_Click" Margin="4,0,0,0"
+                                    ToolTip="End the temporary hide / isolate of the active view."/>
+                        </UniformGrid>
                         <Button Name="BtnToggleSolids" Content="Show / hide rebar as solids (3D view)"
-                                Click="ToggleSolids_Click" HorizontalAlignment="Stretch"
+                                Click="ToggleSolids_Click" HorizontalAlignment="Stretch" Margin="0,12,0,0"
                                 ToolTip="In the active 3D view: show the selected bars (or all bars in the view) as unobscured solids, or back to wires."/>
                     </StackPanel>
                 </Border>
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Copy to identical members" Style="{StaticResource RA_SectionTitle}"/>
+                        <TextBlock Text="Select one reinforced member: its bars are copied to every member of the same type and size that has none. Then Partitions... schedules them once with No. of mbrs." Style="{StaticResource RA_Hint}"/>
+                        <Button Name="BtnCopyIdentical" Content="Copy bars to identical members..."
+                                Click="CopyIdentical_Click" HorizontalAlignment="Stretch" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+                <Border Style="{DynamicResource Card}" Margin="0,0,0,12">
+                    <StackPanel>
+                        <TextBlock Text="Issue drawings" Style="{StaticResource RA_SectionTitle}"/>
+                        <TextBlock Text="Issuing a drawing freezes its bars (Finalized: not renumbered, deleted or generated over), gives its bar schedules the next revision and logs what changed since the last issue." Style="{StaticResource RA_Hint}"/>
+                        <Grid Margin="0,8,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="90"/>
+                                <ColumnDefinition Width="140"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Drawing:" VerticalAlignment="Center" Foreground="{DynamicResource TextColor}"/>
+                            <ComboBox Grid.Column="1" Name="CmbIssueDrawing"/>
+                            <TextBlock Grid.Column="2" Text="Status:" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       Foreground="{DynamicResource TextColor}"/>
+                            <ComboBox Grid.Column="3" Name="CmbIssueStatus"/>
+                        </Grid>
+                        <UniformGrid Columns="3" Margin="0,8,0,0">
+                            <Button Name="BtnIssueDrawing" Content="Issue drawing" Click="IssueDrawing_Click" Margin="0,0,4,0"/>
+                            <Button Name="BtnReopenDrawing" Content="Reopen for revision" Click="ReopenDrawing_Click" Margin="4,0,4,0"
+                                    ToolTip="Unfreeze the drawing's bars to change them; the next issue lists what changed."/>
+                            <Button Name="BtnRefreshDrawings" Content="Refresh" Click="RefreshDrawings_Click" Margin="4,0,0,0"/>
+                        </UniformGrid>
+                        <TextBlock Text="Revision history" FontSize="11" Opacity="0.65" Margin="0,10,0,4"
+                                   Foreground="{DynamicResource TextColor}"/>
+                        <TextBox Name="TxtIssueHistory" IsReadOnly="True" TextWrapping="Wrap" Height="90"
+                                 VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Text="Not issued yet."/>
+                    </StackPanel>
+                </Border>
+                <TextBlock Name="TxtManageStatus" Text="" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}" Margin="0,0,0,8"/>
             </StackPanel>
         </ScrollViewer>
         </TabItem>

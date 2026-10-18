@@ -217,6 +217,8 @@ class ShellMixin(object):
         if not getattr(self, '_is_loaded', False):
             return
         name = self._active_tab()
+        if self._frozen_selection():
+            return
         for tab, handler, _log in ELEMENT_TABS:
             if tab == name:
                 self._last_run_tab = tab

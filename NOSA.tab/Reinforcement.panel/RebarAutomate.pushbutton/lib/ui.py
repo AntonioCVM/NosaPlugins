@@ -78,6 +78,7 @@ rebar_schedule = load_module('rebar_schedule', os.path.join(_HERE, 'rebar_schedu
 rebar_export_bvbs = load_module('rebar_export_bvbs', os.path.join(_HERE, 'rebar_export_bvbs.py'))
 rebar_marking = load_module('rebar_marking', os.path.join(_HERE, 'rebar_marking.py'))
 rebar_content = load_module('rebar_content', os.path.join(_HERE, 'rebar_content.py'))
+rebar_manage = load_module('rebar_manage', os.path.join(_HERE, 'rebar_manage.py'))  # Phase 11
 
 _CAT_ID_CACHE = {}
 
@@ -478,6 +479,7 @@ class RebarAutomateWindow(_tab_shell.ShellMixin, _tab_columns.ColumnsMixin, _tab
         self.Loaded += self._on_window_loaded
         self._wire_live_previews()
         self._init_shell()            # Phase 10: navigation, selection bar, action bar
+        self._init_manage()           # Phase 11: layers, marks, copies, issues
 
         self._is_loaded = True
         self._refresh_batch_list()
