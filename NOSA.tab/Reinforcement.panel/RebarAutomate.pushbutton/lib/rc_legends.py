@@ -16,7 +16,7 @@ NOTATION_LEGEND = u'RC layer notation'
 NOTES_LEGEND = u'RC reinforcement notes'
 NOTATION_SCALE = 10
 NOTES_SCALE = 1
-NOTES_WIDTH_MM = 84.0
+NOTES_WIDTH_MM = 105.0     # the legend corner's full width: the notes stay inside the frame
 TEXT_TYPE = u'2.0mm Century gothic - Sheet notes'
 LABEL_TYPE = u'2.0mm Century Gothic'
 VIEWPORT_TYPE = u'NOSA Manual title /No scale'
@@ -158,12 +158,9 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         u'8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent '
         u'bars staggered unless shown otherwise.',
         # good practice notes for every RC drawing (user 2026-10-17: IStructE)
-        u'9. Bars bent cold to BS 8666 (minimum mandrel sizes to its Table 2); no bar to be heated, welded or '
-        u'rebent on site without the engineer\'s approval.',
-        u'10. Construction joints only where shown or agreed with the engineer, the reinforcement continuous '
-        u'through them; no holes, chases or cast-in items other than those shown.',
-        u'11. Reinforcement fixed, tied and inspected before concreting; no substitution of bars without '
-        u'the engineer\'s approval.',
+        u'9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.',
+        u'10. Construction joints, holes and cast-in items only as shown or agreed.',
+        u'11. Reinforcement inspected before concreting; no bar substituted without approval.',
     ]
     number = 12
     fixing = fixing_notes(kinds)

@@ -422,6 +422,11 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if d['view_dot'] < 0.5 and hosts is not None:
             report['ticks'] += _ticks(doc, view, d, hosts, cover_mm, scale, style)
         pointers.append(d)
+    if hosts and kind in ELEVATION_KINDS:
+        # another member's bars ending inside these (a base's starter links up a column) are shown, not marked
+        # leg by leg: they are called up on their own drawing (user 2026-10-18, C3)
+        own = set(get_id_value(h.Id) for h in hosts if h is not None)
+        cut = [d for d in cut if get_id_value(d['rebar'].GetHostId()) in own]
     _notes(doc, visible)
     elevation = kind in ELEVATION_KINDS
     if kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members):
