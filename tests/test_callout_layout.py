@@ -128,22 +128,25 @@ def test_side_of_a_bar_standing_out_is_beside():
     assert cl.side_of((500.0, 480.0), box) == 'top'
 
 
-def test_align_rows_columns_and_rows_outside():
+def test_align_rows_level_texts_on_their_lines():
     box = (0.0, 0.0, 10000.0, 6000.0)
     items = {
         'h1': {'a': (1000.0, 2000.0), 'b': (9000.0, 2000.0), 'length': 1500.0, 'height': 250.0},
         'h2': {'a': (500.0, 2100.0), 'b': (9500.0, 2100.0), 'length': 1500.0, 'height': 250.0},
-        'v1': {'a': (3000.0, 500.0), 'b': (3000.0, 3000.0), 'length': 1500.0, 'height': 250.0},
+        'v1': {'a': (3000.0, 500.0), 'b': (3000.0, 3000.0), 'length': 1500.0, 'height': 250.0, 'at': 900.0},
     }
-    out = cl.align_rows(items, box, 50.0, 400.0)
-    # the level lines: a column right of the member, packed apart, in their lines' order
+    out = cl.align_rows(items, box, 50.0, 400.0, lift=20.0)
+    # level indicator lines: their texts in a column right of the member, packed apart in their lines' order
     assert out['h1']['side'] == 'right' and out['h2']['side'] == 'right'
-    assert out['h1']['centre'][0] == out['h2']['centre'][0] == 10000.0 + 400.0 + 750.0
     assert out['h2']['centre'][1] - out['h1']['centre'][1] >= 250.0 + 50.0 - 1e-6
-    assert out['h1']['end'] == (9000.0, 2000.0)
-    # the upright line: turned, in a row below (its lower end is nearer the edge)
-    assert out['v1']['side'] == 'bottom' and out['v1']['vertical']
-    assert out['v1']['centre'][1] == -400.0 - 750.0 and out['v1']['end'] == (3000.0, 500.0)
+    assert out['h1']['path'][0] == (9000.0, 2000.0)
+    # every underline level: its last two points at one height, under its text
+    for r in out.values():
+        (x0, y0), (x1, y1) = r['path'][-2], r['path'][-1]
+        assert abs(y0 - y1) < 1e-6 and r['box'][1] > y1
+    # an upright line: left, as it is nearer the left side, the underline leaving it at 'at'
+    assert out['v1']['side'] == 'left' and out['v1']['path'][0] == (3000.0, 900.0)
+    assert out['v1']['box'][2] <= 0.0
     assert not cl.overlap(out['h1']['box'], out['h2']['box'])
 
 
@@ -152,3 +155,26 @@ def test_align_rows_clear_of_what_is_placed():
     items = {'h': {'a': (2000.0, 3000.0), 'b': (9000.0, 3000.0), 'length': 1000.0, 'height': 250.0}}
     out = cl.align_rows(items, box, 50.0, 400.0, placed=[(10200.0, 2800.0, 11000.0, 3400.0)])
     assert out['h']['box'][0] >= 11000.0
+
+
+def _cross(p, q, r, s):
+    """Proper crossing of an axis-aligned segment pq with rs (touching ends allowed)."""
+    if p[1] == q[1] and r[0] == s[0]:
+        x, y = r[0], p[1]
+        return min(p[0], q[0]) < x < max(p[0], q[0]) and min(r[1], s[1]) < y < max(r[1], s[1])
+    if p[0] == q[0] and r[1] == s[1]:
+        return _cross(r, s, p, q)
+    return False
+
+
+def test_align_rows_jogs_never_cross():
+    box = (0.0, 0.0, 10000.0, 6000.0)
+    # five level lines bunched at nearly one height, all ending at the left: packed apart, jogged
+    items = dict(('h%d' % i, {'a': (0.0 + i, 3000.0 + 40.0 * i), 'b': (8000.0, 3000.0 + 40.0 * i),
+                              'length': 1200.0, 'height': 250.0}) for i in range(5))
+    out = cl.align_rows(items, box, 50.0, 600.0, lift=20.0)
+    segs = [(k, a, b) for k, r in out.items() for a, b in zip(r['path'], r['path'][1:])]
+    for k1, a, b in segs:
+        for k2, c, d in segs:
+            if k1 != k2:
+                assert not _cross(a, b, c, d), (k1, k2)
