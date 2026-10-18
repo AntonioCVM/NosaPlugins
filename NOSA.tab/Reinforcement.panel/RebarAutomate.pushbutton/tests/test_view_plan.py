@@ -113,6 +113,33 @@ def test_next_mark():
     assert vp.next_mark(u'B', []) == u'B1'
 
 
+def test_packed_blocks_fill_the_sheet():
+    # a plan with its two sections, a second member and two small details: one sheet, details beside, not below
+    blocks = [([(300.0, 250.0, None)], [(140.0, 80.0), (140.0, 80.0)]),
+              ([(300.0, 250.0, None)], [(140.0, 80.0)]),
+              ([(120.0, 120.0, None)], []), ([(120.0, 120.0, None)], [])]
+    out = vp.layout_packed(blocks)
+    assert set(s for s, _x, _y in out) == set([0])
+    boxes = []
+    sizes = [(300.0, 250.0), (140.0, 80.0), (140.0, 80.0), (300.0, 250.0), (140.0, 80.0), (120.0, 120.0),
+             (120.0, 120.0)]
+    for (s, x, y), (w, h) in zip(out, sizes):
+        b = (x - w / 2.0, y - h / 2.0, x + w / 2.0, y + h / 2.0)
+        assert vp.A1_AREA[0] - 1e-6 <= b[0] and b[2] <= vp.A1_AREA[2] + 1e-6
+        assert vp.A1_AREA[1] - 1e-6 <= b[1] and b[3] <= vp.A1_AREA[3] + 1e-6
+        for o in boxes:
+            assert not (b[0] < o[2] and o[0] < b[2] and b[1] < o[3] and o[1] < b[3])
+        boxes.append(b)
+    # sections under their plan
+    assert out[1][2] < out[0][2] and out[2][2] < out[0][2]
+
+
+def test_arrange_block_rows_of_sections():
+    w, h, c = vp.arrange_block([(200.0, 100.0, None)], [(150.0, 50.0), (150.0, 50.0)], gap=20.0)
+    assert w == 200.0 and len(c) == 3
+    assert c[1][1] == c[2][1] - 70.0 or c[2][1] == c[1][1] + 70.0     # two rows: 150 + 20 + 150 > 200
+
+
 def test_layout_blocks_sections_under_their_elevations():
     blocks = [([(60.0, 300.0, 250.0), (60.0, 300.0, 250.0)], [(50.0, 50.0)]),
               ([(60.0, 280.0, 230.0), (60.0, 280.0, 230.0)], [(40.0, 60.0)])]

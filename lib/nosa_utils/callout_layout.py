@@ -223,8 +223,18 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
         # (C3 2026-10-18); the packing keeps their heights apart, so they never cross either
         jog_at = {}
         order = ups + downs
+        ys = dict((a, (y, u)) for a, y, u in lifted)
         for i, k in enumerate(order):
-            jog_at[k] = edge + sign * start * (i + 1.0) / (len(order) + 1.0)
+            base = (i + 1.0) / (len(order) + 1.0)
+            y0, y1 = sorted(ys[k])
+            # clear of what is drawn in the gap (a section mark's arrow beside a column, 2026-10-18)
+            for f in sorted([base] + [j / 20.0 for j in range(2, 19)], key=lambda q: abs(q - base)):
+                x = edge + sign * start * f
+                if not any(q[0] - gap / 4.0 < x < q[2] + gap / 4.0 and q[1] < y1 and q[3] > y0 for q in placed):
+                    break
+            else:
+                x = edge + sign * start * base
+            jog_at[k] = x
         for (key, end, span, _w), c in zip(rows, at):
             n, h = items[key]['length'], items[key]['height']
             u = c - h / 2.0 - lift                    # the underline's height
@@ -293,6 +303,31 @@ def _riser(lo, hi, side, h, gap, box, obstacles):
             if not along_upright(x, y, u) and not along_level(x, u):
                 return (x, y), u
     return (xs[0], y), y + 2 * step
+
+
+def clear_offset(lo, hi, c, vertical, offsets, boxes, segments, half):
+    """
+    Where a dimension along [lo, hi] beside a line at c (x for a vertical one, y else) goes: the first of offsets
+    (signed, from c) whose band (the dimension line +/- half) meets no box and is crossed by no segment running its
+    way, nor runs along one. Returns c + that offset, or c + offsets[0] when none is clear.
+    """
+    for off in offsets:
+        at = c + off
+        band = (at - half, lo, at + half, hi) if vertical else (lo, at - half, hi, at + half)
+        if any(overlap(band, q) for q in boxes):
+            continue
+        hit = False
+        for (p, q) in segments:
+            sb = (min(p[0], q[0]), min(p[1], q[1]), max(p[0], q[0]), max(p[1], q[1]))
+            if not overlap(band, sb):
+                continue
+            along = abs(q[1] - p[1]) > abs(q[0] - p[0]) if vertical else abs(q[0] - p[0]) > abs(q[1] - p[1])
+            if along:
+                hit = True               # a line running inside the band: the dimension would sit on it
+                break
+        if not hit:
+            return at
+    return c + offsets[0]
 
 
 def stack(box, side, lines, gap):

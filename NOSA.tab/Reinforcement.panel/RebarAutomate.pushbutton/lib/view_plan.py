@@ -194,6 +194,56 @@ def next_mark(prefix, taken):
     return u'{}{}'.format(prefix, n)
 
 
+def arrange_block(mains, secs, gap=GAP_MM):
+    """
+    One member's views as one compact block: its plans and elevations side by side (their datums level), its
+    sections under them in rows no wider than the block. mains [(w, h, anchor)], secs [(w, h)]. Returns (width,
+    height, [(x, y) centre from the block's top left, y down]) - mains then sections.
+    """
+    lift = max([a for _w, _h, a in mains if a is not None] or [0.0])
+    width = max([sum(w for w, _h, _a in mains) + gap * max(0, len(mains) - 1)] + [w for w, _h in secs] + [0.0])
+    out, x, top_h = [], 0.0, 0.0
+    for w, h, a in mains:
+        y_top = lift - a if a is not None else 0.0
+        out.append((x + w / 2.0, y_top + h / 2.0))
+        top_h = max(top_h, y_top + h)
+        x += w + gap
+    y = top_h + gap if mains else 0.0
+    row, row_w, row_h = [], 0.0, 0.0
+    for w, h in list(secs) + [(None, None)]:
+        if w is None or (row and row_w + gap + w > width + 1e-6):
+            cx = (width - row_w) / 2.0
+            for rw, rh in row:
+                out.append((cx + rw / 2.0, y + rh / 2.0))
+                cx += rw + gap
+            if row:
+                y += row_h + gap
+            if w is None:
+                break
+            row, row_w, row_h = [], 0.0, 0.0
+        row.append((w, h))
+        row_w = row_w + (gap if len(row) > 1 else 0.0) + w
+        row_h = max(row_h, h)
+    height = max(y - gap, top_h) if (mains or secs) else 0.0
+    return width, height, out
+
+
+def layout_packed(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):
+    """
+    A drawing's members packed on as few sheets as they fit (user 2026-10-18: half the A1 was left empty when each
+    member began a new line): each member a compact block (arrange_block), the blocks placed largest first in the
+    highest, then leftmost, free spot (layout). blocks [(mains, secs)] as arrange_block takes them. Returns [(sheet
+    index, centre x, centre y)], each block's mains then its sections, in the blocks' order.
+    """
+    shapes = [arrange_block(mains, secs, gap) for mains, secs in blocks]
+    spots = layout([(w, h) for w, h, _c in shapes], area=area, gap=gap, reserved=reserved)
+    out = []
+    for (w, h, centres), (sheet, cx, cy) in zip(shapes, spots):
+        left, top = cx - w / 2.0, cy + h / 2.0
+        out.extend((sheet, left + x, top - y) for x, y in centres)
+    return out
+
+
 def layout_blocks(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):
     """
     A drawing of several columns (user 2026-10-17: elevations, sections and titles lined up): one block a member,

@@ -268,6 +268,51 @@ def _corners(element):
             for z in (bb.Min.Z, bb.Max.Z)]
 
 
+def _largest_solid(element):
+    best = None
+    try:
+        stack = list(element.get_Geometry(DB.Options()) or [])
+    except Exception:
+        stack = []
+    while stack:
+        g = stack.pop()
+        if isinstance(g, DB.GeometryInstance):
+            stack.extend(g.GetInstanceGeometry())
+        elif isinstance(g, DB.Solid) and g.Volume > 0 and (best is None or g.Volume > best.Volume):
+            best = g
+    return best
+
+
+def _cut_outline(view, elements):
+    """Box (view mm) of the members where the view's cut plane goes through them, None when it misses them."""
+    try:
+        crop = view.CropBox
+        t = crop.Transform
+        normal = t.BasisZ
+        origin = t.OfPoint(DB.XYZ(0.0, 0.0, crop.Max.Z))
+    except Exception:
+        return None
+    pts = []
+    for e in elements:
+        solid = _largest_solid(e)
+        if solid is None:
+            continue
+        for edge in solid.Edges:
+            try:
+                ps = list(edge.Tessellate())
+            except Exception:
+                continue
+            for p, q in zip(ps, ps[1:]):
+                a, b = (p - origin).DotProduct(normal), (q - origin).DotProduct(normal)
+                if a == b or a * b > 0:
+                    continue
+                f = a / (a - b)
+                pts.append(_xy(view, p + (q - p).Multiply(f)))
+    if len(pts) < 3:
+        return None
+    return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+
+
 def _outline(view, elements):
     """Box (view mm) round the members."""
     pts = [_xy(view, c) for e in elements for c in _corners(e)]
@@ -371,6 +416,36 @@ def _grid_blocks(view):
             elif abs(a[1] - b[1]) < 1.0:
                 out['left'].append(a[1])
                 out['right'].append(a[1])
+    return out
+
+
+def _on_line(seg, c, vertical, tol=1.0):
+    """A segment lying on the line at c (the bar the dimension measures)."""
+    (p, q) = seg
+    return abs(p[0] - c) < tol and abs(q[0] - c) < tol if vertical else abs(p[1] - c) < tol and abs(q[1] - c) < tol
+
+
+def _drawn_lines(doc, view):
+    """The detail lines and the dimension lines (indicator lines included) the view draws, view mm."""
+    out = []
+    for e in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.CurveElement):
+        if getattr(e, 'ViewSpecific', False):
+            try:
+                c = e.GeometryCurve
+                out.append((_xy(view, c.GetEndPoint(0)), _xy(view, c.GetEndPoint(1))))
+            except Exception:
+                continue
+    for d in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.Dimension):
+        try:
+            direction = d.Curve.Direction
+            segs = [(s.Origin, s.Value) for s in d.Segments] if d.NumberOfSegments else [(d.Origin, d.Value)]
+        except Exception:
+            continue
+        for origin, value in segs:
+            if origin is None or value is None:
+                continue
+            half = direction.Multiply(value / 2.0)
+            out.append((_xy(view, origin - half), _xy(view, origin + half)))
     return out
 
 
@@ -490,7 +565,11 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     except Exception:
         pass
     members = hosts or [doc.GetElement(r.GetHostId()) for r in visible]
-    box = _clip_to_crop(view, _outline(view, [m for m in members if m is not None]))
+    box = None
+    if not _is_plan(view) and kind not in ELEVATION_KINDS:
+        # a section: the member as its plane cuts it (2026-10-18, an inclined beam's box ran far past its section)
+        box = _cut_outline(view, [m for m in members if m is not None])
+    box = box or _clip_to_crop(view, _outline(view, [m for m in members if m is not None]))
     if box is None:
         return report
     _concrete_fills(doc, view, [m for m in members if m is not None], kind)
@@ -576,6 +655,10 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             joint['side'] = 'right'
         made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
                       level=kind in LEVEL_ZONE_KINDS, avoid=bars_x, panel=panel, joint=joint)
+        if plan or panel:
+            # a group of loose bars drawn as a zone is: its middle bar, the one called up, and a line across them
+            # (W2, 2026-10-18: every vertical of a curved wall was drawn, its marks bunched with no telling whose)
+            report['typical_singles'] = _typical_singles(doc, view, rebars, clusters, total_style)
         if plan or panel or column:
             _pointers(doc, view, pointers, det, tag_types, box, gap, near if column else outside, placed, report,
                       clusters=clusters, joint=joint)
@@ -596,6 +679,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
             items = pointers if elevation else [d for d in pointers if d['id'] not in ends]
             if panel or column:
                 items = []                           # its loose bars went with its zones (_layout_joint)
+            if panel:
+                cut = []        # bars a wall elevation sees end on are called up on its sections (W2, 2026-10-18)
             # a column's main bars on its right, clear of the levels on its left (user 2026-10-12)
             _marks(doc, view, items, cut, det, tag_types, box, gap, near, placed, report, elevation,
                    per_set=kind in PER_SET_KINDS, clusters=clusters,
@@ -650,7 +735,6 @@ CONCRETE_CUT_RGB = (255, 192, 155)     # NOSA 'Concrete - Generic' cut colour, w
 
 CONCRETE_CATEGORIES = ('OST_Floors', 'OST_StructuralFoundation', 'OST_StructuralFraming', 'OST_StructuralColumns',
                        'OST_Walls')
-BLANK_RGB = (255, 255, 255)
 
 
 def _solid_fill(doc):
@@ -662,30 +746,12 @@ def _solid_fill(doc):
 
 def _concrete_fills(doc, view, members, kind):
     """
-    The concrete as the KIHBIT drawings show it (user 2026-10-18): what a view sees blank, what it cuts in the cut
-    colour - but on a plan or an elevation the members detailed blank even where cut, so their bars read.
+    The concrete a view cuts in the cut colour - its members and the others round them; what it sees keeps the
+    template's grey (user 2026-10-18: keep the grey on plans and elevations).
     """
-    flat = _is_plan(view) or kind in ELEVATION_KINDS
-    others = _concrete_near(doc, members)
-    _concrete_cut(doc, view, others if flat else members + others)
-    solid = _solid_fill(doc)
-    if solid is None:
+    if _is_plan(view):
         return
-    white = DB.Color(*BLANK_RGB)
-    own = set(get_id_value(m.Id) for m in members)
-    for m in members + others:
-        try:
-            ogs = view.GetElementOverrides(m.Id)
-            ogs.SetSurfaceForegroundPatternId(solid.Id)
-            ogs.SetSurfaceForegroundPatternColor(white)
-            ogs.SetSurfaceForegroundPatternVisible(True)
-            if flat and get_id_value(m.Id) in own:
-                ogs.SetCutForegroundPatternId(solid.Id)
-                ogs.SetCutForegroundPatternColor(white)
-                ogs.SetCutForegroundPatternVisible(True)
-            view.SetElementOverrides(m.Id, ogs)
-        except Exception:
-            continue
+    _concrete_cut(doc, view, members + _concrete_near(doc, members))
 
 
 def _concrete_near(doc, members, reach_mm=None):
@@ -713,11 +779,7 @@ def _concrete_cut(doc, view, members):
     The members cut solid in their material's cut colour (user 2026-10-12: slabs, walls and columns came out
     blank at Coarse, where Revit draws walls and floors with their type's coarse fill instead).
     """
-    solid = None
-    for fp in DB.FilteredElementCollector(doc).OfClass(DB.FillPatternElement):
-        if fp.GetFillPattern().IsSolidFill:
-            solid = fp
-            break
+    solid = _solid_fill(doc)
     if solid is None:
         return
     for m in members:
@@ -863,6 +925,46 @@ def _viewer_boxes(doc, view):
 
 def _is_links(rebar):
     return _text(rebar, NOTE_PARAM).startswith(u'LINKS') or _text(rebar, u'NOSA_Rebar_Layer').startswith(u'stirrup')
+
+
+TYPICAL_SINGLES_MIN = 3     # a group this large shows only its middle bar
+
+
+def _typical_singles(doc, view, rebars, clusters, style):
+    """
+    Each group of loose single bars (clusters) shown as SMDSC shows a set: its middle bar - the one merge_singles
+    calls up - and a line across the group from its first bar to its last; the others hidden in the view.
+    Returns how many bars hidden.
+    """
+    from System.Collections.Generic import List
+    by_id = dict((get_id_value(r.Id), r) for r in rebars if r is not None and r.IsValidObject)
+    groups = {}
+    for rid, (gid, size) in (clusters or {}).items():
+        if size >= TYPICAL_SINGLES_MIN and rid in by_id:
+            groups.setdefault(gid, []).append(by_id[rid])
+    hide = List[DB.ElementId]()
+    for bars in groups.values():
+        placed_ = []
+        for r in bars:
+            line = _main_line(r, 0)
+            if line is not None:
+                placed_.append((_xy(view, line.Evaluate(0.5, True)), r, line))
+        if len(placed_) < TYPICAL_SINGLES_MIN:
+            continue
+        placed_.sort(key=lambda e: (round(e[0][0], 3), round(e[0][1], 3)))
+        lead = placed_[len(placed_) // 2][1]
+        for _p, r, _l in placed_:
+            if r.Id != lead.Id and r.CanBeHidden(view):
+                hide.Add(r.Id)
+        a, b = placed_[0][0], placed_[-1][0]
+        if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
+            _draw_path(doc, view, [a, b], placed_[0][2].Evaluate(0.5, True), style)
+    if hide.Count:
+        try:
+            view.HideElements(hide)
+        except Exception:
+            return 0
+    return hide.Count
 
 
 def _single_groups(doc, rebars):
@@ -1854,10 +1956,12 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
     under the plan and one beside it; each bar of a zone stopping short of an edge or an opening dimensioned from
     that face, along its typical bar. Returns how many dimensions.
     """
+    from nosa_utils import callout_layout
     gap, row = GAP_PAPER_MM * scale, ROW_PAPER_MM * scale
     like = view.Origin
     holes = [o for h in hosts for o in _openings(view, h)]
     made = 0
+    lines = None
     if holes:
         y = min([box[1]] + [q[1] for q in placed if q[0] < box[2] and q[2] > box[0]]) - row
         if _dimension_chain(doc, view, [box[0], box[2]] + [x for o in holes for x in (o[0], o[2])], y, like, scale,
@@ -1886,8 +1990,18 @@ def _plan_dims(doc, view, hosts, zones, box, placed, scale, style, report):
         for kind, t0, t1, _layer in presentation.curtailment_dims(ends, supports, tol=EDGE_TOL_MM):
             if kind != 'cut':
                 continue
-            if _dimension_chain(doc, view, [t0, t1], c + 1.5 * gap, like, scale, style, vertical=vertical) is not None:
+            if lines is None:
+                lines = _seen_bars(view) + _drawn_lines(doc, view)
+            # beside its bar, clear of the zones' lines, the calling-ups' and the texts (S2, Revit 2026: on them)
+            steps = [1.5, -1.5, 3.0, -3.0, 4.5, -4.5, 6.0, -6.0]
+            at = callout_layout.clear_offset(min(t0, t1), max(t0, t1), c, vertical, [k * gap for k in steps],
+                                             placed, [s for s in lines if not _on_line(s, c, vertical)],
+                                             0.8 * TEXT_PAPER_MM * scale)
+            if _dimension_chain(doc, view, [t0, t1], at, like, scale, style, vertical=vertical) is not None:
                 made += 1
+                half = 0.8 * TEXT_PAPER_MM * scale
+                placed.append((at - half, min(t0, t1), at + half, max(t0, t1)) if vertical else
+                              (min(t0, t1), at - half, max(t0, t1), at + half))
     report['dims'] = report.get('dims', 0) + made
     return made
 
@@ -2934,9 +3048,11 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
                               'right': (p[0], p[1] - half, box[2] + 1e6, p[1] + half)}[s])
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
+        # a section marks loose bars as it marks sets, mark only (2026-10-18: W2's verticals read '39H12-03', W1's '03')
+        typed = d if mode else dict((k, v) for k, v in d.items() if k != 'total')
         try:
             tag, index = _tag_bar(doc, view, d['rebar'], index, _single_type(
-                doc, d, tag_types, det._tag_type_for_bar(doc, d['rebar'], base)))
+                doc, typed, tag_types, det._tag_type_for_bar(doc, d['rebar'], base)))
         except Exception:
             continue
         anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, ahead, gap)

@@ -1078,6 +1078,19 @@ def _bars_follow(rebar, wanted, tolerance_mm, count):
     return True
 
 
+def set_varying(rebar):
+    """
+    A shape-driven set's bars made to vary with their constraints: DistributionType = VaryingLength up to Revit
+    2025, RebarShapeDrivenAccessor.UseRebarConstraintsToProduceVaryingBars from 2026 (the property was removed;
+    every varying set failed there and curved slab edges came out as dozens of loose bars, 2026-10-18).
+    """
+    kind = getattr(DBS, 'DistributionType', None)
+    if kind is not None and hasattr(rebar, 'DistributionType'):
+        rebar.DistributionType = kind.VaryingLength
+        return
+    rebar.GetShapeDrivenAccessor().UseRebarConstraintsToProduceVaryingBars = True
+
+
 def _varying_error_mm(rebar, wanted):
     import varying_sets as vs
     worst = 0.0
@@ -2157,7 +2170,7 @@ class RebarWrapper(object):
                     # bars propagated away from the rows: the other side of the plane
                     rebar.GetShapeDrivenAccessor().SetLayoutAsFixedNumber(
                         count, length_mm / _MM_PER_FT, False, True, True)
-                rebar.DistributionType = DBS.DistributionType.VaryingLength
+                set_varying(rebar)
                 self.doc.Regenerate()
                 error = fit_varying_ends(self.doc, rebar, host, wanted)
                 if error > tolerance_mm:

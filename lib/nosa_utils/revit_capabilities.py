@@ -38,7 +38,8 @@ def api_flags(DB, DBS):
     return {
         u'presentation_select': has(getattr(DBS, 'RebarPresentationMode', None), 'Select'),
         u'multi_rebar_annotation': has(DB, 'MultiReferenceAnnotation'),
-        u'varying_length': has(getattr(DBS, 'DistributionType', None), 'VaryingLength'),
+        u'varying_length': has(getattr(DBS, 'DistributionType', None), 'VaryingLength') or
+        has(getattr(DBS, 'RebarShapeDrivenAccessor', None), 'UseRebarConstraintsToProduceVaryingBars'),
         u'varying_suffix': settings is not None and has(settings, 'RebarVaryingLengthNumberSuffix'),
         u'free_form': has(getattr(DBS, 'Rebar', None), 'CreateFreeForm'),
         u'couplers': has(DBS, 'RebarCoupler'),
