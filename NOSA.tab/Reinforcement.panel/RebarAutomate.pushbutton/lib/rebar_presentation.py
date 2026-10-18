@@ -89,6 +89,11 @@ def _line_style(doc, name=LINE_STYLE, pen=3):
     lines = doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_Lines)
     for sub in lines.SubCategories:
         if sub.Name == name:
+            try:
+                if sub.GetLineWeight(DB.GraphicsStyleType.Projection) != pen:
+                    sub.SetLineWeight(pen, DB.GraphicsStyleType.Projection)
+            except Exception:
+                pass
             return sub.GetGraphicsStyle(DB.GraphicsStyleType.Projection)
     try:
         sub = doc.Settings.Categories.NewSubcategory(lines, name)
@@ -463,7 +468,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     gap, outside, row = GAP_PAPER_MM * scale, OUTSIDE_PAPER_MM * scale, ROW_PAPER_MM * scale
     style = _line_style(doc)
     total_style = _line_style(doc, TOTAL_STYLE, 1)
-    section_style = _line_style(doc, SECTION_STYLE, 6)
+    section_style = _line_style(doc, SECTION_STYLE, SECTION_PEN)
     _clear(doc, view, (style, total_style, section_style))
     # only the bars of the members detailed (user 2026-10-12: a beam elevation showed the column bars)
     _hide_foreign(doc, view, rebars, hosts or ())
@@ -488,8 +493,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     box = _clip_to_crop(view, _outline(view, [m for m in members if m is not None]))
     if box is None:
         return report
-    if not _is_plan(view):
-        _concrete_cut(doc, view, [m for m in members if m is not None])
+    _concrete_fills(doc, view, [m for m in members if m is not None], kind)
     clusters = _single_groups(doc, rebars)
     text_type = doc.GetDefaultElementTypeId(DB.ElementTypeGroup.TextNoteType)
     tag_types = _tag_types(doc)
@@ -525,8 +529,9 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         cut = [d for d in cut if get_id_value(d['rebar'].GetHostId()) in own]
     _notes(doc, visible)
     elevation = kind in ELEVATION_KINDS
-    if kind == 'elevation' and any(isinstance(m, DB.Wall) for m in members):
-        report['styles'] = _wall_styles(doc, view, visible)
+    # every bar one weight (user 2026-10-18, from the KIHBIT drawings: bars of one size drew thick and thin; this
+    # replaces T9.19's heavy verticals and light horizontals on wall elevations)
+    report['styles'] = bar_weights(view, visible)
     beam_elevation = not plan and kind in (None, 'elevation') and any(
         m is not None and m.Category is not None and
         get_id_value(m.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFraming) for m in members)
@@ -641,6 +646,66 @@ def _hide_foreign(doc, view, rebars, hosts=()):
 
 
 CONCRETE_CUT_RGB = (255, 192, 155)     # NOSA 'Concrete - Generic' cut colour, when a member has no material
+
+
+CONCRETE_CATEGORIES = ('OST_Floors', 'OST_StructuralFoundation', 'OST_StructuralFraming', 'OST_StructuralColumns',
+                       'OST_Walls')
+BLANK_RGB = (255, 255, 255)
+
+
+def _solid_fill(doc):
+    for fp in DB.FilteredElementCollector(doc).OfClass(DB.FillPatternElement):
+        if fp.GetFillPattern().IsSolidFill:
+            return fp
+    return None
+
+
+def _concrete_fills(doc, view, members, kind):
+    """
+    The concrete as the KIHBIT drawings show it (user 2026-10-18): what a view sees blank, what it cuts in the cut
+    colour - but on a plan or an elevation the members detailed blank even where cut, so their bars read.
+    """
+    flat = _is_plan(view) or kind in ELEVATION_KINDS
+    others = _concrete_near(doc, members)
+    _concrete_cut(doc, view, others if flat else members + others)
+    solid = _solid_fill(doc)
+    if solid is None:
+        return
+    white = DB.Color(*BLANK_RGB)
+    own = set(get_id_value(m.Id) for m in members)
+    for m in members + others:
+        try:
+            ogs = view.GetElementOverrides(m.Id)
+            ogs.SetSurfaceForegroundPatternId(solid.Id)
+            ogs.SetSurfaceForegroundPatternColor(white)
+            ogs.SetSurfaceForegroundPatternVisible(True)
+            if flat and get_id_value(m.Id) in own:
+                ogs.SetCutForegroundPatternId(solid.Id)
+                ogs.SetCutForegroundPatternColor(white)
+                ogs.SetCutForegroundPatternVisible(True)
+            view.SetElementOverrides(m.Id, ogs)
+        except Exception:
+            continue
+
+
+def _concrete_near(doc, members, reach_mm=None):
+    """The concrete members round the ones detailed (within reach), the members themselves left out."""
+    own = set(get_id_value(m.Id) for m in members)
+    boxes = [m.get_BoundingBox(None) for m in members]
+    boxes = [b for b in boxes if b is not None]
+    if not boxes:
+        return []
+    r = (reach_mm or NEIGHBOUR_REACH_MM) / _MM_PER_FT
+    near = DB.BoundingBoxIntersectsFilter(DB.Outline(
+        DB.XYZ(min(b.Min.X for b in boxes) - r, min(b.Min.Y for b in boxes) - r, min(b.Min.Z for b in boxes) - r),
+        DB.XYZ(max(b.Max.X for b in boxes) + r, max(b.Max.Y for b in boxes) + r, max(b.Max.Z for b in boxes) + r)))
+    out = []
+    for name in CONCRETE_CATEGORIES:
+        for e in DB.FilteredElementCollector(doc).OfCategory(getattr(DB.BuiltInCategory, name)) \
+                .WhereElementIsNotElementType().WherePasses(near):
+            if get_id_value(e.Id) not in own:
+                out.append(e)
+    return out
 
 
 def _concrete_cut(doc, view, members):
@@ -1048,6 +1113,7 @@ def _crop_bottom(view, y):
 
 
 SECTION_STYLE = u'NOSA Section Marks'
+SECTION_PEN = 3     # tick and arrow one weight (user 2026-10-18: the marks mixed thick and thin lines)
 SECTION_TICK_PAPER_MM = 5.0
 
 
@@ -1115,8 +1181,8 @@ SECTION_ARROW_PAPER_MM = 4.0
 
 
 def section_arrow_style(doc):
-    """The thin line of a section mark's arrow (the tick itself is the thick NOSA Section Marks)."""
-    return _line_style(doc, LINE_STYLE, 3)
+    """A section mark's arrow: the tick's own style, so the whole mark is one weight (user 2026-10-18)."""
+    return _line_style(doc, SECTION_STYLE, SECTION_PEN)
 
 
 def _strip_note(text, note):
@@ -1977,27 +2043,18 @@ def _strips(doc, view, hosts, box, placed, scale, style, text_type):
     return made
 
 
-WALL_VERTICAL_PEN = 5      # T9.19: a wall elevation's vertical bars heavier than its horizontal ones
-WALL_HORIZONTAL_PEN = 2
+BAR_PEN = 3     # every bar in every RC view: one weight, cut or seen (measured 2026-10-18 in Revit 2026: left to
+                # the category, bars of one size drew in two weights; pen 3 prints alike at 1:25 and 1:50)
 
 
-def _wall_styles(doc, view, rebars):
-    """
-    T9.19 on a wall elevation: vertical and horizontal bars told apart by their line weight (the verticals heavy,
-    the horizontals light), so the two layers of each face read at a glance. Returns how many bars restyled.
-    """
+def bar_weights(view, rebars):
+    """Every bar drawn at BAR_PEN, seen or cut, keeping any line pattern already given (SEE DRG dashes)."""
     n = 0
     for r in rebars:
-        line = _main_line(r, 0)
-        if line is None:
-            continue
-        pen = WALL_VERTICAL_PEN if abs(line.Direction.Z) > 0.9 else (
-            WALL_HORIZONTAL_PEN if abs(line.Direction.Z) < 0.1 else None)
-        if pen is None:
-            continue
         try:
             ogs = view.GetElementOverrides(r.Id)
-            ogs.SetProjectionLineWeight(pen)
+            ogs.SetProjectionLineWeight(BAR_PEN)
+            ogs.SetCutLineWeight(BAR_PEN)
             view.SetElementOverrides(r.Id, ogs)
             n += 1
         except Exception:
@@ -3057,6 +3114,8 @@ def see_drawing(doc, view, rebars, hosts=()):
         ogs = DB.OverrideGraphicSettings()
         if dash is not None:
             ogs.SetProjectionLinePatternId(dash.Id)
+        ogs.SetProjectionLineWeight(BAR_PEN)
+        ogs.SetCutLineWeight(BAR_PEN)
         view.SetElementOverrides(rebar.Id, ogs)
         if see in noted:
             continue            # one note a drawing: eight starters up a column wrote it eight times over (2026-10-18)
