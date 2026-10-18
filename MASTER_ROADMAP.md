@@ -363,11 +363,13 @@ la interfaz actual no cambia en `develop`/`main` hasta que el usuario la apruebe
 
 | Estado | ID | Tarea | Alcance |
 |---|---|---|---|
-| [ ] | T11.1 | Plano de pilotes | Numeración P1… y tabla de coordenadas, diámetro y cota de corte en su propio plano |
+| [-] | T11.1 | ~~Plano de pilotes~~ | Descartada (2026-10-18): lo hace el plugin Piles / Pile Master del usuario, dinámico con el modelo |
 | [ ] | T11.2 | Planillas emitidas congeladas | Al emitir, barras Finalized y la planilla guarda la revisión con fecha y cambios |
 | [ ] | T11.3 | Copiar armado a elementos idénticos | Misma geometría y tipo: copiar en lugar de generar; planilla con No. of mbrs |
 | [ ] | T11.4 | Visibilidad por capa | T1/T2/B1/B2/N1/F1, U, trimmers, esperas con un clic (Check & manage) |
 | [ ] | T11.5 | Resaltar por marca | Seleccionar o aislar una marca en la vista activa desde la planilla o el registro |
+| [ ] | T11.6 | Paneles de armado adicional por contorno | Elegir un rectángulo o polígono en planta (refuerzo superior sobre apoyos, zonas del cálculo), cara y capa, barra y separación; generado con las reglas NOSA (anclajes, capas, marcas, planilla). Inspirado en «Slab Rebar» de KS Digital |
+| [x] | T11.7 | Presentación según las figuras de planos tipo del SMDSC | Plantas (losas, zapatas, encepados) y alzados de muro: rótulo en la prolongación recta de su línea indicadora, en columnas y filas alineadas sin cruces (`callout_layout.align_rows`), decidido por el usuario con el plano de KS Digital (2026-10-18). Pendiente: etiqueta con texto subrayado y ALT/STG apilados |
 
 ## Orden y dependencias
 
