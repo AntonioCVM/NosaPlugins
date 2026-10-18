@@ -147,6 +147,8 @@ SHORT_TAG = u'No centres - Dot'
 SPACER_TAG = u'No centres - Arrow'      # '4H25-01 SPACERS': the count of the set, no centres (SMDSC 4th ed. MD B1)
 TOTAL_STYLE = u'NOSA Total Lines'       # the line under a beam carrying a link mark's one calling-up
 ELEVATION_KINDS = ('elevation', 'column_elevation')
+# link zones called up level beside the member: a column's elevation, a base's starter links (user 2026-10-17)
+LEVEL_ZONE_KINDS = ('column_elevation', 'footing_section')
 PER_SET_KINDS = ('column_elevation',)   # one mark per cut set; sections mark every cut bar (user 2026-10-12)
 CALLOUT_TAG = u'Callout - Dot'          # NOSA Rebar Tag 1.3.0
 ZONE_QTY_TAG = u'Zone quantity - Dot'
@@ -456,7 +458,7 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         # a column's bars called up close beside it (user 2026-10-12)
         near = COLUMN_OUTSIDE_PAPER_MM * scale if kind == 'column_elevation' else outside
         made = _zones(doc, view, zones, mra_type, det, box, gap, near, row, placed, report,
-                      level=kind == 'column_elevation')
+                      level=kind in LEVEL_ZONE_KINDS)
         if plan:
             _pointers(doc, view, pointers, det, tag_types, box, gap, outside, placed, report, clusters=clusters)
             if hosts and kind == 'plan':
