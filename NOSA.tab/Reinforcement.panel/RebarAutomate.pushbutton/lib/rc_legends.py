@@ -477,19 +477,14 @@ def _empty(doc, view):
             pass
 
 
-def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
+def typical_views(doc, keys, redraw=False):
     """
-    T9.21: the typical details `keys` as legends (drawn when missing, or again with redraw) on the project's
-    typical details drawing, made with `titleblock` when missing; legends still under their old 'NOSA TD' names
-    are renamed. number: a callable giving the drawing's number when it has to be made (the caller's reserved
-    numbers), else the next free RC number. In a transaction. Returns (the numbers of the drawings they are on,
-    '' if none, [(key, model detail)]).
+    The legends of the typical details `keys`, drawn when missing (or again with redraw); legends still under their
+    old 'NOSA TD' names renamed. In a transaction. [view] in the order of keys.
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils import typical_details as td
     from nosa_utils.revit_helpers import element_name
-    if not keys:
-        return u'', []
     legends = dict((element_name(v), v) for v in DB.FilteredElementCollector(doc).OfClass(DB.View)
                    if not v.IsTemplate and v.ViewType == DB.ViewType.Legend)
     views = []
@@ -506,6 +501,36 @@ def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
         if new or redraw:
             td.draw(doc, view, key, _text_type_id(doc, LABEL_TYPE))
         views.append(view)
+    return views
+
+
+def untitled(doc, ports):
+    """Viewports of legends that carry their own title: the NOSA no-title viewport type."""
+    from Autodesk.Revit import DB  # Lazy import
+    vp_type = _by_name(doc, DB.ElementType, VIEWPORT_TYPE)
+    if vp_type is None:
+        return
+    for port in ports:
+        try:
+            if vp_type.Id in port.GetValidTypes():
+                port.ChangeTypeId(vp_type.Id)
+        except Exception:
+            continue
+
+
+def typical_details(doc, keys, titleblock=None, redraw=False, number=None):
+    """
+    T9.21: the typical details `keys` as legends (drawn when missing, or again with redraw) on the project's
+    typical details drawing, made with `titleblock` when missing; legends still under their old 'NOSA TD' names
+    are renamed. number: a callable giving the drawing's number when it has to be made (the caller's reserved
+    numbers), else the next free RC number. In a transaction. Returns (the numbers of the drawings they are on,
+    '' if none, [(key, model detail)]).
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils import typical_details as td
+    if not keys:
+        return u'', []
+    views = typical_views(doc, keys, redraw)
     import view_plan
     from nosa_utils.revit_helpers import get_id_value
     # found by their names - 'RC typical details', '... (2)'...: each takes the next free RC number when first

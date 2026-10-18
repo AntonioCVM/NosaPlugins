@@ -40,6 +40,8 @@ def choose_scale(kind, width_mm, height_mm):
 
 def coarser_scale(kind, scale):
     """The next candidate scale of this kind after `scale`, or None at the last one."""
+    if kind not in SCALES:
+        return None                      # a legend (a typical detail) keeps its own scale
     later = [s for s in SCALES[kind][0] if s > scale]
     return later[0] if later else None
 

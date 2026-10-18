@@ -235,12 +235,11 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         spec.update({'as_plan': True, 'level': _level_of(doc, host), 'box': box, 'cut_z': _mm(centre.Z),
                      'bottom_z': _mm(centre.Z) - 60.0, 'margin': 150.0})
         specs.append(spec)
-        # the whole column in the view's depth, cut by neither plane: both elevations drawn alike (user 2026-10-12:
-        # B came out shaded and A blank)
-        specs.append(_section(u'Elevation A', 'column_elevation', centre, x, z_axis, wx / 2 + 300,
-                              height / 2 + 700, wy / 2 + 60, wy / 2 + 60))
-        specs.append(_section(u'Elevation B', 'column_elevation', centre, y, z_axis, wy / 2 + 300,
-                              height / 2 + 700, wx / 2 + 60, wx / 2 + 60))
+        # one elevation, of the wider face, the whole column in the view's depth (SMDSC 4th ed. MD C1-C5; user
+        # 2026-10-18: the section already gives the bars round it, a second elevation repeated the first)
+        face, w_face, w_across = (x, wx, wy) if wx >= wy else (y, wy, wx)
+        specs.append(_section(u'Elevation', 'column_elevation', centre, face, z_axis, w_face / 2 + 300,
+                              height / 2 + 700, w_across / 2 + 60, w_across / 2 + 60))
     elif kind == 'beam' and beam_rebar.get_beam_arc(host) is not None:
         # T8.58 curved beam: no plane holds it, so a plan of it (its arc bars) and radial sections
         arc = beam_rebar.get_beam_arc(host)
@@ -565,19 +564,20 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
             fn = group['retag'].get(get_id_value(view.Id))
             if fn is not None:
                 fn(view)
+        details, typical = _typical(doc, group['hosts'], group['rebars'])
         # a drawing of several members goes on to a second sheet rather than below the SMDSC reading scales
-        sheets = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
+        sheets = _place_on_sheets(doc, created + details, titleblock, sheet_numbers, view_plan,
                                   u'{} reinforcement'.format(_PLURAL.get(kind, kind)), retag=retag, legends=legends,
                                   coarsen=False)
         if sheets:
             import bar_schedules
+            _untitle_typical(doc, sheets, details)
             bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0], force=True)
             grade = _buildability(doc, group['hosts'], report)
-            td_sheet, typical = _typical(doc, group['hosts'], group['rebars'], titleblock, sheet_numbers)
             for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                 if sheet.SheetNumber in sheets:
                     report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
-                                                                   grade, typical, td_sheet))
+                                                                   grade, typical, u', '.join(sheets)))
         if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
             report['errors'].append(u'{} drawing: rolled back by Revit — {}'.format(
                 _PLURAL.get(kind, kind), u'; '.join(guard.errors)))
@@ -898,12 +898,11 @@ def _column_above(doc, column):
     return False
 
 
-def _typical(doc, hosts, rebars, titleblock, sheet_numbers=None):
+def _typical(doc, hosts, rebars):
     """
-    T9.21: the typical details these members call for (their kinds, the bar layers on them, piles under a cap),
-    placed on the typical details drawing - made, when missing, with the next of the numbers reserved for this run
-    (sheet_numbers; 2026-10-17: it took a free number the walls drawing then found in use). (its number,
-    [(key, model detail)]).
+    T9.21: the typical details these members call for (their kinds, the bar layers on them, piles under a cap), as
+    legends to go on their own drawing (user 2026-10-18: a detail beside the members it is for, not on a general
+    drawing of the whole project). ([(view, spec, None)] to lay out with the drawing's views, [(key, model detail)]).
     """
     import rc_legends
     import rebar_presentation
@@ -917,12 +916,29 @@ def _typical(doc, hosts, rebars, titleblock, sheet_numbers=None):
     flags = [u'column_top'] if any(host_kind(h) == 'column' and not _column_above(doc, h) for h in hosts) else []
     keys = typical_details.needed([host_kind(h) for h in hosts], layers, piled, flags)
     try:
-        return rc_legends.typical_details(doc, keys, titleblock, number=(
-            (lambda: sheet_numbers.pop(0)) if sheet_numbers else None))
+        views = rc_legends.typical_views(doc, keys)
     except Exception:
         from nosa_utils.telemetry import log_swallowed
         log_swallowed(u'rebarautomate', u'typical details')
-        return u'', []
+        return [], []
+    doc.Regenerate()
+    items = [(v, {'title': v.Name, 'kind': 'typical_detail', 'plan': False, 'member': u'~typical',
+                  'size': (0.0, 0.0)}, None) for v in views]
+    return items, [(k, typical_details.by_key()[k][1]) for k in keys]
+
+
+def _untitle_typical(doc, sheets, items):
+    """The typical details' viewports on the drawing take the no-title type: each legend has its own title."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    import rc_legends
+    ids = set(get_id_value(v.Id) for v, _s, _c in items)
+    ports = []
+    for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+        if sheet.SheetNumber in sheets:
+            ports.extend(p for p in (doc.GetElement(i) for i in sheet.GetAllViewports())
+                         if p is not None and get_id_value(p.ViewId) in ids)
+    rc_legends.untitled(doc, ports)
 
 
 def _new_sheet(doc, titleblock, number, name):
@@ -1263,19 +1279,20 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                     sp = specs_of.get(get_id_value(view.Id)) or {'plan': False, 'kind': None}
                     rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
                                              kind=sp.get('kind'), sections=section_refs(created, view, sp))
-            report['sheets'] = _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan,
+            details, typical = _typical(doc, hosts, rebars)
+            report['sheets'] = _place_on_sheets(doc, created + details, titleblock, sheet_numbers, view_plan,
                                                 u'{} {} reinforcement'.format(_TITLES.get(kind, u''), label),
                                                 retag=retag, legends=legends)
             if report['sheets']:
+                _untitle_typical(doc, report['sheets'], details)
                 # SMDSC 4th ed. 4.5.1: the member's bar schedules belong to the drawing it is detailed on
                 import bar_schedules
                 bar_schedules.stamp_drawing(doc, rebars, report['sheets'][0])
                 # SMDSC 4th ed. 3.7 (T9.6): each drawing's notes from what is on it
-                td_sheet, typical = _typical(doc, hosts, rebars, titleblock, sheet_numbers)
                 for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
                     if sheet.SheetNumber in report['sheets']:
-                        report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars,
-                                                                       typical=typical, typical_drawing=td_sheet))
+                        report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars, typical=typical,
+                                                                       typical_drawing=u', '.join(report['sheets'])))
         if tag and rebars and sheet_group is None:
             # T8.27, SMDSC 4th ed. 6.2.2: bars detailed on another drawing, once the views are on their sheets
             own = set(get_id_value(r.Id) for r in rebars)

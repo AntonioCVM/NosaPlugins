@@ -101,11 +101,14 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
     hx, hy = length / 2.0, height / 2.0
     ext_n = abs(nrm[0]) * hx + abs(nrm[1]) * hy
     ext_u = abs(u[0]) * hx + abs(u[1]) * hy
-    for k in range(rows):
+    # nearest first: a row off the line, then slid along it a text at a time (past the other direction's typical
+    # bar, user 2026-10-18 S1), then further off
+    steps = sorted(((k, j) for k in range(rows) for j in range(rows)), key=lambda kj: (kj[0] + kj[1], kj[1]))
+    for k, j in steps:
         for along in (1.0, -1.0):
             for side in (1.0, -1.0):
                 t_n = side * (ext_n + lift + k * (height + gap))
-                t_u = along * (off + ext_u + gap)
+                t_u = along * (off + ext_u + gap + j * (2.0 * ext_u + gap))
                 c = (junction[0] + nrm[0] * t_n + u[0] * t_u, junction[1] + nrm[1] * t_n + u[1] * t_u)
                 bx = (c[0] - hx, c[1] - hy, c[0] + hx, c[1] + hy)
                 if bx[0] < box[0] or bx[1] < box[1] or bx[2] > box[2] or bx[3] > box[3]:

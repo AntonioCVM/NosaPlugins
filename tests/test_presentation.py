@@ -141,6 +141,12 @@ def test_column_ratio_and_confinement():
     assert pr.confinement_zones([(0, 30, 100), (30, 2400, 200), (2400, 3000, 100)]) == [(2400, 3000)]
 
 
+def test_clearest_between_bars():
+    xs = [0.0, 50.0, 100.0, 150.0, 200.0]
+    assert pr.clearest(xs, [0.0, 100.0, 200.0]) in (1, 3)
+    assert pr.clearest(xs, []) == 2 and pr.clearest([], [1.0]) is None
+
+
 def test_links_chain_takes_the_supports_in():
     xs, labels = pr.links_chain([(50.0, 1250.0), (1375.0, 4175.0)], [(-450.0, 0.0), (4225.0, 4675.0)])
     assert xs == [-450.0, 0.0, 50.0, 1250.0, 1375.0, 4175.0, 4225.0, 4675.0]
