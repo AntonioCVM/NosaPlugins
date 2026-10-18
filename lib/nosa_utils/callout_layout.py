@@ -7,6 +7,9 @@ pointers stay as short and straight as they can. View coordinates in model mm; b
 """
 
 
+TOUCH = 1e-6
+
+
 def overlap(a, b, gap=0.0):
     return a[0] < b[2] + gap and b[0] < a[2] + gap and a[1] < b[3] + gap and b[1] < a[3] + gap
 
@@ -120,7 +123,7 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
     return None
 
 
-def align_rows(items, box, gap, outside, placed=(), lift=0.0):
+def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=()):
     """
     Calling-ups of a plan's or a wall elevation's zones as Arup's detailing manual (R. Whittle, 1.5.1) and the SMDSC
     4th ed. working drawings draw them (user 2026-10-18): every text level, written on a line that underlines it;
@@ -133,18 +136,53 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0):
     """
     placed = list(placed)
     sides = {}
+    level = {}
+    lines = dict((k, (it['a'], it['b'])) for k, it in items.items())
+
+    def crossings(key, start, side):
+        # the other items' indicator lines a level run from start out to the member's side would cross
+        run = (start, (box[0] if side == 'left' else box[2], start[1]))
+        return sum(1 for k, seg in lines.items() if k != key and _crosses(run, seg))
+
+    def pick(key, it, left, right, nearer):
+        # the side whose line crosses fewer of the others' (2026-10-18 audit, W10), the nearer one when even
+        if it.get('side'):
+            return it['side']
+        cl, cr = crossings(key, left, 'left'), crossings(key, right, 'right')
+        if cl == cr:
+            return nearer
+        return 'left' if cl < cr else 'right'
+
     for key, it in items.items():
         a, b = it['a'], it['b']
         if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
             lo, hi = (a, b) if a[0] <= b[0] else (b, a)
-            side, end = ('right', hi) if box[2] - hi[0] <= lo[0] - box[0] else ('left', lo)
+            level[key] = (lo, hi, pick(key, it, lo, hi, 'right' if box[2] - hi[0] <= lo[0] - box[0] else 'left'))
+    risers = {}
+    for key, (lo, hi, side) in level.items():
+        # zones end to end on one row: the inner one's line would run out over the outer one's, so it rises square
+        # from its own middle to a height of its own (2026-10-18: two such lines read as one closed box)
+        y, h = lo[1], items[key]['height']
+        for other, (olo, ohi, oside) in level.items():
+            if other == key or oside != side or abs(olo[1] - y) > h / 2.0:
+                continue
+            if (side == 'left' and ohi[0] <= lo[0] + TOUCH) or (side == 'right' and olo[0] >= hi[0] - TOUCH):
+                risers[key] = _riser(lo, hi, side, h, gap, box, obstacles)
+                break
+    for key, it in items.items():
+        a, b = it['a'], it['b']
+        if key in level:
+            lo, hi, side = level[key]
+            end = hi if side == 'right' else lo
             span, under = None, end[1]
+            if key in risers:
+                end, under = risers[key]
         else:
             lo, hi = (a, b) if a[1] <= b[1] else (b, a)
             x = (a[0] + b[0]) / 2.0
-            side = 'right' if box[2] - x <= x - box[0] else 'left'
             span = (lo[1], hi[1])
             under = min(max(it.get('at', (lo[1] + hi[1]) / 2.0), lo[1]), hi[1])
+            side = pick(key, it, (x, under), (x, under), 'right' if box[2] - x <= x - box[0] else 'left')
             end = (x, under)
         sides.setdefault(side, []).append((key, end, span, under + it['height'] / 2.0 + lift))
     out = {}
@@ -169,18 +207,23 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0):
         # lines packed off their own height jog square in the gap beside the member, each at its own distance, in
         # the order that keeps them from crossing: of those going up the highest jogs nearest the member, of
         # those going down the lowest (2026-10-18: jogs sharing one upright read as one line)
-        lifted = [(r[0], r[1][1], c - items[r[0]]['height'] / 2.0 - lift) for r, c in zip(rows, at) if r[2] is None]
+        lifted = [(r[0], r[1][1], c - items[r[0]]['height'] / 2.0 - lift) for r, c in zip(rows, at)
+                  if r[2] is None and r[0] not in risers]
         ups = sorted([k for k, y, u in lifted if u > y + 1e-6], key=lambda k: -dict((a, y) for a, y, _u in lifted)[k])
         downs = sorted([k for k, y, u in lifted if u < y - 1e-6], key=lambda k: dict((a, y) for a, y, _u in lifted)[k])
+        # one sequence for both: a line going up and one going down from one point never share an upright
+        # (C3 2026-10-18); the packing keeps their heights apart, so they never cross either
         jog_at = {}
-        for group in (ups, downs):
-            for i, k in enumerate(group):
-                jog_at[k] = edge + sign * start * (i + 1.0) / (len(group) + 1.0)
+        order = ups + downs
+        for i, k in enumerate(order):
+            jog_at[k] = edge + sign * start * (i + 1.0) / (len(order) + 1.0)
         for (key, end, span, _w), c in zip(rows, at):
             n, h = items[key]['length'], items[key]['height']
             u = c - h / 2.0 - lift                    # the underline's height
             far = (near + sign * n, u)
-            if span is None:
+            if key in risers:
+                path = [end, (end[0], u), far]
+            elif span is None:
                 if abs(u - end[1]) < 1e-6:
                     path = [end, far]
                 else:                                 # packed off its line: a square jog in the gap beside the member
@@ -194,6 +237,54 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0):
             placed.append(bx)
             out[key] = {'centre': centre, 'path': path, 'box': bx, 'side': side}
     return out
+
+
+def _crosses(s, t):
+    """Two segments crossing through each other (touching at an end is not crossing)."""
+    (a, b), (c, d) = s, t
+
+    def orient(p, q, r):
+        v = (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+        return 0 if abs(v) < 1e-9 else (1 if v > 0 else -1)
+    return orient(a, b, c) * orient(a, b, d) < 0 and orient(c, d, a) * orient(c, d, b) < 0
+
+
+def _riser(lo, hi, side, h, gap, box, obstacles):
+    """
+    Where the line of a zone shut in on its row by another rises from, and the height it runs out at: off the
+    zone's middle (its typical bar is there, 2026-10-18), nearer the column, and clear of the bars seen in the view
+    (obstacles: segments), so neither the rise nor the run lies along a bar. Returns ((x, y), height).
+    """
+    y = lo[1]
+    clear = 0.6 * h
+    span = hi[0] - lo[0]
+    order = (0.25, 0.15, 0.35, 0.1, 0.4)
+    xs = [(lo[0] + q * span) if side == 'left' else (hi[0] - q * span) for q in order]
+    uprights = [o for o in obstacles if abs(o[1][0] - o[0][0]) < abs(o[1][1] - o[0][1])]
+    levels = [o for o in obstacles if abs(o[1][0] - o[0][0]) >= abs(o[1][1] - o[0][1])]
+
+    def along_upright(x, y0, y1):
+        for (p, q) in uprights:
+            ox = (p[0] + q[0]) / 2.0
+            if abs(ox - x) < clear and min(p[1], q[1]) < y1 and max(p[1], q[1]) > y0:
+                return True
+        return False
+
+    def along_level(x, u):
+        x0, x1 = (box[0], x) if side == 'left' else (x, box[2])
+        for (p, q) in levels:
+            oy = (p[1] + q[1]) / 2.0
+            if abs(oy - u) < clear and min(p[0], q[0]) < x1 and max(p[0], q[0]) > x0:
+                return True
+        return False
+
+    step = 0.5 * (h + gap)
+    for k in range(2, 12):
+        u = y + k * step
+        for x in xs:
+            if not along_upright(x, y, u) and not along_level(x, u):
+                return (x, y), u
+    return (xs[0], y), y + 2 * step
 
 
 def stack(box, side, lines, gap):
@@ -287,7 +378,40 @@ def tiers(desired, widths, gap, most=MAX_TIERS):
     return out
 
 
-def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None):
+def _clear_blocks(pos, tier, widths, blocks, gap):
+    """Marks standing on a line of `blocks` moved just off it, to the side with room in their row, or a row out."""
+    if not blocks:
+        return
+
+    def free_at(i, p, t):
+        for j in range(len(pos)):
+            if j != i and tier[j] == t and abs(pos[j] - p) < (widths[i] + widths[j]) / 2.0 + gap:
+                return False
+        return not any(abs(b - p) < widths[i] / 2.0 + gap / 2.0 for b in blocks)
+
+    for i in range(len(pos)):
+        hit = [b for b in blocks if abs(b - pos[i]) < widths[i] / 2.0 + gap / 4.0]
+        if not hit:
+            continue
+        b = hit[0]
+        tries = sorted([b - gap / 2.0 - widths[i] / 2.0, b + gap / 2.0 + widths[i] / 2.0],
+                       key=lambda p: abs(p - pos[i]))
+        for p in tries:
+            if free_at(i, p, tier[i]):
+                pos[i] = p
+                break
+        else:
+            for t in range(tier[i] + 1, MAX_TIERS):
+                for p in [pos[i]] + tries:
+                    if free_at(i, p, t):
+                        pos[i], tier[i] = p, t
+                        break
+                else:
+                    continue
+                break
+
+
+def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None, blocks=None):
     """
     Marks of bars in a section or elevation: items [{'id', 'anchor' (x, y) on the bar, 'length', 'height',
     'vertical' (optional: the text turned to run up the sheet), 'side' (optional: 'top' | 'bottom' | 'left' |
@@ -296,7 +420,8 @@ def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None):
     distance from the member so the texts of a row line up (SMDSC 4th ed. 6.2.2). Free marks of bars too close for them
     side by side split into up to MAX_TIERS rows (tiers); marks with pointers go in a row beyond them.
     edges: {side: coordinate} where a row starts instead of the box's edge; free_gap: between free marks (they
-    need less room than texts with pointers). Returns {id: {'centre', 'side', 'box'}}.
+    need less room than texts with pointers). blocks: {side: [coordinates along the row]} of lines no mark may
+    stand on (the grid lines a section shows, 2026-10-18 audit). Returns {id: {'centre', 'side', 'box'}}.
     """
     rows = {}
     for it in items:
@@ -325,6 +450,7 @@ def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None):
             g = fgap if t < outer else gap
             for i, p in zip(ids, pack([desired[i] for i in ids], [widths[i] for i in ids], g)):
                 pos[i] = p
+        _clear_blocks(pos, tier, widths, (blocks or {}).get(side, ()), fgap)
         deep = (max(across[i] for i in free) + gap) if free else 0.0
         base = min(row[i].get('outside', outside_gap) for i in free) if free else None
         sign = 1.0 if side in ('top', 'right') else -1.0

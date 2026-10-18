@@ -1250,7 +1250,9 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             import rebar_presentation
             from nosa_utils import tag_engine
             mra_type_id = tag_engine.mra_type_id(doc)
-            for view, spec, _scale in created:
+            # the sections first: fitting their crop moves their marks on the plans and elevations, whose
+            # calling-ups keep off those marks (2026-10-18 audit: texts laid out round where the heads had been)
+            for view, spec, _scale in sorted(created, key=lambda c: c[0].ViewType != DB.ViewType.Section):
                 rebar_presentation.apply(doc, view, rebars, rebar_detailing, mra_type_id, hosts=hosts,
                                          kind=spec['kind'], sections=section_refs(created, view, spec))
         if sheet_group is not None and tag and rebars:
