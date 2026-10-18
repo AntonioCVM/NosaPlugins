@@ -2775,7 +2775,7 @@ def see_drawing(doc, view, rebars):
         return 0
     dash = DB.LinePatternElement.GetLinePatternElementByName(doc, u'Dash')
     text_type = doc.GetDefaultElementTypeId(DB.ElementTypeGroup.TextNoteType)
-    n = 0
+    n, noted = 0, set()
     for rebar in rebars:
         if rebar is None or not rebar.IsValidObject or rebar.IsHidden(view):
             continue
@@ -2786,8 +2786,11 @@ def see_drawing(doc, view, rebars):
         if dash is not None:
             ogs.SetProjectionLinePatternId(dash.Id)
         view.SetElementOverrides(rebar.Id, ogs)
+        if see in noted:
+            continue            # one note a drawing: eight starters up a column wrote it eight times over (2026-10-18)
         line = _main_line(rebar, 0)
         if line is not None and _note(doc, view, line.Evaluate(0.5, True), see, text_type):
+            noted.add(see)
             n += 1
     return n
 
