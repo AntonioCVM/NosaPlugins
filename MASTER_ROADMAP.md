@@ -349,15 +349,25 @@ la interfaz actual no cambia en `develop`/`main` hasta que el usuario la apruebe
 |---|---|---|:-:|---|
 | [x] | T10.1 | Maqueta navegable | A | Capturas reales de la ventana (todas las secciones, claro y oscuro) renderizadas en Revit 2024 en lugar de una maqueta HTML (2026-10-18) |
 | [x] | T10.2 | Navegación lateral | A | Project · Slabs & bases · Columns · Beams · Walls · Stairs · Drawings · Schedules & export · Check & manage, iconos vectoriales; abre en el elemento seleccionado o en la última pestaña |
-| [x] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced / Run log en cada elemento. Zapatas y losas siguen en una pestaña (un solo formulario que el motor reparte por categoría) con las tarjetas de cada una ocultas según la selección |
+| [x] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced / Run log en cada elemento; *Slabs* (forjados y losas de cimentación) y *Bases & pile caps* (zapatas y encepados) como pestañas propias sobre un mismo formulario (2026-10-18) |
 | [x] | T10.4 | Barras de selección y de acción | A | Barra de selección con recuento y marcas; barra de acción con estado, insignia QA, «Create drawings ▸» y GENERATE único |
 | [x] | T10.5 | Aspecto NOSA | B | Cards, iconos Path, modo oscuro corregido (pinceles congelados sustituidos en NOSAWindow.ApplyTheme) |
 | [x] | T10.6 | Vista previa grande | B | Vistas previas con el hormigón en naranja claro (corte) y gris (visto); insignia QA A+/A/B/C de rebar_qa tras cada generación |
-| [~] | T10.7 | SMDSC defaults y validación | C | Validación en línea de los campos numéricos (borde rojo y tooltip) y «Reset to defaults» por pestaña. Pendiente: rellenar con las tablas SMDSC/EC2 (confirmar con el usuario: daría cuantías mínimas, no de cálculo) |
+| [x] | T10.7 | SMDSC defaults y validación | C | Recuadro *Detailing limits (EC2, UK NA)* con As,min y separación máxima de la selección (losas, zapatas, muros) y aviso si la malla no los cumple; botón *Apply EC2 minimum* rotulado como mínimo, no de cálculo (`nosa_utils.min_steel`); validación en línea y «Reset to defaults» |
 | [x] | T10.8 | Mostrar solo lo que aplica | C | Sin «(… only)»: las tarjetas de solo losas / solo zapatas se ocultan según la selección |
 | [x] | T10.9 | Resultado útil | C | Resumen de la selección siempre visible; notas del registro pulsables (doble clic selecciona el elemento); recuerda la pestaña |
 | [x] | T10.10 | Textos 4.ª ed. | D | Etiquetas en sentence case británico; citas de la 4.ª ed. (MD C6a, CB1, C2a, B1, RW1/RW2, ST1, PB1, S1/S2, S5, OP1, Appendix D, 5.1.10, Fig. 6.7); depósitos a EC2-3 |
 | [~] | T10.11 | Validación y versiones | E | test_ui_v2 (controles usados por el código presentes, sin SelectedIndex en XAML, sin español); ventana probada en 2024. Pendiente: 2025–2027 cuando el usuario lo autorice, y merge tras su aprobación |
+
+### Fase 11 — Propuesta tras la comparativa (docs/FASE11_BENCHMARK_RA.md)
+
+| Estado | ID | Tarea | Alcance |
+|---|---|---|---|
+| [ ] | T11.1 | Plano de pilotes | Numeración P1… y tabla de coordenadas, diámetro y cota de corte en su propio plano |
+| [ ] | T11.2 | Planillas emitidas congeladas | Al emitir, barras Finalized y la planilla guarda la revisión con fecha y cambios |
+| [ ] | T11.3 | Copiar armado a elementos idénticos | Misma geometría y tipo: copiar en lugar de generar; planilla con No. of mbrs |
+| [ ] | T11.4 | Visibilidad por capa | T1/T2/B1/B2/N1/F1, U, trimmers, esperas con un clic (Check & manage) |
+| [ ] | T11.5 | Resaltar por marca | Seleccionar o aislar una marca en la vista activa desde la planilla o el registro |
 
 ## Orden y dependencias
 

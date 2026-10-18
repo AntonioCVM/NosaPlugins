@@ -205,6 +205,7 @@ class BeamsMixin(object):
             # the faces between spans; spans meeting at a support's centre line get a nominal 300 mm support
             supports = [(a1, b0) if b0 - a1 > 1.0 else (a1 - 150.0, a1 + 150.0)
                         for (_a0, a1), (b0, _b1) in zip(spans, spans[1:])]
+            supports = [(-150.0, 150.0)] + supports + [(spans[-1][1] - 150.0, spans[-1][1] + 150.0)]
             self._draw_beam_line_preview(canvas, parts, supports, height_mm, spans[-1][1])
             return
         try:
@@ -240,8 +241,10 @@ class BeamsMixin(object):
         cw = canvas.Width or 700.0
         ch = canvas.Height or 220.0
         margin = 16.0
-        scale = min((cw - 2 * margin) / max(total_mm, 1.0), (ch - 2 * margin) / (h_mm * 2.0))
-        off_x = (cw - total_mm * scale) / 2.0
+        lo = min([0.0] + [a for a, _b in supports])
+        hi = max([total_mm] + [b for _a, b in supports])
+        scale = min((cw - 2 * margin) / max(hi - lo, 1.0), (ch - 2 * margin) / (h_mm * 2.0))
+        off_x = (cw - (hi - lo) * scale) / 2.0 - lo * scale
         off_y = ch / 2.0
 
         def sx(x_mm):
