@@ -254,7 +254,11 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
         plan['medium'] = True      # at Coarse Revit draws a beam in plan as its stick line only (user 2026-10-12)
         specs.append(plan)
         links = _link_parameters(arc, host_rebars(host))
+        from nosa_utils import presentation
+        stations = presentation.arc_stations(arc.Length * 304.8)
         for letter, t in ((u'1', 0.5), (u'2', 0.12)):
+            # halfway between the two chainage stations it falls between, never on one (user 2026-10-18, B2)
+            t = presentation.between_stations(t, stations, arc.Length * 304.8)
             if links:
                 # through a link, so the section shows one (user 2026-10-12: 5-5 and 6-6 fell between them)
                 t = min(links, key=lambda u: abs(u - t))
@@ -454,7 +458,7 @@ def _letter(index):
 
 
 def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_numbers, beam_rebar=None,
-                   stair_host=None, tag=True):
+                   stair_host=None, tag=True, schedules=True):
     """
     T9.7 (user 2026-10-11): the elements of one kind on one drawing, as a consultancy draws them: all their
     views laid out together on shared A1 sheets, marks 01 upwards across the drawing and its sections
@@ -512,7 +516,74 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
                 _hide_viewers(doc, v)
             rebar_presentation.foreign_bars(doc, v, own, hosts)
         t.Commit()
+    if schedules and report['sheets']:
+        issue_schedules(doc, report)
+    report['review'] = review_drawings(doc, report['sheets'], report['errors'])
     return report
+
+
+def issue_schedules(doc, report):
+    """
+    T12.7 (user 2026-10-18): the bar schedules issued with the drawings - the A4 BBS of every drawing made, then
+    each drawing's notes written again so they list them. Returns the schedule references.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    import bar_schedules
+    import rc_legends
+    try:
+        bar_schedules.bind(doc)
+    except Exception as e:
+        report['errors'].append(u'Bar schedules not issued: their sheet parameters could not be added ({}).'.format(e))
+        return []
+    t = DB.Transaction(doc, u'NOSA — Bar schedules with the drawings')
+    t.Start()
+    try:
+        made = bar_schedules.create(doc)
+        report['errors'].extend(made['errors'])
+        report['schedule_sheets'] = made['new_sheets']
+        renewed = []
+        for numbers, hosts, rebars, grade, typical in report.get('notes', []):
+            for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+                if sheet.SheetNumber not in numbers:
+                    continue
+                for note in DB.FilteredElementCollector(doc, sheet.Id).OfClass(DB.TextNote):
+                    if (note.Text or u'').startswith(u'REINFORCEMENT NOTES'):
+                        doc.Delete(note.Id)
+                renewed.extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars, grade, typical, u', '.join(numbers)))
+                report['errors'] = [m for m in report['errors'] if not m.startswith(sheet.SheetNumber)]
+        report['errors'].extend(renewed)
+        t.Commit()
+        return made['schedules']
+    except Exception as e:
+        t.RollBack()
+        report['errors'].append(u'Bar schedules not issued: {}'.format(e))
+        return []
+
+
+def review_drawings(doc, numbers, errors):
+    """
+    T12.8 (user 2026-10-18): after every run, the drawings made audited (A1-A7: calling-ups out of line, texts over
+    each other, lines crossing, views off the sheet) and the model's warnings grouped. Returns {'text', 'count',
+    'issues'}.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    import review
+    issues = []
+    try:
+        import drawing_audit
+        for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+            if sheet.SheetNumber not in numbers:
+                continue
+            issues.extend(drawing_audit.audit_sheet(doc, sheet))
+            for vid in sheet.GetAllPlacedViews():
+                view = doc.GetElement(vid)
+                if view is None or view.ViewType in (DB.ViewType.Legend, DB.ViewType.Schedule):
+                    continue
+                issues.extend(drawing_audit.audit_view(doc, view, sheet.SheetNumber)['issues'])
+    except Exception as e:
+        errors = list(errors) + [u'Review not run: {}'.format(e)]
+    text, count = review.summary(errors, issues)
+    return {'text': text, 'count': count, 'issues': issues}
 
 
 def assign_marks(doc, hosts, view_plan, report):
@@ -601,6 +672,8 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
                 if sheet.SheetNumber in sheets:
                     report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
                                                                    grade, typical, u', '.join(sheets)))
+            # what its notes are made from, to write them again once its bar schedules are issued (T12.7)
+            report.setdefault('notes', []).append((list(sheets), group['hosts'], group['rebars'], grade, typical))
         if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
             report['errors'].append(u'{} drawing: rolled back by Revit — {}'.format(
                 _PLURAL.get(kind, kind), u'; '.join(guard.errors)))

@@ -62,6 +62,22 @@ def grade_of(material_name, fallback=u''):
     return m.group(0) if m else fallback
 
 
+# EN 1992-1-1 Table 3.1 strength classes: cylinder fck / cube fck,cube (MPa)
+STRENGTH_CLASSES = ((12, 15), (16, 20), (20, 25), (25, 30), (28, 35), (30, 37), (32, 40), (35, 45), (40, 50),
+                    (45, 55), (50, 60), (55, 67), (60, 75), (70, 85), (80, 95), (90, 105))
+
+
+def class_for_strength(mpa, tol=0.5):
+    """'C32/40' for a compressive strength (MPa) matching a class's cylinder or cube value, else ''."""
+    if not mpa:
+        return u''
+    for k in (0, 1):                     # a cylinder value first: 40 is C40/50, not C32/40's cube
+        for pair in STRENGTH_CLASSES:
+            if abs(mpa - pair[k]) <= tol:
+                return u'C{}/{}'.format(*pair)
+    return u''
+
+
 def _mm(value):
     try:
         return float(u'{}'.format(value).lower().replace(u'mm', u'').strip())
@@ -375,7 +391,7 @@ def _kind(host):
     return u'Members'
 
 
-def _material_name(doc, host):
+def _material(doc, host):
     from Autodesk.Revit import DB  # Lazy import
     for getter in (lambda: host.get_Parameter(DB.BuiltInParameter.STRUCTURAL_MATERIAL_PARAM).AsElementId(),
                    lambda: doc.GetElement(host.GetTypeId()).get_Parameter(
@@ -385,10 +401,30 @@ def _material_name(doc, host):
         try:
             m = doc.GetElement(getter())
             if m is not None:
-                return m.Name
+                return m
         except Exception:
             continue
-    return u''
+    return None
+
+
+def concrete_grade(doc, host):
+    """
+    T12.6: a member's concrete class from its structural material - written in its name ('Concrete C32/40'), else
+    from the compressive strength of its physical (structural) asset - '' when neither gives it.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    m = _material(doc, host)
+    if m is None:
+        return u''
+    g = grade_of(m.Name)
+    if g:
+        return g
+    try:
+        asset = doc.GetElement(m.StructuralAssetId).GetStructuralAsset()
+        mpa = DB.UnitUtils.ConvertFromInternalUnits(asset.ConcreteCompression, DB.UnitTypeId.Megapascals)
+    except Exception:
+        return u''
+    return class_for_strength(mpa)
 
 
 def _covers(doc, host):
@@ -413,7 +449,7 @@ def sheet_notes(doc, sheet, hosts, rebars, buildability=None, typical=(), typica
     project_grade = _project_value(doc, u'NOSA_GN_Concrete_Grade')
     for host in hosts:
         kind = _kind(host)
-        grades[kind] = grades.get(kind) or grade_of(_material_name(doc, host))
+        grades[kind] = grades.get(kind) or concrete_grade(doc, host)
         c = _covers(doc, host)
         if c:
             covers[kind] = c

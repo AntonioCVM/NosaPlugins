@@ -123,7 +123,7 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
     return None
 
 
-def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neighbours=()):
+def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neighbours=(), native=False):
     """
     Calling-ups of a plan's or a wall elevation's zones as Arup's detailing manual (R. Whittle, 1.5.1) and the SMDSC
     4th ed. working drawings draw them (user 2026-10-18): every text level, written on a line that underlines it;
@@ -133,6 +133,10 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
     items {id: {'a', 'b' (indicator line ends), 'length', 'height' (text), 'at' (optional: where along an upright
     line to leave it)}}. Returns {id: {'centre' (text), 'path' ([points] from the indicator line to the far end of
     the underline), 'box', 'side'}}; the boxes are added to placed.
+    native (Phase 12, user 2026-10-18): the lines are Revit's own tag leaders, one elbow each, always square - the
+    path is [leader end on the bar or indicator line, elbow straight across from it at the text's height (left out
+    when level with it), the text's near edge]; where along a level line its leader leaves is chosen with the rows
+    so that no two leaders cross.
     """
     placed = list(placed)
     sides = {}
@@ -203,7 +207,7 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
             end = (x, under)
         sides.setdefault(side, []).append((key, end, span, under + it['height'] / 2.0 + lift))
 
-    def lay(side, rows, desired):
+    def lay(side, rows, desired, legs=None):
         # one side's texts in the order of rows, their lines from the indicator lines or bars
         keys = [r[0] for r in rows]
         heights = [items[k]['height'] for k in keys]
@@ -225,6 +229,8 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
         # lines packed off their own height jog square in the gap beside the member, each at its own distance, in
         # the order that keeps them from crossing: of those going up the highest jogs nearest the member, of
         # those going down the lowest (2026-10-18: jogs sharing one upright read as one line)
+        if native:
+            return lay_native(side, rows, at, near, sign, legs or {})
         lifted = [(r[0], r[1][1], c - items[r[0]]['height'] / 2.0 - lift) for r, c in zip(rows, at)
                   if r[2] is None and r[0] not in risers]
         # an upright bar whose row is past its end leaves from that end and jogs in the gap as the others do: run
@@ -281,6 +287,27 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
             res[key] = {'centre': centre, 'path': path, 'box': bx, 'side': side}
         return res
 
+    def lay_native(side, rows, at, near, sign, legs):
+        res = {}
+        for (key, end, span, _w), c in zip(rows, at):
+            n, h = items[key]['length'], items[key]['height']
+            u = c                                     # a tag's leader meets its text at the text's middle
+            text = (near, u)
+            if key in risers:
+                start = end
+            elif span is None:
+                lo_, hi_, _s = level[key]
+                a_, b_ = (hi_, lo_) if side == 'right' else (lo_, hi_)     # from the end nearer the texts inward
+                f = legs.get(key, 0.0)
+                start = (a_[0] + (b_[0] - a_[0]) * f, a_[1] + (b_[1] - a_[1]) * f)
+            else:
+                start = (end[0], min(max(u, span[0]), span[1]))
+            path = [start, text] if abs(start[1] - u) < 1e-6 else [start, (start[0], u), text]
+            far = (near + sign * n, u)
+            bx = (min(near, far[0]), c - h / 2.0, max(near, far[0]), c + h / 2.0)
+            res[key] = {'centre': (near + sign * n / 2.0, c), 'path': path, 'box': bx, 'side': side}
+        return res
+
     out = {}
     for side, rows in sides.items():
         rows.sort(key=lambda r: r[3])
@@ -288,12 +315,34 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
         # along its bar to its row runs level across the whole gap and cut through another's jog (S1,
         # 2026-10-18), so rows swap while that leaves fewer lines crossing
         desired = [r[3] + 1e-9 * i for i, r in enumerate(rows)]
-        best = lay(side, rows, desired)
-        best_n = path_crossings(best)
+        legs = {}
+
+        def cost(laid):
+            # first no two lines crossing, then the least run along no bar: an upright bar's leader carried past
+            # its end to a row far off (S1, 2026-10-18)
+            over = 0.0
+            for r in rows:
+                if r[2] is not None:
+                    y = laid[r[0]]['path'][-1][1] if native else laid[r[0]]['path'][0][1]
+                    over += max(0.0, r[2][0] - y, y - r[2][1])
+            return (path_crossings(laid), round(over, 3))
+
+        best = lay(side, rows, desired, legs)
+        best_c = cost(best)
         for _ in range(len(rows) * len(rows)):
-            if not best_n:
+            if best_c == (0, 0.0):
                 break
             better = False
+            if native:
+                # where along its level line each leader leaves, as the rows are now
+                for key in [r[0] for r in rows if r[2] is None and r[0] not in risers]:
+                    for f in LEG_AT:
+                        trial_legs = dict(legs)
+                        trial_legs[key] = f
+                        laid = lay(side, rows, desired, trial_legs)
+                        c = cost(laid)
+                        if c < best_c:
+                            legs, best, best_c, better = trial_legs, laid, c, True
             for i in range(len(rows)):
                 for j in range(len(rows)):
                     if i == j:
@@ -303,16 +352,19 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
                         trial[i], trial[j] = trial[j], trial[i]
                     else:
                         trial.insert(j, trial.pop(i))
-                    laid = lay(side, trial, desired)
-                    n = path_crossings(laid)
-                    if n < best_n:
-                        rows, best, best_n, better = trial, laid, n, True
+                    laid = lay(side, trial, desired, legs)
+                    c = cost(laid)
+                    if c < best_c:
+                        rows, best, best_c, better = trial, laid, c, True
             if not better:
                 break
         for key in [r[0] for r in rows]:
             placed.append(best[key]['box'])
             out[key] = best[key]
     return out
+
+
+LEG_AT = (0.0, 0.1, 0.25, 0.4, 0.6, 0.75, 0.9, 1.0)   # where along a level line a native leader may leave it
 
 
 def path_crossings(laid):

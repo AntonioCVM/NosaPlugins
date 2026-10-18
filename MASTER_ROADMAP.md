@@ -359,6 +359,24 @@ la interfaz actual no cambia en `develop`/`main` hasta que el usuario la apruebe
 | [ ] | T10.10 | Textos 4.ª ed. | D | Inglés británico, citas de la 4.ª ed. en todo el XAML, tooltips con cláusula |
 | [ ] | T10.11 | Validación y versiones | E | Test de XAML; prueba en 2024 y luego 2025–2027; capturas antes/después; merge tras aprobación |
 
+## Fase 12 — RebarAutomate 2.x: etiquetas nativas y flujo completo (petición del usuario 2026-10-18)
+
+Decisiones del usuario (2026-10-18): directrices **siempre en escuadra** (tramo perpendicular desde la barra o la
+línea de reparto hasta la altura del texto y hombro horizontal, un solo codo nativo); recubrimientos en uniones por
+**jerarquía fija** cimentación > muro > pilar > viga > losa.
+
+| Estado | ID | Tarea | Alcance |
+|---|---|---|---|
+| [x] | T12.1 | Etiquetas nativas | Rótulos con IndependentTag / MRA de Revit: directriz nativa con codo y punto (tipo «- Dot»), sin líneas de detalle ni regiones rellenas; filas ordenadas sin cruces (`callout_layout.align_rows(native=True)`), codos controlados para que no se pisen. Hecho: el hombro de Revit se une 0,46 mm (papel) sobre la cabecera (medido en 2026); los tipos «- Dot» sin flecha reciben la de punto |
+| [x] | T12.2 | Planta de losa sin longitudes | Sin cotas de longitud de barra en plantas: la longitud está en la planilla |
+| [x] | T12.3 | Secciones alineadas en el plano | Secciones de un mismo elemento en una fila con la misma altura de referencia (plano 4503) |
+| [x] | T12.4 | Secciones de viga curva entre estaciones | Cada sección a media distancia entre dos estaciones CH, nunca sobre una |
+| [~] | T12.5 | Recubrimientos del modelo | Recubrimiento de cada cara leído del elemento (ya lo hacía `get_native_cover_mm`); en uniones manda el de mayor rango (`nosa_utils.cover_rules`). Hecho: barras de viga curva ancladas en pilar. Pendiente: resto de uniones (viga recta en pilar, pilar en viga/losa, losa en muro/viga, muro en cimentación) |
+| [~] | T12.6 | Hormigón y recubrimiento comprobados | Clase de hormigón del material y recubrimiento del modelo contrastados con las notas generales automáticamente; propuesta de corrección. Hecho: clase leída también del activo estructural (resistencia → C fck/fcu); avisos agrupados una vez para todos los planos. Pendiente: acción para corregir |
+| [x] | T12.7 | Planillas con los planos | Al crear cada plano se generan y vinculan sus planillas (BBS) |
+| [x] | T12.8 | Revisión automática | Al terminar cada generación, auditoría de anotaciones (A1–A7, cruces, solapes, marcas sueltas) con lista en la ventana |
+| [ ] | T12.9 | Actualizar en vez de regenerar | Cambia un elemento → solo sus vistas y planos se rehacen; se conservan ajustes manuales y numeración |
+
 ## Orden y dependencias
 
 ```
