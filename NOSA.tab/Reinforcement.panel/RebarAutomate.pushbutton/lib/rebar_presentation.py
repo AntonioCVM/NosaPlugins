@@ -577,7 +577,8 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if joint is not None:
             # the grid lines drawn: a column of texts stands clear of them (2026-10-18 audit, S1: on grid C)
             grids = _grid_boxes(view, gap / 2.0)
-            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style, keep_off=grids)
+            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style, keep_off=grids,
+                          neighbours=_neighbours(doc, view, hosts or members) if plan else ())
         if plan:
             if hosts and kind == 'plan':
                 _plan_dims(doc, view, hosts, zones, box, placed, scale, total_style, report)
@@ -678,6 +679,36 @@ def _concrete_cut(doc, view, members):
             view.SetElementOverrides(m.Id, ogs)
         except Exception:
             continue
+
+
+NEIGHBOUR_REACH_MM = 15000.0
+
+
+def _neighbours(doc, view, hosts, reach=NEIGHBOUR_REACH_MM):
+    """
+    View boxes (mm) of the other members at a plan's members' level within reach of them: the plan shows them
+    once its crop grows round the calling-ups, so the columns of texts keep off them (2026-10-18, Revit 2026).
+    """
+    own = set(get_id_value(h.Id) for h in hosts if h is not None)
+    boxes = [h.get_BoundingBox(None) for h in hosts if h is not None]
+    boxes = [b for b in boxes if b is not None]
+    if not boxes:
+        return []
+    r = reach / _MM_PER_FT
+    lo = DB.XYZ(min(b.Min.X for b in boxes) - r, min(b.Min.Y for b in boxes) - r, min(b.Min.Z for b in boxes))
+    hi = DB.XYZ(max(b.Max.X for b in boxes) + r, max(b.Max.Y for b in boxes) + r, max(b.Max.Z for b in boxes))
+    near = DB.BoundingBoxIntersectsFilter(DB.Outline(lo, hi))
+    out = []
+    for cat in (DB.BuiltInCategory.OST_Floors, DB.BuiltInCategory.OST_StructuralFoundation,
+                DB.BuiltInCategory.OST_Walls, DB.BuiltInCategory.OST_StructuralColumns,
+                DB.BuiltInCategory.OST_StructuralFraming):
+        for e in DB.FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().WherePasses(near):
+            if get_id_value(e.Id) in own:
+                continue
+            b = _box_in_view(view, e.get_BoundingBox(None))
+            if b is not None:
+                out.append(b)
+    return out
 
 
 def _other_concrete(doc, view, hosts):
@@ -1459,7 +1490,7 @@ def _aligned_zones(doc, view, pending, joint):
     return joint.setdefault('made', {})
 
 
-def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, keep_off=()):
+def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, keep_off=(), neighbours=()):
     """
     Every calling-up of a plan or a wall elevation, its zones' and its loose bars', in one layout (user 2026-10-18:
     which bar each text is for must be plain): every text level on a line under it, the line leaving the zone's
@@ -1492,7 +1523,7 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
         items[e[0]] = it
     out = callout_layout.align_rows(items, box, gap, outside, list(placed) + list(keep_off),
                                     lift=UNDERLINE_LIFT_PAPER_MM * scale,
-                                    obstacles=_seen_bars(view))
+                                    obstacles=_seen_bars(view), neighbours=neighbours)
     made = joint.setdefault('made', {})
     joint['stacked'] = set()
     drawn = []

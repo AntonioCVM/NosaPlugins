@@ -347,14 +347,26 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
     elif kind == 'wall':
         box = _box(host, re_engine)
         line = host.Location.Curve
-        d = line.Direction.Normalize()
+        a0, a1 = line.GetEndPoint(0), line.GetEndPoint(1)
+        chord = DB.XYZ(a1.X - a0.X, a1.Y - a0.Y, 0.0)
+        # a curved wall seen square to its chord, deep enough for the whole bow (2026-10-18, Revit 2026: an Arc has
+        # no Direction and the drawings stopped there)
+        d = chord.Normalize()
         n = z_axis.CrossProduct(d).Normalize()
         centre = line.Evaluate(0.5, True)
         centre = DB.XYZ(centre.X, centre.Y, (box.Min.Z + box.Max.Z) / 2.0)
         height = _mm(box.Max.Z - box.Min.Z)
         thick = _mm(host.Width)
-        specs.append(_section(u'Elevation', 'elevation', centre, d, z_axis, _mm(line.Length) / 2 + 300,
-                              height / 2 + 700, 1.0, thick / 2 + 60))
+        if isinstance(line, DB.Line):
+            specs.append(_section(u'Elevation', 'elevation', centre, d, z_axis, _mm(line.Length) / 2 + 300,
+                                  height / 2 + 700, 1.0, thick / 2 + 60))
+        else:
+            mid = DB.XYZ((a0.X + a1.X) / 2.0, (a0.Y + a1.Y) / 2.0, centre.Z)
+            offsets = [(p - mid).DotProduct(n) for p in line.Tessellate()]
+            # the view's depth runs from its origin towards +n (box Z = d x z = -n, far clip at -Z)
+            front = mid + n.Multiply(min(offsets) - _ft(thick / 2.0 + 30.0))
+            specs.append(_section(u'Elevation', 'elevation', front, d, z_axis, _mm(chord.GetLength()) / 2 + 300 +
+                                  thick, height / 2 + 700, 1.0, _mm(max(offsets) - min(offsets)) + thick + 90))
         solid = None
         try:
             solid = re_engine.get_host_solid(host)
@@ -473,8 +485,12 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
         valid = [e for e in group['pending'] if e[0].IsValidObject]
         if valid:
             report['sheets'].extend(_place_group(doc, kind, valid, group, view_plan, sheet_numbers, report))
-            own = set(get_id_value(r.Id) for r in group['rebars'])
-            placed.extend((v, sp, s, own, list(group['hosts'])) for v, sp, s in valid)
+            # each view's own members only: the drawing's other members are other members to it (2026-10-18,
+            # Revit 2026: the next slab's bars stood in S1's plan, under its calling-ups)
+            for v, sp, s in valid:
+                hosts_v = group.get('view_hosts', {}).get(get_id_value(v.Id)) or list(group['hosts'])
+                own = set(get_id_value(r.Id) for h in hosts_v for r in host_rebars(h))
+                placed.append((v, sp, s, own, hosts_v))
     # the section marks of the drawings made after a view, out of its elevations and sections (2026-10-17: F10's
     # section head sat on C3's confinement and kicker dimensions)
     # ... and the bars of the other members drawn (user 2026-10-17): hidden, but for those ending in its members
@@ -687,11 +703,20 @@ def _template(doc, name):
 
 def _create_section(doc, vft, spec):
     from Autodesk.Revit import DB  # Lazy import
+    right, up = spec['right'], spec['up']
+    if abs(right.DotProduct(up)) > 1e-6:
+        # an inclined member (2026-10-18, Revit 2026: Revit refused the skewed box and the beam had no drawing): seen
+        # square, in a vertical plane, so it shows at its slope; else its up made square to its run
+        flat = DB.XYZ(right.X, right.Y, 0.0)
+        if flat.GetLength() > 1e-6 and abs(up.Normalize().Z) > 0.999:
+            right = flat.Normalize()
+        else:
+            up = right.CrossProduct(up).CrossProduct(right).Normalize()
     transform = DB.Transform.Identity
     transform.Origin = spec['origin']
-    transform.BasisX = spec['right']
-    transform.BasisY = spec['up']
-    transform.BasisZ = spec['right'].CrossProduct(spec['up']).Normalize()
+    transform.BasisX = right
+    transform.BasisY = up
+    transform.BasisZ = right.CrossProduct(up).Normalize()
     box = DB.BoundingBoxXYZ()
     box.Transform = transform
     box.Min = DB.XYZ(-_ft(spec['half_w']), -_ft(spec['half_h']), -_ft(spec['far']))
@@ -864,21 +889,9 @@ def _detach_template(view, template):
 
 
 def _rollback_on_error():
-    from Autodesk.Revit import DB  # Lazy import
-
-    class RollbackOnError(DB.IFailuresPreprocessor):
-        def __init__(self):
-            self.errors = []
-
-        def PreprocessFailures(self, accessor):
-            accessor.DeleteAllWarnings()
-            errors = [f for f in accessor.GetFailureMessages()
-                      if f.GetSeverity() != DB.FailureSeverity.Warning]
-            if not errors:
-                return DB.FailureProcessingResult.Continue
-            self.errors.extend(f.GetDescriptionText() for f in errors)
-            return DB.FailureProcessingResult.ProceedWithRollBack
-    return RollbackOnError()
+    """The shared preprocessor (T8.1): an error rolls the drawing back, a dimension Revit cannot keep only goes."""
+    from nosa_utils import transactions
+    return transactions.FailureCollector()
 
 
 def _column_above(doc, column):
@@ -1267,6 +1280,8 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
                 sheet_group['retag'][get_id_value(v.Id)] = regroup
         if sheet_group is not None:
             sheet_group['pending'].extend(created)
+            for v, _sp, _sc in created:
+                sheet_group.setdefault('view_hosts', {})[get_id_value(v.Id)] = list(hosts)
             sheet_group['hosts'].extend(hosts)
             sheet_group['rebars'].extend(rebars)
         if place_on_sheets and created and titleblock is not None and sheet_group is None:

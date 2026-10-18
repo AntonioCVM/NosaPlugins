@@ -123,7 +123,7 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
     return None
 
 
-def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=()):
+def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neighbours=()):
     """
     Calling-ups of a plan's or a wall elevation's zones as Arup's detailing manual (R. Whittle, 1.5.1) and the SMDSC
     4th ed. working drawings draw them (user 2026-10-18): every text level, written on a line that underlines it;
@@ -144,10 +144,18 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=()):
         run = (start, (box[0] if side == 'left' else box[2], start[1]))
         return sum(1 for k, seg in lines.items() if k != key and _crosses(run, seg))
 
+    # twice a column's width: section heads and grids push a column out before it stands (S1, Revit 2026)
+    reach = 2.0 * (outside + max([it['length'] for it in items.values()] or [0.0]))
+    blocked = {'left': any(overlap((box[0] - reach, box[1], box[0], box[3]), q) for q in neighbours),
+               'right': any(overlap((box[2], box[1], box[2] + reach, box[3]), q) for q in neighbours)}
+
     def pick(key, it, left, right, nearer):
-        # the side whose line crosses fewer of the others' (2026-10-18 audit, W10), the nearer one when even
+        # the side whose column is clear of the other members drawn (2026-10-18, Revit 2026: S3's calling-ups
+        # stood on the next slab), then whose line crosses fewer of the others' (W10), the nearer one when even
         if it.get('side'):
             return it['side']
+        if blocked['left'] != blocked['right']:
+            return 'right' if blocked['left'] else 'left'
         cl, cr = crossings(key, left, 'left'), crossings(key, right, 'right')
         if cl == cr:
             return nearer

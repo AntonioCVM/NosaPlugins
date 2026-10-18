@@ -60,6 +60,13 @@ class _RollbackOnError(DB.IFailuresPreprocessor):
         return DB.FailureProcessingResult.ProceedWithRollBack
 
 
+def _is_footing(element):
+    """A pad, strip footing or pile cap (not a foundation slab): the Bases & pile caps tab's."""
+    from nosa_utils.revit_helpers import get_id_value
+    return (not isinstance(element, DB.Floor) and element.Category is not None and
+            get_id_value(element.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFoundation))
+
+
 def _guard_pyrevit_transactions():
     from pyrevit import revit
     original = revit.Transaction
@@ -197,6 +204,15 @@ try:
             control.IsChecked = value
         else:
             control.Text = unicode(value)
+    if MODE == 'footings_floors':
+        # the tab a user would be on (UI v2): Bases & pile caps for footings, Slabs for floors and foundation slabs
+        picked = [doc.GetElement(element_id_from_int(i)) for i in IDS]
+        bases = all(_is_footing(e) for e in picked)
+        try:
+            win._select_tab('TabBases' if bases else 'TabSlabs')
+        except Exception:
+            pass
+        win._slab_filter = u'footings' if bases else u'floors'
     readers = {'footings_floors': win._read_inputs, 'columns': win._read_column_inputs,
                'beams': win._read_beam_inputs, 'walls': win._read_wall_inputs,
                'stairs': win._read_stair_inputs}
