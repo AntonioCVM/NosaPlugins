@@ -25,12 +25,21 @@ nuevo no aparece con *pyRevit Reload*). No necesita Excel ni `openpyxl`: el `.xl
    de sección (unión de ambos elementos + margen), orienta la vista, colorea el elemento 1 en rojo y el 2 en azul,
    aísla, selecciona y hace zoom. Todo en transacciones `NOSA — Clash Viewer: …` (se puede deshacer con `Ctrl+Z`).
 5. **Previous / Next** (`Ctrl+←` / `Ctrl+→`) recorren la lista filtrada y van directamente al clash.
-6. **Reset view** quita aislamiento, colores y caja de sección. **Export list…** guarda la lista filtrada con el
+6. **Done**: cada clash tiene una casilla (en el árbol y en el detalle, o `Ctrl+D`) para marcarlo como tratado. El filtro **REVIEW** (*All / Open / Done*) permite ver solo lo pendiente o solo lo hecho. No es el estado *Resolved* de Navisworks: es una marca del equipo, independiente del Excel, que nunca se modifica.
+7. **Reset view** quita aislamiento, colores y caja de sección. **Export list…** guarda la lista filtrada con el
    estado de localización en CSV.
 
 Opciones: *Isolate*, *Permanent* (aislamiento permanente; la vista se reconstruye al resetear o al pasar al siguiente
 clash), *Dim the rest* (halftone cuando no se aísla), *Keep camera*. En *View settings*: margen de la caja (m), recorte
 alrededor del punto del clash (m, 0 = desactivado, útil para elementos muy largos) y colores `#RRGGBB`.
+
+### Dónde se guardan las marcas *Done*
+
+En `<código del documento>.clashreview.json` **junto al informe** (p. ej. `UWWTP-AA-00-BM-RP-00002.clashreview.json`), de modo que
+todo el equipo ve las mismas marcas. El nombre usa el código del documento, no la revisión, así que al llegar una revisión nueva
+del informe (P07…) las marcas se conservan mientras los clashes mantengan su nombre (`Clash74`) en el mismo test. Cada marca guarda
+quién y cuándo. Si la carpeta es de solo lectura se usa una copia local en `NOSA_Configs` y la ventana lo avisa. Dos personas pueden
+marcar a la vez: cada cambio se fusiona con lo que hay en disco antes de guardar. La exportación CSV incluye *Done / Done by / Done on*.
 
 ## Cómo se localizan los elementos
 

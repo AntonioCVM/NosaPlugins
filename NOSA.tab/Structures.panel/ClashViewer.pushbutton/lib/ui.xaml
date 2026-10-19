@@ -137,6 +137,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,0,6">
                             <TextBlock Text="TEST" Style="{StaticResource Caption}"/>
@@ -146,13 +147,17 @@
                             <TextBlock Text="ASSIGNED TO" Style="{StaticResource Caption}"/>
                             <ComboBox Name="CboAssigned"/>
                         </StackPanel>
-                        <StackPanel Grid.Row="1" Grid.Column="0">
+                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,0,6">
                             <TextBlock Text="CATEGORY" Style="{StaticResource Caption}"/>
                             <ComboBox Name="CboCategory"/>
                         </StackPanel>
-                        <StackPanel Grid.Row="1" Grid.Column="2">
+                        <StackPanel Grid.Row="1" Grid.Column="2" Margin="0,0,0,6">
                             <TextBlock Text="MODEL" Style="{StaticResource Caption}"/>
                             <ComboBox Name="CboModel" ToolTip="Show clashes where either element belongs to this model"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.Column="0">
+                            <TextBlock Text="REVIEW" Style="{StaticResource Caption}"/>
+                            <ComboBox Name="CboReview" ToolTip="Filter by the Done tick kept by the team"/>
                         </StackPanel>
                     </Grid>
 
@@ -245,6 +250,16 @@
                             <TextBlock Grid.Row="3" Grid.Column="1" Name="TxtDetPoint" Style="{StaticResource Value}"/>
                         </Grid>
 
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,8">
+                            <StackPanel>
+                                <CheckBox Name="ChkMarkDone" Click="MarkDone_Click" IsEnabled="False"
+                                          Content="Done (ticked by the team, kept next to the report)"
+                                          Foreground="{DynamicResource TextColor}"
+                                          ToolTip="Mark this clash as dealt with. Ctrl+D toggles it for the selected clash."/>
+                                <TextBlock Name="TxtDoneInfo" Style="{DynamicResource HintText}" Margin="22,2,0,0"
+                                           TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10">
                             <StackPanel>
                                 <TextBlock Name="TxtItem1Head" Text="ITEM 1" Style="{StaticResource Caption}"/>

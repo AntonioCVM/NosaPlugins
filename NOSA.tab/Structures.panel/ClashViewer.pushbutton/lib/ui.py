@@ -14,7 +14,7 @@ from System import Array, Byte, TimeSpan
 from System.IO import MemoryStream
 from System.Collections.ObjectModel import ObservableCollection
 from System.Windows import Thickness, FontWeights, Visibility
-from System.Windows.Controls import TreeViewItem, StackPanel, TextBlock, Orientation
+from System.Windows.Controls import TreeViewItem, StackPanel, TextBlock, Orientation, CheckBox
 from System.Windows.Input import Key, Keyboard, ModifierKeys
 from System.Windows.Media import SolidColorBrush, Color
 from System.Windows.Media.Imaging import BitmapImage, BitmapCacheOption
@@ -35,6 +35,7 @@ _here = os.path.dirname(os.path.abspath(__file__))
 _reader = load_module('clashviewer_reader', os.path.join(_here, 'clash_reader.py'))
 _locator = load_module('clashviewer_locator', os.path.join(_here, 'clash_locator.py'))
 _view = load_module('clashviewer_view', os.path.join(_here, 'clash_view.py'))
+_review = load_module('clashviewer_review', os.path.join(_here, 'review_store.py'))
 
 _LOG = u'ClashViewer.ui'
 _TITLE = u'NOSA — Clash Viewer'
@@ -57,6 +58,7 @@ _ALL_TESTS = u'All tests'
 _ALL_PEOPLE = u'Everyone'
 _ALL_CATEGORIES = u'All categories'
 _ALL_MODELS = u'All models'
+_REVIEW_ALL, _REVIEW_OPEN, _REVIEW_DONE = u'All', u'Open', u'Done'
 _UNASSIGNED = u'(unassigned)'
 
 
@@ -200,6 +202,8 @@ class ClashViewerWindow(NOSAWindow):
         self._clash_items = {}
         self._group_items = {}
         self._view = _view.ClashView()
+        self._store = None
+        self._shown = 0
         cfg = self.LoadConfig()
         self._model_map = cfg.get('model_map', {})
 
@@ -209,6 +213,7 @@ class ClashViewerWindow(NOSAWindow):
 
         self.ChkDarkMode.IsChecked = bool(self.dark_mode)
         self._restore_options(cfg)
+        self._fill_review(cfg.get('review'))
         self._search_timer = DispatcherTimer()
         self._search_timer.Interval = TimeSpan.FromMilliseconds(300)
         self._search_timer.Tick += self._search_tick
@@ -216,7 +221,7 @@ class ClashViewerWindow(NOSAWindow):
         self.TreeClashes.SelectedItemChanged += self._tree_selected
         self.TreeClashes.MouseDoubleClick += self._tree_double_click
         self.TxtSearch.TextChanged += self._search_changed
-        for cbo in (self.CboTest, self.CboAssigned, self.CboCategory, self.CboModel):
+        for cbo in (self.CboTest, self.CboAssigned, self.CboCategory, self.CboModel, self.CboReview):
             cbo.SelectionChanged += self._filter_changed
         for chk in self._status_checks().values():
             chk.Click += self._filter_changed
@@ -263,6 +268,7 @@ class ClashViewerWindow(NOSAWindow):
             'assigned': self._combo_value(self.CboAssigned, _ALL_PEOPLE),
             'category': self._combo_value(self.CboCategory, _ALL_CATEGORIES),
             'model': self._combo_value(self.CboModel, _ALL_MODELS),
+            'review': self._combo_value(self.CboReview, _REVIEW_ALL),
             'isolate': bool(self.ChkIsolate.IsChecked),
             'permanent': bool(self.ChkPermanent.IsChecked),
             'dim_rest': bool(self.ChkDim.IsChecked),
@@ -326,6 +332,8 @@ class ClashViewerWindow(NOSAWindow):
         self.SetLoading(False)
         self.report = report
         self.current = None
+        self._store = _review.ReviewStore.for_report(
+            report.path, report.document_code, os.path.dirname(self._config_file))
         self._reset_detail()
         bits = [report.document_code]
         if report.revision:
@@ -410,6 +418,10 @@ class ClashViewerWindow(NOSAWindow):
             return False
         if f['model'] != _ALL_MODELS and f['model'] not in [_item_model(i) for i in clash.items]:
             return False
+        if f['review'] != _REVIEW_ALL and self._store is not None:
+            done = self._store.is_done(clash.key)
+            if (f['review'] == _REVIEW_DONE) != done:
+                return False
         if f['text']:
             hay = u' '.join([clash.name, clash.group, clash.assigned] + [
                 u' '.join([i.category, i.family, i.element_id_raw, i.acad_tag, i.acad_class,
@@ -425,6 +437,7 @@ class ClashViewerWindow(NOSAWindow):
             'assigned': self._combo_value(self.CboAssigned, _ALL_PEOPLE),
             'category': self._combo_value(self.CboCategory, _ALL_CATEGORIES),
             'model': self._combo_value(self.CboModel, _ALL_MODELS),
+            'review': self._combo_value(self.CboReview, _REVIEW_ALL),
             'text': (self.TxtSearch.Text or u'').strip().lower(),
         }
 
@@ -481,7 +494,8 @@ class ClashViewerWindow(NOSAWindow):
                     self._group_items[c.key] = (t_item, g_item)
                     self._visible.append(c)
             self.TreeClashes.Items.Add(t_item)
-        self.TxtCount.Text = u'SHOWING %d OF %d CLASHES' % (shown, self.report.total)
+        self._shown = shown
+        self._update_count()
         if previous is not None and previous.key in self._group_items:
             self._select_in_tree(previous)
 
@@ -503,14 +517,92 @@ class ClashViewerWindow(NOSAWindow):
         for c in tag[1]:
             item = TreeViewItem()
             who = c.assignees[0] if c.assignees else u''
+            done = self._store is not None and self._store.is_done(c.key)
+            tick = CheckBox()
+            tick.IsChecked = done
+            tick.Tag = c
+            tick.Margin = Thickness(0, 0, 6, 0)
+            tick.VerticalAlignment = System.Windows.VerticalAlignment.Center
+            tick.ToolTip = u'Done'
+            tick.Click += self._tick_clicked
             item.Header = _row(
+                tick,
                 _text(u'●', rgb=_STATUS_RGB.get(c.status, _GREY), size=11, margin_right=5),
                 _text(c.name, bold=True),
                 _text(c.status, size=10.5, opacity=0.6),
                 _text(who, size=10.5, opacity=0.5))
             item.Tag = c
+            self._style_leaf(item, done)
             g_item.Items.Add(item)
             self._clash_items[c.key] = item
+
+    # ----------------------------------------------------------------- done
+
+    @staticmethod
+    def _user_name():
+        return os.getenv('USERNAME') or u''
+
+    def _fill_review(self, remembered):
+        self.CboReview.Items.Clear()
+        for label in (_REVIEW_ALL, _REVIEW_OPEN, _REVIEW_DONE):
+            self.CboReview.Items.Add(label)
+        self.CboReview.SelectedIndex = max(0, [_REVIEW_ALL, _REVIEW_OPEN, _REVIEW_DONE].index(remembered)
+                                           if remembered in (_REVIEW_ALL, _REVIEW_OPEN, _REVIEW_DONE) else 0)
+
+    @staticmethod
+    def _style_leaf(item, done):
+        kids = item.Header.Children
+        clash = item.Tag
+        bullet = kids[1]
+        if done:
+            bullet.Text = u'✓'
+            bullet.Foreground = _brush(_GREEN)
+        else:
+            bullet.Text = u'●'
+            bullet.Foreground = _brush(_STATUS_RGB.get(clash.status, _GREY))
+        base = (1.0, 0.6, 0.5)
+        for offset in range(3):
+            kids[2 + offset].Opacity = base[offset] * (0.5 if done else 1.0)
+
+    def _update_count(self):
+        done_total = 0
+        if self._store is not None:
+            done_total = sum(1 for c in self.report.all_clashes() if self._store.is_done(c.key))
+        self.TxtCount.Text = u'SHOWING %d OF %d CLASHES  ·  %d DONE' % (
+            self._shown, self.report.total, done_total)
+
+    def _refresh_done_ui(self, clash):
+        has_store = self._store is not None
+        done = has_store and self._store.is_done(clash.key)
+        self.ChkMarkDone.IsEnabled = has_store
+        self.ChkMarkDone.IsChecked = done
+        info = self._store.info(clash.key) if done else None
+        self.TxtDoneInfo.Text = (u'Marked by %s on %s' % (info.get('by') or u'?', info.get('at') or u'?')
+                                 if info else u'')
+
+    def _tick_clicked(self, sender, args):
+        self._set_done(sender.Tag, bool(sender.IsChecked))
+
+    def MarkDone_Click(self, sender, args):
+        if self.current is not None:
+            self._set_done(self.current, bool(self.ChkMarkDone.IsChecked))
+
+    def _set_done(self, clash, done):
+        if self._store is None:
+            return
+        self._store.set_done(clash.key, done, self._user_name())
+        state = self._store.is_done(clash.key)
+        item = self._clash_items.get(clash.key)
+        if item is not None:
+            item.Header.Children[0].IsChecked = state
+            self._style_leaf(item, state)
+        if clash is self.current:
+            self._refresh_done_ui(clash)
+        self._update_count()
+        message = self._store.note or u'%s marked as %s.' % (clash.name, u'done' if state else u'open')
+        if self._combo_value(self.CboReview, _REVIEW_ALL) != _REVIEW_ALL:
+            message += u' The list updates when you change a filter.'
+        self.TxtInfo.Text = message
 
     def _select_in_tree(self, clash):
         pair = self._group_items.get(clash.key)
@@ -543,6 +635,9 @@ class ClashViewerWindow(NOSAWindow):
         elif ctrl and args.Key == Key.Left:
             self.Prev_Click(None, None)
             args.Handled = True
+        elif ctrl and args.Key == Key.D and self.current is not None and self._store is not None:
+            self._set_done(self.current, not self._store.is_done(self.current.key))
+            args.Handled = True
         elif args.Key == Key.Return and self.current is not None \
                 and not isinstance(args.OriginalSource, System.Windows.Controls.TextBox):
             self._goto(self.current)
@@ -561,6 +656,9 @@ class ClashViewerWindow(NOSAWindow):
             tb.Text = u''
         self.TxtItem1Head.Text = u'ITEM 1'
         self.TxtItem2Head.Text = u'ITEM 2'
+        self.ChkMarkDone.IsEnabled = False
+        self.ChkMarkDone.IsChecked = False
+        self.TxtDoneInfo.Text = u''
 
     @staticmethod
     def _item_info(item):
@@ -603,6 +701,7 @@ class ClashViewerWindow(NOSAWindow):
             tb.Text = u'Checking the model…'
             tb.Foreground = _brush(_GREY)
         self.TxtDetWarn.Text = u''
+        self._refresh_done_ui(clash)
         try:
             data = self.report.get_image_bytes(clash)
             self.ImgClash.Source = _bitmap(data) if data else None
@@ -729,7 +828,7 @@ class ClashViewerWindow(NOSAWindow):
                        u'Item 1 model', u'Item 1 category', u'Item 1 family', u'Item 1 Element Id',
                        u'Item 1 tag', u'Item 1 state',
                        u'Item 2 model', u'Item 2 category', u'Item 2 family', u'Item 2 Element Id',
-                       u'Item 2 tag', u'Item 2 state']
+                       u'Item 2 tag', u'Item 2 state', u'Done', u'Done by', u'Done on']
             rows = []
             for c in clashes:
                 lc = locator.locate_clash(c)
@@ -739,6 +838,9 @@ class ClashViewerWindow(NOSAWindow):
                 for item, li in ((c.item1, lc.first), (c.item2, lc.second)):
                     row.extend([item.model_base, _item_category(item), item.family,
                                 item.element_id_raw, item.acad_tag, li.text])
+                mark = self._store.info(c.key) if self._store is not None else None
+                row.extend([u'Yes' if mark else u'', mark.get('by', u'') if mark else u'',
+                            mark.get('at', u'') if mark else u''])
                 rows.append(row)
             write_csv(path, headers, rows)
             return len(rows)
