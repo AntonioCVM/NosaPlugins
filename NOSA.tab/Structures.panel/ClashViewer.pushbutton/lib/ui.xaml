@@ -201,7 +201,14 @@
 
                     <TreeView Grid.Row="4" Name="TreeClashes" Background="Transparent"
                               Foreground="{DynamicResource TextColor}"
-                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1"/>
+                              BorderBrush="{DynamicResource BorderColor}" BorderThickness="1">
+                        <TreeView.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#55FF5F00"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#40FF5F00"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FF5F00"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#FF5F00"/>
+                        </TreeView.Resources>
+                    </TreeView>
                 </Grid>
             </Border>
 
@@ -258,7 +265,29 @@
                                           ToolTip="Mark this clash as dealt with. Ctrl+D toggles it for the selected clash."/>
                                 <TextBlock Name="TxtDoneInfo" Style="{DynamicResource HintText}" Margin="22,2,0,0"
                                            TextWrapping="Wrap"/>
+                                <TextBlock Text="NOTE" Style="{StaticResource Caption}" Margin="0,10,0,4"/>
+                                <TextBox Name="TxtNote" Style="{StaticResource FieldBox}" Height="Auto" MinHeight="54"
+                                         AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top"
+                                         VerticalScrollBarVisibility="Auto" IsEnabled="False"
+                                         ToolTip="Free text kept with the clash (saved when you leave the box) and printed in the report"/>
+                                <TextBlock Name="TxtNoteInfo" Style="{DynamicResource HintText}" Margin="0,2,0,0"/>
                             </StackPanel>
+                        </Border>
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="GEOMETRY RE-CHECK" Style="{StaticResource Caption}"/>
+                                    <TextBlock Name="TxtCheck" Style="{StaticResource Value}" FontWeight="SemiBold"
+                                               Text="Not checked yet"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Name="BtnRecheck" Content="Re-check" Click="Recheck_Click"
+                                        IsEnabled="False" VerticalAlignment="Center" Margin="10,0,0,0"
+                                        ToolTip="Intersect the two elements as they are in the model now (indicative)"/>
+                            </Grid>
                         </Border>
                         <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10">
                             <StackPanel>
@@ -345,8 +374,12 @@
                     <CheckBox Name="ChkKeepCam" Content="Keep camera"
                               ToolTip="Do not reorient the 3D view on each clash"/>
                 </StackPanel>
-                <Button Grid.Column="2" Name="BtnExport" Content="Export list…" Click="Export_Click"
-                        ToolTip="Save the filtered list with its Revit location state to CSV"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button Name="BtnReport" Content="Report…" Click="Report_Click" Margin="0,0,6,0"
+                            ToolTip="HTML report of the clashes in the list: the Navisworks picture next to the one taken from Revit now"/>
+                    <Button Name="BtnExport" Content="Export list…" Click="Export_Click"
+                            ToolTip="Save the filtered list with its Revit location state to CSV"/>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -363,6 +396,8 @@
                                  IsIndeterminate="True" Foreground="{DynamicResource AccentColor}"/>
                     <TextBlock Name="TxtStatus" HorizontalAlignment="Center" FontSize="11" Opacity="0.6"
                                Margin="0,8,0,0"/>
+                    <Button Name="BtnCancelBusy" Content="Cancel" Click="CancelBusy_Click" Visibility="Collapsed"
+                            HorizontalAlignment="Center" Margin="0,12,0,0"/>
                 </StackPanel>
             </Border>
         </Grid>

@@ -69,7 +69,7 @@ class ReviewStoreTests(unittest.TestCase):
 
         s._write = write
         self.assertTrue(s.set_done(u'T|Clash1', True, u'ana'))
-        self.assertIn(u'this computer', s.note)
+        self.assertIn(u'this computer', s.message)
         self.assertEqual(os.path.dirname(s.path), self.local)
 
     def test_corrupt_file_is_reported_not_fatal(self):
@@ -78,7 +78,40 @@ class ReviewStoreTests(unittest.TestCase):
             fh.write('{not json')
         again = self.store()
         self.assertEqual(again.done_count, 0)
-        self.assertIn(u'could not be read', again.note)
+        self.assertIn(u'could not be read', again.message)
+
+    def test_notes_round_trip_and_clear(self):
+        s = self.store()
+        self.assertTrue(s.set_note(u'T|Clash1', u'  Beam moved 200 mm ñ v3 ', u'ana'))
+        again = self.store()
+        self.assertEqual(again.note(u'T|Clash1'), u'Beam moved 200 mm ñ v3')
+        self.assertEqual(again.note_info(u'T|Clash1')['by'], u'ana')
+        again.set_note(u'T|Clash1', u'   ')
+        self.assertEqual(self.store().note(u'T|Clash1'), u'')
+
+    def test_note_and_done_are_independent_and_merge(self):
+        a, b = self.store(), self.store()
+        a.set_note(u'T|Clash1', u'check with MEP', u'ana')
+        b.set_done(u'T|Clash1', True, u'bob')
+        merged = self.store()
+        self.assertTrue(merged.is_done(u'T|Clash1'))
+        self.assertEqual(merged.note(u'T|Clash1'), u'check with MEP')
+
+    def test_version_1_files_still_load(self):
+        s = self.store()
+        with open(s.path, 'w') as fh:
+            json.dump({'version': 1, 'done': {'T|Clash9': {'by': 'x', 'at': '2026-10-19 10:00'}}}, fh)
+        old = self.store()
+        self.assertTrue(old.is_done(u'T|Clash9'))
+        self.assertEqual(old.note(u'T|Clash9'), u'')
+
+    def test_set_many_marks_and_unmarks_with_one_file(self):
+        s = self.store()
+        self.assertTrue(s.set_many([u'T|C1', u'T|C2', u'T|C3'], True, u'ana'))
+        again = self.store()
+        self.assertEqual(again.done_count, 3)
+        again.set_many([u'T|C1', u'T|C3'], False)
+        self.assertEqual([k for k in (u'T|C1', u'T|C2', u'T|C3') if self.store().is_done(k)], [u'T|C2'])
 
 
 if __name__ == '__main__':

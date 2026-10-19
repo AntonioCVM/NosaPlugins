@@ -25,8 +25,17 @@ nuevo no aparece con *pyRevit Reload*). No necesita Excel ni `openpyxl`: el `.xl
    de sección (unión de ambos elementos + margen), orienta la vista, colorea el elemento 1 en rojo y el 2 en azul,
    aísla, selecciona y hace zoom. Todo en transacciones `NOSA — Clash Viewer: …` (se puede deshacer con `Ctrl+Z`).
 5. **Previous / Next** (`Ctrl+←` / `Ctrl+→`) recorren la lista filtrada y van directamente al clash.
-6. **Done**: cada clash tiene una casilla (en el árbol y en el detalle, o `Ctrl+D`) para marcarlo como tratado. El filtro **REVIEW** (*All / Open / Done*) permite ver solo lo pendiente o solo lo hecho. No es el estado *Resolved* de Navisworks: es una marca del equipo, independiente del Excel, que nunca se modifica.
-7. **Reset view** quita aislamiento, colores y caja de sección. **Export list…** guarda la lista filtrada con el
+6. **Done y notas**: la casilla *Done* del panel de detalle (o `Ctrl+D`, o clic derecho en el árbol) marca el clash como tratado. En el árbol
+   cada clash se ve con **fondo verde claro si está Done y rojo claro si sigue abierto**; un ✎ indica que tiene nota. Clic derecho sobre un grupo o un
+   test permite *Mark all as done* / *Reopen all*. La **nota** (texto libre) se guarda al salir del cuadro. El filtro **REVIEW** (*All / Open / Done*) muestra solo
+   lo pendiente o solo lo hecho. No es el estado *Resolved* de Navisworks: es una marca del equipo, independiente del Excel, que nunca se modifica.
+7. **Re-check** (panel de detalle): intersecta los dos elementos tal como están ahora en el modelo (tolerancia del test) y dice
+   *Still clashing (≈ N cm³)*, *No longer clashing* o *Cannot check* (elemento no encontrado, sin geometría o fallo del booleano; un fallo nunca se
+   cuenta como "resuelto"). Es orientativo: la geometría de Revit y la de Navisworks no son idénticas.
+8. **Report…** genera un único `.html` (se abre en el navegador y se imprime a PDF) con, por cada clash de la lista actual: la imagen original del Excel
+   ("As reported") junto a la imagen tomada de Revit en ese momento ("Now"), estado, Done, nota, estado de los elementos y el re-check. Tarda unos
+   2 s por clash, con barra de progreso y botón *Cancel*; no modifica el modelo (solo usa la vista `CLASH_VIEWER_<usuario>`).
+9. **Reset view** quita aislamiento, colores y caja de sección. **Export list…** guarda la lista filtrada con el
    estado de localización en CSV.
 
 Opciones: *Isolate*, *Permanent* (aislamiento permanente; la vista se reconstruye al resetear o al pasar al siguiente
@@ -76,5 +85,10 @@ Si el nombre del `.nwc` no coincide con ningún modelo, añade una equivalencia 
   vínculo recortada por la caja de sección) y quedan **seleccionados**, pero sin color propio. Los del modelo activo sí se colorean.
 - Los elementos de **AutoCAD Plant 3D** no existen en Revit: se muestran como tales y la vista se centra en el punto del
   clash. Solo se buscan por `Tag` / `PnPGuid` en DirectShapes del modelo activo.
+- La tecla `Esc` no cierra la ventana (pyRevit lo hace por defecto; aquí está desactivado).
 - No se dibuja marcador (esfera) en el punto del clash para no añadir elementos al modelo.
 - Rendimiento medido con el informe real (1001 clashes): carga 2,7 s en IronPython 2.7 y 3,0 s en IronPython 3.4.
+- El *Re-check* usa la geometría actual de Revit: dos elementos **unidos** (*Join Geometry*, o muros que Revit une solos al cruzarse) tienen la
+  geometría ya recortada y salen como *No longer clashing* aunque Navisworks los siga marcando. El solape se mide en volumen (umbral 1 cm³); no replica
+  la tolerancia de Navisworks al milímetro.
+- En el informe, los elementos de vínculos no llevan color propio en la imagen "Now" (limitación de Revit, ver arriba).

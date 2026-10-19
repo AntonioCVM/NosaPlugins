@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+import datetime
+import io
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 import traceback
 
 import System
@@ -13,8 +17,8 @@ import System.Windows.Interop
 from System import Array, Byte, TimeSpan
 from System.IO import MemoryStream
 from System.Collections.ObjectModel import ObservableCollection
-from System.Windows import Thickness, FontWeights, Visibility
-from System.Windows.Controls import TreeViewItem, StackPanel, TextBlock, Orientation, CheckBox
+from System.Windows import Thickness, FontWeights, Visibility, CornerRadius
+from System.Windows.Controls import TreeViewItem, StackPanel, TextBlock, Orientation, Border, ContextMenu, MenuItem
 from System.Windows.Input import Key, Keyboard, ModifierKeys
 from System.Windows.Media import SolidColorBrush, Color
 from System.Windows.Media.Imaging import BitmapImage, BitmapCacheOption
@@ -36,6 +40,8 @@ _reader = load_module('clashviewer_reader', os.path.join(_here, 'clash_reader.py
 _locator = load_module('clashviewer_locator', os.path.join(_here, 'clash_locator.py'))
 _view = load_module('clashviewer_view', os.path.join(_here, 'clash_view.py'))
 _review = load_module('clashviewer_review', os.path.join(_here, 'review_store.py'))
+_check = load_module('clashviewer_check', os.path.join(_here, 'clash_check.py'))
+_report = load_module('clashviewer_report', os.path.join(_here, 'report_html.py'))
 
 _LOG = u'ClashViewer.ui'
 _TITLE = u'NOSA — Clash Viewer'
@@ -89,6 +95,18 @@ def _text(text, bold=False, size=12.0, opacity=1.0, rgb=None, margin_right=6):
     else:
         tb.SetResourceReference(TextBlock.ForegroundProperty, 'TextColor')
     return tb
+
+
+def _tint(rgb, alpha):
+    return SolidColorBrush(Color.FromArgb(alpha, rgb[0], rgb[1], rgb[2]))
+
+
+def _tint_box(panel):
+    box = Border()
+    box.CornerRadius = CornerRadius(3)
+    box.Padding = Thickness(4, 1, 6, 1)
+    box.Child = panel
+    return box
 
 
 def _row(*children):
@@ -204,6 +222,9 @@ class ClashViewerWindow(NOSAWindow):
         self._view = _view.ClashView()
         self._store = None
         self._shown = 0
+        self._busy = False
+        self._cancel = False
+        self._checks = {}
         cfg = self.LoadConfig()
         self._model_map = cfg.get('model_map', {})
 
@@ -220,6 +241,10 @@ class ClashViewerWindow(NOSAWindow):
 
         self.TreeClashes.SelectedItemChanged += self._tree_selected
         self.TreeClashes.MouseDoubleClick += self._tree_double_click
+        self.TreeClashes.PreviewMouseRightButtonDown += self._tree_right_click
+        self.TreeClashes.ContextMenu = ContextMenu()
+        self.TreeClashes.ContextMenuOpening += self._tree_menu_opening
+        self.TxtNote.LostFocus += self._note_lost_focus
         self.TxtSearch.TextChanged += self._search_changed
         for cbo in (self.CboTest, self.CboAssigned, self.CboCategory, self.CboModel, self.CboReview):
             cbo.SelectionChanged += self._filter_changed
@@ -234,6 +259,10 @@ class ClashViewerWindow(NOSAWindow):
         self._last_cfg = cfg
 
     # ------------------------------------------------------------------ setup
+
+    def handle_input_key(self, sender, args):
+        """pyRevit's WPFWindow closes on Esc; this window must stay open."""
+        return
 
     def _set_owner(self):
         try:
@@ -287,7 +316,9 @@ class ClashViewerWindow(NOSAWindow):
             self._load_path(last)
 
     def _on_closing(self, sender, args):
+        self._cancel = True
         try:
+            self._commit_note()
             self._save_options()
         except Exception:
             log_swallowed(_LOG, u'_on_closing')
@@ -479,6 +510,7 @@ class ClashViewerWindow(NOSAWindow):
             count = sum(len(groups[g]) for g in order)
             shown += count
             t_item = TreeViewItem()
+            t_item.Tag = (u'test', [c for g in order for c in groups[g]])
             t_item.Header = _row(
                 _text(test.name, bold=True),
                 _text(u'%d' % count, opacity=0.65),
@@ -517,22 +549,14 @@ class ClashViewerWindow(NOSAWindow):
         for c in tag[1]:
             item = TreeViewItem()
             who = c.assignees[0] if c.assignees else u''
-            done = self._store is not None and self._store.is_done(c.key)
-            tick = CheckBox()
-            tick.IsChecked = done
-            tick.Tag = c
-            tick.Margin = Thickness(0, 0, 6, 0)
-            tick.VerticalAlignment = System.Windows.VerticalAlignment.Center
-            tick.ToolTip = u'Done'
-            tick.Click += self._tick_clicked
-            item.Header = _row(
-                tick,
-                _text(u'●', rgb=_STATUS_RGB.get(c.status, _GREY), size=11, margin_right=5),
+            item.Header = _tint_box(_row(
+                _text(u'●', rgb=_STATUS_RGB.get(c.status, _GREY), size=9, margin_right=5),
                 _text(c.name, bold=True),
                 _text(c.status, size=10.5, opacity=0.6),
-                _text(who, size=10.5, opacity=0.5))
+                _text(who, size=10.5, opacity=0.5),
+                _text(u'✎', size=11, rgb=_AMBER, margin_right=0)))
             item.Tag = c
-            self._style_leaf(item, done)
+            self._style_leaf(item)
             g_item.Items.Add(item)
             self._clash_items[c.key] = item
 
@@ -549,20 +573,20 @@ class ClashViewerWindow(NOSAWindow):
         self.CboReview.SelectedIndex = max(0, [_REVIEW_ALL, _REVIEW_OPEN, _REVIEW_DONE].index(remembered)
                                            if remembered in (_REVIEW_ALL, _REVIEW_OPEN, _REVIEW_DONE) else 0)
 
-    @staticmethod
-    def _style_leaf(item, done):
-        kids = item.Header.Children
+    def _style_leaf(self, item):
+        """Green wash when done, red wash while open; the bullet keeps the Navisworks status."""
         clash = item.Tag
-        bullet = kids[1]
-        if done:
-            bullet.Text = u'✓'
-            bullet.Foreground = _brush(_GREEN)
-        else:
-            bullet.Text = u'●'
-            bullet.Foreground = _brush(_STATUS_RGB.get(clash.status, _GREY))
+        done = self._store is not None and self._store.is_done(clash.key)
+        has_note = self._store is not None and bool(self._store.note(clash.key))
+        box = item.Header
+        kids = box.Child.Children
+        box.Background = _tint(_GREEN, 0x38) if done else _tint(_RED, 0x1C)
+        kids[0].Text = u'✓' if done else u'●'
+        kids[0].Foreground = _brush(_GREEN if done else _STATUS_RGB.get(clash.status, _GREY))
         base = (1.0, 0.6, 0.5)
         for offset in range(3):
-            kids[2 + offset].Opacity = base[offset] * (0.5 if done else 1.0)
+            kids[1 + offset].Opacity = base[offset] * (0.6 if done else 1.0)
+        kids[4].Visibility = Visibility.Visible if has_note else Visibility.Collapsed
 
     def _update_count(self):
         done_total = 0
@@ -579,9 +603,130 @@ class ClashViewerWindow(NOSAWindow):
         info = self._store.info(clash.key) if done else None
         self.TxtDoneInfo.Text = (u'Marked by %s on %s' % (info.get('by') or u'?', info.get('at') or u'?')
                                  if info else u'')
+        self.TxtNote.IsEnabled = has_store
+        self.TxtNote.Text = self._store.note(clash.key) if has_store else u''
+        note = self._store.note_info(clash.key) if has_store else None
+        self.TxtNoteInfo.Text = (u'Note by %s on %s' % (note.get('by') or u'?', note.get('at') or u'?')
+                                 if note and note.get('text') else u'')
+        self.BtnRecheck.IsEnabled = True
+        self._show_check(self._checks.get(clash.key))
 
-    def _tick_clicked(self, sender, args):
-        self._set_done(sender.Tag, bool(sender.IsChecked))
+    def _commit_note(self):
+        """Save the note box for the current clash when its text changed."""
+        if self._store is None or self.current is None:
+            return
+        text = (self.TxtNote.Text or u'').strip()
+        if text == self._store.note(self.current.key):
+            return
+        self._store.set_note(self.current.key, text, self._user_name())
+        item = self._clash_items.get(self.current.key)
+        if item is not None:
+            self._style_leaf(item)
+        note = self._store.note_info(self.current.key)
+        self.TxtNoteInfo.Text = (u'Note by %s on %s' % (note.get('by') or u'?', note.get('at') or u'?')
+                                 if note and note.get('text') else u'')
+        self.TxtInfo.Text = self._store.message or u'Note saved.'
+
+    def _note_lost_focus(self, sender, args):
+        self._commit_note()
+
+    def _show_check(self, result):
+        if result is None:
+            self.TxtCheck.Text = u'Not checked yet'
+            self.TxtCheck.Foreground = _brush(_GREY)
+            return
+        self.TxtCheck.Text = result.text
+        self.TxtCheck.Foreground = _brush({_check.STILL: _RED, _check.CLEARED: _GREEN}.get(result.verdict, _AMBER))
+
+    def Recheck_Click(self, sender, args):
+        clash = self.current
+        if clash is None:
+            return
+        tolerance = _check.tolerance_mm(clash.test.tolerance)
+        self.TxtCheck.Text = u'Checking…'
+        self.TxtCheck.Foreground = _brush(_GREY)
+
+        def op(uiapp):
+            uidoc = uiapp.ActiveUIDocument
+            if uidoc is None:
+                raise RuntimeError(u'Open a Revit project first.')
+            located = _locator.Locator(uidoc.Document, self._model_map).locate_clash(clash)
+            return located, _check.recheck(located, tolerance)
+
+        def done(result, err):
+            if err is not None:
+                self.TxtCheck.Text = u'Could not check: %s' % err
+                self.TxtCheck.Foreground = _brush(_AMBER)
+                return
+            located, outcome = result
+            self._checks[clash.key] = outcome
+            if clash is self.current:
+                self._apply_located(located)
+                self._show_check(outcome)
+
+        self._bridge.request(u'check', op, done)
+
+    def _set_many(self, clashes, done):
+        if self._store is None or not clashes:
+            return
+        word = u'done' if done else u'open'
+        answer = forms.alert(u'Mark %d clashes as %s?' % (len(clashes), word), title=_TITLE, yes=True, no=True)
+        if not answer:
+            return
+        self._store.set_many([c.key for c in clashes], done, self._user_name())
+        for c in clashes:
+            item = self._clash_items.get(c.key)
+            if item is not None:
+                self._style_leaf(item)
+        if self.current is not None:
+            self._refresh_done_ui(self.current)
+        self._update_count()
+        self.TxtInfo.Text = self._store.message or u'%d clashes marked as %s.' % (len(clashes), word)
+        for g_item_pair in set(self._group_items.get(c.key) for c in clashes):
+            if g_item_pair is not None:
+                self._build_group(g_item_pair[1])
+                for child in list(g_item_pair[1].Items):
+                    if isinstance(child.Tag, _reader.Clash):
+                        self._style_leaf(child)
+
+    def _tree_right_click(self, sender, args):
+        node = args.OriginalSource
+        while node is not None and not isinstance(node, TreeViewItem):
+            try:
+                node = System.Windows.Media.VisualTreeHelper.GetParent(node)
+            except Exception:
+                log_swallowed(_LOG, u'_tree_right_click')
+                node = None
+        if node is not None:
+            node.IsSelected = True
+            node.Focus()
+
+    def _tree_menu_opening(self, sender, args):
+        menu = self.TreeClashes.ContextMenu
+        menu.Items.Clear()
+        selected = self.TreeClashes.SelectedItem
+        tag = selected.Tag if selected is not None else None
+        if self._store is None or tag is None:
+            args.Handled = True
+            return
+
+        def add(text, handler):
+            entry = MenuItem()
+            entry.Header = text
+            entry.Click += lambda s_, a_: handler()
+            menu.Items.Add(entry)
+
+        if isinstance(tag, _reader.Clash):
+            done = self._store.is_done(tag.key)
+            add(u'Go to clash', lambda: self._goto(tag))
+            add(u'Reopen' if done else u'Mark as done', lambda: self._set_done(tag, not done))
+            add(u'Edit note…', lambda: self.TxtNote.Focus())
+        elif isinstance(tag, tuple) and tag[0] in (u'group', u'test'):
+            clashes = tag[1]
+            add(u'Mark all %d as done' % len(clashes), lambda: self._set_many(clashes, True))
+            add(u'Reopen all %d' % len(clashes), lambda: self._set_many(clashes, False))
+        else:
+            args.Handled = True
 
     def MarkDone_Click(self, sender, args):
         if self.current is not None:
@@ -594,12 +739,11 @@ class ClashViewerWindow(NOSAWindow):
         state = self._store.is_done(clash.key)
         item = self._clash_items.get(clash.key)
         if item is not None:
-            item.Header.Children[0].IsChecked = state
-            self._style_leaf(item, state)
+            self._style_leaf(item)
         if clash is self.current:
             self._refresh_done_ui(clash)
         self._update_count()
-        message = self._store.note or u'%s marked as %s.' % (clash.name, u'done' if state else u'open')
+        message = self._store.message or u'%s marked as %s.' % (clash.name, u'done' if state else u'open')
         if self._combo_value(self.CboReview, _REVIEW_ALL) != _REVIEW_ALL:
             message += u' The list updates when you change a filter.'
         self.TxtInfo.Text = message
@@ -659,6 +803,11 @@ class ClashViewerWindow(NOSAWindow):
         self.ChkMarkDone.IsEnabled = False
         self.ChkMarkDone.IsChecked = False
         self.TxtDoneInfo.Text = u''
+        self.TxtNote.Text = u''
+        self.TxtNote.IsEnabled = False
+        self.TxtNoteInfo.Text = u''
+        self.BtnRecheck.IsEnabled = False
+        self._show_check(None)
 
     @staticmethod
     def _item_info(item):
@@ -683,6 +832,7 @@ class ClashViewerWindow(NOSAWindow):
         return u'\n'.join(lines)
 
     def _select_clash(self, clash):
+        self._commit_note()
         self.current = clash
         self.located = None
         self.TxtDetTitle.Text = clash.name
@@ -828,7 +978,7 @@ class ClashViewerWindow(NOSAWindow):
                        u'Item 1 model', u'Item 1 category', u'Item 1 family', u'Item 1 Element Id',
                        u'Item 1 tag', u'Item 1 state',
                        u'Item 2 model', u'Item 2 category', u'Item 2 family', u'Item 2 Element Id',
-                       u'Item 2 tag', u'Item 2 state', u'Done', u'Done by', u'Done on']
+                       u'Item 2 tag', u'Item 2 state', u'Done', u'Done by', u'Done on', u'Note']
             rows = []
             for c in clashes:
                 lc = locator.locate_clash(c)
@@ -840,7 +990,8 @@ class ClashViewerWindow(NOSAWindow):
                                 item.element_id_raw, item.acad_tag, li.text])
                 mark = self._store.info(c.key) if self._store is not None else None
                 row.extend([u'Yes' if mark else u'', mark.get('by', u'') if mark else u'',
-                            mark.get('at', u'') if mark else u''])
+                            mark.get('at', u'') if mark else u'',
+                            self._store.note(c.key) if self._store is not None else u''])
                 rows.append(row)
             write_csv(path, headers, rows)
             return len(rows)
@@ -852,3 +1003,119 @@ class ClashViewerWindow(NOSAWindow):
                 self.TxtInfo.Text = u'Exported %d clashes to %s' % (result, path)
 
         self._bridge.request(u'export', op, done)
+
+    # --------------------------------------------------------------- report
+
+    def CancelBusy_Click(self, sender, args):
+        self._cancel = True
+        self.TxtStatus.Text = u'Cancelling…'
+
+    def _report_entry(self, clash, located, outcome, after):
+        def item_dict(n, item, li):
+            kind = {_locator.FOUND_HOST: u'ok', _locator.FOUND_LINK: u'ok', _locator.NOT_FOUND: u'bad',
+                    _locator.UNLOADED: u'warn', _locator.MISMATCH: u'warn'}.get(li.status, u'none')
+            return {u'title': u'ITEM %d — %s' % (n, item.label), u'info': self._item_info(item).split(u'\n'),
+                    u'state': li.text, u'kind': kind}
+        mark = self._store.info(clash.key) if self._store is not None else None
+        note = self._store.note_info(clash.key) if self._store is not None else None
+        pt = clash.point_mm
+        return {
+            u'test': clash.test.name, u'group': clash.group, u'name': clash.name, u'status': clash.status,
+            u'assigned': u' & '.join(clash.assignees),
+            u'point': (u'x %.0f  y %.0f  z %.0f mm' % pt) if pt else u'',
+            u'before': self.report.get_image_bytes(clash), u'after': after,
+            u'items': [item_dict(1, clash.item1, located.first), item_dict(2, clash.item2, located.second)],
+            u'done': bool(mark), u'done_by': (mark or {}).get('by', u''), u'done_at': (mark or {}).get('at', u''),
+            u'note': (note or {}).get('text', u''), u'note_by': (note or {}).get('by', u''),
+            u'note_at': (note or {}).get('at', u''),
+            u'check_kind': outcome.verdict if outcome is not None else u'',
+            u'check_text': outcome.text if outcome is not None else u'',
+        }
+
+    def _report_op(self, uiapp, clashes, opts, meta, path):
+        """Show, photograph and re-check every clash, then write the HTML; runs inside Revit's API context."""
+        uidoc = uiapp.ActiveUIDocument
+        if uidoc is None:
+            raise RuntimeError(u'Open a Revit project first.')
+        doc = uidoc.Document
+        count = len(clashes)
+        locator = _locator.Locator(doc, self._model_map)
+        folder = tempfile.mkdtemp(prefix=u'nosa_clash_')
+        entries = []
+        try:
+            for index, clash in enumerate(clashes):
+                if self._cancel:
+                    break
+                self.SetProgress(index, count, u'Clash %d of %d: %s' % (index + 1, count, clash.name))
+                located = locator.locate_clash(clash)
+                after = None
+                if self._view.region(located, opts) is not None:
+                    self._view.show(uidoc, located, opts)
+                    png = self._view.export_image(doc, folder)
+                    if png:
+                        with open(png, 'rb') as handle:
+                            after = handle.read()
+                outcome = _check.recheck(located, _check.tolerance_mm(clash.test.tolerance))
+                self._checks[clash.key] = outcome
+                entries.append(self._report_entry(clash, located, outcome, after))
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
+        if entries:
+            meta[u'scope'] = u'%d of %d clashes in the current list' % (len(entries), count)
+            with io.open(path, 'w', encoding='utf-8') as out:
+                out.write(_report.build_report(meta, entries))
+        return len(entries), self._cancel
+
+    def Report_Click(self, sender, args):
+        if self._busy:
+            return
+        if not self._visible:
+            self.TxtInfo.Text = u'There is nothing to report: the list is empty.'
+            return
+        self._commit_note()
+        clashes = list(self._visible)
+        count = len(clashes)
+        question = (u'Create the report for the %d clashes in the current list?\n\n'
+                    u'Each clash is shown in the clash view, photographed from Revit and re-checked '
+                    u'(about 2 seconds each, roughly %d min in total). You can cancel at any time and '
+                    u'the model is not changed.' % (count, max(1, int(count * 2 / 60.0 + 0.5))))
+        if not forms.alert(question, title=_TITLE, yes=True, no=True):
+            return
+        path = ask_save_path(u'clash_report', 'html')
+        if not path:
+            return
+        opts = self._options()
+        opts.quiet = True
+        meta = {
+            u'title': u'Clash report', u'document_code': self.report.document_code,
+            u'revision': self.report.revision or u'-', u'revision_date': self.report.revision_date,
+            u'generated': datetime.datetime.now().strftime('%Y-%m-%d %H:%M'), u'user': self._user_name(),
+            u'scope': u'%d clashes (current list)' % count,
+        }
+        self._busy, self._cancel = True, False
+        self.BtnCancelBusy.Visibility = Visibility.Visible
+        self.SetLoading(True, u'Preparing the report…')
+        self._pump()
+
+        def op(uiapp):
+            return self._report_op(uiapp, clashes, opts, meta, path)
+
+        def done(result, err):
+            self._busy = False
+            self.BtnCancelBusy.Visibility = Visibility.Collapsed
+            self.SetLoading(False)
+            if err is not None:
+                self.TxtInfo.Text = u'The report could not be created: %s' % err
+                return
+            written, cancelled = result
+            if not written:
+                self.TxtInfo.Text = u'The report was cancelled before any clash was added.'
+                return
+            self.TxtInfo.Text = u'Report with %d clashes saved to %s%s' % (
+                written, path, u' (cancelled early)' if cancelled else u'')
+            try:
+                os.startfile(path)
+            except Exception:
+                log_swallowed(_LOG, u'Report.open')
+
+        self._bridge.request(u'report', op, done)

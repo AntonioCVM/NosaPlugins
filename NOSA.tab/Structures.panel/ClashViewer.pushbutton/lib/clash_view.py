@@ -25,6 +25,7 @@ class ViewOptions(object):
         self.permanent = False
         self.dim_rest = False
         self.keep_camera = False
+        self.quiet = False            # report mode: no selection, no zoom
         self.margin_mm = 1000.0
         self.crop_radius_mm = 0.0
         self.colour1 = DEFAULT_COLOUR_1
@@ -225,8 +226,9 @@ class ClashView(object):
                     self._permanent.add(doc.Title)
             elif opts.dim_rest:
                 self._dim_rest(doc, view, painted)
-        self._select(uidoc, found)
-        self._zoom(uidoc, view, reg)
+        if not opts.quiet:
+            self._select(uidoc, found)
+            self._zoom(uidoc, view, reg)
         return self._summary(located)
 
     def _dim_rest(self, doc, view, skip):
@@ -276,6 +278,28 @@ class ClashView(object):
         parts = [u'%s: %s' % (u'Item %d' % n, li.text)
                  for n, li in ((1, located.first), (2, located.second))]
         return u'  |  '.join(parts + located.warnings)
+
+    # ---------------------------------------------------------------- image
+
+    def export_image(self, doc, folder, pixels=900):
+        """PNG of the clash view into ``folder``; returns the file path or None."""
+        view = self.find_view(doc)
+        if view is None:
+            return None
+        opts = DB.ImageExportOptions()
+        opts.ExportRange = DB.ExportRange.SetOfViews
+        opts.SetViewsAndSheets(_id_list([view.Id]))
+        opts.FilePath = os.path.join(folder, u'clash')
+        opts.HLRandWFViewsFileType = DB.ImageFileType.PNG
+        opts.ShadowViewsFileType = DB.ImageFileType.PNG
+        opts.ImageResolution = DB.ImageResolution.DPI_150
+        opts.ZoomType = DB.ZoomFitType.FitToPage
+        opts.PixelSize = pixels
+        for stale in os.listdir(folder):
+            os.remove(os.path.join(folder, stale))      # Revit reuses the file name for the same view
+        doc.ExportImage(opts)
+        fresh = sorted(os.listdir(folder))
+        return os.path.join(folder, fresh[0]) if fresh else None
 
     # ----------------------------------------------------------------- reset
 
