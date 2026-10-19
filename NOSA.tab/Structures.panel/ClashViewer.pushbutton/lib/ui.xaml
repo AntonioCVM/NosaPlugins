@@ -151,8 +151,8 @@
                             <ComboBox Name="CboCategory"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="2">
-                            <TextBlock Text="DISCIPLINE / MODEL" Style="{StaticResource Caption}"/>
-                            <ComboBox Name="CboModel"/>
+                            <TextBlock Text="MODEL" Style="{StaticResource Caption}"/>
+                            <ComboBox Name="CboModel" ToolTip="Show clashes where either element belongs to this model"/>
                         </StackPanel>
                     </Grid>
 

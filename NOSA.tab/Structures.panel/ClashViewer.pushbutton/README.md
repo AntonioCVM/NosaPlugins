@@ -16,7 +16,7 @@ nuevo no aparece con *pyRevit Reload*). No necesita Excel ni `openpyxl`: el `.xl
 
 1. **Load report…** y elige el `.xlsm`. Se recuerda el último archivo y se recarga al abrir la ventana.
 2. Filtra: texto (nombre de clash, Element Id, tag, familia, categoría, responsable), test, *assigned to*,
-   categoría, disciplina/modelo (`NE-ST`, `AA-EM`…) y estado. Por defecto se ocultan *Approved* y *Resolved*.
+   categoría, modelo (nombre completo del `.nwc`; coincide si cualquiera de los dos elementos es de ese modelo) y estado. Por defecto se ocultan *Approved* y *Resolved*.
 3. Selecciona un clash en el árbol (**test ▸ grupo ▸ clash**): el panel derecho muestra miniatura, estado,
    responsable, fecha, punto, y una ficha por elemento con su situación en Revit
    (*Found in the active model / Found in link X / Not found / Id found but category differs / Link not loaded /

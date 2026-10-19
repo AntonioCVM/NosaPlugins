@@ -113,8 +113,6 @@ def _item_category(item):
 
 
 def _item_model(item):
-    if item.discipline:
-        return u'%s-%s' % (item.author, item.discipline)
     return item.model_base
 
 
