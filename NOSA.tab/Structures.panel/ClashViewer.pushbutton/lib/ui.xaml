@@ -289,21 +289,41 @@
                                         ToolTip="Intersect the two elements as they are in the model now (indicative)"/>
                             </Grid>
                         </Border>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10">
-                            <StackPanel>
-                                <TextBlock Name="TxtItem1Head" Text="ITEM 1" Style="{StaticResource Caption}"/>
-                                <TextBlock Name="TxtItem1Info" Style="{StaticResource Value}"/>
-                                <TextBlock Name="TxtItem1State" Style="{StaticResource Value}" FontWeight="SemiBold"
-                                           Margin="0,6,0,0"/>
-                            </StackPanel>
+                        <Border Name="CardItem1" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10"
+                                BorderThickness="6,1,1,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Name="TxtItem1Head" Text="ITEM 1" Style="{StaticResource Caption}"/>
+                                    <TextBlock Name="TxtItem1Info" Style="{StaticResource Value}"/>
+                                    <TextBlock Name="TxtItem1State" Style="{StaticResource Value}" FontWeight="SemiBold"
+                                               Margin="0,6,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Name="BtnSelect1" Content="Select" Click="Select1_Click"
+                                        VerticalAlignment="Top" Margin="10,0,0,0" IsEnabled="False"
+                                        ToolTip="Select only this element in Revit and zoom to it"/>
+                            </Grid>
                         </Border>
-                        <Border Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10">
-                            <StackPanel>
-                                <TextBlock Name="TxtItem2Head" Text="ITEM 2" Style="{StaticResource Caption}"/>
-                                <TextBlock Name="TxtItem2Info" Style="{StaticResource Value}"/>
-                                <TextBlock Name="TxtItem2State" Style="{StaticResource Value}" FontWeight="SemiBold"
-                                           Margin="0,6,0,0"/>
-                            </StackPanel>
+                        <Border Name="CardItem2" Style="{StaticResource Card}" Margin="0,0,0,10" Padding="12,10"
+                                BorderThickness="6,1,1,1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Name="TxtItem2Head" Text="ITEM 2" Style="{StaticResource Caption}"/>
+                                    <TextBlock Name="TxtItem2Info" Style="{StaticResource Value}"/>
+                                    <TextBlock Name="TxtItem2State" Style="{StaticResource Value}" FontWeight="SemiBold"
+                                               Margin="0,6,0,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Name="BtnSelect2" Content="Select" Click="Select2_Click"
+                                        VerticalAlignment="Top" Margin="10,0,0,0" IsEnabled="False"
+                                        ToolTip="Select only this element in Revit and zoom to it"/>
+                            </Grid>
                         </Border>
                         <TextBlock Name="TxtDetWarn" Style="{StaticResource Value}" Foreground="#C77700"
                                    Margin="0,0,0,10"/>
@@ -316,6 +336,7 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
@@ -336,6 +357,13 @@
                                 <StackPanel Grid.Row="1" Grid.Column="2">
                                     <TextBlock Text="ITEM 2 COLOUR (#RRGGBB)" Style="{StaticResource Caption}"/>
                                     <TextBox Name="TxtColour2" Style="{StaticResource FieldBox}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Margin="0,10,0,0">
+                                    <CheckBox Name="ChkAutoCheck" Content="Re-check the geometry automatically when a clash is selected"
+                                              Foreground="{DynamicResource TextColor}" Margin="0,0,0,4"/>
+                                    <CheckBox Name="ChkProxies" Content="Highlight linked and CAD items with temporary copies"
+                                              Foreground="{DynamicResource TextColor}"
+                                              ToolTip="Revit cannot colour or isolate one element of a link. Temporary Generic Model copies are made in this project and removed on Reset, on the next clash and when the window closes."/>
                                 </StackPanel>
                             </Grid>
                         </Expander>

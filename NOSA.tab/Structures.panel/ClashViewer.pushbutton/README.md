@@ -29,9 +29,11 @@ nuevo no aparece con *pyRevit Reload*). No necesita Excel ni `openpyxl`: el `.xl
    cada clash se ve con **fondo verde claro si está Done y rojo claro si sigue abierto**; un ✎ indica que tiene nota. Clic derecho sobre un grupo o un
    test permite *Mark all as done* / *Reopen all*. La **nota** (texto libre) se guarda al salir del cuadro. El filtro **REVIEW** (*All / Open / Done*) muestra solo
    lo pendiente o solo lo hecho. No es el estado *Resolved* de Navisworks: es una marca del equipo, independiente del Excel, que nunca se modifica.
-7. **Re-check** (panel de detalle): intersecta los dos elementos tal como están ahora en el modelo (tolerancia del test) y dice
+7. **Re-check** (panel de detalle; **automático** al seleccionar el clash, desactivable en *View settings*): intersecta los dos elementos tal como están ahora en el modelo (tolerancia del test) y dice
    *Still clashing (≈ N cm³)*, *No longer clashing* o *Cannot check* (elemento no encontrado, sin geometría o fallo del booleano; un fallo nunca se
    cuenta como "resuelto"). Es orientativo: la geometría de Revit y la de Navisworks no son idénticas.
+   Cada elemento tiene su botón **Select**, que selecciona *solo* ese elemento en Revit y hace zoom (también si está en un vínculo), y una barra de color
+   (rojo = elemento 1, azul = elemento 2) igual a la de la vista 3D, para saber qué elemento es de qué modelo.
 8. **Report…** genera un único `.html` (se abre en el navegador y se imprime a PDF) con, por cada clash de la lista actual: la imagen original del Excel
    ("As reported") junto a la imagen tomada de Revit en ese momento ("Now"), estado, Done, nota, estado de los elementos y el re-check. Tarda unos
    2 s por clash, con barra de progreso y botón *Cancel*; no modifica el modelo (solo usa la vista `CLASH_VIEWER_<usuario>`).
@@ -49,6 +51,19 @@ todo el equipo ve las mismas marcas. El nombre usa el código del documento, no 
 del informe (P07…) las marcas se conservan mientras los clashes mantengan su nombre (`Clash74`) en el mismo test. Cada marca guarda
 quién y cuándo. Si la carpeta es de solo lectura se usa una copia local en `NOSA_Configs` y la ventana lo avisa. Dos personas pueden
 marcar a la vez: cada cambio se fusiona con lo que hay en disco antes de guardar. La exportación CSV incluye *Done / Done by / Done on*.
+
+## Elementos de vínculos y de AutoCAD
+
+Revit no permite colorear ni aislar *un* elemento de un vínculo. Para poder verlos, el visor crea **copias temporales** (*DirectShape* de Modelos
+genéricos, marcadas `NOSA.ClashViewer.proxy`) en el proyecto activo, las colorea y las aísla en lugar de aislar todo el vínculo. Se eliminan al pulsar
+**Reset view**, al pasar al siguiente clash y al cerrar la ventana; si Revit se cerrara a la fuerza, se barren al abrir el visor de nuevo. Se pueden
+desactivar en *View settings* (entonces se aísla la instancia completa del vínculo). Las copias se pueden deshacer con `Ctrl+Z` como cualquier cambio.
+En un modelo con worksharing no se tocan las copias que tenga reservadas otro usuario.
+
+Los modelos de **AutoCAD (Plant 3D)** vinculados como CAD (`.dwg`) ahora se reconocen por el nombre del modelo. Revit no conserva el `PnPGuid`, así que el objeto
+concreto se busca **por posición**: se toman los objetos del CAD cuya caja contiene el punto del clash (los más pequeños, cerca del otro elemento) y se
+muestran como copias temporales. Es orientativo; si el CAD tiene muchos objetos la primera lectura puede tardar unos segundos (se guarda en caché).
+Si el modelo está como vínculo Revit se aísla la instancia y se muestra el entorno del punto.
 
 ## Cómo se localizan los elementos
 
@@ -81,8 +96,7 @@ Si el nombre del `.nwc` no coincide con ningún modelo, añade una equivalencia 
 
 ## Límites conocidos
 
-- Revit no permite colorear **un elemento concreto de un vínculo**: los elementos vinculados se aíslan (instancia del
-  vínculo recortada por la caja de sección) y quedan **seleccionados**, pero sin color propio. Los del modelo activo sí se colorean.
+- Los elementos vinculados y los objetos de CAD se colorean mediante copias temporales (ver arriba); con esa opción desactivada solo se aísla el vínculo y se selecciona.
 - Los elementos de **AutoCAD Plant 3D** no existen en Revit: se muestran como tales y la vista se centra en el punto del
   clash. Solo se buscan por `Tag` / `PnPGuid` en DirectShapes del modelo activo.
 - La tecla `Esc` no cierra la ventana (pyRevit lo hace por defecto; aquí está desactivado).
@@ -91,4 +105,6 @@ Si el nombre del `.nwc` no coincide con ningún modelo, añade una equivalencia 
 - El *Re-check* usa la geometría actual de Revit: dos elementos **unidos** (*Join Geometry*, o muros que Revit une solos al cruzarse) tienen la
   geometría ya recortada y salen como *No longer clashing* aunque Navisworks los siga marcando. El solape se mide en volumen (umbral 1 cm³); no replica
   la tolerancia de Navisworks al milímetro.
-- En el informe, los elementos de vínculos no llevan color propio en la imagen "Now" (limitación de Revit, ver arriba).
+- Si el objeto de AutoCAD se importó como malla (no como sólido), el re-check no puede intersectarlo y lo indica.
+- Las imágenes "Now" del informe se exportan a 1600 px con la vista recortada (*crop box*) alrededor de la zona del clash, de modo que un elemento largo
+  no deje el clash como un detalle diminuto; el recorte se quita al terminar cada imagen.

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """Find the elements of a clash in the open Revit document and in its Revit links."""
+import copy
 import re
 from Autodesk.Revit import DB
 
+from nosa_utils import solids as _solids
 from nosa_utils.revit_helpers import get_id_value, element_id_from_int, element_name
 from nosa_utils.telemetry import log_swallowed
 
@@ -16,6 +18,7 @@ UNLOADED = u'unloaded'
 MISMATCH = u'mismatch'
 NOT_IN_REVIT = u'plant'
 NO_DATA = u'empty'
+INSTANCE = u'instance'        # model present as a whole (CAD link / Revit link); the item is not pickable
 
 _RE_MODEL_CODE = re.compile(r'[a-z0-9]+-[a-z0-9]+-\d{2}-[a-z]{2}-[a-z]{2,3}-\d{5}')
 _PLANT_PARAMS = (u'Tag', u'PnPGuid', u'PnPID', u'Mark')
@@ -128,6 +131,95 @@ def collect_models(host_doc):
     return models
 
 
+def collect_cad_links(doc):
+    """[(ImportInstance, [names])] for every 3D CAD link or import of the host document."""
+    out = []
+    for inst in DB.FilteredElementCollector(doc).OfClass(DB.ImportInstance):
+        try:
+            if inst.ViewSpecific:
+                continue
+        except Exception:
+            log_swallowed(_LOG, u'collect_cad_links.ViewSpecific')
+        names = []
+        try:
+            names.append(element_name(doc.GetElement(inst.GetTypeId())))
+        except Exception:
+            log_swallowed(_LOG, u'collect_cad_links.type_name')
+        names.append(element_name(inst))
+        out.append((inst, [n for n in names if n]))
+    return out
+
+
+_CAD_CACHE = {}
+_MAX_CAD_OBJECTS = 200000
+
+
+def clear_cad_cache():
+    _CAD_CACHE.clear()
+
+
+def _bounds(points):
+    xs, ys, zs = [p.X for p in points], [p.Y for p in points], [p.Z for p in points]
+    return DB.XYZ(min(xs), min(ys), min(zs)), DB.XYZ(max(xs), max(ys), max(zs))
+
+
+def _object_bounds(obj):
+    """(min, max) in host coordinates of a Solid or Mesh from a CAD link, or None."""
+    if isinstance(obj, DB.Mesh):
+        pts = list(obj.Vertices)
+        return _bounds(pts) if pts else None
+    box = obj.GetBoundingBox()
+    corners = []
+    for x in (box.Min.X, box.Max.X):
+        for y in (box.Min.Y, box.Max.Y):
+            for z in (box.Min.Z, box.Max.Z):
+                corners.append(box.Transform.OfPoint(DB.XYZ(x, y, z)))
+    return _bounds(corners)
+
+
+def _scan_cad(instance):
+    """Every positive solid / mesh of a CAD link as (min, max, geometry object, bbox volume)."""
+    opts = DB.Options()
+    opts.ComputeReferences = False
+    opts.IncludeNonVisibleObjects = False
+    found = []
+
+    def visit(sequence):
+        for g in sequence:
+            if len(found) >= _MAX_CAD_OBJECTS:
+                return
+            try:
+                if isinstance(g, DB.GeometryInstance):
+                    visit(g.GetInstanceGeometry())
+                elif isinstance(g, DB.Mesh) or (isinstance(g, DB.Solid) and g.Volume > 1e-9):
+                    bounds = _object_bounds(g)
+                    if bounds is not None:
+                        lo, hi = bounds
+                        found.append((lo, hi, g, max((hi.X - lo.X) * (hi.Y - lo.Y) * (hi.Z - lo.Z), 1e-9)))
+            except Exception:
+                log_swallowed(_LOG, u'_scan_cad')
+
+    geometry = instance.get_Geometry(opts)
+    if geometry is not None:
+        visit(geometry)
+    return found
+
+
+def cad_objects(doc, instance):
+    key = (doc.Title, get_id_value(instance.Id))
+    if key not in _CAD_CACHE:
+        if len(_CAD_CACHE) >= 3:
+            _CAD_CACHE.clear()
+        _CAD_CACHE[key] = _scan_cad(instance)
+    return _CAD_CACHE[key]
+
+
+def _inside(entry, point, tol):
+    lo, hi = entry[0], entry[1]
+    return (lo.X - tol <= point.X <= hi.X + tol and lo.Y - tol <= point.Y <= hi.Y + tol
+            and lo.Z - tol <= point.Z <= hi.Z + tol)
+
+
 class LocatedItem(object):
     """Result of looking one clash item up in Revit."""
 
@@ -138,10 +230,45 @@ class LocatedItem(object):
         self.element = None
         self.model = None
         self.bbox = None            # (min XYZ, max XYZ) in host coordinates, feet
+        self.proxy_objects = []     # CAD objects found at the clash point (host coordinates)
 
     @property
     def is_found(self):
         return self.status in (FOUND_HOST, FOUND_LINK)
+
+    @property
+    def is_present(self):
+        return self.status == INSTANCE
+
+    @property
+    def is_shown(self):
+        """True when there is something of this item to show or to check in Revit."""
+        return self.is_found or bool(self.proxy_objects)
+
+    def proxy_geometry(self):
+        """Geometry (host coordinates) used to build a temporary, colourable copy of this item."""
+        if self.status == FOUND_LINK and self.element is not None:
+            shapes = []
+            for solid in _solids.get_solids(self.element):
+                transform = self.model.transform
+                shapes.append(DB.SolidUtils.CreateTransformed(solid, transform) if transform is not None else solid)
+            return shapes
+        return list(self.proxy_objects)
+
+    def check_solid(self):
+        """One solid in host coordinates for the geometry re-check, or None."""
+        if self.status == FOUND_HOST:
+            return _solids.get_element_solid(self.element)
+        if self.status == FOUND_LINK:
+            solid = _solids.get_element_solid(self.element)
+            transform = self.model.transform
+            if solid is not None and transform is not None:
+                return DB.SolidUtils.CreateTransformed(solid, transform)
+            return solid
+        for obj in self.proxy_objects:
+            if isinstance(obj, DB.Solid):
+                return obj
+        return None
 
     @property
     def element_id(self):
@@ -157,6 +284,12 @@ class LocatedItem(object):
             return u'Link not loaded: %s' % self.note
         if self.status == MISMATCH:
             return u'Id found but category differs (%s)' % self.note
+        if self.status == INSTANCE:
+            if self.proxy_objects:
+                return (u"AutoCAD model '%s' is linked: its objects cannot be picked one by one, so the %d "
+                        u"object(s) at the clash point are shown (indicative)" % (self.note, len(self.proxy_objects)))
+            return (u"AutoCAD model '%s' is linked, but its objects cannot be picked: the area around the "
+                    u"clash point is shown" % self.note)
         if self.status == NOT_IN_REVIT:
             return u'AutoCAD Plant item - not present in Revit'
         if self.status == NO_DATA:
@@ -177,8 +310,12 @@ class LocatedClash(object):
         return [i for i in (self.first, self.second) if i.is_found]
 
     @property
+    def boxed_items(self):
+        return [i for i in (self.first, self.second) if i.bbox is not None]
+
+    @property
     def state_text(self):
-        found = len(self.found_items)
+        found = len([i for i in (self.first, self.second) if i.is_shown])
         if found == 2:
             return u'Both found'
         if found == 1:
@@ -209,6 +346,7 @@ class Locator(object):
                               for k, v in (model_map or {}).items())
         self._cache = {}
         self._plant = None
+        self.cad_links = collect_cad_links(host_doc)
 
     # ---------------------------------------------------------------- public
 
@@ -234,7 +372,36 @@ class Locator(object):
                 if centre.DistanceTo(point) > 1640.0:       # ~500 m
                     warnings.append(u'The clash point is far from the elements: check that '
                                     u'shared coordinates are set in this model.')
+        if first.status == INSTANCE:
+            first = copy.copy(first)            # candidates depend on this clash's point: never share them
+            first.proxy_objects = []
+        if second.status == INSTANCE:
+            second = copy.copy(second)
+            second.proxy_objects = []
+        for li, other in ((first, second), (second, first)):
+            if li.status == INSTANCE and point is not None:
+                try:
+                    self._attach_cad_objects(li, point, other)
+                except Exception:
+                    log_swallowed(_LOG, u'locate_clash.cad_objects')
         return LocatedClash(clash, first, second, point, warnings)
+
+    def _attach_cad_objects(self, li, point, other, tol_ft=0.33):
+        """Pick the CAD object(s) whose box holds the clash point (smallest first, near the other item)."""
+        if not isinstance(li.element, DB.ImportInstance):
+            return
+        hits = [e for e in cad_objects(self.doc, li.element) if _inside(e, point, tol_ft)]
+        if other is not None and other.bbox is not None and hits:
+            lo, hi = other.bbox
+            near = [e for e in hits if not (e[1].X < lo.X - tol_ft or e[0].X > hi.X + tol_ft or
+                                            e[1].Y < lo.Y - tol_ft or e[0].Y > hi.Y + tol_ft or
+                                            e[1].Z < lo.Z - tol_ft or e[0].Z > hi.Z + tol_ft)]
+            hits = near or hits
+        hits.sort(key=lambda e: e[3])
+        hits = hits[:2]
+        if hits:
+            li.proxy_objects = [e[2] for e in hits]
+            li.bbox = _bounds([p for e in hits for p in (e[0], e[1])])
 
     def locate_item(self, item):
         key = (item.path, item.category, item.element_id_raw, item.unique_id,
@@ -357,7 +524,22 @@ class Locator(object):
             el = index.get(value.lower())
             if el is not None:
                 return self._found(item, el, self.models[0])
+        for instance, names in self.cad_links:
+            if any(names_match(item.path, n) for n in names + self._mapped(item)):
+                return self._instance_item(item, instance, names[0] if names else item.model_base)
+        model = self._resolve_model(item)
+        if model is not None and model.is_link and model.doc is not None:
+            return self._instance_item(item, model.instance, model.label)
         return LocatedItem(item, NOT_IN_REVIT)
+
+    def _mapped(self, item):
+        return list(self.model_map.get(_strip_model_name(item.path), []))
+
+    def _instance_item(self, item, instance, label):
+        li = LocatedItem(item, INSTANCE, label)
+        li.element = instance
+        li.model = self.models[0]
+        return li
 
     def _plant_index(self):
         """Tag / PnPGuid values on DirectShapes of the host model (built once)."""

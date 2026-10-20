@@ -58,7 +58,7 @@ _STATE_RGB = {
     _locator.FOUND_HOST: _GREEN, _locator.FOUND_LINK: _GREEN,
     _locator.NOT_FOUND: _RED,
     _locator.UNLOADED: _AMBER, _locator.MISMATCH: _AMBER,
-    _locator.NOT_IN_REVIT: _GREY, _locator.NO_DATA: _GREY,
+    _locator.NOT_IN_REVIT: _GREY, _locator.NO_DATA: _GREY, _locator.INSTANCE: _AMBER,
 }
 _ALL_TESTS = u'All tests'
 _ALL_PEOPLE = u'Everyone'
@@ -224,6 +224,7 @@ class ClashViewerWindow(NOSAWindow):
         self._shown = 0
         self._busy = False
         self._cancel = False
+        self._cleanup_pending = False
         self._checks = {}
         cfg = self.LoadConfig()
         self._model_map = cfg.get('model_map', {})
@@ -283,6 +284,8 @@ class ClashViewerWindow(NOSAWindow):
         self.ChkPermanent.IsChecked = cfg.get('permanent', False)
         self.ChkDim.IsChecked = cfg.get('dim_rest', False)
         self.ChkKeepCam.IsChecked = cfg.get('keep_camera', False)
+        self.ChkAutoCheck.IsChecked = cfg.get('auto_check', True)
+        self.ChkProxies.IsChecked = cfg.get('proxies', True)
         self.TxtMargin.Text = u'%g' % cfg.get('margin_m', 1.0)
         self.TxtCrop.Text = u'%g' % cfg.get('crop_m', 0.0)
         self.TxtColour1.Text = cfg.get('colour1', _view.DEFAULT_COLOUR_1)
@@ -302,6 +305,8 @@ class ClashViewerWindow(NOSAWindow):
             'permanent': bool(self.ChkPermanent.IsChecked),
             'dim_rest': bool(self.ChkDim.IsChecked),
             'keep_camera': bool(self.ChkKeepCam.IsChecked),
+            'auto_check': bool(self.ChkAutoCheck.IsChecked),
+            'proxies': bool(self.ChkProxies.IsChecked),
             'margin_m': _float(self.TxtMargin.Text, 1.0),
             'crop_m': _float(self.TxtCrop.Text, 0.0),
             'colour1': self.TxtColour1.Text,
@@ -311,6 +316,8 @@ class ClashViewerWindow(NOSAWindow):
         self.SaveConfig(cfg)
 
     def _on_loaded(self, sender, args):
+        _locator.clear_cad_cache()
+        self._bridge.request(u'sweep', self._sweep_op, self._sweep_done)
         last = self._last_cfg.get('last_file')
         if last and os.path.isfile(last):
             self._load_path(last)
@@ -320,12 +327,38 @@ class ClashViewerWindow(NOSAWindow):
         try:
             self._commit_note()
             self._save_options()
+            if self._view.proxy_docs:
+                self._cleanup_on_close()
         except Exception:
             log_swallowed(_LOG, u'_on_closing')
 
     def _on_closed(self, sender, args):
         self._search_timer.Stop()
-        self._bridge.detach()
+        if not self._cleanup_pending:
+            self._bridge.detach()
+
+    def _sweep_op(self, uiapp):
+        uidoc = uiapp.ActiveUIDocument
+        return self._view.sweep(uidoc.Document) if uidoc is not None else False
+
+    def _sweep_done(self, removed, err):
+        if err is None and removed:
+            self.TxtInfo.Text = u'Temporary copies left by a previous session were removed from the project.'
+
+    def _cleanup_on_close(self):
+        """Take the temporary copies out of the model before the window goes away."""
+        def op(uiapp):
+            uidoc = uiapp.ActiveUIDocument
+            if uidoc is not None:
+                self._view.sweep(uidoc.Document)
+            return True
+
+        def done(result, err):
+            self._cleanup_pending = False
+            self._bridge.detach()
+
+        self._cleanup_pending = True
+        self._bridge.request(u'cleanup', op, done)
 
     # ------------------------------------------------------------- loading
 
@@ -800,6 +833,7 @@ class ClashViewerWindow(NOSAWindow):
             tb.Text = u''
         self.TxtItem1Head.Text = u'ITEM 1'
         self.TxtItem2Head.Text = u'ITEM 2'
+        self.BtnSelect1.IsEnabled = self.BtnSelect2.IsEnabled = False
         self.ChkMarkDone.IsEnabled = False
         self.ChkMarkDone.IsChecked = False
         self.TxtDoneInfo.Text = u''
@@ -860,7 +894,12 @@ class ClashViewerWindow(NOSAWindow):
             self.ImgClash.Source = None
         self.TxtNoImage.Visibility = Visibility.Collapsed if self.ImgClash.Source is not None \
             else Visibility.Visible
-        self._bridge.request(u'locate', lambda uiapp: self._locate_op(uiapp, clash),
+        self._paint_item_bars()
+        self.BtnSelect1.IsEnabled = self.BtnSelect2.IsEnabled = False
+        if self.ChkAutoCheck.IsChecked:
+            self.TxtCheck.Text = u'Checking…'
+            self.TxtCheck.Foreground = _brush(_GREY)
+        self._bridge.request(u'locate', lambda uiapp: self._locate_check_op(uiapp, clash),
                              lambda result, err: self._located_done(clash, result, err))
 
     def _locate_op(self, uiapp, clash):
@@ -869,6 +908,13 @@ class ClashViewerWindow(NOSAWindow):
             raise RuntimeError(u'Open a Revit project first.')
         return _locator.Locator(uidoc.Document, self._model_map).locate_clash(clash)
 
+    def _locate_check_op(self, uiapp, clash):
+        located = self._locate_op(uiapp, clash)
+        outcome = None
+        if self.ChkAutoCheck.IsChecked:
+            outcome = _check.recheck(located, _check.tolerance_mm(clash.test.tolerance))
+        return located, outcome
+
     def _located_done(self, clash, result, err):
         if clash is not self.current:
             return
@@ -876,8 +922,48 @@ class ClashViewerWindow(NOSAWindow):
             for tb in (self.TxtItem1State, self.TxtItem2State):
                 tb.Text = u'Revit could not be queried (%s).' % (err,)
                 tb.Foreground = _brush(_AMBER)
+            self._show_check(None)
             return
-        self._apply_located(result)
+        located, outcome = result
+        self._apply_located(located)
+        if outcome is not None:
+            self._checks[clash.key] = outcome
+            self._show_check(outcome)
+        else:
+            self._show_check(self._checks.get(clash.key))
+        self.BtnSelect1.IsEnabled = located.first.is_found or located.first.is_present
+        self.BtnSelect2.IsEnabled = located.second.is_found or located.second.is_present
+
+    def _paint_item_bars(self):
+        """The colour bar of each item card matches the colour the item gets in the clash view."""
+        for card, text, fallback in ((self.CardItem1, self.TxtColour1.Text, _view.DEFAULT_COLOUR_1),
+                                     (self.CardItem2, self.TxtColour2.Text, _view.DEFAULT_COLOUR_2)):
+            colour = _view.parse_colour(text, fallback)
+            card.BorderBrush = _brush((colour.Red, colour.Green, colour.Blue))
+
+    def _select_one(self, number):
+        clash = self.current
+        if clash is None:
+            return
+        self.TxtInfo.Text = u'Selecting item %d…' % number
+
+        def op(uiapp):
+            uidoc = uiapp.ActiveUIDocument
+            if uidoc is None:
+                raise RuntimeError(u'Open a Revit project first.')
+            located = _locator.Locator(uidoc.Document, self._model_map).locate_clash(clash)
+            return self._view.select_item(uidoc, located.first if number == 1 else located.second)
+
+        def done(result, err):
+            self.TxtInfo.Text = result if err is None else u'The item could not be selected: %s' % err
+
+        self._bridge.request(u'select', op, done)
+
+    def Select1_Click(self, sender, args):
+        self._select_one(1)
+
+    def Select2_Click(self, sender, args):
+        self._select_one(2)
 
     def _apply_located(self, located):
         self.located = located
@@ -894,6 +980,7 @@ class ClashViewerWindow(NOSAWindow):
         opts.permanent = bool(self.ChkPermanent.IsChecked)
         opts.dim_rest = bool(self.ChkDim.IsChecked)
         opts.keep_camera = bool(self.ChkKeepCam.IsChecked)
+        opts.proxies = bool(self.ChkProxies.IsChecked)
         opts.margin_mm = max(_float(self.TxtMargin.Text, 1.0), 0.0) * 1000.0
         opts.crop_radius_mm = max(_float(self.TxtCrop.Text, 0.0), 0.0) * 1000.0
         opts.colour1 = self.TxtColour1.Text
@@ -1013,7 +1100,8 @@ class ClashViewerWindow(NOSAWindow):
     def _report_entry(self, clash, located, outcome, after):
         def item_dict(n, item, li):
             kind = {_locator.FOUND_HOST: u'ok', _locator.FOUND_LINK: u'ok', _locator.NOT_FOUND: u'bad',
-                    _locator.UNLOADED: u'warn', _locator.MISMATCH: u'warn'}.get(li.status, u'none')
+                    _locator.UNLOADED: u'warn', _locator.MISMATCH: u'warn',
+                    _locator.INSTANCE: u'warn'}.get(li.status, u'none')
             return {u'title': u'ITEM %d — %s' % (n, item.label), u'info': self._item_info(item).split(u'\n'),
                     u'state': li.text, u'kind': kind}
         mark = self._store.info(clash.key) if self._store is not None else None
@@ -1051,7 +1139,7 @@ class ClashViewerWindow(NOSAWindow):
                 after = None
                 if self._view.region(located, opts) is not None:
                     self._view.show(uidoc, located, opts)
-                    png = self._view.export_image(doc, folder)
+                    png = self._view.export_image(doc, folder, frame=self._view.frame_of(located, opts))
                     if png:
                         with open(png, 'rb') as handle:
                             after = handle.read()

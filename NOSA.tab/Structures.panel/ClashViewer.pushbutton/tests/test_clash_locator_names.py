@@ -12,9 +12,10 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 def _load_locator():
     stubs = {}
     for name in ('Autodesk', 'Autodesk.Revit', 'Autodesk.Revit.DB', 'nosa_utils',
-                 'nosa_utils.revit_helpers', 'nosa_utils.telemetry'):
+                 'nosa_utils.revit_helpers', 'nosa_utils.telemetry', 'nosa_utils.solids'):
         stubs[name] = types.ModuleType(name)
     stubs['Autodesk'].Revit = stubs['Autodesk.Revit']
+    stubs['nosa_utils'].solids = stubs['nosa_utils.solids']
     stubs['Autodesk.Revit'].DB = stubs['Autodesk.Revit.DB']
     helpers, telemetry = stubs['nosa_utils.revit_helpers'], stubs['nosa_utils.telemetry']
     helpers.get_id_value = helpers.element_id_from_int = helpers.element_name = lambda x: x

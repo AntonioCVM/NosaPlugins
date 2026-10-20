@@ -17,9 +17,9 @@ main{padding:24px 32px;max-width:1100px;margin:auto}
 .card h2{margin:0 0 4px;font-size:17px}.card .path{color:var(--mute);font-size:12px;margin-bottom:10px}
 .badges span{display:inline-block;border-radius:12px;padding:2px 10px;font-size:11px;margin:0 6px 6px 0;color:#fff;background:var(--mute)}
 .badges .ok{background:var(--ok)}.badges .bad{background:var(--bad)}.badges .warn{background:var(--warn)}.badges .st{background:#555}
-.pics{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:8px 0 12px;align-items:start}
+.pics{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.9fr);gap:14px;margin:8px 0 12px;align-items:start}
 figure{margin:0;border:1px solid var(--line);border-radius:8px;padding:6px;background:#fcfcfc;text-align:center}
-figure img{max-width:100%;max-height:360px}figcaption{font-size:11px;color:var(--mute);margin-top:4px}
+figure img{max-width:100%;max-height:560px}figcaption{font-size:11px;color:var(--mute);margin-top:4px}
 .none{color:var(--mute);font-size:12px;padding:60px 0}
 .items{display:grid;grid-template-columns:1fr 1fr;gap:14px;font-size:12px}
 .item{border-left:3px solid var(--line);padding-left:10px}.item b{display:block;margin-bottom:2px}

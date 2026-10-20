@@ -15,6 +15,7 @@ _MAX_DIMMED = 20000
 
 DEFAULT_COLOUR_1 = u'#FF0000'
 DEFAULT_COLOUR_2 = u'#0066FF'
+_PROXY_APP = u'NOSA.ClashViewer.proxy'
 
 
 class ViewOptions(object):
@@ -26,6 +27,7 @@ class ViewOptions(object):
         self.dim_rest = False
         self.keep_camera = False
         self.quiet = False            # report mode: no selection, no zoom
+        self.proxies = True           # temporary coloured copies of linked / CAD items
         self.margin_mm = 1000.0
         self.crop_radius_mm = 0.0
         self.colour1 = DEFAULT_COLOUR_1
@@ -53,6 +55,7 @@ class ClashView(object):
         self._permanent = set()     # doc titles where isolation was made permanent
         self._origin = {}           # doc title -> ElementId of the view the user came from
         self._solid = {}            # doc title -> solid fill pattern ElementId
+        self.proxy_docs = set()     # titles of the documents where temporary copies were made
 
     # ------------------------------------------------------------------ view
 
@@ -130,7 +133,54 @@ class ClashView(object):
         view.SetElementOverrides(element_id, ogs)
         self._painted.setdefault(doc.Title, []).append(element_id)
 
+    def _remove_proxies(self, doc):
+        """Delete every temporary copy this tool made (also leftovers of a crashed session)."""
+        ids = self._proxy_ids(doc)
+        if ids:
+            doc.Delete(_id_list(ids))
+        self.proxy_docs.discard(doc.Title)
+
+    @staticmethod
+    def _proxy_ids(doc):
+        """Our temporary copies that this user may delete (not those another user has checked out)."""
+        ids = [ds.Id for ds in DB.FilteredElementCollector(doc).OfClass(DB.DirectShape)
+               if ds.ApplicationId == _PROXY_APP]
+        if doc.IsWorkshared:
+            ids = [i for i in ids
+                   if DB.WorksharingUtils.GetCheckoutStatus(doc, i) != DB.CheckoutStatus.OwnedByOtherUser]
+        return ids
+
+    def has_proxies(self, doc):
+        return doc.Title in self.proxy_docs
+
+    def sweep(self, doc):
+        """Remove leftover temporary copies (transaction included); True when something was removed."""
+        found = bool(self._proxy_ids(doc))
+        if found:
+            with nosa_transaction(doc, u'NOSA — Clash Viewer: remove temporary copies'):
+                self._remove_proxies(doc)
+        return found
+
+    def _make_proxy(self, doc, shapes, label):
+        """DirectShape copy of ``shapes`` (host coordinates), or None when Revit refuses the geometry."""
+        category = DB.Category.GetCategory(doc, DB.BuiltInCategory.OST_GenericModel)
+        shape = DB.DirectShape.CreateElement(doc, category.Id)
+        shape.ApplicationId = _PROXY_APP
+        shape.ApplicationDataId = label
+        geometry = List[DB.GeometryObject]()
+        for g in shapes:
+            geometry.Add(g)
+        try:
+            shape.SetShape(geometry)
+        except Exception:
+            log_swallowed(_LOG, u'_make_proxy')
+            doc.Delete(shape.Id)
+            return None
+        self.proxy_docs.add(doc.Title)
+        return shape
+
     def _clear_overrides(self, doc, view):
+        self._remove_proxies(doc)
         blank = DB.OverrideGraphicSettings()
         for eid in self._painted.pop(doc.Title, []):
             try:
@@ -148,9 +198,7 @@ class ClashView(object):
     def region(located, opts):
         """(min, max) XYZ in host feet for the section box, or None when nothing is known."""
         box = None
-        for li in located.found_items:
-            if li.bbox is None:
-                continue
+        for li in located.boxed_items:
             mn, mx = li.bbox
             if box is None:
                 box = [mn, mx]
@@ -209,16 +257,24 @@ class ClashView(object):
             view.IsSectionBoxActive = True
             if not opts.keep_camera:
                 view.SetOrientation(self._orientation(reg[0], reg[1]))
-            for li, colour in ((located.first, c1), (located.second, c2)):
-                if not li.is_found:
-                    continue
-                if li.model.is_link:
-                    isolate_ids.append(li.model.instance.Id)
-                    continue
-                self._paint(doc, view, li.element.Id, self._highlight(doc, colour))
-                host_ids.append(li.element.Id)
-                isolate_ids.append(li.element.Id)
-                painted.add(get_id_value(li.element.Id))
+            for number, (li, colour) in enumerate(((located.first, c1), (located.second, c2)), 1):
+                if li.is_found and not li.model.is_link:
+                    self._paint(doc, view, li.element.Id, self._highlight(doc, colour))
+                    host_ids.append(li.element.Id)
+                    isolate_ids.append(li.element.Id)
+                    painted.add(get_id_value(li.element.Id))
+                elif li.is_found or li.is_present:
+                    copy_ = None
+                    if opts.proxies and li.is_shown:
+                        copy_ = self._make_proxy(doc, li.proxy_geometry(), u'clash item %d' % number)
+                    if copy_ is not None:
+                        self._paint(doc, view, copy_.Id, self._highlight(doc, colour))
+                        isolate_ids.append(copy_.Id)
+                        painted.add(get_id_value(copy_.Id))
+                    elif li.element is not None:
+                        isolate_ids.append(li.model.instance.Id if li.is_found else li.element.Id)
+                        if li.is_present:
+                            self._paint(doc, view, li.element.Id, self._highlight(doc, colour))
             if opts.isolate and isolate_ids and view.CanUseTemporaryVisibilityModes():
                 view.IsolateElementsTemporary(_id_list(isolate_ids))
                 if opts.permanent:
@@ -281,7 +337,58 @@ class ClashView(object):
 
     # ---------------------------------------------------------------- image
 
-    def export_image(self, doc, folder, pixels=900):
+    def frame_of(self, located, opts):
+        """(min, max) the picture should be about: what is visible of the elements inside the clash window.
+
+        The window is the section-box region, narrowed to the clash surroundings when the elements are long;
+        the box of each element is clipped to it, so a 40 m beam does not turn the clash into a speck."""
+        region = self.region(located, opts)
+        if region is None:
+            return None
+        lo, hi = region
+        point = located.point
+        sizes = [li.bbox[0].DistanceTo(li.bbox[1]) for li in located.boxed_items]
+        if point is not None and sizes:
+            reach = max(6.5, 0.8 * min(sizes))                              # feet (about 2 m minimum)
+            if lo.DistanceTo(hi) > 2.0 * reach:
+                lo = DB.XYZ(max(lo.X, point.X - reach), max(lo.Y, point.Y - reach), max(lo.Z, point.Z - reach))
+                hi = DB.XYZ(min(hi.X, point.X + reach), min(hi.Y, point.Y + reach), min(hi.Z, point.Z + reach))
+        pieces = []
+        for li in located.boxed_items:
+            mn, mx = li.bbox
+            a_ = DB.XYZ(max(mn.X, lo.X), max(mn.Y, lo.Y), max(mn.Z, lo.Z))
+            b_ = DB.XYZ(min(mx.X, hi.X), min(mx.Y, hi.Y), min(mx.Z, hi.Z))
+            if a_.X <= b_.X and a_.Y <= b_.Y and a_.Z <= b_.Z:
+                pieces.extend((a_, b_))
+        if not pieces:
+            return lo, hi
+        return (DB.XYZ(min(p.X for p in pieces), min(p.Y for p in pieces), min(p.Z for p in pieces)),
+                DB.XYZ(max(p.X for p in pieces), max(p.Y for p in pieces), max(p.Z for p in pieces)))
+
+    def _crop_to(self, doc, view, frame, margin=0.07):
+        """Crop the clash view tightly around ``frame`` so the exported picture is not mostly empty."""
+        lo, hi = frame
+        diag = lo.DistanceTo(hi)
+        pad = max(diag * margin, 0.4)
+        crop = view.CropBox
+        inverse = crop.Transform.Inverse
+        pts = []
+        for x in (lo.X, hi.X):
+            for y in (lo.Y, hi.Y):
+                for z in (lo.Z, hi.Z):
+                    pts.append(inverse.OfPoint(DB.XYZ(x, y, z)))
+        crop.Min = DB.XYZ(min(p.X for p in pts) - pad, min(p.Y for p in pts) - pad, min(p.Z for p in pts) - diag - pad)
+        crop.Max = DB.XYZ(max(p.X for p in pts) + pad, max(p.Y for p in pts) + pad, max(p.Z for p in pts) + diag + pad)
+        with nosa_transaction(doc, u'NOSA — Clash Viewer: frame picture'):
+            view.CropBox = crop
+            view.CropBoxActive = True
+            view.CropBoxVisible = False
+
+    def _uncrop(self, doc, view):
+        with nosa_transaction(doc, u'NOSA — Clash Viewer: unframe picture'):
+            view.CropBoxActive = False
+
+    def export_image(self, doc, folder, pixels=1600, frame=None):
         """PNG of the clash view into ``folder``; returns the file path or None."""
         view = self.find_view(doc)
         if view is None:
@@ -297,9 +404,47 @@ class ClashView(object):
         opts.PixelSize = pixels
         for stale in os.listdir(folder):
             os.remove(os.path.join(folder, stale))      # Revit reuses the file name for the same view
-        doc.ExportImage(opts)
+        framed = False
+        if frame is not None:
+            try:
+                self._crop_to(doc, view, frame)
+                framed = True
+            except Exception:
+                log_swallowed(_LOG, u'export_image.crop')
+        try:
+            doc.ExportImage(opts)
+        finally:
+            if framed:
+                self._uncrop(doc, view)
         fresh = sorted(os.listdir(folder))
         return os.path.join(folder, fresh[0]) if fresh else None
+
+    def select_item(self, uidoc, li, zoom=True):
+        """Select just one element of the clash (host element, linked element or CAD link); returns a message."""
+        if li.is_found and li.model.is_link:
+            ref = DB.Reference(li.element).CreateLinkReference(li.model.instance)
+            refs = List[DB.Reference]()
+            refs.Add(ref)
+            uidoc.Selection.SetReferences(refs)
+        elif li.is_found or li.is_present:
+            ids = List[DB.ElementId]()
+            ids.Add(li.element.Id)
+            uidoc.Selection.SetElementIds(ids)
+        else:
+            return u'This item is not in the model, so there is nothing to select.'
+        if zoom and li.bbox is not None:
+            lo, hi = li.bbox
+            pad = max(lo.DistanceTo(hi) * 0.5, 1.0)
+            try:
+                view = uidoc.ActiveView
+                for uv in uidoc.GetOpenUIViews():
+                    if get_id_value(uv.ViewId) == get_id_value(view.Id):
+                        uv.ZoomAndCenterRectangle(DB.XYZ(lo.X - pad, lo.Y - pad, lo.Z - pad),
+                                                  DB.XYZ(hi.X + pad, hi.Y + pad, hi.Z + pad))
+                        break
+            except Exception:
+                log_swallowed(_LOG, u'select_item.zoom')
+        return u'Selected: %s' % li.text
 
     # ----------------------------------------------------------------- reset
 
@@ -336,6 +481,7 @@ class ClashView(object):
             return False
         uidoc.ActiveView = back
         with nosa_transaction(doc, u'NOSA — Clash Viewer: rebuild view'):
+            self._remove_proxies(doc)
             doc.Delete(view.Id)
         self._painted.pop(doc.Title, None)
         self._permanent.discard(doc.Title)

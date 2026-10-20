@@ -3,7 +3,6 @@
 import re
 from Autodesk.Revit import DB
 
-from nosa_utils import solids as _solids
 from nosa_utils.telemetry import log_swallowed
 
 _LOG = u'ClashViewer.check'
@@ -34,32 +33,23 @@ def _apart(box_a, box_b, tol_ft):
     return False
 
 
-def _solid_in_host(located_item):
-    solid = _solids.get_element_solid(located_item.element)
-    if solid is None:
-        return None
-    transform = located_item.model.transform
-    if transform is not None:
-        solid = DB.SolidUtils.CreateTransformed(solid, transform)
-    return solid
-
-
 def recheck(located, tolerance):
     """Verdict for a LocatedClash: STILL, CLEARED or UNKNOWN (never CLEARED on a failed boolean)."""
     first, second = located.first, located.second
-    if not (first.is_found and second.is_found):
+    if not (first.is_shown and second.is_shown):
         return CheckResult(UNKNOWN, u'Cannot check: %s.' % (
-            first.text if not first.is_found else second.text))
+            first.text if not first.is_shown else second.text))
     tol_ft = (tolerance or 1.0) / _MM_PER_FT
     if first.bbox and second.bbox and _apart(first.bbox, second.bbox, tol_ft):
         return CheckResult(CLEARED, u'No longer clashing: the elements are apart.')
     try:
-        s1, s2 = _solid_in_host(first), _solid_in_host(second)
+        s1, s2 = first.check_solid(), second.check_solid()
     except Exception:
         log_swallowed(_LOG, u'recheck.solids')
         return CheckResult(UNKNOWN, u'Cannot check: the geometry could not be read.')
     if s1 is None or s2 is None:
-        return CheckResult(UNKNOWN, u'Cannot check: an element has no solid geometry.')
+        return CheckResult(UNKNOWN, u'Cannot check: an element has no solid geometry '
+                                    u'(an AutoCAD mesh cannot be intersected).')
     try:
         inter = DB.BooleanOperationsUtils.ExecuteBooleanOperation(
             s1, s2, DB.BooleanOperationsType.Intersect)
