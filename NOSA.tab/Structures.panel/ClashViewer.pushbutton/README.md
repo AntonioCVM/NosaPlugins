@@ -54,15 +54,16 @@ marcar a la vez: cada cambio se fusiona con lo que hay en disco antes de guardar
 
 ## Elementos de vínculos y de AutoCAD
 
-Revit no permite colorear ni aislar *un* elemento de un vínculo. Para poder verlos, el visor crea **copias temporales** (*DirectShape* de Modelos
-genéricos, marcadas `NOSA.ClashViewer.proxy`) en el proyecto activo, las colorea y las aísla en lugar de aislar todo el vínculo. Se eliminan al pulsar
+Revit no permite colorear ni aislar *un* elemento de un vínculo Revit. Para poder verlos, el visor crea **copias temporales** (*DirectShape* de Modelos
+genéricos, marcadas `NOSA.ClashViewer.proxy`) en el proyecto activo, las colorea y las aísla en lugar de aislar todo el vínculo.
+**Los CAD no se copian**: son líneas 3D con los colores de sus capas, así que se aísla el vínculo CAD (recortado por la caja de sección) y se deja tal cual. Se eliminan al pulsar
 **Reset view**, al pasar al siguiente clash y al cerrar la ventana; si Revit se cerrara a la fuerza, se barren al abrir el visor de nuevo. Se pueden
 desactivar en *View settings* (entonces se aísla la instancia completa del vínculo). Las copias se pueden deshacer con `Ctrl+Z` como cualquier cambio.
 En un modelo con worksharing no se tocan las copias que tenga reservadas otro usuario.
 
 Los modelos de **AutoCAD (Plant 3D)** vinculados como CAD (`.dwg`) ahora se reconocen por el nombre del modelo. Revit no conserva el `PnPGuid`, así que el objeto
-concreto se busca **por posición**: se toman los objetos del CAD cuya caja contiene el punto del clash (los más pequeños, cerca del otro elemento) y se
-muestran como copias temporales. Es orientativo; si el CAD tiene muchos objetos la primera lectura puede tardar unos segundos (se guarda en caché).
+concreto se busca **por posición**: se toman los objetos del CAD cuya caja contiene el punto del clash (los más pequeños, cerca del otro elemento); se usan
+para encuadrar la vista y la caja de sección. Es orientativo; si el CAD tiene muchos objetos la primera lectura puede tardar unos segundos (se guarda en caché).
 Si el modelo está como vínculo Revit se aísla la instancia y se muestra el entorno del punto.
 
 ## Cómo se localizan los elementos
@@ -106,5 +107,8 @@ Si el nombre del `.nwc` no coincide con ningún modelo, añade una equivalencia 
   geometría ya recortada y salen como *No longer clashing* aunque Navisworks los siga marcando. El solape se mide en volumen (umbral 1 cm³); no replica
   la tolerancia de Navisworks al milímetro.
 - Si el objeto de AutoCAD se importó como malla (no como sólido), el re-check no puede intersectarlo y lo indica.
-- Las imágenes "Now" del informe se exportan a 1600 px con la vista recortada (*crop box*) alrededor de la zona del clash, de modo que un elemento largo
-  no deje el clash como un detalle diminuto; el recorte se quita al terminar cada imagen.
+- Las imágenes "Now" del informe son **cuadradas** (640 px) y se muestran al mismo tamaño que la imagen original de Navisworks; la vista se recorta (*crop box*)
+  alrededor de la zona del clash, de modo que un elemento largo o un CAD enorme no dejen el clash como un detalle diminuto. El recorte se quita al terminar cada imagen.
+- **Elementos unidos con Join Geometry**: Revit recorta la geometría de los elementos unidos, así que el solape desaparece aunque Navisworks (que ve las formas
+  originales) lo siga marcando. Si el re-check no encuentra solape pero los elementos están unidos, el visor los des-une dentro de una transacción que se deshace,
+  mide el solape sin la unión y, si existe, muestra **"Joined in Revit"** (ámbar) en lugar de "No longer clashing". El modelo no cambia.

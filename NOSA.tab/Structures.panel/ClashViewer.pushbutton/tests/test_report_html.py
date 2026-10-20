@@ -80,6 +80,11 @@ class ReportTests(unittest.TestCase):
         self.assertIn(u'Done · ana, 2026-10-19 10:00', html)
         self.assertIn(u'Geometry re-check: Still clashing', html)
 
+    def test_joined_verdict_is_counted_and_shown_as_a_warning(self):
+        html = report_html.build_report(_META, [_entry(check_kind=u'joined', check_text=u'Joined in Revit (Join Geometry)')])
+        self.assertIn(u'Joined in Revit', html)
+        self.assertIn(u'k-warn', html)
+
     def test_non_ascii_user_and_british_text(self):
         html = report_html.build_report(_META, [_entry()])
         self.assertIn(u'AntonioCVi\xf1as', html)

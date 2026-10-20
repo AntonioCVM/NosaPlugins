@@ -263,7 +263,7 @@ class ClashView(object):
                     host_ids.append(li.element.Id)
                     isolate_ids.append(li.element.Id)
                     painted.add(get_id_value(li.element.Id))
-                elif li.is_found or li.is_present:
+                elif li.is_found:
                     copy_ = None
                     if opts.proxies and li.is_shown:
                         copy_ = self._make_proxy(doc, li.proxy_geometry(), u'clash item %d' % number)
@@ -272,9 +272,9 @@ class ClashView(object):
                         isolate_ids.append(copy_.Id)
                         painted.add(get_id_value(copy_.Id))
                     elif li.element is not None:
-                        isolate_ids.append(li.model.instance.Id if li.is_found else li.element.Id)
-                        if li.is_present:
-                            self._paint(doc, view, li.element.Id, self._highlight(doc, colour))
+                        isolate_ids.append(li.model.instance.Id)
+                elif li.is_present and li.element is not None:
+                    isolate_ids.append(li.element.Id)        # CAD keeps its own layer colours: no copy, no override
             if opts.isolate and isolate_ids and view.CanUseTemporaryVisibilityModes():
                 view.IsolateElementsTemporary(_id_list(isolate_ids))
                 if opts.permanent:
@@ -349,7 +349,7 @@ class ClashView(object):
         point = located.point
         sizes = [li.bbox[0].DistanceTo(li.bbox[1]) for li in located.boxed_items]
         if point is not None and sizes:
-            reach = max(6.5, 0.8 * min(sizes))                              # feet (about 2 m minimum)
+            reach = max(2.5, 1.0 * min(sizes))                              # feet (about 0.75 m minimum)
             if lo.DistanceTo(hi) > 2.0 * reach:
                 lo = DB.XYZ(max(lo.X, point.X - reach), max(lo.Y, point.Y - reach), max(lo.Z, point.Z - reach))
                 hi = DB.XYZ(min(hi.X, point.X + reach), min(hi.Y, point.Y + reach), min(hi.Z, point.Z + reach))
@@ -377,8 +377,12 @@ class ClashView(object):
             for y in (lo.Y, hi.Y):
                 for z in (lo.Z, hi.Z):
                     pts.append(inverse.OfPoint(DB.XYZ(x, y, z)))
-        crop.Min = DB.XYZ(min(p.X for p in pts) - pad, min(p.Y for p in pts) - pad, min(p.Z for p in pts) - diag - pad)
-        crop.Max = DB.XYZ(max(p.X for p in pts) + pad, max(p.Y for p in pts) + pad, max(p.Z for p in pts) + diag + pad)
+        x0, x1 = min(p.X for p in pts) - pad, max(p.X for p in pts) + pad
+        y0, y1 = min(p.Y for p in pts) - pad, max(p.Y for p in pts) + pad
+        half = max(x1 - x0, y1 - y0) / 2.0                          # square window: same shape as the Navisworks picture
+        cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+        crop.Min = DB.XYZ(cx - half, cy - half, min(p.Z for p in pts) - diag - pad)
+        crop.Max = DB.XYZ(cx + half, cy + half, max(p.Z for p in pts) + diag + pad)
         with nosa_transaction(doc, u'NOSA — Clash Viewer: frame picture'):
             view.CropBox = crop
             view.CropBoxActive = True
@@ -388,7 +392,7 @@ class ClashView(object):
         with nosa_transaction(doc, u'NOSA — Clash Viewer: unframe picture'):
             view.CropBoxActive = False
 
-    def export_image(self, doc, folder, pixels=1600, frame=None):
+    def export_image(self, doc, folder, pixels=640, frame=None):
         """PNG of the clash view into ``folder``; returns the file path or None."""
         view = self.find_view(doc)
         if view is None:

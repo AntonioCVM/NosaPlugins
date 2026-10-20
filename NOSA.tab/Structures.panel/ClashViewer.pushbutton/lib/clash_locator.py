@@ -287,7 +287,8 @@ class LocatedItem(object):
         if self.status == INSTANCE:
             if self.proxy_objects:
                 return (u"AutoCAD model '%s' is linked: its objects cannot be picked one by one, so the %d "
-                        u"object(s) at the clash point are shown (indicative)" % (self.note, len(self.proxy_objects)))
+                        u"object(s) at the clash point are located by position (indicative)"
+                        % (self.note, len(self.proxy_objects)))
             return (u"AutoCAD model '%s' is linked, but its objects cannot be picked: the area around the "
                     u"clash point is shown" % self.note)
         if self.status == NOT_IN_REVIT:
