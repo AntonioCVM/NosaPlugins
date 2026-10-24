@@ -151,3 +151,22 @@ def test_layout_blocks_sections_under_their_elevations():
     assert abs(p[2][1] - (p[0][1] + p[1][1]) / 2.0) < 1e-6
     assert abs((p[2][2] - 25.0) - (p[5][2] - 30.0)) < 1e-6
     assert p[2][2] < p[0][2] - 150.0
+
+
+def test_continuation_sheets_named_by_their_members():
+    # 2026-10-24 audit (M7, m5): 'Slabs reinforcement (2)' held S2, whose bars still pointed at 4502
+    titles = (u'Slab', u'Beam', u'Column')
+    assert vp.member_of_view(u'Slab S2 - Section C-C', titles) == u'S2'
+    assert vp.member_of_view(u'Beam B3-B4 - Elevation', titles) == u'B3-B4'
+    assert vp.member_of_view(u'TD OP1 - SLAB OPENING TRIMMING', titles) == u''
+    assert vp.holds(u'B3-B4', u'B4') and vp.holds(u'S2', u'S2') and not vp.holds(u'S21', u'S2')
+    assert vp.sheet_names(u'Slabs reinforcement', [[u'S1', u'S1', u'S3'], [u'S2', u'']]) ==         [u'Slabs reinforcement - S1, S3', u'Slabs reinforcement - S2']
+    assert vp.sheet_names(u'Columns reinforcement', [[u'C1', u'C2']]) == [u'Columns reinforcement']
+
+
+def test_members_that_do_not_touch_the_drawn_one_are_strangers():
+    # 2026-10-24 audit (m3): W2's elevation showed a 28 mm strip of the pad F1, 1.4 m off the wall
+    wall = ((0.0, 0.0, 0.0), (6000.0, 300.0, 3000.0))
+    pad = ((-1500.0, -600.0, -1000.0), (0.0 - 1400.0, 900.0, -500.0))
+    base = ((-200.0, -400.0, -500.0), (6200.0, 700.0, 0.0))
+    assert not vp.boxes_touch(wall, pad) and vp.boxes_touch(wall, base)

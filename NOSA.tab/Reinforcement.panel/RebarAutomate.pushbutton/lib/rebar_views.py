@@ -436,9 +436,10 @@ def _continue_labels(doc, created, group, kind, label):
     group['letters'] += len(letters)
     for view, spec, _s in created:
         try:
-            if (view, spec, _s) in numbers + letters:
-                view.Name = _unique_view_name(doc, u'{} {} - {}'.format(_TITLES.get(kind, u''), label,
-                                                                        spec['title']))
+            wanted = u'{} {} - {}'.format(_TITLES.get(kind, u''), label, spec['title'])
+            if (view, spec, _s) in numbers + letters and view.Name != wanted:
+                # a view already so named keeps its name: renamed to itself it read 'Section 1-1 (2)' (audit m5)
+                view.Name = _unique_view_name(doc, wanted)
             # every title says whose view it is ('B1-B3 Elevation'), one member on the drawing too ('W10
             # Elevation', 2026-10-17: a lone wall's read only 'Elevation')
             view.get_Parameter(DB.BuiltInParameter.VIEW_DESCRIPTION).Set(u'{} {}'.format(label, spec['title']))
@@ -676,6 +677,40 @@ def _titleblock(doc):
     return found
 
 
+def _members_by_sheet(doc, kind, sheets, group):
+    """
+    {sheet number: (sheet, hosts, rebars)} of one drawing's sheets, each member on the sheet showing its views; a
+    drawing of several sheets has them named by their members (view_plan.sheet_names). In a transaction.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name, get_id_value
+    import view_plan
+    by_number = dict((s.SheetNumber, s) for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet)
+                     if s.SheetNumber in sheets)
+    titles = list(_TITLES.values())
+    labels = dict((n, [view_plan.member_of_view(element_name(doc.GetElement(v)), titles)
+                       for v in by_number[n].GetAllPlacedViews()]) for n in sheets if n in by_number)
+    names = view_plan.sheet_names(u'{} reinforcement'.format(_PLURAL.get(kind, kind)),
+                                  [labels.get(n, []) for n in sheets])
+    for n, name in zip(sheets, names):
+        if n in by_number and by_number[n].Name != name:
+            by_number[n].Name = name
+    ours = set(get_id_value(r.Id) for r in group['rebars'])
+    out = dict((n, (by_number[n], [], [])) for n in sheets if n in by_number)
+    placed = set()
+    for host in group['hosts']:
+        mark = host_label(host)
+        number = next((n for n in sheets if n in out and any(view_plan.holds(l, mark) for l in labels.get(n, []))),
+                      sheets[0])
+        out[number][1].append(host)
+        for r in host_rebars(host):
+            if get_id_value(r.Id) in ours:
+                out[number][2].append(r)
+                placed.add(get_id_value(r.Id))
+    out[sheets[0]][2].extend(r for r in group['rebars'] if get_id_value(r.Id) not in placed)
+    return out
+
+
 def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
     """The views of one drawing on its A1 sheets, with the legends, its notes and the drawing stamped."""
     from Autodesk.Revit import DB  # Lazy import
@@ -698,6 +733,8 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
         for view, spec, _scale in created:
             if spec.get('as_plan'):
                 _hide_viewers(doc, view)     # the marks of the views of the members built after this one
+            if not spec['plan'] and spec['kind'] in ('elevation', 'column_elevation'):
+                _hide_strangers(doc, view, group['hosts'])
 
         def retag(view):
             fn = group['retag'].get(get_id_value(view.Id))
@@ -711,14 +748,15 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
         if sheets:
             import bar_schedules
             _untitle_typical(doc, sheets, details)
-            bar_schedules.stamp_drawing(doc, group['rebars'], sheets[0], force=True)
             grade = _buildability(doc, group['hosts'], report)
-            for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
-                if sheet.SheetNumber in sheets:
-                    report['errors'].extend(rc_legends.sheet_notes(doc, sheet, group['hosts'], group['rebars'],
-                                                                   grade, typical, u', '.join(sheets)))
-            # what its notes are made from, to write them again once its bar schedules are issued (T12.7)
-            report.setdefault('notes', []).append((list(sheets), group['hosts'], group['rebars'], grade, typical))
+            for number, (sheet, hosts, rebars) in _members_by_sheet(doc, kind, sheets, group).items():
+                # each sheet of the drawing is a drawing of its own members: its bars carry its number, so they
+                # get a bar schedule of their own, and its notes name only that (2026-10-24 audit, M7: S2 on 4503)
+                bar_schedules.stamp_drawing(doc, rebars, number, force=True)
+                report['errors'].extend(rc_legends.sheet_notes(doc, sheet, hosts, rebars, grade, typical,
+                                                               u', '.join(sheets)))
+                # what its notes are made from, to write them again once its bar schedules are issued (T12.7)
+                report.setdefault('notes', []).append(([number], hosts, rebars, grade, typical))
         if t.Commit() != DB.TransactionStatus.Committed or guard.errors:
             report['errors'].append(u'{} drawing: rolled back by Revit — {}'.format(
                 _PLURAL.get(kind, kind), u'; '.join(guard.errors)))
@@ -901,6 +939,44 @@ def _hide_datums(doc, view):
         except Exception:
             from nosa_utils.telemetry import log_swallowed
             log_swallowed(u'rebarautomate', u'hide datums')
+
+
+def _hide_strangers(doc, view, hosts):
+    """
+    A member's elevation shows the members it meets (base, slab, beams), not one its crop - widened for the
+    calling-ups - happens to take in (2026-10-24 audit, m3: a strip of pad F1 under 'W2 Elevation').
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from System.Collections.Generic import List
+    import view_plan
+
+    def box(e):
+        bb = e.get_BoundingBox(None)
+        if bb is None:
+            return None
+        return ((bb.Min.X * 304.8, bb.Min.Y * 304.8, bb.Min.Z * 304.8), (bb.Max.X * 304.8, bb.Max.Y * 304.8,
+                                                                            bb.Max.Z * 304.8))
+    ours = [b for b in (box(h) for h in hosts if h is not None) if b is not None]
+    own = set(h.Id for h in hosts if h is not None)
+    cats = List[DB.BuiltInCategory]([DB.BuiltInCategory.OST_StructuralFoundation, DB.BuiltInCategory.OST_StructuralColumns,
+                                     DB.BuiltInCategory.OST_StructuralFraming, DB.BuiltInCategory.OST_Walls,
+                                     DB.BuiltInCategory.OST_Floors])
+    ids = List[DB.ElementId]()
+    for e in DB.FilteredElementCollector(doc, view.Id).WherePasses(DB.ElementMulticategoryFilter(cats)) \
+            .WhereElementIsNotElementType():
+        b = box(e)
+        if e.Id in own or b is None or any(view_plan.boxes_touch(b, o) for o in ours):
+            continue
+        try:
+            if e.CanBeHidden(view):
+                ids.Add(e.Id)
+        except Exception:  # nosa-lint: disable=NOSA006 - an element that cannot say stays
+            continue
+    if ids.Count:
+        try:
+            view.HideElements(ids)
+        except Exception:  # nosa-lint: disable=NOSA006 - left as drawn
+            pass
 
 
 def _hide_viewers(doc, view):

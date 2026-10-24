@@ -313,3 +313,39 @@ def layout_blocks(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):
         top -= total + gap
         pending = pending[len(line):]
     return [p for k in range(len(blocks)) for p in out[k]]
+
+
+def member_of_view(view_name, titles):
+    """'Slab S2 - Plan' -> 'S2', 'Beam B3-B4 - Elevation' -> 'B3-B4' (titles: the kinds' words); '' for others."""
+    head = (view_name or u'').split(u' - ')[0]
+    for title in titles:
+        if head.startswith(title + u' '):
+            return head[len(title) + 1:].strip()
+    return u''
+
+
+def holds(view_label, host_mark):
+    """A view of member 'B3-B4' (a beam line) or 'S2' holds the member marked host_mark."""
+    return bool(host_mark) and (view_label == host_mark or host_mark in view_label.split(u'-'))
+
+
+def sheet_names(base, labels_per_sheet):
+    """
+    The names of a drawing's sheets (2026-10-24 audit, m5: 'Slabs reinforcement (2)'): one sheet keeps the base
+    name, several are each named by the members on them - 'Slabs reinforcement - S1, S3', '... - S2'.
+    """
+    if len(labels_per_sheet) < 2:
+        return [base] * len(labels_per_sheet)
+    out = []
+    for labels in labels_per_sheet:
+        seen = []
+        for label in labels:
+            if label and label not in seen:
+                seen.append(label)
+        out.append(u'{} - {}'.format(base, u', '.join(seen)) if seen else base)
+    return out
+
+
+def boxes_touch(a, b, tol=50.0):
+    """Two 3D boxes ((x0, y0, z0), (x1, y1, z1)), mm, meeting or within tol of each other."""
+    return all(a[0][i] - tol <= b[1][i] and b[0][i] - tol <= a[1][i] for i in range(3))
