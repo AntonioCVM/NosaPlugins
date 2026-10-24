@@ -369,3 +369,16 @@ def test_native_leaders_of_s1_plan_never_cross():
     # m1 (2026-10-24): two calling-ups moved to the other side together leave 3 leaders across indicator lines, not 4
     blockers = [tuple(map(tuple, b)) for b in d['blockers']]
     assert cl._crossing_score(out, blockers) <= 3
+
+
+def test_end_mark_beside_a_sloping_bar_moves_off_it():
+    from nosa_utils import presentation as pr
+    bar = ((0.0, 900.0), (3000.0, 0.0))                           # B1 elevation (Revit 2027): falls to the right
+    rows = []
+    for k in range(6):
+        _tip, _c, box = pr.end_arrow(bar[1], (1.0, 0.0), (0.0, 1.0), 100.0, 60.0, 50, 75.0, row=k)
+        rows.append(cl.box_hits(box, [bar], 75.0 / 4.0))
+    assert rows[0] and not all(rows)                               # row 0 lies on the bar, a row further out is clear
+    level = ((0.0, 0.0), (3000.0, 0.0))
+    _tip, _c, box = pr.end_arrow(level[1], (1.0, 0.0), (0.0, 1.0), 100.0, 60.0, 50, 75.0)
+    assert not cl.box_hits(box, [level], 75.0 / 4.0)               # a level bar keeps its first row

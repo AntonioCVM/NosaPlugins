@@ -578,6 +578,12 @@ def _riser(lo, hi, side, h, gap, box, obstacles):
     return (xs[0], y), y + 2 * step
 
 
+def box_hits(box, segments, pad=0.0):
+    """Any of segments with a part inside box grown by pad."""
+    grown = (box[0] - pad, box[1] - pad, box[2] + pad, box[3] + pad)
+    return any(_crosses_box(seg, grown) for seg in segments)
+
+
 def _crosses_box(seg, box):
     """A segment with a part inside the box (Liang-Barsky)."""
     (x0, y0), (x1, y1) = seg
