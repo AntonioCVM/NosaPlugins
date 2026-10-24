@@ -268,6 +268,35 @@ def _main_line(rebar, i, view=None):
     return DB.Line.CreateBound(frame.Origin - tangent.Multiply(half), frame.Origin + tangent.Multiply(half))
 
 
+def shown_positions(rebar, view):
+    """
+    The bar positions a view draws: by the set's presentation (all, first and last, middle) and, when it selects
+    them, by each one's hidden status - for a set shown by its middle bar Revit still reports none hidden.
+    """
+    from Autodesk.Revit.DB.Structure import RebarPresentationMode
+    try:
+        n = rebar.NumberOfBarPositions
+    except Exception:
+        return [0]
+    try:
+        mode = rebar.GetPresentationMode(view)
+    except Exception:
+        mode = None
+    if mode == RebarPresentationMode.Middle:
+        return [n // 2]
+    if mode == RebarPresentationMode.FirstLast:
+        return sorted(set([0, n - 1]))
+    out = []
+    for i in range(n):
+        try:
+            if rebar.IsBarHidden(view, i):
+                continue
+        except Exception:
+            pass
+        out.append(i)
+    return out
+
+
 def _show_one(rebar, view, n, idx):
     """Only bar idx of the set shows in the view (Revit 'Select' presentation), else the middle one."""
     try:
@@ -485,14 +514,8 @@ def _seen_bars(view):
     out = []
     doc = view.Document
     for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
-        try:
-            count = r.NumberOfBarPositions
-        except Exception:
-            count = 1
-        for i in range(count):
+        for i in shown_positions(r, view):
             try:
-                if r.IsBarHidden(view, i):
-                    continue
                 curves = r.GetTransformedCenterlineCurves(False, False, False,
                                                           DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i)
             except Exception:
@@ -517,9 +540,6 @@ def _text_box(view, tag):
            for z in (bb.Min.Z, bb.Max.Z)]
     box = (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
     return annotation_audit.centred_box(_xy(view, tag.TagHeadPosition), box)
-
-
-LEADER_ATTACH_PAPER_MM = 0.46    # where a tag's shoulder meets it, over its head point (NOSA Rebar Tag)
 
 
 def _native_leader(view, tag, path, like):
@@ -1150,8 +1170,8 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None, leads=None
             continue
         first, last = _main_line(r, 0), _main_line(r, n - 1)
         k += 1
-        idx = _typical_index(n, k)
-        if _show_one(r, view, n, idx) is None or first is None or last is None:
+        idx = _show_one(r, view, n, _typical_index(n, k))       # the one Revit shows (a FreeForm set: its middle)
+        if idx is None or first is None or last is None:
             continue
         shown += 1
         typical = _main_line(r, idx) or first
@@ -1586,6 +1606,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
         return
     mid = (box[1] + box[3]) / 2.0
     pending = []
+    arrows = []                     # (tip, outward, text box) of the arrows drawn
     for d in items:
         rebar = d['rebar']
         index = _shown_bar(view, rebar, d['count'])
@@ -1608,9 +1629,17 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
             for k in range(END_ROWS):
                 tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k)
                 lane = (min(bx[0], tip[0]), bx[1], max(bx[2], tip[0]), bx[3])
-                if not any(callout_layout.overlap(lane, q, gap / 2.0) for q in placed):
-                    spot = (tip, c, lane)
-                    break
+                if any(callout_layout.overlap(lane, q, gap / 2.0) for q in placed):
+                    continue
+                # two bars lapping in a support end side by side: their arrows point at each other and would cross
+                # (2026-10-24, B3-B4 '02' at the middle support) - the second goes a row further out
+                if any(o[1][0] == -outward[0] and abs(o[0][1] - tip[1]) < h and
+                       min(o[2][0], o[0][0]) - gap < max(bx[2], tip[0]) and min(bx[0], tip[0]) - gap < max(o[2][2], o[0][0])
+                       for o in arrows):
+                    continue
+                spot = (tip, c, lane)
+                arrows.append((tip, outward, bx))
+                break
             if spot is None:
                 doc.Delete(tag.Id)
                 continue
@@ -1933,7 +1962,8 @@ def _layout_joint(doc, view, joint, box, gap, outside, placed, report, style, ke
         items[e[0]] = it
     out = callout_layout.align_rows(items, box, gap, outside, list(placed) + list(keep_off),
                                     lift=UNDERLINE_LIFT_PAPER_MM * scale,
-                                    obstacles=_seen_bars(view), neighbours=neighbours, native=True)
+                                    obstacles=_seen_bars(view), neighbours=neighbours, native=True,
+                                    blockers=_dimension_lines(doc, view))
     made = joint.setdefault('made', {})
     joint['stacked'] = set()
     drawn = []
@@ -3677,14 +3707,8 @@ def _seen_ends(view):
     """(first, last) point of each bar drawn in the view, view mm."""
     out = []
     for r in DB.FilteredElementCollector(view.Document, view.Id).OfClass(DBS.Rebar):
-        try:
-            count = r.NumberOfBarPositions
-        except Exception:
-            count = 1
-        for i in range(count):
+        for i in shown_positions(r, view):
             try:
-                if r.IsBarHidden(view, i):
-                    continue
                 curves = list(r.GetTransformedCenterlineCurves(False, False, False,
                                                                DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i))
             except Exception:

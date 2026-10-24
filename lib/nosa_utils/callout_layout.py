@@ -123,7 +123,63 @@ def place_beside(junction, u, length, height, box, placed, obstacles, gap, off, 
     return None
 
 
-def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neighbours=(), native=False):
+def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neighbours=(), native=False,
+               blockers=()):
+    """
+    _align_rows_once (below); for Revit's own leaders, then a calling-up caught in a crossing tried on the member's
+    other side, kept when fewer lines cross (2026-10-24 review: S1's last crossings went once two texts swapped
+    sides). Sides a calling-up is given ('side') are kept.
+    """
+    _dump_layout(items, box, gap, outside, placed, lift, obstacles, neighbours, native, blockers)
+    args = (box, gap, outside)
+    kw = dict(lift=lift, obstacles=obstacles, neighbours=neighbours, native=native, blockers=blockers)
+    best = _align_rows_once(items, *args, placed=list(placed), **kw)
+    if not native:
+        return best
+    score = _crossing_score(best, blockers)
+    tried = set()
+    for _round in range(2):
+        if not score:
+            break
+        better = False
+        for key in _crossing_keys(best, blockers):
+            if key in tried or items[key].get('side') or key not in best:
+                continue
+            tried.add(key)
+            trial_items = dict(items)
+            trial_items[key] = dict(items[key], side='left' if best[key]['side'] == 'right' else 'right')
+            trial = _align_rows_once(trial_items, *args, placed=list(placed), **kw)
+            n = _crossing_score(trial, blockers)
+            if n < score:
+                best, score, better = trial, n, True
+                items = trial_items
+        if not better:
+            break
+    return best
+
+
+def _crossing_score(laid, blockers):
+    hits = sum(1 for r in laid.values() for seg in zip(r['path'], r['path'][1:]) for b in blockers if _crosses(seg, b))
+    return path_crossings(laid) + hits
+
+
+def _crossing_keys(laid, blockers):
+    """The calling-ups whose lines cross another's or a blocker."""
+    segs = [(k, seg) for k, r in laid.items() for seg in zip(r['path'], r['path'][1:])]
+    out = []
+    for i, (k1, s1) in enumerate(segs):
+        if any(_crosses(s1, b) for b in blockers) and k1 not in out:
+            out.append(k1)
+        for k2, s2 in segs[i + 1:]:
+            if k1 != k2 and _crosses(s1, s2):
+                for k in (k1, k2):
+                    if k not in out:
+                        out.append(k)
+    return out
+
+
+def _align_rows_once(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neighbours=(), native=False,
+                     blockers=()):
     """
     Calling-ups of a plan's or a wall elevation's zones as Arup's detailing manual (R. Whittle, 1.5.1) and the SMDSC
     4th ed. working drawings draw them (user 2026-10-18): every text level, written on a line that underlines it;
@@ -136,7 +192,8 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
     native (Phase 12, user 2026-10-18): the lines are Revit's own tag leaders, one elbow each, always square - the
     path is [leader end on the bar or indicator line, elbow straight across from it at the text's height (left out
     when level with it), the text's near edge]; where along a level line its leader leaves is chosen with the rows
-    so that no two leaders cross.
+    so that no two leaders cross, and then that as few as can cross blockers (segments: the view's dimension and
+    indicator lines - 2026-10-24 review: leaders across other zones' indicator lines).
     """
     placed = list(placed)
     sides = {}
@@ -325,39 +382,64 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
                 if r[2] is not None:
                     y = laid[r[0]]['path'][-1][1] if native else laid[r[0]]['path'][0][1]
                     over += max(0.0, r[2][0] - y, y - r[2][1])
-            return (path_crossings(laid), round(over, 3))
+            hits = 0
+            for r_ in laid.values():
+                for seg in zip(r_['path'], r_['path'][1:]):
+                    hits += sum(1 for b in blockers if _crosses(seg, b))
+            n = path_crossings(laid)       # two leaders crossing read worse than a leader over a dimension
+            return (n, n + hits, round(over, 3))
 
-        best = lay(side, rows, desired, legs)
-        best_c = cost(best)
-        for _ in range(len(rows) * len(rows)):
-            if best_c == (0, 0.0):
-                break
-            better = False
-            if native:
-                # where along its level line each leader leaves, as the rows are now
-                for key in [r[0] for r in rows if r[2] is None and r[0] not in risers]:
-                    for f in LEG_AT:
-                        trial_legs = dict(legs)
-                        trial_legs[key] = f
-                        laid = lay(side, rows, desired, trial_legs)
+        def search(rows, legs):
+            # moves while they leave fewer crossings: where each level leader leaves its line, then rows swapped
+            # or taken out and put back elsewhere
+            best = lay(side, rows, desired, legs)
+            best_c = cost(best)
+            for _ in range(len(rows) * len(rows)):
+                if best_c == (0, 0, 0.0):
+                    break
+                better = False
+                if native:
+                    for key in [r[0] for r in rows if r[2] is None and r[0] not in risers]:
+                        for f in LEG_AT:
+                            trial_legs = dict(legs)
+                            trial_legs[key] = f
+                            laid = lay(side, rows, desired, trial_legs)
+                            c = cost(laid)
+                            if c < best_c:
+                                legs, best, best_c, better = trial_legs, laid, c, True
+                for i in range(len(rows)):
+                    for j in range(len(rows)):
+                        if i == j:
+                            continue
+                        trial = list(rows)
+                        if i < j:
+                            trial[i], trial[j] = trial[j], trial[i]
+                        else:
+                            trial.insert(j, trial.pop(i))
+                        laid = lay(side, trial, desired, legs)
                         c = cost(laid)
                         if c < best_c:
-                            legs, best, best_c, better = trial_legs, laid, c, True
-            for i in range(len(rows)):
-                for j in range(len(rows)):
-                    if i == j:
-                        continue
-                    trial = list(rows)                 # a swap, then a row taken out and put back elsewhere
-                    if i < j:
-                        trial[i], trial[j] = trial[j], trial[i]
-                    else:
-                        trial.insert(j, trial.pop(i))
-                    laid = lay(side, trial, desired, legs)
-                    c = cost(laid)
-                    if c < best_c:
-                        rows, best, best_c, better = trial, laid, c, True
-            if not better:
-                break
+                            rows, best, best_c, better = trial, laid, c, True
+                if not better:
+                    break
+            return rows, legs, best, best_c
+
+        rows, legs, best, best_c = search(rows, legs)
+        if native and best_c[0] and len(rows) > 3:
+            # still crossing: the moves above stop where no single one helps (S1, 2026-10-24) - shake a few rows
+            # and search again, keeping what crosses less; seeded, so a drawing comes out the same every run
+            import random
+            rng = random.Random(len(rows))
+            for _restart in range(RESTARTS):
+                trial = list(rows)
+                for _k in range(3):
+                    i, j = rng.randrange(len(trial)), rng.randrange(len(trial))
+                    trial[i], trial[j] = trial[j], trial[i]
+                t_rows, t_legs, t_best, t_c = search(trial, dict(legs))
+                if t_c < best_c:
+                    rows, legs, best, best_c = t_rows, t_legs, t_best, t_c
+                if not best_c[0]:
+                    break
         for key in [r[0] for r in rows]:
             placed.append(best[key]['box'])
             out[key] = best[key]
@@ -365,6 +447,31 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
 
 
 LEG_AT = (0.0, 0.1, 0.25, 0.4, 0.6, 0.75, 0.9, 1.0)   # where along a level line a native leader may leave it
+RESTARTS = 6      # shaken restarts of a side's search while its native leaders still cross
+
+
+def _dump_layout(items, box, gap, outside, placed, lift, obstacles, neighbours, native, blockers):
+    """With NOSA_LAYOUT_DUMP set to a folder, each layout's input as JSON there, to replay it outside Revit."""
+    import os
+    folder = os.environ.get('NOSA_LAYOUT_DUMP')
+    if not folder:
+        try:
+            from System import Environment          # IronPython's os.environ is a copy taken at start-up
+            folder = Environment.GetEnvironmentVariable('NOSA_LAYOUT_DUMP')
+        except Exception:
+            folder = None
+    if not folder:
+        return
+    try:
+        import json
+        name = os.path.join(folder, 'layout_{}_{}.json'.format(len(items), int(abs(box[0]) + abs(box[1])) % 100000))
+        data = {'items': dict((repr(k), v) for k, v in items.items()), 'box': box, 'gap': gap, 'outside': outside,
+                'placed': list(placed), 'lift': lift, 'obstacles': list(obstacles), 'neighbours': list(neighbours),
+                'native': native, 'blockers': list(blockers)}
+        with open(name, 'w') as f:
+            json.dump(data, f)
+    except Exception:
+        pass
 
 
 def path_crossings(laid):

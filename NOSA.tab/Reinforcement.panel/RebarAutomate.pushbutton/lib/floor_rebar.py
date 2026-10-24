@@ -1910,6 +1910,35 @@ def _diagonal_bars(engine, DB, segments, z_ft, step_ft=0.0):
     return {'sets': [], 'bars': bars}
 
 
+def _governing_side_cover_mm(doc, DB, engine, host, own_mm):
+    """The slab's side cover raised to the governing cover of the walls, beams and columns it touches."""
+    from nosa_utils import cover_rules
+    try:
+        bb = host.get_BoundingBox(None)
+        pad = 50.0 / 304.8
+        near = DB.BoundingBoxIntersectsFilter(DB.Outline(bb.Min - DB.XYZ(pad, pad, pad), bb.Max + DB.XYZ(pad, pad, pad)))
+    except Exception:
+        return own_mm
+    best = own_mm
+    for name in ('OST_Walls', 'OST_StructuralFraming', 'OST_StructuralColumns'):
+        try:
+            found = DB.FilteredElementCollector(doc).OfCategory(getattr(DB.BuiltInCategory, name))                 .WhereElementIsNotElementType().WherePasses(near)
+        except Exception:
+            continue
+        for e in found:
+            # at the slab's edge only: a wall or column inside its outline is under it, not at an edge
+            eb = e.get_BoundingBox(None)
+            if eb is None or not (eb.Min.X <= bb.Min.X + pad or eb.Max.X >= bb.Max.X - pad or
+                                  eb.Min.Y <= bb.Min.Y + pad or eb.Max.Y >= bb.Max.Y - pad):
+                continue
+            try:
+                theirs = engine.get_native_cover_mm(doc, e, u'Exterior', own_mm)
+            except Exception:
+                continue
+            best = max(best, cover_rules.governing_cover('slab', own_mm, cover_rules.kind_of(e), theirs))
+    return best
+
+
 def build_floor_reinforcement(doc, host,
                                bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm,
                                bottom_spacing_mm, bottom_hooks=False,
@@ -2047,6 +2076,9 @@ def build_floor_reinforcement(doc, host,
     # effect, and the correct one: the main bars should not run past the
     # slab's real side cover either.
     side_cover_mm = engine.get_native_cover_mm(doc, host, u'Exterior', default_mm=bottom_cover_mm)
+    # where the slab meets walls, beams or columns their cover governs (T12.5, user 2026-10-18: foundation > wall
+    # > column > beam > slab); one side cover serves the whole slab, so the larger, never less than its own
+    side_cover_mm = _governing_side_cover_mm(doc, DB, engine, host, side_cover_mm)
 
     # Real cover, per mat — the bottom mat's own outer/hole polygons
     # (offset inward/outward by side_cover_mm) drive B1/B2; the top mat
