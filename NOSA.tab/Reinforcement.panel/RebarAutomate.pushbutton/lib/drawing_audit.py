@@ -515,6 +515,12 @@ def audit_view(doc, view, sheet_number):
             if aa.segment_hits_box(seg, box) and not aa.underlines(seg, box):
                 issue(u'A3', key, label_info[key]['family'], u'label crossed by detail line {}'.format(ck))
                 break
+        for lk, seg in leaders.items():
+            # another tag's pointer through this text (2026-10-24 audit, m2: a link's pointer through the '01')
+            if not lk.startswith(key + u'-') and aa.segment_hits_box(seg, aa.shrink(box, LABEL_SHRINK_MM)) \
+                    and not aa.underlines(seg, box):
+                issue(u'A3', key, label_info[key]['family'], u'label crossed by the leader {}'.format(lk))
+                break
         for vb in viewers:
             if aa.area_overlap(box, vb):
                 issue(u'A3', key, label_info[key]['family'], u'label over a section mark')
