@@ -459,11 +459,12 @@ def _letter(index):
 
 
 def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_numbers, beam_rebar=None,
-                   stair_host=None, tag=True, schedules=True):
+                   stair_host=None, tag=True, schedules=True, updater=None):
     """
     T9.7 (user 2026-10-11): the elements of one kind on one drawing, as a consultancy draws them: all their
     views laid out together on shared A1 sheets, marks 01 upwards across the drawing and its sections
-    numbered on. groups: [[host, ...]] (one element or one beam line each). Returns one report.
+    numbered on. groups: [[host, ...]] (one element or one beam line each). Returns one report. updater
+    (T12.9, drawing_registry.Updater): drawings made before are drawn again on their own sheets.
     """
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import get_id_value
@@ -483,21 +484,24 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
             t = DB.Transaction(doc, u'NOSA — Marks of the {} drawing'.format(_PLURAL.get(kind, kind)))
             t.Start()
             import rebar_marking
-            rebar_marking.renumber_drawing(doc, [r.Id for r in rebars])      # SMDSC 4th ed. 4.5.1: one drawing
+            # SMDSC 4th ed. 4.5.1: one drawing; an update keeps the marks already drawn (T12.9, decision M1)
+            rebar_marking.renumber_drawing(doc, [r.Id for r in rebars],
+                                           keep=updater is not None and updater.mode == 'update')
             from nosa_utils import rule_flags
             rule_flags.stamp(rebars)                                           # T9.15: bars added by a rule
             t.Commit()
         group = {'pending': [], 'retag': {}, 'hosts': [], 'rebars': [], 'numbers': 0, 'letters': 0,
                  'members': len(batch)}
+        numbers = updater.numbers(kind, sheet_numbers) if updater is not None else sheet_numbers
         for g in batch:
-            r = build_element_views(doc, g, re_engine, rebar_detailing, view_plan, sheet_numbers,
+            r = build_element_views(doc, g, re_engine, rebar_detailing, view_plan, numbers,
                                     beam_rebar=beam_rebar, stair_host=stair_host, tag=tag, sheet_group=group)
             report['views'].extend(r['views'])
             report['tags'] += r['tags']
             report['errors'].extend(r['errors'])
         valid = [e for e in group['pending'] if e[0].IsValidObject]
         if valid:
-            report['sheets'].extend(_place_group(doc, kind, valid, group, view_plan, sheet_numbers, report))
+            report['sheets'].extend(_place_group(doc, kind, valid, group, view_plan, numbers, report))
             # each view's own members only: the drawing's other members are other members to it (2026-10-18,
             # Revit 2026: the next slab's bars stood in S1's plan, under its calling-ups)
             for v, sp, s in valid:
@@ -1155,8 +1159,18 @@ def _untitle_typical(doc, sheets, items):
     rc_legends.untitled(doc, ports)
 
 
+REUSE_SHEETS = {}     # T12.9: number -> the drawing's old sheet, its title block data and the user's own work kept
+UPDATE = None         # T12.9: the drawing_registry.Updater of an update run
+
+
 def _new_sheet(doc, titleblock, number, name):
     from Autodesk.Revit import DB  # Lazy import
+    sheet = REUSE_SHEETS.pop(number, None)
+    if sheet is not None and sheet.IsValidObject:
+        sheet.SheetNumber = number
+        sheet.Name = name
+        classify_sheet(doc, sheet)
+        return sheet
     sheet = DB.ViewSheet.Create(doc, titleblock.Id)
     sheet.SheetNumber = number
     sheet.Name = name
@@ -1519,6 +1533,9 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
         created = _number_in_reading_order(doc, created, kind, label)
         if sheet_group is not None:
             _continue_labels(doc, created, sheet_group, kind, label)
+        if UPDATE is not None:
+            for view, _spec, _scale in created:
+                UPDATE.view_made(view)       # T12.9: the user's crop and scale, before the calling-up
         if rebars and place_on_sheets and sheet_group is None:
             # SMDSC 4th ed. 4.5.1: these members make one new drawing, so their marks run 01 upwards across it —
             # before the calling-up, whose callout texts carry the marks
