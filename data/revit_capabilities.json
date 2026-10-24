@@ -42,6 +42,126 @@
         "live": "ok", 
         "api": true
       }
+    }, 
+    "2025": {
+      "presentation_select": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "multi_rebar_annotation": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "varying_length": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "varying_suffix": {
+        "api": true
+      }, 
+      "free_form": {
+        "api": true
+      }, 
+      "couplers": {
+        "api": true, 
+        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+      }, 
+      "fabric": {
+        "api": true, 
+        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+      }, 
+      "bending_detail": {
+        "api": true
+      }, 
+      "hook_orientation": {
+        "api": true
+      }, 
+      "terminations": {
+        "api": false
+      }
+    }, 
+    "2026": {
+      "presentation_select": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "multi_rebar_annotation": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "varying_length": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "varying_suffix": {
+        "api": true
+      }, 
+      "free_form": {
+        "api": true
+      }, 
+      "couplers": {
+        "api": true, 
+        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+      }, 
+      "fabric": {
+        "api": true, 
+        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+      }, 
+      "bending_detail": {
+        "api": true
+      }, 
+      "hook_orientation": {
+        "api": true
+      }, 
+      "terminations": {
+        "api": true
+      }
+    }, 
+    "2027": {
+      "presentation_select": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "multi_rebar_annotation": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "varying_length": {
+        "api": true, 
+        "live": "ok", 
+        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+      }, 
+      "varying_suffix": {
+        "api": true
+      }, 
+      "free_form": {
+        "api": true
+      }, 
+      "couplers": {
+        "api": true, 
+        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+      }, 
+      "fabric": {
+        "api": true, 
+        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+      }, 
+      "bending_detail": {
+        "api": true
+      }, 
+      "hook_orientation": {
+        "api": false
+      }, 
+      "terminations": {
+        "api": true
+      }
     }
   }, 
   "known_defects": [
