@@ -11,7 +11,7 @@ _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
 
-from rebar_partitions import bar_signature, fingerprint, keep_names, plan, prefix_for  # noqa: E402
+from rebar_partitions import bar_signature, fingerprint, keep_names, names_from_marks, plan, prefix_for  # noqa: E402
 from rebar_schedule import bbs_rows  # noqa: E402
 from rebar_export_bvbs import bvbs_record  # noqa: E402
 
@@ -132,3 +132,19 @@ def test_hosts_that_now_differ_do_not_keep_a_shared_old_name():
     hosts[0]['partition'] = hosts[1]['partition'] = u'C1'
     result = keep_names(hosts, plan(hosts))
     assert result[1]['partition'] != result[2]['partition']
+
+
+def test_bbs_members_named_as_the_drawings_name_them():
+    # 2026-10-24 audit, 4501: BBS 'C1' was the column drawn as C4, 'C3 x3' the columns C1, C2, C3
+    marks = set([u'C1', u'C2', u'C3', u'C4', u'C5', u'B1'])
+    renames = names_from_marks({u'C1': [u'C4'], u'C2': [u'C5'], u'C3': [u'C1', u'C2', u'C3'],
+                                u'B1': [u'B1'], u'Core walls': [u'W1', u'W2'], u'F2': [u'PC1'], u'M1': [u'']}, marks)
+    assert renames == {u'C1': u'C4', u'C2': u'C5', u'C3': u'C1, C2, C3', u'F2': u'PC1'}
+
+
+def test_bbs_members_swap_names_with_each_other():
+    # 2026-10-24 audit, 4506: BBS B1, B2 were the spans drawn as B3, B4, BBS B3 the beam drawn as B1
+    marks = set([u'B1', u'B2', u'B3', u'B4'])
+    renames = names_from_marks({u'B1': [u'B3'], u'B2': [u'B4'], u'B3': [u'B1'], u'B4': [u'B2']}, marks)
+    assert renames == {u'B1': u'B3', u'B2': u'B4', u'B3': u'B1', u'B4': u'B2'}
+    assert names_from_marks({u'B1': [u'B3'], u'B3': [u'B3']}, marks) == {}     # B3 kept by its own member

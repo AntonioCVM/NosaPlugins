@@ -86,6 +86,23 @@ def schedule_marks(bars):
     return out
 
 
+def drawing_marks(bars):
+    """
+    SMDSC 4th ed. 4.5.1 (user 2026-10-11): marks unique per drawing, so per schedule too. bars: [(member order,
+    old mark number, identity key, bar id)] of ONE drawing, its identical members' copies included -> {bar id:
+    number}. Marks that already tell the bars apart are kept (the calling-ups drawn carry them; 2026-10-24 audit:
+    a BBS renumbered per schedule left '06' on the S3 plan for its bars 03, '01' twice on drawing 4502 and the
+    links of the copies C2, C3 as '03', the C5 circular link's mark); otherwise 1, 2 ... as schedule_marks.
+    """
+    by_key, by_number = {}, {}
+    for _order, old, key, _bar in bars:
+        by_key.setdefault(key, set()).add(old)
+        by_number.setdefault(old, set()).add(key)
+    if all(len(n) == 1 and 0 not in n for n in by_key.values()) and all(len(k) == 1 for k in by_number.values()):
+        return dict((b[3], b[1]) for b in bars)
+    return schedule_marks(bars)
+
+
 def params_file():
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'data',
                                         'shared_parameters', 'NOSA_BarSchedules.txt'))
@@ -166,29 +183,51 @@ def _rows_per_member(doc):
     return rows
 
 
+def _copies(doc, members):
+    """{drawing: {member: [rebar]}}: bars of identical members' copies, left out of the BBS (Show in schedule = No)."""
+    from Autodesk.Revit import DB  # Lazy import
+    import rebar_schedule
+    out = {}
+    for rebar in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Rebar) \
+            .WhereElementIsNotElementType():
+        if rebar_schedule.shows_in_schedule(rebar) or not _text(rebar, u'NOSA_Rebar_Batch_Id'):
+            continue
+        drawing, member = _text(rebar, DRAWING_PARAM), rebar_schedule._partition_of(rebar)
+        if member in members.get(drawing, {}):
+            out.setdefault(drawing, {}).setdefault(member, []).append(rebar)
+    return out
+
+
 def _renumber(doc, members, keys, order):
-    """Give each schedule's bars marks unique within it (rebar_marking keeps per-member ones before)."""
+    """Marks unique per drawing across its schedules, the copies of identical members marked as their original."""
     from Autodesk.Revit import DB  # Lazy import
     import rebar_marking
     from nosa_utils.revit_helpers import get_id_value
-    per_schedule = {}
-    for found in members.values():
+    copies = _copies(doc, members)
+    per_drawing = {}
+    for drawing, found in members.items():
         for name, entry in found.items():
-            for rebar in entry[2]:
+            for rebar in entry[2] + copies.get(drawing, {}).get(name, []):
                 varying = _text(rebar, u'NOSA_Rebar_Mark_Suffix') != u''
                 try:
                     identity = rebar_marking._dedup_key(doc, rebar, 5.0, varying)
                 except Exception:  # nosa-lint: disable=NOSA006 - unreadable bar: a mark of its own
                     identity = ('bar', get_id_value(rebar.Id))
-                per_schedule.setdefault(keys[name], []).append(
-                    (order[name], rebar_marking.mark_number(_text(rebar, u'NOSA_Rebar_Mark')), identity, rebar))
+                per_drawing.setdefault(drawing, []).append(
+                    ((natural_key(keys[name]),) + tuple(order[name]),
+                     rebar_marking.mark_number(_text(rebar, u'NOSA_Rebar_Mark')), identity, rebar))
     changed = 0
-    for bars in per_schedule.values():
-        for rebar, number in schedule_marks(bars).items():
+    for bars in per_drawing.values():
+        for rebar, number in drawing_marks(bars).items():
             mark = rebar_marking.format_mark(number)
-            if _text(rebar, u'NOSA_Rebar_Mark') == mark:
+            old = _text(rebar, u'NOSA_Rebar_Mark')
+            if old == mark:
                 continue
             _set(rebar, u'NOSA_Rebar_Mark', mark)
+            callout = _text(rebar, u'NOSA_Rebar_Callout')
+            if old and u'-' + old in callout:
+                # a calling-up drawn before keeps naming the bar (its first '-mark' after the size)
+                _set(rebar, u'NOSA_Rebar_Callout', callout.replace(u'-' + old, u'-' + mark, 1))
             p = rebar.LookupParameter(u'NOSA_Rebar_Number')
             if p is not None and not p.IsReadOnly:
                 p.Set(number)
@@ -214,6 +253,18 @@ def _field_index(definition, name):
     return None
 
 
+def _plain_totals(view):
+    """
+    2026-10-24 audit: the grand total row read 'Grand total: 17', Revit elements counted as if bars. The fields keep
+    their totals: within a row they add the elements of one mark up ('No. of bars in each' 4 + 4 = 8).
+    """
+    from nosa_utils.telemetry import log_swallowed
+    try:
+        view.Definition.ShowGrandTotalCount = False
+    except Exception:
+        log_swallowed(u'rebarautomate', u'grand total count')
+
+
 def _schedule_view(doc, master, key):
     """'BBS 4002-01': the master BBS duplicated and filtered to this schedule key."""
     from Autodesk.Revit import DB  # Lazy import
@@ -221,9 +272,11 @@ def _schedule_view(doc, master, key):
     name = u'{} {}'.format(MASTER_BBS, key)
     for view in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
         if element_name(view) == name:
+            _plain_totals(view)
             return view, False
     view = doc.GetElement(master.Duplicate(DB.ViewDuplicateOption.Duplicate))
     view.Name = name
+    _plain_totals(view)
     definition = view.Definition
     index = _field_index(definition, SCHEDULE_PARAM)
     if index is None:

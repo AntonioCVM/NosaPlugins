@@ -468,6 +468,7 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
     from nosa_utils.revit_helpers import get_id_value
     report = {'views': [], 'sheets': [], 'tags': 0, 'errors': []}
     assign_marks(doc, [h for g in groups for h in g], view_plan, report)
+    member_names(doc, report)
     kinds = []
     placed = []
     for g in groups:
@@ -584,6 +585,50 @@ def review_drawings(doc, numbers, errors):
         errors = list(errors) + [u'Review not run: {}'.format(e)]
     text, count = review.summary(errors, issues)
     return {'text': text, 'count': count, 'issues': issues}
+
+
+def member_names(doc, report):
+    """
+    The BBS member (the bars' Partition) named as the drawings name the member, by its Marks, when it reads as
+    another member's Mark (rebar_partitions.names_from_marks). In a transaction; each change reported.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    import rebar_partitions
+    bars, partitions = {}, {}
+    for rebar in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Rebar)             .WhereElementIsNotElementType():
+        if not _param_text(rebar, u'NOSA_Rebar_Batch_Id'):
+            continue
+        name = _param_text(rebar, None, DB.BuiltInParameter.NUMBER_PARTITION_PARAM)
+        if not name:
+            continue
+        bars.setdefault(name, []).append(rebar)
+        host = doc.GetElement(rebar.GetHostId())
+        partitions.setdefault(name, set()).add(host_label(host) if host is not None else u'')
+    from System.Collections.Generic import List
+    cats = List[DB.BuiltInCategory]([getattr(DB.BuiltInCategory, c) for c, _p in rebar_partitions.PREFIXES])
+    marks = set(_param_text(e, None, DB.BuiltInParameter.ALL_MODEL_MARK) for e in DB.FilteredElementCollector(doc)
+                .WherePasses(DB.ElementMulticategoryFilter(cats)).WhereElementIsNotElementType())
+    renames = rebar_partitions.names_from_marks(dict((k, list(v)) for k, v in partitions.items()), marks)
+    if not renames:
+        return 0
+    t = DB.Transaction(doc, u'NOSA — BBS members named by their Marks')
+    t.Start()
+    for old, new in sorted(renames.items()):
+        for rebar in bars[old]:
+            p = rebar.get_Parameter(DB.BuiltInParameter.NUMBER_PARTITION_PARAM)
+            if p is not None and not p.IsReadOnly:
+                p.Set(new)
+        report['errors'].append(u'BBS member {} renamed {}, as the drawings name it.'.format(old, new))
+    t.Commit()
+    return len(renames)
+
+
+def _param_text(element, name, bip=None):
+    try:
+        p = element.get_Parameter(bip) if bip is not None else element.LookupParameter(name)
+        return (p.AsString() or u'').strip() if p is not None and p.HasValue else u''
+    except Exception:  # nosa-lint: disable=NOSA006 - no such parameter reads empty
+        return u''
 
 
 def assign_marks(doc, hosts, view_plan, report):

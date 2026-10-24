@@ -14,8 +14,30 @@ AUDIT_LABELS = {
     u'A5': u'leaders',
     u'A6': u'texts off the frame',
     u'A7': u'views off the sheet',
+    u'A8': u'calling-ups not naming the mark of their bar',
     u'A4i': u'leaders across an indicator line spanning the whole member (unavoidable, for information)',
 }
+
+
+_RANGE = r'((?:\([a-z]+ to [a-z]+\))?)'
+_CALLED_MARK = re.compile(r'H\d+-E?(\d+)' + _RANGE)
+_MARK_ONLY = re.compile(r'^E?(\d+)' + _RANGE + r'$')
+
+
+def callout_mismatch(text, mark, suffix=u''):
+    """
+    A8 (2026-10-24 audit): the mark a label prints ('6H16-06(a to f) B2', '01') against the bar's own mark and
+    varying-set range; a text written before the marks changed names another bar. '' when it agrees (or names
+    no mark), else what it prints.
+    """
+    text = (text or u'').strip()
+    hit = _CALLED_MARK.search(text)
+    if hit is None:
+        hit, suffix = _MARK_ONLY.match(text), u''       # a mark alone (sections) gives no range
+    if not hit or not mark:
+        return u''
+    printed = hit.group(1) + hit.group(2)
+    return u'' if (hit.group(1) == mark and (not suffix or hit.group(2) == suffix)) else printed
 
 
 def group_messages(messages):

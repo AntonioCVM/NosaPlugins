@@ -57,6 +57,26 @@ def test_bs8666_rounding():
     print(u'[PASS] test_bs8666_rounding')
 
 
+def test_drawing_marks_keep_the_marks_the_calling_ups_carry():
+    # 2026-10-24 audit, drawing 4502: S1 and S3 on two schedules, marks already unique on the drawing
+    bars = [((u'4502-01', 0, u'S1'), 1, u'straight 7875', u'a'), ((u'4502-01', 0, u'S1'), 6, u'straight 2375', u'b'),
+            ((u'4502-02', 0, u'S3'), 12, (u'varying', 1), u'c'), ((u'4502-02', 0, u'S3'), 13, u'straight 4875', u'd')]
+    assert bs.drawing_marks(bars) == {u'a': 1, u'b': 6, u'c': 12, u'd': 13}
+    print(u'[PASS] test_drawing_marks_keep_the_marks_the_calling_ups_carry')
+
+
+def test_drawing_marks_renumber_a_mark_naming_two_bars():
+    # 4501: the copies' links still '03' (the circular link's mark) though they are the original's '04'
+    bars = [((u'4501-01', 0, u'C1'), 1, u'H20', u'v'), ((u'4501-01', 0, u'C2'), 3, u'circular', u'c5'),
+            ((u'4501-01', 0, u'C3'), 4, u'link 365', u'c1'), ((u'4501-01', 0, u'C3'), 3, u'link 365', u'copy')]
+    marks = bs.drawing_marks(bars)
+    assert marks[u'c1'] == marks[u'copy'] and marks[u'c5'] != marks[u'copy']
+    assert len(set(marks.values())) == 3
+    print(u'[PASS] test_drawing_marks_renumber_a_mark_naming_two_bars')
+
+
+
+
 if __name__ == '__main__':
     test_schedule_reference_is_drawing_schedule_revision()
     test_members_stay_whole_and_pages_fill_in_order()
@@ -64,3 +84,5 @@ if __name__ == '__main__':
     test_marks_unique_within_a_schedule_identical_bars_shared()
     test_natural_order_of_members()
     test_bs8666_rounding()
+    test_drawing_marks_keep_the_marks_the_calling_ups_carry()
+    test_drawing_marks_renumber_a_mark_naming_two_bars()
