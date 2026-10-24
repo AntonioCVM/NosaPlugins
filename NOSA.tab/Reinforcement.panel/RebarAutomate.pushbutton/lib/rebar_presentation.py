@@ -1607,6 +1607,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
     mid = (box[1] + box[3]) / 2.0
     pending = []
     arrows = []                     # (tip, outward, text box) of the arrows drawn
+    leaders = _tag_leaders(doc, view)   # the pointers already drawn: an arrow may not cut one (2026-10-24, B3-B4)
     for d in items:
         rebar = d['rebar']
         index = _shown_bar(view, rebar, d['count'])
@@ -1630,6 +1631,9 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
                 tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k)
                 lane = (min(bx[0], tip[0]), bx[1], max(bx[2], tip[0]), bx[3])
                 if any(callout_layout.overlap(lane, q, gap / 2.0) for q in placed):
+                    continue
+                run = (tip, (c[0], tip[1]))
+                if any(callout_layout._crosses(run, seg) for seg in leaders):
                     continue
                 # two bars lapping in a support end side by side: their arrows point at each other and would cross
                 # (2026-10-24, B3-B4 '02' at the middle support) - the second goes a row further out
@@ -1656,6 +1660,25 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
             placed.append(spot[2])
             report['marks'] += 1
     _line_up(doc, view, pending)
+
+
+def _tag_leaders(doc, view):
+    """The straight runs (view mm) of the tag leaders drawn in the view."""
+    out = []
+    for t in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag):
+        try:
+            if not t.HasLeader:
+                continue
+            head = _xy(view, t.TagHeadPosition)
+            for ref in t.GetTaggedReferences():
+                pts = [head]
+                if t.HasLeaderElbow(ref):
+                    pts.append(_xy(view, t.GetLeaderElbow(ref)))
+                pts.append(_xy(view, t.GetLeaderEnd(ref)))
+                out.extend(zip(pts, pts[1:]))
+        except Exception:
+            continue
+    return out
 
 
 def _shape_driven(rebar):
