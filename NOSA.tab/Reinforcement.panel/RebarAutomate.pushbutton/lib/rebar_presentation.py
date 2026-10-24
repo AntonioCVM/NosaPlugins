@@ -3082,15 +3082,30 @@ def _clear_anchor(view, d, fraction, index, box, placed, gap):
     if first is None or d['view_dot'] >= 0.5:
         return first
     texts = [q for q in placed if (q[3] - q[1]) > 3.0 * gap and (q[2] - q[0]) > 3.0 * gap]
-    for f in [fraction] + [x / 20.0 for x in (10, 6, 14, 4, 16, 8, 12, 3, 17, 5, 15)]:
-        p = _anchor(view, d, f, index)
+
+    def clear(p):
         a = _xy(view, p)
         side = callout_layout.side_of(a, box)
         far = {'top': (a[0], box[3] + 1e6), 'bottom': (a[0], box[1] - 1e6),
                'right': (box[2] + 1e6, a[1]), 'left': (box[0] - 1e6, a[1])}[side]
         lane = (min(a[0], far[0]) - gap, min(a[1], far[1]) - gap, max(a[0], far[0]) + gap, max(a[1], far[1]) + gap)
-        if not any(callout_layout.overlap(lane, q) for q in texts):
+        return not any(callout_layout.overlap(lane, q) for q in texts)
+    steps = [fraction] + [x / 20.0 for x in (10, 6, 14, 4, 16, 8, 12, 3, 17, 5, 15)]
+    for f in steps:
+        p = _anchor(view, d, f, index)
+        if clear(p):
             return p
+    # a link in a section whose cut bars' marks fill every lane off its main leg: its other legs, out of a face the
+    # marks leave free (2026-10-24 audit, m2: the C1-C3 and PC1 links' pointers ran through the middle bar's '01')
+    main = _main_line(d['rebar'], d['count'] // 2 if index is None else index)
+    for leg in sorted((c for c in _centreline(d['rebar'], d['count'] // 2 if index is None else index)
+                       if isinstance(c, DB.Line) and (main is None or c.Evaluate(0.5, True).DistanceTo(
+                           main.Evaluate(0.5, True)) > 1e-6)),
+                      key=lambda c: -c.Length):
+        for f in steps[1:]:
+            p = leg.Evaluate(f, True)
+            if clear(p):
+                return p
     return first
 
 
