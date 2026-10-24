@@ -2,20 +2,20 @@
 
 Written from `data/revit_capabilities.json`, which `tools/revit_harness/capability_probe.py` fills per version: **API** = present in the loaded API (reflection), **live** = a probe in a rolled-back transaction on a test model. The plugin reads the flags with `rebar_engine.api_capabilities()` and the matrix with `nosa_utils.revit_capabilities.supports(version, name)`. Run the probe in each version (Project1 or the template, never a real project) before relying on a feature there.
 
-| Capability | Used for | API member | Revit 2024 |
-|---|---|---|---|
-| presentation_select | typical bar of a set (SMDSC 6.2.2) | `RebarPresentationMode.Select` | yes / live ok |
-| multi_rebar_annotation | indicator lines (MRA) | `DB.MultiReferenceAnnotation` | yes / live ok |
-| varying_length | sets following inclined faces | `DistributionType.VaryingLength` | yes / live ok |
-| varying_suffix | sub-marks of varying sets | `ReinforcementSettings.RebarVaryingLengthNumberSuffix` | yes |
-| free_form | bars with several shapes | `Rebar.CreateFreeForm` | yes |
-| couplers | mechanical couplers (T8.52) | `RebarCoupler` | yes / live ok |
-| fabric | welded fabric (T8.51) | `FabricArea` | yes / live ok |
-| bending_detail | native bending details | `RebarBendingDetail` | yes |
-| hook_orientation | hooks up to 2026 | `RebarHookOrientation` | yes |
-| terminations | bar terminations from 2027 | `BarTerminationsData` | no |
+| Capability | Used for | API member | Revit 2024 | 2025 | 2026 | 2027 |
+|---|---|---|---|---|---|---|
+| presentation_select | typical bar of a set (SMDSC 6.2.2) | `RebarPresentationMode.Select` | yes / live ok | yes / live ok | yes / live ok | yes / live ok |
+| multi_rebar_annotation | indicator lines (MRA) | `DB.MultiReferenceAnnotation` | yes / live ok | yes / live ok | yes / live ok | yes / live ok |
+| varying_length | sets following inclined faces | `DistributionType.VaryingLength` | yes / live ok | yes / live ok | yes / live ok | yes / live ok |
+| varying_suffix | sub-marks of varying sets | `ReinforcementSettings.RebarVaryingLengthNumberSuffix` | yes | yes | yes | yes |
+| free_form | bars with several shapes | `Rebar.CreateFreeForm` | yes | yes | yes | yes |
+| couplers | mechanical couplers (T8.52) | `RebarCoupler` | yes / live ok | yes | yes | yes |
+| fabric | welded fabric (T8.51) | `FabricArea` | yes / live ok | yes | yes | yes |
+| bending_detail | native bending details | `RebarBendingDetail` | yes | yes | yes | yes |
+| hook_orientation | hooks up to 2026 | `RebarHookOrientation` | yes | yes | yes | **no** |
+| terminations | bar terminations from 2027 | `BarTerminationsData` | no | no | yes | yes |
 
-Revit 2025, 2026 and 2027: not probed yet (only 2024 is installed on this machine).
+2025-2027 (2026-10-24): API flags by the probe in a blank project in each version; 'live ok' in 2025-2027 where Create drawings used the feature on the Rebar test models. The live probes of couplers and fabric still need the Project1 test content in 2025-2027.
 
 ## Known defects
 
