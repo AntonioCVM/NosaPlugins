@@ -124,7 +124,10 @@ for vs in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
 for r in DB.FilteredElementCollector(doc).OfClass(Rebar):
     try:
         bt = doc.GetElement(r.GetTypeId())
-        shape = doc.GetElement(r.GetShapeId())
+        try:
+            shape_name = name(doc.GetElement(r.GetShapeId()))
+        except Exception:      # a FreeForm set of several shapes (W2 U-bars): the plugin's own code
+            shape_name = text(r, u'NOSA_Rebar_Shape_Code') or u''
         n = r.NumberOfBarPositions
         lens = []
         for i in range(n):
@@ -136,7 +139,7 @@ for r in DB.FilteredElementCollector(doc).OfClass(Rebar):
             'host': r.GetHostId().Value, 'mark': text(r, u'NOSA_Rebar_Mark'), 'schedule_mark':
             r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK).AsString(),  # nosa-lint: disable=NOSA002 - harness script runs in Revit
             'key': text(r, u'NOSA_Rebar_Assembly'), 'drawing': text(r, u'NOSA_Rebar_Group'),
-            'dia': round(bt.BarNominalDiameter * FT, 1), 'n': n, 'qty': r.Quantity, 'shape': name(shape),
+            'dia': round(bt.BarNominalDiameter * FT, 1), 'n': n, 'qty': r.Quantity, 'shape': shape_name,
             'bar_length': round(r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_LENGTH).AsDouble() * FT),  # nosa-lint: disable=NOSA002 - harness script runs in Revit
             'total_length': round(r.TotalLength * FT), 'volume_cm3': round(r.Volume * 28316.8466, 1),
             'layer': text(r, u'NOSA_Rebar_Layer'), 'partition': text(r, u'Partition'),
