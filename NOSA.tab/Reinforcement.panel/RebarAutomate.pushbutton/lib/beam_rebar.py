@@ -695,8 +695,10 @@ def _as_curves(segment):
     return list(segment) if isinstance(segment, (list, tuple)) else [segment]
 
 
-def support_extensions_mm(doc, axis, end_inset_mm, foundations=False):
+def support_extensions_mm(doc, axis, end_inset_mm, foundations=False, own_cover_mm=None):
     """
+    With own_cover_mm (the beam's, included in end_inset_mm) the support's own cover governs at its far face when
+    it ranks higher (T12.5, user 2026-10-18: foundation > wall > column > beam > slab).
     (start, end) mm a beam bar runs on past each end of `axis` to reach the far face of the
     structural column it frames into, less end_inset_mm; 0 where no column is found.
     foundations: a ground beam, whose supports are also the pile caps and pads it runs into; its
@@ -722,11 +724,25 @@ def support_extensions_mm(doc, axis, end_inset_mm, foundations=False):
                 corners = [DB.XYZ(x, y, z) for x in (bbox.Min.X, bbox.Max.X)
                            for y in (bbox.Min.Y, bbox.Max.Y) for z in (bbox.Min.Z, bbox.Max.Z)]
                 far_mm = max((c - point).DotProduct(outward) for c in corners) * _MM_PER_FT
-                ext = max(ext, far_mm - end_inset_mm)
+                ext = max(ext, far_mm - end_inset_mm - _support_cover_extra_mm(doc, column, own_cover_mm))
         except Exception:
             ext = 0.0
         exts.append(ext if ext > 1.0 else 0.0)
     return exts[0], exts[1]
+
+
+def _support_cover_extra_mm(doc, support, own_cover_mm):
+    """How much more than the beam's own cover the support's governing cover asks for at its far face (T12.5)."""
+    if own_cover_mm is None:
+        return 0.0
+    from nosa_utils import cover_rules
+    import rebar_engine
+    try:
+        theirs = rebar_engine.get_native_cover_mm(doc, support, u'Exterior', own_cover_mm)
+    except Exception:
+        return 0.0
+    return max(0.0, cover_rules.governing_cover('beam', own_cover_mm, cover_rules.kind_of(support), theirs)
+               - own_cover_mm)
 
 
 def _extend_line(line, ext0_mm, ext1_mm):
@@ -1100,7 +1116,8 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
     # column to its far face, then a 90 degree leg back into the beam.
     end_inset_mm = cover_mm + stirrup_bar_diameter_mm
     from nosa_utils.revit_helpers import is_ground_beam
-    ext0_mm, ext1_mm = support_extensions_mm(doc, axis, end_inset_mm, foundations=is_ground_beam(host))
+    ext0_mm, ext1_mm = support_extensions_mm(doc, axis, end_inset_mm, foundations=is_ground_beam(host),
+                                             own_cover_mm=cover_mm)
     # T7.2 — a span of a continuous beam: at an intermediate support the bottom bars only run
     # straight into it (no leg) and the top bars are the line's own continuous hanger bars.
     b_ext0 = internal_bottom_ext_mm[0] if continuous_ends[0] else ext0_mm
@@ -1428,8 +1445,6 @@ def _column_reach_mm(doc, point, outward, end_inset_mm, own_cover_mm=None):
     mm a bar runs on from point along outward to the far face of the column there, less end_inset_mm; 0 if none.
     With own_cover_mm (the beam's, included in end_inset_mm), the column's own cover governs there (T12.5).
     """
-    from nosa_utils import cover_rules
-    import rebar_engine
     probe = point + outward.Multiply(20.0 / _MM_PER_FT)
     reach = DB.XYZ(30.0 / _MM_PER_FT, 30.0 / _MM_PER_FT, 300.0 / _MM_PER_FT)
     ext = 0.0
@@ -1439,10 +1454,7 @@ def _column_reach_mm(doc, point, outward, end_inset_mm, own_cover_mm=None):
                     DB.BoundingBoxIntersectsFilter(DB.Outline(probe - reach, probe + reach))):
             bbox = column.get_BoundingBox(None)
             corners = [DB.XYZ(x, y, point.Z) for x in (bbox.Min.X, bbox.Max.X) for y in (bbox.Min.Y, bbox.Max.Y)]
-            inset = end_inset_mm
-            if own_cover_mm is not None:
-                col_cover = rebar_engine.get_native_cover_mm(doc, column, u'Exterior', own_cover_mm)
-                inset += cover_rules.governing_cover('beam', own_cover_mm, 'column', col_cover) - own_cover_mm
+            inset = end_inset_mm + _support_cover_extra_mm(doc, column, own_cover_mm)
             ext = max(ext, max((c - point).DotProduct(outward) for c in corners) * _MM_PER_FT - inset)
     except Exception:
         ext = 0.0
@@ -1647,8 +1659,8 @@ def build_continuous_line(doc, hosts, cover_mm, bar_diameter_mm, n_top_bars, sti
     end_inset = cover_mm + stirrup_bar_diameter_mm
     from nosa_utils.revit_helpers import is_ground_beam
     ground = is_ground_beam(first)
-    ext0, _e = support_extensions_mm(doc, axis0, end_inset, foundations=ground)
-    _e, ext1 = support_extensions_mm(doc, axes[last.Id], end_inset, foundations=ground)
+    ext0, _e = support_extensions_mm(doc, axis0, end_inset, foundations=ground, own_cover_mm=cover_mm)
+    _e, ext1 = support_extensions_mm(doc, axes[last.Id], end_inset, foundations=ground, own_cover_mm=cover_mm)
     x_start, x_end = ordered[0]['x0'] - ext0, ordered[-1]['x1'] + ext1
 
     def at(line, x):

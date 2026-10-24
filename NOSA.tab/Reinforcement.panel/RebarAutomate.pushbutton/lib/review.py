@@ -14,6 +14,7 @@ AUDIT_LABELS = {
     u'A5': u'leaders',
     u'A6': u'texts off the frame',
     u'A7': u'views off the sheet',
+    u'A4i': u'leaders across an indicator line spanning the whole member (unavoidable, for information)',
 }
 
 
@@ -50,8 +51,10 @@ def summary(messages, issues, limit=12):
     by_cat = {}
     for i in issues:
         by_cat.setdefault(i.get('category') or u'?', []).append(i)
+    # informative kinds (A4i) are listed but not counted as incidents
+    real = [i for i in issues if not (i.get('category') or u'').endswith(u'i')]
     if by_cat:
-        lines.append(u'Drawing review ({} incident(s)):'.format(len(issues)))
+        lines.append(u'Drawing review ({} incident(s)):'.format(len(real)))
         for cat in sorted(by_cat):
             first = by_cat[cat][0]
             lines.append(u'  - {} {}: {} - e.g. {} {}: {}'.format(
@@ -59,4 +62,4 @@ def summary(messages, issues, limit=12):
                 first.get('problem', u'')))
     else:
         lines.append(u'Drawing review: no incidents.')
-    return u'\n'.join(lines), len(grouped) + len(issues)
+    return u'\n'.join(lines), len(grouped) + len(real)

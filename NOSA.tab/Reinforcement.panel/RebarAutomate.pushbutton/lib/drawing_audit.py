@@ -189,25 +189,36 @@ def _bars(doc, view, f):
     """Bars seen in the view: centreline segments, and dots for bars seen end on."""
     from Autodesk.Revit.DB.Structure import Rebar, MultiplanarOption
     segs, dots = [], []
+    from rebar_presentation import shown_positions
+    depth = _depth_range(view)
     for r in _elements(doc, view, Rebar):
-        try:
-            count = r.NumberOfBarPositions
-        except Exception:
-            count = 1
-        for i in range(count):
+        for i in shown_positions(r, view):
             try:
-                if r.IsBarHidden(view, i):
-                    continue
                 curves = r.GetTransformedCenterlineCurves(False, False, False,
                                                           MultiplanarOption.IncludeOnlyPlanarCurves, i)
             except Exception:
                 continue
             for c in curves:
                 try:
-                    pts = [f.xy(p) for p in c.Tessellate()]
+                    model = list(c.Tessellate())
                 except Exception:
                     continue
-                for p, q in zip(pts, pts[1:]):
+                pts = [f.xy(p) for p in model]
+                for k, (p, q) in enumerate(zip(pts, pts[1:])):
+                    if depth is not None:
+                        # a section draws what lies within its depth: a curved wall's other bars and the run of
+                        # its horizontal arcs beyond the cut are not drawn (2026-10-24, W2 section 2-2)
+                        za, zb = depth[0].OfPoint(model[k]).Z, depth[0].OfPoint(model[k + 1]).Z
+                        if max(za, zb) < depth[1] - 1e-3 or min(za, zb) > depth[2] + 1e-3:
+                            continue
+                        if abs(zb - za) > 1e-9:
+                            # only the part within the depth
+                            t0 = min(max((depth[1] - za) / (zb - za), 0.0), 1.0)
+                            t1 = min(max((depth[2] - za) / (zb - za), 0.0), 1.0)
+                            t0, t1 = min(t0, t1), max(t0, t1)
+                            a3, b3 = model[k], model[k + 1]
+                            p = f.xy(a3 + (b3 - a3).Multiply(t0))
+                            q = f.xy(a3 + (b3 - a3).Multiply(t1))
                     if abs(p[0] - q[0]) + abs(p[1] - q[1]) < CUT_BAR_MM:
                         dots.append((p[0] - CUT_BAR_MM, p[1] - CUT_BAR_MM, p[0] + CUT_BAR_MM, p[1] + CUT_BAR_MM))
                     else:
@@ -229,7 +240,13 @@ def _viewer_heads(doc, view, f):
         if b is None:
             continue
         horizontal = (b[2] - b[0]) >= (b[3] - b[1])
-        if horizontal:
+        if min(b[2] - b[0], b[3] - b[1]) > 3.0 * size:
+            # a mark on the skew (a curved beam's sections): its heads at the corners of its box, not a strip
+            # the box's height (2026-10-24, B2: CH 1000 flagged on the strip)
+            for x in (b[0], b[2] - size):
+                for y in (b[1], b[3] - size):
+                    out.append((x, y, x + size, y + size))
+        elif horizontal:
             out.append((b[0], b[1], b[0] + size, b[3]))
             out.append((b[2] - size, b[1], b[2], b[3]))
         else:
@@ -277,6 +294,54 @@ def _crop(view, f):
                 box[2] + m.RightAnnotationCropOffset * k, box[3] + m.TopAnnotationCropOffset * k)
     except Exception:
         return box
+
+
+def _masks(doc, view, f):
+    """Boxes (paper mm) of the masking regions drawn in the view."""
+    out = []
+    for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DB.FilledRegion):
+        try:
+            if r.IsMasking:
+                b = f.box(r.get_BoundingBox(view))
+                if b is not None:
+                    out.append(b)
+        except Exception:
+            continue
+    return out
+
+
+def _spans_member(seg, member, share=0.85):
+    """A line (paper mm) running across most of the member's box its way: level across its width, upright its height."""
+    if member is None:
+        return False
+    (a, b) = seg
+    if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
+        return abs(b[0] - a[0]) >= share * (member[2] - member[0])
+    return abs(b[1] - a[1]) >= share * (member[3] - member[1])
+
+
+def _depth_range(view):
+    """(inverse crop transform, min z, max z) of a section's crop box: the depth it draws; None for other views."""
+    try:
+        if not isinstance(view, DB.ViewSection) or not view.CropBoxActive:
+            return None
+        cb = view.CropBox
+        return cb.Transform.Inverse, cb.Min.Z, cb.Max.Z
+    except Exception:
+        return None
+
+
+def _model_crop(view, f):
+    """The model crop of a view, paper mm (without the annotation offsets); None when it is not cropped."""
+    try:
+        if not view.CropBoxActive:
+            return None
+        cb = view.CropBox
+        t = cb.Transform
+        pts = [f.xy(t.OfPoint(DB.XYZ(x, y, cb.Min.Z))) for x in (cb.Min.X, cb.Max.X) for y in (cb.Min.Y, cb.Max.Y)]
+        return (min(p[0] for p in pts), min(p[1] for p in pts), max(p[0] for p in pts), max(p[1] for p in pts))
+    except Exception:
+        return None
 
 
 def _kind(view):
@@ -369,6 +434,20 @@ def audit_view(doc, view, sheet_number):
         except Exception:
             continue
     bar_segs, bar_dots = _bars(doc, view, f)
+    # only what the view draws: a bar under a masking region is hidden by it (a column cut to a stub under a beam
+    # elevation, 2026-10-24 B3-B4)
+    masks = _masks(doc, view, f)
+    if masks:
+        bar_segs = [(r, seg) for r, seg in bar_segs
+                    if not any(all(m[0] <= q[0] <= m[2] and m[1] <= q[1] <= m[3] for q in seg) for m in masks)]
+        bar_dots = [d for d in bar_dots
+                    if not any(m[0] <= d[0] and d[2] <= m[2] and m[1] <= d[1] and d[3] <= m[3] for m in masks)]
+    # ... and a bar outside its crop is not drawn (a curved wall's other verticals, 2026-10-24)
+    seen_box = _model_crop(view, f)
+    if seen_box is not None:
+        bar_segs = [(r, seg) for r, seg in bar_segs if aa.segment_hits_box(seg, seen_box)
+                    or all(seen_box[0] <= q[0] <= seen_box[2] and seen_box[1] <= q[1] <= seen_box[3] for q in seg)]
+        bar_dots = [d for d in bar_dots if aa.area_overlap(d, seen_box)]
     viewers = _viewer_heads(doc, view, f)
     members = _members(doc, view, f)
     member = _union(members)
@@ -426,10 +505,21 @@ def audit_view(doc, view, sheet_number):
             if aa.cross(detail[ck], gseg[0]):
                 issue(u'A4', ck, u'line', u'crosses dimension {}'.format(gk))
                 break
+    whole = {}                                      # each dimension's full line: its segments end to end
+    for gk, gseg in dim_lines.items():
+        did = gk.rsplit(u'-', 1)[0]
+        whole.setdefault(did, []).extend(gseg[0])
+    for did, pts in whole.items():
+        far = max(((a, b) for a in pts for b in pts), key=lambda ab: (ab[0][0] - ab[1][0]) ** 2 + (ab[0][1] - ab[1][1]) ** 2)
+        whole[did] = far
     for lk, seg in leaders.items():
         for gk, gseg in dim_lines.items():
             if aa.cross(seg, gseg[0]):
-                issue(u'A4', lk, u'leader', u'crosses dimension {}'.format(gk))
+                if _spans_member(whole.get(gk.rsplit(u'-', 1)[0], gseg[0]), member):
+                    # an indicator line across the whole member: every calling-up out to that side crosses it
+                    issue(u'A4i', lk, u'leader', u'crosses dimension {} across the whole member'.format(gk))
+                else:
+                    issue(u'A4', lk, u'leader', u'crosses dimension {}'.format(gk))
                 break
     bands = []
     if member is not None:

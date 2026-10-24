@@ -347,3 +347,22 @@ def test_point_like_bar_and_bar_past_its_row_jog_in_the_gap():
             if abs(p[0] - q[0]) < 1e-6 and abs(p[1] - q[1]) > 1e-6:
                 assert p[0] < box[0], (k, out[k]['path'])      # every upright piece beside the member
     assert cl.path_crossings(out) == 0
+
+
+def test_native_leaders_of_s1_plan_never_cross():
+    # the S1 plan of the Revit 2026 test model (18 calling-ups round an opening, all to one side): Revit's own
+    # square leaders, no two crossing (2026-10-24 review)
+    import json
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'layout_s1_plan_2026.json')
+    d = json.load(open(path))
+    items = {}
+    for k, v in d['items'].items():
+        v = dict(v)
+        v['a'], v['b'] = tuple(v['a']), tuple(v['b'])
+        items[k] = v
+    out = cl.align_rows(items, tuple(d['box']), d['gap'], d['outside'], [tuple(q) for q in d['placed']],
+                        lift=d['lift'], obstacles=[tuple(map(tuple, o)) for o in d['obstacles']],
+                        neighbours=[tuple(q) for q in d['neighbours']], native=True,
+                        blockers=[tuple(map(tuple, b)) for b in d['blockers']])
+    assert len(out) == len(items)
+    assert cl.path_crossings(out) == 0

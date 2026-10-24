@@ -611,6 +611,19 @@ def get_wall_elevation_mm(host):
     return length_mm, height_mm
 
 
+def _foundation_cover_mm(doc, engine, point, z_ft, wall_cover_mm):
+    """The cover the bars of a wall keep in the foundation below point: the foundation's own when it has one."""
+    from nosa_utils import cover_rules
+    try:
+        foundation = engine.find_foundation_below(doc, point.X, point.Y, z_ft)
+    except Exception:
+        foundation = None
+    if foundation is None:
+        return wall_cover_mm
+    theirs = engine.get_native_cover_mm(doc, foundation, u'Bottom', wall_cover_mm)
+    return cover_rules.governing_cover('wall', wall_cover_mm, 'foundation', theirs)
+
+
 def build_wall_foundation_starters(doc, host, bar_points, main_dia_mm, starter_dia_mm,
                                     anchor_length_mm, splice_length_mm,
                                     foundation_cover_mm=25.0, search_depth_mm=3000.0):
@@ -640,6 +653,8 @@ def build_wall_foundation_starters(doc, host, bar_points, main_dia_mm, starter_d
             inward_dirs.append(across.Multiply(-1.0 if side > 0 else 1.0))
 
     base_z_ft = min(p.Z for p in bar_points) if bar_points else origin.Z
+    # the foundation outranks the wall: its own bottom cover governs the starters' feet (T12.5, user 2026-10-18)
+    foundation_cover_mm = _foundation_cover_mm(doc, engine, axis.Evaluate(0.5, True), base_z_ft, foundation_cover_mm)
     return engine.build_contact_starters(
         doc, bar_points, inward_dirs, base_z_ft, main_dia_mm, starter_dia_mm,
         anchor_length_mm, splice_length_mm, foundation_cover_mm,
@@ -754,8 +769,12 @@ def build_wall_reinforcement(doc, host, cover_mm,
         mid = p0 + axis_dir.Multiply(axis.Length / 2.0)
         foundation = engine.find_foundation_below(doc, mid.X, mid.Y, z0)
         if foundation is not None:
+            from nosa_utils import cover_rules
             own = engine.get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
-            vert_bottom_z = own.Min.Z + cover_mm / _MM_PER_FT
+            # the foundation outranks the wall: its bottom cover governs where the bars stop in it (T12.5)
+            bottom_mm = cover_rules.governing_cover(
+                'wall', cover_mm, 'foundation', engine.get_native_cover_mm(doc, foundation, u'Bottom', cover_mm))
+            vert_bottom_z = own.Min.Z + bottom_mm / _MM_PER_FT
             starter_mm = (z0 - vert_bottom_z) * _MM_PER_FT
         else:
             starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \

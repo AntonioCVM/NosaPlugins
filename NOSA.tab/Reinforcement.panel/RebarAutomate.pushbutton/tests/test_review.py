@@ -27,3 +27,10 @@ def test_summary_counts_the_audit_by_kind():
     assert n == 2 and u'A4 lines crossing: 2' in text
     text, n = review.summary([], [])
     assert n == 0 and u'no incidents' in text
+
+
+def test_informative_crossings_not_counted():
+    issues = [{'sheet': u'4504', 'view': u'W1', 'category': u'A4i', 'element': u'x', 'problem': u'across the member'},
+              {'sheet': u'4504', 'view': u'W1', 'category': u'A4', 'element': u'y', 'problem': u'crosses'}]
+    text, n = review.summary([], issues)
+    assert n == 1 and u'(1 incident(s))' in text and u'A4i' in text

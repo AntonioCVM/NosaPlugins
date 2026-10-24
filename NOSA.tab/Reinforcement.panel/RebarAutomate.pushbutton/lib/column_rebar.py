@@ -1528,11 +1528,18 @@ def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None,
     face = _top_face(doc, floor)
     if face is None:
         return None
+    from nosa_utils import cover_rules
+    own_cover_mm = engine.get_native_cover_mm(doc, host, u'Exterior', 40.0)
     top_cover_mm = engine.get_native_cover_mm(doc, floor, u'Top', 25.0)
-    side_cover_mm = engine.get_native_cover_mm(doc, floor, u'Exterior', 25.0)
-    # The foot passes under this slab's own top mat (its real bars, else the Floors tab's).
+    # the column outranks the slab: its own cover governs where its bars run into the slab (T12.5, user 2026-10-18)
+    side_cover_mm = cover_rules.governing_cover(
+        'slab', engine.get_native_cover_mm(doc, floor, u'Exterior', 25.0), 'column', own_cover_mm)
+    # The foot passes under this slab's own top mat (its real bars, else the Floors tab's), and no nearer the top
+    # than the column's cover.
     top_mat_mm = slab_top_mat_depth_mm(doc, floor, slab_top_mat_mm)
-    bend_ft = bbox.Max.Z - (top_cover_mm + top_mat_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
+    depth_mm = max(top_cover_mm + top_mat_mm,
+                   cover_rules.governing_cover('slab', top_cover_mm, 'column', own_cover_mm))
+    bend_ft = bbox.Max.Z - (depth_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
     slab_depth_mm = (bbox.Max.Z - bbox.Min.Z) * _MM_PER_FT
     footing_mod = _ensure_footing_rebar()
     good_bond = footing_mod.good_bond_for_top_bars(slab_depth_mm)
