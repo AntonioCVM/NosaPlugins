@@ -2,7 +2,8 @@
 """
 The 'CREATE VIEWS FOR SELECTION' button of RebarAutomate, run headless on a test model (never saved): the old RC
 drawings, their views and bar schedules cleared first (CLEAR), every reinforced member selected, the window's own
-_create_views. Scope: doc, EXT_ROOT, PYREVIT, CLEAR, OUT (optional), KINDS (optional).
+_create_views. Scope: doc, EXT_ROOT, PYREVIT, CLEAR, OUT (optional), KINDS (optional), MODE (optional: 'update' or
+'regenerate' when the drawings exist, T12.9).
 Only the test models below are accepted.
 """
 import sys
@@ -112,6 +113,7 @@ win.uidoc = _UIDoc()
 win.ChkViewsSheets.IsChecked = True
 win.ChkViewsTags.IsChecked = True
 win.SetLoading = lambda *a, **k: None
+win.drawing_mode = MODE if 'MODE' in dir() else 'regenerate'
 try:
     win._create_views()
 except Exception:

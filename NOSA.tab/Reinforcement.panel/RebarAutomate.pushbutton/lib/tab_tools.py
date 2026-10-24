@@ -469,17 +469,45 @@ class ToolsMixin(object):
         beams = [h for h in hosts if rebar_views.host_kind(h) == 'beam']
         groups = [[h] for h in hosts if rebar_views.host_kind(h) != 'beam']
         groups += beam_rebar.group_beam_lines(beams) if beams else []
+        import drawing_registry
+        kinds = sorted(set(rebar_views.host_kind(g[0]) for g in groups))
+        mode = None
+        if self.ChkViewsSheets.IsChecked == True and drawing_registry.own_views(self.doc, kinds):
+            mode = self._drawing_mode()
+            if mode is None:
+                return
         existing = [s.SheetNumber for s in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewSheet)]
         numbers = view_plan.next_sheet_numbers(existing, 10 * len(groups) + 5)
         views = sheets = tags = 0
         errors = []
-        self.SetLoading(True, u'Creating views…')
+        update_text = u''
+        self.SetLoading(True, u'Updating drawings…' if mode == drawing_registry.UPDATE else u'Creating views…')
         try:
             if self.ChkViewsSheets.IsChecked == True:
                 # T9.7: the elements of one kind share a drawing (consultancy practice, user 2026-10-11)
-                reports = [rebar_views.build_drawings(
-                    self.doc, groups, re_engine, rebar_detailing, view_plan, numbers, beam_rebar=beam_rebar,
-                    stair_host=stair_host, tag=self.ChkViewsTags.IsChecked == True)]
+                # T12.9: drawings made before are updated (the user's changes kept) or regenerated on their own
+                # sheets, all in one undoable step
+                group = DB.TransactionGroup(self.doc, u'NOSA — {} drawings'.format(
+                    u'Update' if mode == drawing_registry.UPDATE else u'Create'))
+                group.Start()
+                try:
+                    updater = drawing_registry.Updater(self.doc, mode or drawing_registry.REGENERATE)
+                    with nosa_tx.revit_transaction(u'NOSA — Drawings made before'):
+                        updater.prepare(kinds)
+                    numbers = updater.free(numbers)
+                    reports = [rebar_views.build_drawings(
+                        self.doc, groups, re_engine, rebar_detailing, view_plan, numbers, beam_rebar=beam_rebar,
+                        stair_host=stair_host, tag=self.ChkViewsTags.IsChecked == True, updater=updater)]
+                    with nosa_tx.revit_transaction(u'NOSA — Drawings recorded'):
+                        log = updater.finish(reports[0])
+                    if mode is not None:
+                        update_text = drawing_registry.summary(log)
+                    group.Assimilate()
+                except Exception:
+                    group.RollBack()
+                    rebar_views.REUSE_SHEETS = {}
+                    rebar_views.UPDATE = None
+                    raise
             else:
                 reports = [rebar_views.build_element_views(
                     self.doc, group, re_engine, rebar_detailing, view_plan, numbers,
@@ -494,10 +522,30 @@ class ToolsMixin(object):
             self.SetLoading(False)
         msg = u'{} view(s), {} sheet(s) and {} tag(s) created for {} element(s).'.format(
             views, sheets, tags, len(groups))
+        if update_text:
+            msg += u'\n\n' + update_text
         if errors:
             msg += u'\n\n{} issue(s):\n{}'.format(len(errors), u'\n'.join(errors[:10]))
         self.TxtDetailingStatus.Text = msg
         forms.alert(msg, title=u'NOSA — Create Views')
+
+    def _drawing_mode(self):
+        """T12.9: drawings already made of these members - updated (default) or regenerated; None to cancel."""
+        import drawing_registry
+        preset = getattr(self, 'drawing_mode', None)
+        if preset in (drawing_registry.UPDATE, drawing_registry.REGENERATE):
+            return preset
+        update = u'Update drawings (keep my changes)'
+        regenerate = u'Regenerate drawings (replace them)'
+        choice = forms.CommandSwitchWindow.show(
+            [update, regenerate],
+            message=u'These members already have drawings. Update keeps moved views and calling-ups, your own '
+                    u'annotations, crops and scales; Regenerate draws them again from scratch on the same sheets.')
+        if choice == update:
+            return drawing_registry.UPDATE
+        if choice == regenerate:
+            return drawing_registry.REGENERATE
+        return None
 
     def AutoTag_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):

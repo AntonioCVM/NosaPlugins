@@ -325,25 +325,37 @@ def assign_layers_and_lengths(doc, rebars, ctx):
             _write(doc, rebar_id, "NOSA_Rebar_Total_Length", total_length)
 
 
-def renumber_drawing(doc, rebar_ids, ctx=None):
+def renumber_drawing(doc, rebar_ids, ctx=None, keep=False):
     """
     SMDSC 4th ed. 4.5.1 (user decision 2026-10-11): marks are unique per drawing. The bars detailed on one
     drawing are numbered 01 upwards together, identical bars of different members sharing one mark;
-    each bar keeps its member (Partition). Finalized bars keep their marks and the others avoid them.
+    each bar keeps its member (Partition). Finalized bars keep their marks and the others avoid them; with keep
+    (T12.9, an update of the drawing) every bar already marked keeps its mark and only new bars are numbered.
     """
+    from nosa_utils import drawing_update
     ctx = dict(ctx or {})
     tolerance_mm = ((ctx.get("standard") or {}).get("marking", {}) or {}).get("dedup_tolerance_mm", 5.0)
-    known, todo = {}, []
+    known, todo, marked = {}, [], []
     for rid in rebar_ids:
         if not _read(doc, rid, "NOSA_Rebar_Batch_Id"):
             continue
-        if _read(doc, rid, "NOSA_Rebar_Finalized") in (1, u'1'):
+        finalized = _read(doc, rid, "NOSA_Rebar_Finalized") in (1, u'1')
+        if finalized or keep:
             number = mark_number(_read(doc, rid, "NOSA_Rebar_Mark"))
-            if number > 0:
-                varying = _read(doc, rid, "NOSA_Rebar_Is_Variable") in (1, u'1')
-                known.setdefault(_dedup_key(doc, doc.GetElement(rid), tolerance_mm, varying), number)
+            varying = _read(doc, rid, "NOSA_Rebar_Is_Variable") in (1, u'1')
+            key = _dedup_key(doc, doc.GetElement(rid), tolerance_mm, varying)
+            if finalized:
+                if number > 0:
+                    known.setdefault(key, number)
+                continue
+            marked.append((rid, number, key))
             continue
         todo.append(rid)
+    if marked:
+        kept, renew = drawing_update.keep_marks(marked)
+        for key, number in kept.items():
+            known.setdefault(key, number)
+        todo.extend(renew)
     if not todo:
         return {"total_positions": 0, "total_bars": 0, "largest_cluster": 0}
     ctx["drawing_known"] = known
