@@ -73,6 +73,24 @@ def test_fixing_notes_and_buildability_line():
     assert u'12. Fixing: Beams:' in text and u'13. Buildability check: A (94/100; 0 error(s), 2 warning(s))' in text
 
 
+def test_failed_buildability_goes_to_the_review_not_the_drawing():
+    # 2026-10-24 audit (M2): 4501 and 4506 printed 'Buildability check: C (0/100; 14 error(s) ...)'
+    text, warnings = rl.drawing_notes(u'4501', {u'Columns': u'C40/50'}, {u'Columns': (40.0, 40.0, 40.0)},
+                                      buildability=(0.0, u'C', 14, 2))
+    assert u'Buildability' not in text
+    assert any(w.startswith(u'4501: Buildability check: C (0/100; 14 error(s)') for w in warnings)
+
+
+def test_slabs_checked_against_the_slab_cover_of_the_notes():
+    # 2026-10-24 audit (M3): slabs at 40 were warned against the typical 50, though the notes give slabs 40
+    _t, warnings = rl.drawing_notes(u'4502', {u'Slabs': u'C32/40'}, {u'Slabs': (40.0, 40.0, 40.0)},
+                                    project_cover=u'50mm', deviation=u'10', aggregate=u'20', slab_cover=u'40mm')
+    assert not any(u'differs' in w for w in warnings)
+    _t, warnings = rl.drawing_notes(u'4504', {u'Walls': u'C32/40'}, {u'Walls': (40.0, 40.0, 40.0)},
+                                    project_cover=u'50mm', deviation=u'10', aggregate=u'20', slab_cover=u'40mm')
+    assert any(u"differs from the general notes' 50mm" in w for w in warnings)
+
+
 def test_drawing_notes_call_up_the_typical_details():
     text, _w = rl.drawing_notes(u'4004', {u'Slabs': u'C32/40'}, {}, details=[(u'OP1', u'SMDSC 4th ed. MD OP1 / 6.2.2')],
                                 details_drawing=u'4500')

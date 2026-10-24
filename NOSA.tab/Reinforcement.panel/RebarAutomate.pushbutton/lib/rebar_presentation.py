@@ -678,13 +678,13 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if d is None:
             continue
         if presentation.is_typical_bar_set(d['view_dot'], d['spread_dir'] is not None) and mra_type is not None \
-                and _shape_driven(rebar):
+                and _mra_set(view, rebar):
             d['layer'] = _text(rebar, u'NOSA_Rebar_Layer')
             zones.append(d)
             continue
         if d['view_dot'] >= 0.5 and not plan:
             if (kind == 'column_elevation' and _is_links(rebar) and d['spread_dir'] is not None
-                    and mra_type is not None and _shape_driven(rebar)):
+                    and mra_type is not None and _mra_set(view, rebar)):
                 # a column's links seen side on: their Multi-Rebar Annotation with the full calling-up in every
                 # elevation (user 2026-10-12), not a mark over each leg
                 d['layer'] = _text(rebar, u'NOSA_Rebar_Layer')
@@ -1174,6 +1174,8 @@ def _typical_singles(doc, view, rebars, clusters, style, ranges=None, leads=None
         if idx is None or first is None or last is None:
             continue
         shown += 1
+        if _mra_set(view, r):
+            continue                   # its Multi-Rebar Annotation is its indicator line (S3 06, 2026-10-24)
         typical = _main_line(r, idx) or first
         pts = [_xy(view, c.Evaluate(0.5, True)) for c in (first, typical, last)]
         if plan and _bowed(pts):
@@ -1682,11 +1684,34 @@ def _tag_leaders(doc, view):
 
 
 def _shape_driven(rebar):
-    """A Rebar Set (a typical bar and an indicator line can show it); a FreeForm group cannot."""
+    """A Rebar Set (shape driven), as against a FreeForm group of bars."""
     try:
         return rebar.IsRebarShapeDriven()
     except Exception:
         return True
+
+
+def _mra_set(view, rebar):
+    """
+    A set a Multi-Rebar Annotation calls up: a Rebar Set, or a FreeForm group of parallel bars laid out along one
+    line (2026-10-24, user: S3 06(a to f), a varying FreeForm set, got a loose detail line and tag; Revit dimensions
+    its 6 bars). A FreeForm group laid round a curve (curved beams and walls) keeps its arc instead.
+    """
+    if _shape_driven(rebar):
+        return True
+    try:
+        n = rebar.NumberOfBarPositions
+    except Exception:
+        return False
+    if n < 2:
+        return False
+    chains = [_centreline(rebar, i) for i in (0, n // 2, n - 1)]
+    if any(not c for c in chains):
+        return False
+    shapes = [[(c.Direction.X, c.Direction.Y, c.Direction.Z) if isinstance(c, DB.Line) else None for c in chain]
+              for chain in chains]
+    starts = [(chain[0].GetEndPoint(0).X, chain[0].GetEndPoint(0).Y, chain[0].GetEndPoint(0).Z) for chain in chains]
+    return presentation.straight_group(shapes, starts)
 
 
 def _clip_to_crop(view, box):

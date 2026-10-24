@@ -75,6 +75,7 @@ def test_link_zone_texts():
 def test_bar_notes():
     assert pr.bar_note(u'00') == u'' and pr.bar_note(u'11') == u'L-BARS' and pr.bar_note(u'21') == u'U-BARS'
     assert pr.bar_note(u'51') == u'LINKS' and pr.bar_note(u'52', in_twos=True) == u'LINKS IN 2s'
+    assert pr.bar_note(u'67', in_twos=True) == u''      # arc bars of a curved wall are horizontals (W2, 2026-10-24)
 
 
 def test_spacer_bars_are_called_spacers_whatever_their_shape():
@@ -174,3 +175,18 @@ def test_curved_beam_section_between_stations():
     assert abs(t * 6955.0 - 500.0) < 1e-6
     t = pr.between_stations(0.5, stations, 6955.0)
     assert abs(t * 6955.0 - 3500.0) < 1e-6
+
+
+def test_straight_freeform_group_is_called_up_by_an_indicator_line():
+    # 2026-10-24, user: S3 06(a to f), six parallel bars 150 apart, got a detail line instead of a Multi-Rebar Annotation
+    leg = [(0.0, 1.0, 0.0)]
+    assert pr.straight_group([leg, leg, leg], [(0.0, 0.0, 0.0), (450.0, 0.0, 0.0), (750.0, 0.0, 0.0)])
+    # its bars vary in length, starting at the slab's curved edge: still one line across them
+    assert pr.straight_group([leg, leg, leg], [(0.0, 0.0, 0.0), (450.0, 380.0, 0.0), (750.0, 900.0, 0.0)])
+    # B2: arc bars keep their arc; W2: U-bars set round the curved wall (radial legs, starts on an arc) keep theirs
+    assert not pr.straight_group([[None], [None], [None]], [(0, 0, 0), (0, 50, 0), (0, 100, 0)])
+    u = lambda dx, dy: [(0.0, 0.0, -1.0), (dx, dy, 0.0), (0.0, 0.0, 1.0)]
+    assert not pr.straight_group([u(1.0, 0.0), u(0.7071, 0.7071), u(0.0, 1.0)],
+                                 [(3000.0, 0.0, 0.0), (2121.0, 2121.0, 0.0), (0.0, 3000.0, 0.0)])
+    # the same U-bars along a straight wall do qualify
+    assert pr.straight_group([u(1.0, 0.0)] * 3, [(0.0, 0.0, 0.0), (0.0, 1000.0, 0.0), (0.0, 2000.0, 0.0)])
