@@ -28,6 +28,32 @@ def is_typical_bar_set(bar_dir_3d_dot_view, spread_in_view):
     return abs(bar_dir_3d_dot_view) < 0.5 and spread_in_view
 
 
+def straight_group(shapes, starts, share=0.02):
+    """
+    A group of bars an indicator line (Multi-Rebar Annotation) can call up: the same straight-legged bar repeated
+    along one line in 3D (2026-10-24, S3 06). shapes: the leg directions of the first, middle and last bar (3D unit
+    vectors; None for an arc leg); starts: their first points (3D), however long each bar is. Arc bars (B2) and bars set round a curve (W2's
+    U-bars, a curved wall seen in elevation) are not: they keep their arc or line.
+    """
+    if len(shapes) != 3 or len(starts) != 3 or any(not legs or None in legs for legs in shapes):
+        return False
+    first = shapes[0]
+    for legs in shapes[1:]:
+        if len(legs) != len(first) or any(sum(x * y for x, y in zip(u, v)) < 0.999 for u, v in zip(legs, first)):
+            return False
+    # where each bar stands across the bars, its run along them left out: a varying set's bars start at a curved
+    # edge (S3 06(a to f)) yet stand on one line
+    d = first[0]
+    a, m, b = [tuple(c - sum(x * y for x, y in zip(pt, d)) * k for c, k in zip(pt, d)) for pt in starts]
+    run = [q - p for p, q in zip(a, b)]
+    length = sum(c * c for c in run) ** 0.5
+    if length < 1e-6:
+        return False
+    off = [q - p for p, q in zip(a, m)]
+    cross = (off[1] * run[2] - off[2] * run[1], off[2] * run[0] - off[0] * run[2], off[0] * run[1] - off[1] * run[0])
+    return sum(c * c for c in cross) ** 0.5 / length <= share * length
+
+
 def zone_labels(sets):
     """{id: '(n)'} for every set whose mark appears in more than one zone of the view (SMDSC 4th ed. 6.2.2)."""
     by_mark = {}
@@ -160,7 +186,7 @@ def total_callout(label, total, note=u''):
 
 
 _NOTES = ((('11', '12'), u'L-BARS'), (('13', '21', '22', '23', '24', '25'), u'U-BARS'),
-          (('31', '32', '33', '34', '35', '36', '41', '44', '46', '47', '51', '52', '56', '63', '64', '67', '75'),
+          (('31', '32', '33', '34', '35', '36', '41', '44', '46', '47', '51', '52', '56', '63', '64', '75'),
            u'LINKS'))
 
 
@@ -170,7 +196,8 @@ _ROLE_NOTES = {u'spacer': u'SPACERS'}
 def bar_note(shape_code, in_twos=False, layer=u''):
     """
     What kind of bar, written after its calling-up (user 2026-10-10, SMDSC drawings): 'L-BARS', 'U-BARS',
-    'LINKS', 'LINKS IN 2s' for two links at each position; '' for straight bars and other shapes. A bar's role
+    'LINKS', 'LINKS IN 2s' for two links at each position; '' for straight bars, arcs (67: wall horizontals, never
+    links - 2026-10-24 audit, W2) and other shapes. A bar's role
     goes before its shape: spacer bars between layers are 'SPACERS' (4H25-01 SPACERS, user 2026-10-11).
     """
     role = _ROLE_NOTES.get((layer or u'').strip().lower())

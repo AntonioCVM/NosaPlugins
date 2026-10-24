@@ -108,12 +108,14 @@ def fixing_notes(kinds):
 
 
 def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'', deviation=u'', aggregate=u'',
-                  schedule_refs=(), ga_refs=u'', buildability=None, details=(), details_drawing=u''):
+                  schedule_refs=(), ga_refs=u'', buildability=None, details=(), details_drawing=u'',
+                  slab_cover=u''):
     """
     SMDSC 4th ed. 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
     disagree with the model. grades {element kind: grade or ''}; covers {element kind: (top, bottom, sides) mm};
     project values are the general notes' (NOSA_GN_*). details: [(key, model detail)] of the NOSA typical
-    details the drawing calls for, on details_drawing (T9.21). Returns (text, [warnings]).
+    details the drawing calls for, on details_drawing (T9.21). slab_cover: the notes' slab cover, which slabs are
+    checked against (2026-10-24 audit: slabs at 40 warned against the typical 50). Returns (text, [warnings]).
     """
     warnings = []
     kinds = sorted(set(grades) | set(covers))
@@ -130,8 +132,9 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
                     drawing, kind))
         grade_bits.append(u'{} {}'.format(kind.lower(), g or u'(to be confirmed)'))
     cover_bits = []
-    typical = _mm(project_cover)
     for kind in kinds:
+        own = slab_cover if kind.lower().startswith(u'slab') and _mm(slab_cover) else project_cover
+        typical = _mm(own)
         c = covers.get(kind)
         if not c:
             continue
@@ -142,7 +145,7 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         if typical and any(abs(v - typical) > 0.5 for v in c if v) and len(values) == 1:
             warnings.append(u'{} {}: modelled cover {} mm differs from the general notes\' {} — the drawing '
                             u'states the modelled value; check which is right.'.format(drawing, kind, values[0],
-                                                                                        project_cover))
+                                                                                        own))
     dev = _mm(deviation)
     if dev is None:
         warnings.append(u'{}: no cover deviation set (NOSA_GN_Cover_Deviation): c_nom is stated as '
@@ -185,10 +188,15 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         number += 1
     if buildability is not None:
         score, grade, errors, warns = buildability
-        # T9.12: the drawing's buildability, from the reinforcement QA of its members
-        lines.append(u'{}. Buildability check: {} ({:.0f}/100; {} error(s), {} warning(s)) - see the RC QA '
-                     u'report.'.format(number, grade, score, errors, warns))
-        number += 1
+        check = u'Buildability check: {} ({:.0f}/100; {} error(s), {} warning(s)) - see the RC QA report.'.format(
+            grade, score, errors, warns)
+        if errors:
+            # 2026-10-24 audit (M2): a failed QA is for the review, never printed on a drawing to be issued
+            warnings.append(u'{}: {}'.format(drawing, check))
+        else:
+            # T9.12: the drawing's buildability, from the reinforcement QA of its members
+            lines.append(u'{}. {}'.format(number, check))
+            number += 1
     if details:
         lines.append(u'{}. Typical details: {}{} (after the SMDSC 4th ed. model details; confirm with '
                      u'design).'.format(number, u', '.join(u'TD {} ({})'.format(k, md.replace(u'SMDSC 4th ed. ', u''))
@@ -459,7 +467,8 @@ def sheet_notes(doc, sheet, hosts, rebars, buildability=None, typical=(), typica
     text, warnings = drawing_notes(
         sheet.SheetNumber, grades, covers, project_grade, _project_value(doc, u'NOSA_GN_Cover_Typical'),
         _project_value(doc, u'NOSA_GN_Cover_Deviation'), _project_value(doc, u'NOSA_GN_Aggregate_Max'), refs,
-        _project_value(doc, u'NOSA_GN_GA_Drawings'), buildability, typical, typical_drawing)
+        _project_value(doc, u'NOSA_GN_GA_Drawings'), buildability, typical, typical_drawing,
+        _project_value(doc, u'NOSA_GN_Cover_Slabs'))
     top = LEGEND_BOX[3]
     for port in [doc.GetElement(i) for i in sheet.GetAllViewports()]:
         view = doc.GetElement(port.ViewId)
