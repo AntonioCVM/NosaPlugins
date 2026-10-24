@@ -48,6 +48,9 @@ def main(folder):
             seen.add(k)
             if {int(typ[1:])} != m['dia'] or shape not in m['shape']:
                 problems.append(('diameter/shape', k, typ, shape, m['dia'], m['shape']))
+            if shape in ('51', '52') and any(c.strip() in ('', '0') for c in row[10:12]):
+                # a closed link needs its hook ends C and D to be bent (2026-10-24 audit M5)
+                problems.append(('closed link without hook ends', k, shape, row[10:12]))
             if mark == base and int(total) != m['n'] * int(mbrs):
                 problems.append(('quantity', k, total, m['n'], mbrs))
             if mark == base and len(m['len']) == 1 and int(length) != int(math.ceil(list(m['len'])[0] / 25.0) * 25):

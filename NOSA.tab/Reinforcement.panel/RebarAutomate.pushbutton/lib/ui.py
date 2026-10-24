@@ -1704,7 +1704,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             host, side_rebar['curves'], bar_type,
             side_rebar['spacing_mm'], side_rebar['array_length_mm'],
             normal=side_rebar['face_normal'], style=DBS.RebarStyle.StirrupTie,
-            transaction_name=u'NOSA — Create Footing Side Rebar')
+            transaction_name=u'NOSA — Create Footing Side Rebar',
+            # closed like every link: both 135 degree hooks at one corner, BS 8666 shape 52 (2026-10-24 audit M5:
+            # PC1 lacers were a closed 51 with C = D = 0, which no bender can make)
+            link_hook=re_engine.get_link_hook_type(self.doc))
         if rebar is None:
             errors.append(u'Footing {}: side rebar — {}'.format(get_id_value(host.Id), wrapper.last_error))
         else:

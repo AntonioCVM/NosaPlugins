@@ -735,9 +735,12 @@ class BeamsMixin(object):
                 self._made(rebar, layer, u'{}: {} (curved)'.format(label, name), wrapper, errors, created_rebars)
         link_type = bar_types.get(values['stirrup_dia'])
         for loop, normal in curves['links']:
-            rebar = wrapper.create_from_curves(host, loop, link_type, normal=normal,
-                                               style=DBS.RebarStyle.StirrupTie,
-                                               transaction_name=u'NOSA — Create Beam Link')
+            # one link (array 0) with both 135 degree hooks at one corner, BS 8666 shape 52 like a straight beam's
+            # (2026-10-24 audit M5: closed 51 with C = D = 0 on B2)
+            rebar = wrapper.create_rebar_set(host, loop, link_type, 0.0, 0.0, normal=normal,
+                                             style=DBS.RebarStyle.StirrupTie,
+                                             transaction_name=u'NOSA — Create Beam Link',
+                                             link_hook=re_engine.get_link_hook_type(self.doc))
             self._made(rebar, u'stirrup', u'{}: link (curved)'.format(label), wrapper, errors, created_rebars)
 
     def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars, span=None):
