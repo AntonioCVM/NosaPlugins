@@ -34,3 +34,13 @@ def test_informative_crossings_not_counted():
               {'sheet': u'4504', 'view': u'W1', 'category': u'A4', 'element': u'y', 'problem': u'crosses'}]
     text, n = review.summary([], issues)
     assert n == 1 and u'(1 incident(s))' in text and u'A4i' in text
+
+
+def test_a_calling_up_printing_another_mark_is_found():
+    # 2026-10-24 audit: S3 plan '6H16-06(a to f) B2' for bars 03, '33H16-01(a to q) B1' for 01a..01ag
+    assert review.callout_mismatch(u'6H16-06(a to f) B2', u'03', u'(a to f)') == u'06(a to f)'
+    assert review.callout_mismatch(u'33H16-01(a to q) B1', u'01', u'(a to ag)') == u'01(a to q)'
+    assert review.callout_mismatch(u'16H10-03-200 LINKS', u'04') == u'03'
+    assert review.callout_mismatch(u'2H20-01', u'01') == u'' and review.callout_mismatch(u'01', u'01') == u''
+    assert review.callout_mismatch(u'1H16-E07 T1', u'07') == u'' and review.callout_mismatch(u'LINKS', u'04') == u''
+    assert review.callout_mismatch(u'06', u'06', u'(a to f)') == u''   # a section's mark alone

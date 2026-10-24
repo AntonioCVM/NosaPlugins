@@ -7,6 +7,7 @@ NOSA_Rebar_Show_In_Schedule = No so the template's BBS filter leaves them out.
 """
 from __future__ import absolute_import, print_function, unicode_literals
 import os
+import re
 import sys
 
 _here = os.path.dirname(os.path.abspath(__file__))
@@ -102,6 +103,28 @@ def plan(hosts, group_identical=True):
                 'members': len(members) if position == 0 else 1,
             }
     return result
+
+
+def names_from_marks(partitions, marks):
+    """
+    partitions {member name: [Marks of its hosts]}, marks: every member Mark of the model -> {old: new name}.
+    A name that is another member's Mark, or an automatic one (prefix + number), takes its own hosts' Marks
+    (2026-10-24 audit: BBS 'C1' was the column drawn as C4, 'C3 x3' the columns C1, C2, C3, 'F2' the pile cap PC1).
+    Names typed freely, and names already right, are kept. The renames apply together, so two members may swap
+    names (beams: BBS 'B1' drawn as B3, 'B3' drawn as B1).
+    """
+    wanted = {}
+    for name in partitions:
+        own = sorted(set(m for m in partitions[name] if m), key=_natural)
+        new = _joined_marks(own) if own else u''
+        automatic = name in marks or re.match(r'^[A-Z]{1,3}\d+$', name or u'') is not None
+        if new and new != name and automatic:
+            wanted[name] = new
+    kept = set(partitions) - set(wanted)
+    targets = {}
+    for new in wanted.values():
+        targets[new] = targets.get(new, 0) + 1
+    return dict((old, new) for old, new in wanted.items() if new not in kept and targets[new] == 1)
 
 
 def keep_names(hosts, assignment):

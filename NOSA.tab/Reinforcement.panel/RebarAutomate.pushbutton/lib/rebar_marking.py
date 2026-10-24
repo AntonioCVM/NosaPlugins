@@ -99,6 +99,14 @@ def variant_suffix(index):
     return out
 
 
+def listed_bars(variants, quantity):
+    """
+    Rows the BBS gives a set: one per bar when its lengths vary (Revit letters every bar, a twice-used length
+    too: S3 01a..01ag for 33 bars of 17 lengths, 2026-10-24 audit), one otherwise.
+    """
+    return max(quantity, variants) if variants > 1 else 1
+
+
 def suffix_range(variants):
     """Label text after the mark of a varying set, '(a to h)' (SMDSC 4th ed. 4.5.1); '' for one length."""
     if variants < 2:
@@ -222,7 +230,7 @@ def deduplicate_and_mark(doc, rebars, ctx):
     for rebar in elements:
         variants = _variant_count(doc, rebar)
         varying = variants > 1
-        suffixes[get_id_value(rebar.Id)] = suffix_range(variants)
+        suffixes[get_id_value(rebar.Id)] = suffix_range(listed_bars(variants, rebar.Quantity))
         if varying:
             varying_ids.add(get_id_value(rebar.Id))
         clusters.setdefault(_dedup_key(doc, rebar, tolerance_mm, varying), []).append(rebar)

@@ -3,7 +3,8 @@
 NOSA.RebarAutomate — audit of the reinforcement drawings' annotations: every label, text, dimension, grid, bar,
 detail line and leader of the views on the RC sheets, in paper mm, checked with nosa_utils.annotation_audit.
 Read-only. Categories as the user's brief (2026-10-18): A1 band out of line, A3 overlap, A4 crossing lines,
-A5 label turned, A6 band off its member at an odd distance, A7 out of the view's frame or the sheet.
+A5 label turned, A6 band off its member at an odd distance, A7 out of the view's frame or the sheet,
+A8 a label not printing its bar's mark (2026-10-24).
 """
 from __future__ import absolute_import, division, print_function, unicode_literals
 import os
@@ -353,6 +354,29 @@ def _kind(view):
     return u'plan'
 
 
+def _check_mark(doc, tag, issue):
+    """A8: the label prints its bar's mark (and varying range) as the BBS lists it."""
+    import review
+    from Autodesk.Revit.DB.Structure import Rebar
+    from nosa_utils.revit_helpers import element_id_from_int
+    for rid in _tagged(tag):
+        rebar = doc.GetElement(element_id_from_int(rid))
+        if not isinstance(rebar, Rebar):
+            continue
+        mark = rebar.LookupParameter(u'NOSA_Rebar_Mark')
+        suffix = rebar.LookupParameter(u'NOSA_Rebar_Mark_Suffix')
+        try:
+            text = tag.TagText
+        except Exception:
+            continue
+        printed = review.callout_mismatch(text, mark.AsString() if mark is not None else u'',
+                                          (suffix.AsString() or u'') if suffix is not None else u'')
+        if printed:
+            issue(u'A8', u'T{}'.format(_id(tag.Id)), u'', u'prints {} for bar {} marked {}{}'.format(
+                printed, rid, mark.AsString(), suffix.AsString() if suffix is not None else u''))
+        return
+
+
 def audit_view(doc, view, sheet_number):
     """Inventory and incidents of one view. Returns {'rows': [...], 'issues': [...], 'metrics': {...}}."""
     from nosa_utils import annotation_audit as aa
@@ -373,6 +397,7 @@ def audit_view(doc, view, sheet_number):
     labels, label_info = {}, {}
     leaders = {}
     for tag in _elements(doc, view, DB.IndependentTag):
+        _check_mark(doc, tag, issue)
         b = _tag_box(tag, view, f)
         if b is None:
             continue
