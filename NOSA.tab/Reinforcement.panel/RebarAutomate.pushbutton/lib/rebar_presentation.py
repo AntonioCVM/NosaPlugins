@@ -142,6 +142,7 @@ OUTSIDE_PAPER_MM = 6.0       # a calling-up past the member's edge
 COLUMN_OUTSIDE_PAPER_MM = 3.0   # a column elevation's calling-up beside the column
 CUT_OUTSIDE_PAPER_MM = 2.0   # a cut bar's mark, no pointer, next to the member's face
 FREE_GAP_PAPER_MM = 0.5      # between the marks of cut bars side by side
+BAR_CLEAR_PAPER_MM = 1.0     # an indicator line kept this far off any bar it runs along (2026-10-24, S1)
 CROP_MARGIN_PAPER_MM = 4.0   # the view's crop round its calling-up
 ROW_PAPER_MM = 7.0           # between rows of indicator lines under a beam
 ZONE_TAG = u'Full label - Dot'
@@ -1782,10 +1783,20 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             host = doc.GetElement(z['rebar'].GetHostId())
             if host is not None:
                 placed.extend(_openings(view, host))      # no text in a hole, whatever places it
+    shown_idx, seen = {}, []
+    if zones:
+        # every set's typical bar first, then the indicator lines kept off them all (2026-10-24, user: 4502 S1 - 01's
+        # line lay along 04's typical bar, shown after it; the column elevations' link lines lay on a vertical bar)
+        for d in zones:
+            shown_idx[d['id']] = _show_one(d['rebar'], view, d['count'],
+                                           int(round(slots.get(d['id'], 0.5) * (d['count'] - 1))))
+        doc.Regenerate()
+        seen = _seen_bars(view)
+    tol_along = BAR_CLEAR_PAPER_MM * max(1, int(getattr(view, 'Scale', 50) or 50))
     for d in sorted(zones, key=lambda z: (slots.get(z['id'], 0.5), z['id'])):
         rebar, n = d['rebar'], d['count']
         frac = slots.get(d['id'], 0.5)
-        idx = _show_one(rebar, view, n, int(round(frac * (n - 1))))
+        idx = shown_idx[d['id']] if d['id'] in shown_idx else _show_one(rebar, view, n, int(round(frac * (n - 1))))
         if idx is None:
             continue
         report['typical'] += 1
@@ -1803,6 +1814,34 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             best = presentation.clearest(xs, avoid)
             if best is not None:
                 junction = shown.Evaluate(ts[best], True)
+        if seen:
+            # the indicator line along no bar drawn: where it is when clear, else slid along its typical bar to the
+            # nearest place clear of them - along the leg the view sees longest (a square link's main leg may be the
+            # one seen end on, C1-C3 elevations)
+            def seen_length(c):
+                pts = [_xy(view, c.Evaluate(k / 8.0, True)) for k in range(9)]
+                xs, ys = [q[0] for q in pts], [q[1] for q in pts]
+                return max(max(xs) - min(xs), max(ys) - min(ys))
+            # arcs too: a circular link seen side on is a line across the column (C5 elevation)
+            legs = [c for c in _centreline(rebar, idx) if isinstance(c, (DB.Line, DB.Arc))]
+            slide = max(legs, key=seen_length) if legs else shown
+            if seen_length(shown) + 1.0 >= seen_length(slide):
+                slide = shown
+            try:
+                start = slide.Project(junction).Parameter
+                start = (start - slide.GetEndParameter(0)) / ((slide.GetEndParameter(1) - slide.GetEndParameter(0))
+                                                            or 1.0)
+            except Exception:
+                start = frac
+            ts = sorted([k / 40.0 for k in range(4, 37)], key=lambda x: abs(x - start))
+            span = sorted((ln.Evaluate(0.5, True) - junction).DotProduct(direction) * _MM_PER_FT for ln in (first, last))
+            dxy = _xy(view, direction)
+            norm = (dxy[0] ** 2 + dxy[1] ** 2) ** 0.5 or 1.0
+            dxy = (dxy[0] / norm, dxy[1] / norm)
+            cands = [_xy(view, junction)] + [_xy(view, slide.Evaluate(x, True)) for x in ts]
+            ok = presentation.free_junction(cands, dxy, span, seen, tol_along)
+            if ok:
+                junction = slide.Evaluate(ts[ok - 1], True)
         t = sorted((ln.Evaluate(0.5, True) - junction).DotProduct(direction) for ln in (first, last))
         a3, b3 = junction + direction.Multiply(t[0]), junction + direction.Multiply(t[1])
         mra = _mra(doc, view, mra_type, rebar, junction, direction, b3, False)

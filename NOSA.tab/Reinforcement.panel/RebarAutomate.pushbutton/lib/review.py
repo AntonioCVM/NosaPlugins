@@ -15,6 +15,7 @@ AUDIT_LABELS = {
     u'A6': u'texts off the frame',
     u'A7': u'views off the sheet',
     u'A8': u'calling-ups not naming the mark of their bar',
+    u'A9': u'indicator lines along a bar',
     u'A4i': u'leaders across an indicator line spanning the whole member (unavoidable, for information)',
 }
 
