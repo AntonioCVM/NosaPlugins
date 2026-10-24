@@ -362,9 +362,9 @@ def create(doc, capacity=ROWS_PER_A4):
                 sheet = DB.ViewSheet.Create(doc, titleblock.Id)
                 sheet.SheetNumber = _next_number(doc, taken)
                 sheet.Name = u'Bar schedule {}'.format(key)
-                import rebar_views
-                rebar_views.classify_sheet(doc, sheet)
                 report['new_sheets'].append(sheet.SheetNumber)
+            import rebar_views
+            rebar_views.classify_sheet(doc, sheet)      # also a sheet filed before in 4500's (user 2026-10-24)
             revision = _text(sheet, u'NOSA_BBS_Revision')
             if not _text(sheet, u'NOSA_BBS_Status'):
                 _set(sheet, u'NOSA_BBS_Status', DEFAULT_STATUS)
