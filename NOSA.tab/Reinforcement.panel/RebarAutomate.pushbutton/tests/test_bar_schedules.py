@@ -86,3 +86,12 @@ if __name__ == '__main__':
     test_bs8666_rounding()
     test_drawing_marks_keep_the_marks_the_calling_ups_carry()
     test_drawing_marks_renumber_a_mark_naming_two_bars()
+
+
+def test_bar_schedule_sheets_are_filed_in_rc_schedules():
+    import rebar_views
+    assert rebar_views.sheet_package(u'5500') == u"5500's - RC schedules"       # user 2026-10-24
+    assert rebar_views.sheet_package(u'5512') == u"5500's - RC schedules"
+    assert rebar_views.sheet_package(u'4503') == u"4500's - RC details"
+    assert rebar_views.sheet_package(u'') == rebar_views.RC_PACKAGE
+    print(u'[PASS] test_bar_schedule_sheets_are_filed_in_rc_schedules')

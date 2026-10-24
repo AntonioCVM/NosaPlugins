@@ -1170,12 +1170,20 @@ PACKAGE_PARAM = u'Package'
 PACKAGE_PARAMS = (PACKAGE_PARAM, u'Functional Breakdown', u'Form', u'Spatial Breakdown', u'Discipline')
 
 
-def classify_sheet(doc, sheet, package=RC_PACKAGE):
+def sheet_package(number):
+    """The package a RebarAutomate sheet is filed in by its number: 45xx RC details, 55xx RC schedules (the BBS)."""
+    from nosa_utils import protocol_rules
+    return protocol_rules.package(number) or RC_PACKAGE
+
+
+def classify_sheet(doc, sheet, package=None):
     """
-    A sheet made by RebarAutomate filed in the RC details package (user 2026-10-18): its Package and the other
-    browser grouping values as the package's first sheet has them, the Package alone when there is none.
+    A sheet made by RebarAutomate filed in its package (user 2026-10-18: drawings in 4500's - RC details; 2026-10-24:
+    bar schedules 5500 on in 5500's - RC schedules): its Package and the other browser grouping values as the
+    package's first sheet has them, the Package alone when there is none.
     """
     from Autodesk.Revit import DB  # Lazy import
+    package = package or sheet_package(sheet.SheetNumber)
     head = None
     for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
         p = s.LookupParameter(PACKAGE_PARAM)
