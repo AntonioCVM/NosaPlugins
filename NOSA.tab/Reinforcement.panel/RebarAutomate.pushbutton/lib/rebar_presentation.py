@@ -3083,12 +3083,12 @@ def _clear_anchor(view, d, fraction, index, box, placed, gap):
         return first
     texts = [q for q in placed if (q[3] - q[1]) > 3.0 * gap and (q[2] - q[0]) > 3.0 * gap]
 
-    def clear(p):
+    def clear(p, pad=gap):
         a = _xy(view, p)
         side = callout_layout.side_of(a, box)
         far = {'top': (a[0], box[3] + 1e6), 'bottom': (a[0], box[1] - 1e6),
                'right': (box[2] + 1e6, a[1]), 'left': (box[0] - 1e6, a[1])}[side]
-        lane = (min(a[0], far[0]) - gap, min(a[1], far[1]) - gap, max(a[0], far[0]) + gap, max(a[1], far[1]) + gap)
+        lane = (min(a[0], far[0]) - pad, min(a[1], far[1]) - pad, max(a[0], far[0]) + pad, max(a[1], far[1]) + pad)
         return not any(callout_layout.overlap(lane, q) for q in texts)
     steps = [fraction] + [x / 20.0 for x in (10, 6, 14, 4, 16, 8, 12, 3, 17, 5, 15)]
     for f in steps:
@@ -3106,6 +3106,16 @@ def _clear_anchor(view, d, fraction, index, box, placed, gap):
             p = leg.Evaluate(f, True)
             if clear(p):
                 return p
+    arcs = sorted((c for c in _centreline(d['rebar'], d['count'] // 2 if index is None else index)
+                   if isinstance(c, DB.Arc)), key=lambda c: -c.Length)
+    for pad in (gap, 0.25 * gap):
+        for arc in arcs:
+            # a circular link: every 1/120 round it, so its mark finds the gap between two cut bars' marks, a narrow
+            # one at last - its pointer is a line (C5 at 50 cover, 2026-10-24: it ran down through the top row's '01')
+            for k in range(121):
+                p = arc.Evaluate(k / 120.0, True)
+                if clear(p, pad):
+                    return p
     return first
 
 
