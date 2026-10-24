@@ -366,3 +366,6 @@ def test_native_leaders_of_s1_plan_never_cross():
                         blockers=[tuple(map(tuple, b)) for b in d['blockers']])
     assert len(out) == len(items)
     assert cl.path_crossings(out) == 0
+    # m1 (2026-10-24): two calling-ups moved to the other side together leave 3 leaders across indicator lines, not 4
+    blockers = [tuple(map(tuple, b)) for b in d['blockers']]
+    assert cl._crossing_score(out, blockers) <= 3

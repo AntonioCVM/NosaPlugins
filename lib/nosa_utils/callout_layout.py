@@ -5,6 +5,7 @@ extension of a zone's indicator line, outside the member, else inside next to th
 sections and elevations in rows outside the member, each over its bar, packed so no two touch and the
 pointers stay as short and straight as they can. View coordinates in model mm; boxes (x0, y0, x1, y1).
 """
+import itertools
 
 
 TOUCH = 1e-6
@@ -155,7 +156,30 @@ def align_rows(items, box, gap, outside, placed=(), lift=0.0, obstacles=(), neig
                 items = trial_items
         if not better:
             break
+    if score:
+        # two calling-ups moved over together (m1, 2026-10-24: S1 4 -> 3, where one alone made it worse) - kept only
+        # when fewer lines cross and no more leaders start on a section mark's cut line
+        strips = [q for q in placed if min(q[2] - q[0], q[3] - q[1]) <= 2.0 * gap]
+        dots = _dots_on(best, strips, gap)
+        keys = [k for k in _crossing_keys(best, blockers) if not items[k].get('side') and k in best][:6]
+        for k1, k2 in itertools.combinations(keys, 2):
+            trial_items = dict(items)
+            for k in (k1, k2):
+                trial_items[k] = dict(items[k], side='left' if best[k]['side'] == 'right' else 'right')
+            trial = _align_rows_once(trial_items, *args, placed=list(placed), **kw)
+            n = _crossing_score(trial, blockers)
+            if n < score and _dots_on(trial, strips, gap) <= dots:
+                best, score = trial, n
+                if not score:
+                    break
     return best
+
+
+def _dots_on(laid, strips, gap):
+    """How many leaders start on a thin strip (a section mark's cut line)."""
+    return sum(1 for r in laid.values() if any(overlap((r['path'][0][0] - gap / 2.0, r['path'][0][1] - gap / 2.0,
+                                                        r['path'][0][0] + gap / 2.0, r['path'][0][1] + gap / 2.0), q)
+                                               for q in strips))
 
 
 def _crossing_score(laid, blockers):
