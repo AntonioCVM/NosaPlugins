@@ -473,6 +473,20 @@ def audit_view(doc, view, sheet_number):
         bar_segs = [(r, seg) for r, seg in bar_segs if aa.segment_hits_box(seg, seen_box)
                     or all(seen_box[0] <= q[0] <= seen_box[2] and seen_box[1] <= q[1] <= seen_box[3] for q in seg)]
         bar_dots = [d for d in bar_dots if aa.area_overlap(d, seen_box)]
+    from nosa_utils import presentation
+    for dk, (seg, owner) in dim_lines.items():
+        # A9 (2026-10-24, user: 4502 S1): an indicator line printed along a bar - parallel, nearer than 1 mm on paper
+        if owner is None:
+            continue
+        (ax, ay), (bx, by) = seg
+        length = ((bx - ax) ** 2 + (by - ay) ** 2) ** 0.5
+        if length < 1e-6:
+            continue
+        u = ((bx - ax) / length, (by - ay) / length)
+        for r, bseg in bar_segs:
+            if presentation.runs_along((ax, ay), u, (0.0, length), bseg, 1.0):
+                issue(u'A9', dk, u'indicator line', u'runs along bar {}'.format(_id(r.Id) if hasattr(r, 'Id') else r))
+                break
     viewers = _viewer_heads(doc, view, f)
     members = _members(doc, view, f)
     member = _union(members)

@@ -190,3 +190,14 @@ def test_straight_freeform_group_is_called_up_by_an_indicator_line():
                                  [(3000.0, 0.0, 0.0), (2121.0, 2121.0, 0.0), (0.0, 3000.0, 0.0)])
     # the same U-bars along a straight wall do qualify
     assert pr.straight_group([u(1.0, 0.0)] * 3, [(0.0, 0.0, 0.0), (0.0, 1000.0, 0.0), (0.0, 2000.0, 0.0)])
+
+
+def test_an_indicator_line_never_runs_along_a_bar():
+    # 2026-10-24, user (4502 S1): 01's indicator line at x 425969 lay along 04's typical bar at x 425950
+    bar04 = ((425950.0, 63.0), (425950.0, 5938.0))
+    up = (0.0, 1.0)
+    assert pr.runs_along((425969.0, 1275.0), up, (-1200.0, 1050.0), bar04, tol=100.0)
+    assert not pr.runs_along((426300.0, 1275.0), up, (-1200.0, 1050.0), bar04, tol=100.0)
+    assert not pr.runs_along((425969.0, 1275.0), (1.0, 0.0), (-1200.0, 1050.0), bar04, tol=100.0)   # it crosses it
+    cands = [(425969.0, 1275.0), (425700.0, 1275.0), (426300.0, 1275.0)]
+    assert pr.free_junction(cands, up, (-1200.0, 1050.0), [bar04], 100.0) == 1

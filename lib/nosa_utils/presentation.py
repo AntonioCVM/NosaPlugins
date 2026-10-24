@@ -343,6 +343,35 @@ def support_chain(supports, tol=1.0):
     return (xs, labels) if len(xs) >= 2 else ([], [])
 
 
+def runs_along(point, direction, span, segment, tol):
+    """
+    A line through point along direction (view xy, unit), over span (t0, t1) along it, running along segment
+    ((x, y), (x, y)): parallel to it, nearer than tol and overlapping it (2026-10-24, user: S1's indicator line of 01
+    lay 19 mm off 04's typical bar, one line at 1:50).
+    """
+    (ax, ay), (bx, by) = segment
+    sx, sy = bx - ax, by - ay
+    length = (sx * sx + sy * sy) ** 0.5
+    if length < 1e-9:
+        return False
+    if abs(direction[0] * sy - direction[1] * sx) / length > 0.035:      # not parallel (more than 2 degrees)
+        return False
+    off = abs((ax - point[0]) * direction[1] - (ay - point[1]) * direction[0])
+    if off >= tol:
+        return False
+    ta = (ax - point[0]) * direction[0] + (ay - point[1]) * direction[1]
+    tb = (bx - point[0]) * direction[0] + (by - point[1]) * direction[1]
+    return min(ta, tb) < max(span) and max(ta, tb) > min(span)
+
+
+def free_junction(candidates, direction, span, segments, tol):
+    """Index of the first candidate point whose line along direction runs along none of segments; None if all do."""
+    for i, p in enumerate(candidates):
+        if not any(runs_along(p, direction, span, seg, tol) for seg in segments):
+            return i
+    return None
+
+
 def clearest(xs, avoid):
     """Index of the x in xs farthest from every x in avoid (an indicator line between bars), None with no xs."""
     if not xs:
