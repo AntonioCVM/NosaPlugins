@@ -16,7 +16,8 @@ import __builtin__
 from Autodesk.Revit import DB
 from Autodesk.Revit.UI import UIApplication
 
-TEST_MODELS = (u'Rebar test 2024', u'Rebar test 2026')
+TEST_MODELS = (u'Rebar test 2024', u'Rebar test 2026',
+               u'Rebar test 2025 (copia de 2024)', u'Rebar test 2027 (copia de 2026)')  # T10.11 copies
 if doc.Title not in TEST_MODELS:
     raise RuntimeError(u'not a test model')
 for _p in (os.path.join(PYREVIT, 'pyrevitlib'), os.path.join(PYREVIT, 'site-packages'), os.path.join(EXT_ROOT, 'lib')):

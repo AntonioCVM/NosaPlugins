@@ -1611,11 +1611,16 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
     pending = []
     arrows = []                     # (tip, outward, text box) of the arrows drawn
     leaders = _tag_leaders(doc, view)   # the pointers already drawn: an arrow may not cut one (2026-10-24, B3-B4)
+    ends = []
     for d in items:
-        rebar = d['rebar']
-        index = _shown_bar(view, rebar, d['count'])
-        main, free = _free_ends(_centreline(rebar, index) or d['chain'])
-        if main is None or not free:
+        index = _shown_bar(view, d['rebar'], d['count'])
+        main, free = _free_ends(_centreline(d['rebar'], index) or d['chain'])
+        if main is not None:
+            ends.append((d['rebar'], index, main, free))
+    # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1 elevation)
+    bars = [(_xy(view, m.GetEndPoint(0)), _xy(view, m.GetEndPoint(1))) for _r, _i, m, _f in ends]
+    for rebar, index, main, free in ends:
+        if not free:
             continue
         a, b = _xy(view, main.GetEndPoint(0)), _xy(view, main.GetEndPoint(1))
         side = (0.0, 1.0) if (a[1] + b[1]) / 2.0 > mid else (0.0, -1.0)
@@ -1644,25 +1649,45 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
                        min(o[2][0], o[0][0]) - gap < max(bx[2], tip[0]) and min(bx[0], tip[0]) - gap < max(o[2][2], o[0][0])
                        for o in arrows):
                     continue
+                _put_end_mark(view, tag, c, offset, tip, main)
+                # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1
+                # elevation): judged on the tag as drawn, whose box Revit makes taller than the text
+                if callout_layout.box_hits(_drawn_box(doc, view, tag), bars):
+                    continue
                 spot = (tip, c, lane)
                 arrows.append((tip, outward, bx))
                 break
             if spot is None:
                 doc.Delete(tag.Id)
                 continue
-            _move_head(view, tag, spot[1], offset)
             pending.append((tag, 'h', spot[0]))
-            try:
-                tag.HasLeader = True
-                tag.LeaderEndCondition = DB.LeaderEndCondition.Free
-                refs = list(tag.GetTaggedReferences())
-                if refs:
-                    tag.SetLeaderEnd(refs[0], _point(view, spot[0], main.GetEndPoint(0)))
-            except Exception:
-                pass
             placed.append(spot[2])
             report['marks'] += 1
     _line_up(doc, view, pending)
+
+
+def _put_end_mark(view, tag, centre, offset, tip, main):
+    """An end mark's text at centre and its arrow to tip."""
+    _move_head(view, tag, centre, offset)
+    try:
+        tag.HasLeader = True
+        tag.LeaderEndCondition = DB.LeaderEndCondition.Free
+        refs = list(tag.GetTaggedReferences())
+        if refs:
+            tag.SetLeaderEnd(refs[0], _point(view, tip, main.GetEndPoint(0)))
+    except Exception:
+        pass
+
+
+def _drawn_box(doc, view, tag):
+    """A tag's box (view mm) as Revit draws it, its leader included."""
+    doc.Regenerate()
+    bb = tag.get_BoundingBox(view)
+    if bb is None:
+        return (0.0, 0.0, 0.0, 0.0)
+    pts = [_xy(view, DB.XYZ(x, y, z)) for x in (bb.Min.X, bb.Max.X) for y in (bb.Min.Y, bb.Max.Y)
+           for z in (bb.Min.Z, bb.Max.Z)]
+    return (min(q[0] for q in pts), min(q[1] for q in pts), max(q[0] for q in pts), max(q[1] for q in pts))
 
 
 def _tag_leaders(doc, view):
