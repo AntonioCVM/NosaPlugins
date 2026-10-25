@@ -1619,6 +1619,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
             ends.append((d['rebar'], index, main, free))
     # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1 elevation)
     bars = [(_xy(view, m.GetEndPoint(0)), _xy(view, m.GetEndPoint(1))) for _r, _i, m, _f in ends]
+    uprights = _grid_blocks(view)['top']      # the grid lines an end mark's text keeps off (2026-10-25, B1-B3)
     for rebar, index, main, free in ends:
         if not free:
             continue
@@ -1637,6 +1638,9 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
             spot = None
             for k in range(END_ROWS):
                 tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k)
+                extra = presentation.past_lines(bx, outward, uprights, gap)
+                if extra:
+                    tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k, extra=extra)
                 lane = (min(bx[0], tip[0]), bx[1], max(bx[2], tip[0]), bx[3])
                 if any(callout_layout.overlap(lane, q, gap / 2.0) for q in placed):
                     continue
@@ -2905,7 +2909,8 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
                 continue
             size = _size(view, tag, _text(d['rebar'], ZONE_QTY_PARAM))
             w, h, offset = size
-            centre = ((a + b) / 2.0, y_zone + gap / 2.0 + h / 2.0)
+            centre = (presentation.off_lines((a + b) / 2.0, w, _grid_blocks(view)['bottom'], gap, a, b),
+                      y_zone + gap / 2.0 + h / 2.0)
             _move_head(view, tag, centre, offset)
             try:
                 tag.HasLeader = False
@@ -2941,7 +2946,9 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
             continue
         doc.Regenerate()
         w, h, offset = _size(view, tag) or _estimate(view, tag)
-        centre = ((lo + hi) / 2.0, y_total + gap / 2.0 + h / 2.0)
+        # off the grid lines the beam's supports stand on (2026-10-25, Revit 2025 B1-B3: on grid C)
+        centre = (presentation.off_lines((lo + hi) / 2.0, w, _grid_blocks(view)['bottom'], gap, lo, hi),
+                  y_total + gap / 2.0 + h / 2.0)
         _move_head(view, tag, centre, offset)
         try:
             tag.HasLeader = False
@@ -3630,7 +3637,8 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
             elif forced == 'left':
                 edges = {'left': min([member[0]] + [q[0] for q in near if q[2] <= member[0] + 1.0])}
     places = callout_layout.place_pointers(layout, box, gap, outside, edges=edges,
-                                           free_gap=FREE_GAP_PAPER_MM * scale, blocks=_grid_blocks(view))
+                                           free_gap=FREE_GAP_PAPER_MM * scale, blocks=_grid_blocks(view),
+                                           lines=_seen_bars(view) if any(it.get('free') for it in layout) else None)
     pending = []
     for key, tag, anchor in entries:
         if key not in places or not tag.IsValidObject:

@@ -382,3 +382,15 @@ def test_end_mark_beside_a_sloping_bar_moves_off_it():
     level = ((0.0, 0.0), (3000.0, 0.0))
     _tip, _c, box = pr.end_arrow(level[1], (1.0, 0.0), (0.0, 1.0), 100.0, 60.0, 50, 75.0)
     assert not cl.box_hits(box, [level], 75.0 / 4.0)               # a level bar keeps its first row
+
+
+def test_free_mark_moves_off_a_bar_drawn_in_the_view():
+    # F10 section B-B (Revit 2025): the cut starter links' '06' stood on the column's starter bar
+    items = [{'id': 'a', 'anchor': (100.0, 600.0), 'length': 60.0, 'height': 80.0, 'side': 'top', 'free': True}]
+    box = (0.0, 0.0, 1000.0, 500.0)
+    bar = ((100.0, 0.0), (100.0, 2000.0))
+    before = cl.place_pointers(items, box, 75.0, 40.0, free_gap=10.0)
+    assert cl.box_hits(before['a']['box'], [bar])
+    after = cl.place_pointers(items, box, 75.0, 40.0, free_gap=10.0, lines=[bar])
+    assert not cl.box_hits(after['a']['box'], [bar])
+    assert abs(after['a']['centre'][0] - 100.0) < 100.0                         # still beside its bar

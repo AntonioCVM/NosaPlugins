@@ -170,3 +170,51 @@ def test_members_that_do_not_touch_the_drawn_one_are_strangers():
     pad = ((-1500.0, -600.0, -1000.0), (0.0 - 1400.0, 900.0, -500.0))
     base = ((-200.0, -400.0, -500.0), (6200.0, 700.0, 0.0))
     assert not vp.boxes_touch(wall, pad) and vp.boxes_touch(wall, base)
+
+
+def test_member_prefix_of_a_view():
+    assert vp.member_prefix(u'Foundation F10 - Plan') == u'Foundation F10 - '
+    assert u'Foundation F10 - Section A-A'.startswith(vp.member_prefix(u'Foundation F10 - Plan'))
+    assert not u'Column C3 - Elevation'.startswith(vp.member_prefix(u'Foundation F10 - Plan'))
+    assert vp.member_prefix(u'') == u''
+    print(u'[PASS] test_member_prefix_of_a_view')
+
+
+def test_sections_numbered_on_never_read_2():
+    # Revit 2025 B1-B3: six sections numbered on from 5 read 'Section 5-5 (2)' and '6-6 (2)'
+    import types
+    import rebar_views as rv
+    fake_db = types.SimpleNamespace(BuiltInParameter=types.SimpleNamespace(VIEW_DESCRIPTION=0))
+    autodesk = types.ModuleType('Autodesk')
+    revit = types.ModuleType('Autodesk.Revit')
+    revit.DB = fake_db
+    autodesk.Revit = revit
+    saved = dict((k, sys.modules.get(k)) for k in ('Autodesk', 'Autodesk.Revit'))
+    sys.modules['Autodesk'], sys.modules['Autodesk.Revit'] = autodesk, revit
+
+    class View(object):
+        def __init__(self, name):
+            self.Name = name
+
+        def get_Parameter(self, _p):
+            return types.SimpleNamespace(Set=lambda _v: None)
+    views = [View(u'Beam B1-B3 - Section {0}-{0}'.format(i)) for i in range(1, 7)]
+
+    def unique(_doc, wanted):
+        names = set(v.Name for v in views)
+        return wanted if wanted not in names else wanted + u' (2)'
+    old = rv._unique_view_name
+    rv._unique_view_name = unique
+    try:
+        created = [(v, {'letter': u'{}'.format(i + 1), 'title': u'Section {0}-{0}'.format(i + 1)}, 50)
+                   for i, v in enumerate(views)]
+        rv._continue_labels(None, created, {'numbers': 4, 'letters': 0}, 'beam', u'B1-B3')
+    finally:
+        rv._unique_view_name = old
+        for k, v in saved.items():
+            if v is None:
+                sys.modules.pop(k, None)
+            else:
+                sys.modules[k] = v
+    assert [v.Name for v in views] == [u'Beam B1-B3 - Section {0}-{0}'.format(i) for i in range(5, 11)]
+    print(u'[PASS] test_sections_numbered_on_never_read_2')

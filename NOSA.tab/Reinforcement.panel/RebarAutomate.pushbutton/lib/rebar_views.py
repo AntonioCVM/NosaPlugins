@@ -434,6 +434,16 @@ def _continue_labels(doc, created, group, kind, label):
         spec['title'] = u'Section {0}-{0}'.format(spec['letter'])
     group['numbers'] += len(numbers)
     group['letters'] += len(letters)
+    renamed = numbers + letters
+    for i, (view, spec, _s) in enumerate(renamed):
+        # out of each other's way first: 1-1 renamed 5-5 while the member's own 5-5 still stood read
+        # 'Section 5-5 (2)' (2026-10-25, Revit 2025 B1-B3: six sections numbered on from 5)
+        wanted = u'{} {} - {}'.format(_TITLES.get(kind, u''), label, spec['title'])
+        if view.Name != wanted:
+            try:
+                view.Name = _unique_view_name(doc, u'{} renumbering {}'.format(view.Name, i))
+            except Exception:
+                continue
     for view, spec, _s in created:
         try:
             wanted = u'{} {} - {}'.format(_TITLES.get(kind, u''), label, spec['title'])
@@ -520,6 +530,8 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
                 continue
             if sp.get('as_plan') or not sp.get('plan'):
                 _hide_viewers(doc, v)
+            else:
+                _hide_viewers(doc, v, keep=view_plan.member_prefix(v.Name))
             rebar_presentation.foreign_bars(doc, v, own, hosts)
         t.Commit()
     if schedules and report['sheets']:
@@ -983,8 +995,12 @@ def _hide_strangers(doc, view, hosts):
             pass
 
 
-def _hide_viewers(doc, view):
-    """The section marks of the other views crossing a member section drawn as a plan."""
+def _hide_viewers(doc, view, keep=None):
+    """
+    The section marks of the other views crossing a member section drawn as a plan; with keep (a member's plan) the
+    marks of other members' views only, its own sections' kept (2026-10-25, Revit 2025: the calling-up of F10's plan
+    stood on column C3's elevation mark).
+    """
     from Autodesk.Revit import DB  # Lazy import
     from System.Collections.Generic import List
     from nosa_utils.revit_helpers import get_id_value
@@ -993,6 +1009,8 @@ def _hide_viewers(doc, view):
         try:
             if e.Category is None or get_id_value(e.Category.Id) not in viewers or e.Id == view.Id \
                     or not e.CanBeHidden(view):
+                continue
+            if keep and (e.Name or u'').startswith(keep):
                 continue
             ids = List[DB.ElementId]()
             ids.Add(e.Id)

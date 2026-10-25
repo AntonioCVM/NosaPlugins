@@ -201,3 +201,20 @@ def test_an_indicator_line_never_runs_along_a_bar():
     assert not pr.runs_along((425969.0, 1275.0), (1.0, 0.0), (-1200.0, 1050.0), bar04, tol=100.0)   # it crosses it
     cands = [(425969.0, 1275.0), (425700.0, 1275.0), (426300.0, 1275.0)]
     assert pr.free_junction(cands, up, (-1200.0, 1050.0), [bar04], 100.0) == 1
+
+
+def test_end_mark_text_goes_past_a_grid_line():
+    # B1-B3 (Revit 2025): bar 04 ends 338 mm past grid C, its '04' written back over the grid
+    box = (-10300.0, 3700.0, -9900.0, 3800.0)
+    extra = pr.past_lines(box, (-1.0, 0.0), [-10000.0], 75.0)
+    assert extra > 0 and box[0] + extra >= -10000.0 + 37.5 - 1e-6
+    assert pr.past_lines(box, (-1.0, 0.0), [-5000.0], 75.0) == 0.0
+    right = (100.0, 0.0, 500.0, 100.0)                            # a mark to the left of a right-hand end
+    assert right[2] - pr.past_lines(right, (1.0, 0.0), [300.0], 75.0) <= 300.0 - 37.5 + 1e-6
+
+
+def test_callout_moves_off_a_grid_line_within_its_line():
+    x = pr.off_lines(-9675.0, 1000.0, [-10000.0, -5000.0, 0.0], 75.0, -15000.0, 0.0)
+    assert abs(x - -10000.0) >= 500.0 + 37.5 - 1e-6 and -15000.0 <= x - 500.0
+    assert pr.off_lines(-7500.0, 1000.0, [-10000.0, -5000.0], 75.0) == -7500.0
+    assert pr.off_lines(0.0, 1000.0, [0.0], 75.0, -400.0, 400.0) == 0.0          # no room: stays
