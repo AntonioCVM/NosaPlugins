@@ -9,13 +9,13 @@ Written from `data/revit_capabilities.json`, which `tools/revit_harness/capabili
 | varying_length | sets following inclined faces | `DistributionType.VaryingLength` | yes / live ok | yes / live ok | yes / live ok | yes / live ok |
 | varying_suffix | sub-marks of varying sets | `ReinforcementSettings.RebarVaryingLengthNumberSuffix` | yes | yes | yes | yes |
 | free_form | bars with several shapes | `Rebar.CreateFreeForm` | yes | yes | yes | yes |
-| couplers | mechanical couplers (T8.52) | `RebarCoupler` | yes / live ok | yes | yes | yes |
-| fabric | welded fabric (T8.51) | `FabricArea` | yes / live ok | yes | yes | yes |
+| couplers | mechanical couplers (T8.52) | `RebarCoupler` | yes / live ok | yes / live ok | yes / live ok | yes / live ok |
+| fabric | welded fabric (T8.51) | `FabricArea` | yes / live ok | yes / live ok | yes / live ok | yes / live ok |
 | bending_detail | native bending details | `RebarBendingDetail` | yes | yes | yes | yes |
 | hook_orientation | hooks up to 2026 | `RebarHookOrientation` | yes | yes | yes | **no** |
 | terminations | bar terminations from 2027 | `BarTerminationsData` | no | no | yes | yes |
 
-2025-2027 (2026-10-24): API flags by the probe in a blank project in each version; 'live ok' in 2025-2027 where Create drawings used the feature on the Rebar test models. The live probes of couplers and fabric still need the Project1 test content in 2025-2027.
+2025-2027 (2026-10-24): API flags by the probe in a blank project in each version; 'live ok' in 2025-2027 where Create drawings used the feature on the Rebar test models. Couplers and fabric probed live on 2026-10-25 with `SETUP=True` (the probe builds a column, a floor, a plan and a set in a new unsaved project).
 
 ## Known defects
 
@@ -36,3 +36,4 @@ Written from `data/revit_capabilities.json`, which `tools/revit_harness/capabili
 | 2024 | ui | The modal 'Project Not Saved Recently' reminder blocks every API call until it is closed (close it, never save for the user). |
 | 2027 | hooks | RebarHookOrientation is replaced by BarTerminationsData (rebar_engine.rebar_from_curves handles both). |
 | 2027 | free form | `Rebar.CreateFreeForm(doc, type, host, loops)` with the validation result out is gone: the overload takes a `RebarStyle` and returns a `RebarFreeFormCreationResult` (`.Rebar`, `.Error`). Found by T8.57 (curved beams lost their top and bottom bars); `rebar_engine.create_free_form` handles both. |
+| 2026, 2027 | varying sets | `Rebar.DistributionType` is gone: `RebarShapeDrivenAccessor.UseRebarConstraintsToProduceVaryingBars` makes the bars vary (`rebar_engine.set_varying` handles both). |

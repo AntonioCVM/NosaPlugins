@@ -47,17 +47,17 @@
       "presentation_select": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "a set in a plan; probe with SETUP content in a new project (2026-10-25)"
       }, 
       "multi_rebar_annotation": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "varying_length": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "varying_suffix": {
         "api": true
@@ -67,11 +67,13 @@
       }, 
       "couplers": {
         "api": true, 
-        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+        "live": "ok", 
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "fabric": {
         "api": true, 
-        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+        "live": "ok", 
+        "note": "3 sheets; probe with SETUP content in a new project (2026-10-25)"
       }, 
       "bending_detail": {
         "api": true
@@ -87,17 +89,17 @@
       "presentation_select": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "a set in a plan; probe with SETUP content in a new project (2026-10-25)"
       }, 
       "multi_rebar_annotation": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "varying_length": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "varying_suffix": {
         "api": true
@@ -107,11 +109,13 @@
       }, 
       "couplers": {
         "api": true, 
-        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+        "live": "ok", 
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "fabric": {
         "api": true, 
-        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+        "live": "ok", 
+        "note": "3 sheets; probe with SETUP content in a new project (2026-10-25)"
       }, 
       "bending_detail": {
         "api": true
@@ -127,17 +131,17 @@
       "presentation_select": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "a set in a plan; probe with SETUP content in a new project (2026-10-25)"
       }, 
       "multi_rebar_annotation": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "varying_length": {
         "api": true, 
         "live": "ok", 
-        "note": "exercised by Create drawings on the Rebar test model (2026-10-24)"
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "varying_suffix": {
         "api": true
@@ -147,11 +151,13 @@
       }, 
       "couplers": {
         "api": true, 
-        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+        "live": "ok", 
+        "note": "probe with SETUP content in a new project (2026-10-25)"
       }, 
       "fabric": {
         "api": true, 
-        "note": "live probe not run: needs the Project1 test content (2026-10-24, blank project)"
+        "live": "ok", 
+        "note": "3 sheets; probe with SETUP content in a new project (2026-10-25)"
       }, 
       "bending_detail": {
         "api": true
@@ -239,6 +245,11 @@
       "versions": "2027", 
       "area": "free form", 
       "defect": "Rebar.CreateFreeForm(doc, type, host, loops) with the validation result out is gone: the overload takes a RebarStyle and returns a RebarFreeFormCreationResult (.Rebar, .Error). rebar_engine.create_free_form handles both."
+    }, 
+    {
+      "versions": "2026, 2027", 
+      "area": "varying sets", 
+      "defect": "Rebar.DistributionType is gone: RebarShapeDrivenAccessor.UseRebarConstraintsToProduceVaryingBars makes the bars vary (rebar_engine.set_varying handles both)."
     }
   ]
 }
