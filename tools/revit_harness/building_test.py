@@ -5,7 +5,8 @@ a 2 x 2 bay grid (6 m), a roof slab, a core wall each storey and a dog-leg concr
 command in construction order (bases, columns, beams, slabs, walls, stairs) through the real window path
 (ra_harness.py), the drawings (ra_create_views.py), the documentation audit (ra_doc_audit.py) and a PDF of every
 RC sheet. Scope: doc, EXT_ROOT, PYREVIT, OUT, OUTDIR; optional ONLY (kinds to reinforce, e.g. ['stairs']),
-DRAWINGS (False: reinforcement only), DETAIL (ra_harness's), STOREYS. Result: RESULT (also written to OUT).
+DRAWINGS (False: reinforcement only), DETAIL (ra_harness's), STOREYS, PROFILE (True: the drawing
+modules' functions timed, the slowest listed). Result: RESULT (also written to OUT).
 """
 import io
 import json
@@ -29,6 +30,30 @@ BAY = 6000.0
 STOREYS = globals().get('STOREYS') or 4
 ONLY = globals().get('ONLY') or None
 DRAWINGS = globals().get('DRAWINGS', True)
+PROFILE = globals().get('PROFILE', False)
+_TIMES = {}
+
+
+def _profiled(modules):
+    """Every function of the modules timed (inclusive, calls counted) into _TIMES."""
+    import types
+
+    def wrap(mod, name, fn):
+        key = u'{}.{}'.format(mod.__name__, name)
+
+        def timed(*a, **k):
+            t0 = time.time()
+            try:
+                return fn(*a, **k)
+            finally:
+                entry = _TIMES.setdefault(key, [0.0, 0])
+                entry[0] += time.time() - t0
+                entry[1] += 1
+        return timed
+    for mod in modules:
+        for name, fn in list(vars(mod).items()):
+            if isinstance(fn, types.FunctionType) and fn.__module__ == mod.__name__:
+                setattr(mod, name, wrap(mod, name, fn))
 
 
 def f(mm):
@@ -201,6 +226,15 @@ try:
         _log.append(u'== {} ({} elements): {} rebar elements, {} bars, {:.0f} s'.format(kind, len(ids[kind]), n, bars,
                                                                                     secs))
         _log.extend(u'    ' + l[:400] for l in issues[:60])
+    if DRAWINGS and PROFILE:
+        import sys
+        ra_lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel', 'RebarAutomate.pushbutton', 'lib')
+        if ra_lib not in sys.path:
+            sys.path.insert(0, ra_lib)
+        import rebar_views, rebar_presentation, view_plan, rc_legends, bar_schedules, drawing_audit
+        from nosa_utils import callout_layout, presentation
+        _profiled([rebar_views, rebar_presentation, view_plan, rc_legends, bar_schedules, drawing_audit,
+                   callout_layout, presentation])
     if DRAWINGS:
         scope = {'doc': doc, 'EXT_ROOT': EXT_ROOT, 'PYREVIT': PYREVIT, 'CLEAR': False, 'MODE': 'regenerate',
                  '__name__': '__nosa_views__'}
@@ -231,6 +265,10 @@ try:
             except Exception as e:
                 _log.append(u'pdf {} failed: {}'.format(s.SheetNumber, e))
         _log.append(u'== pdf: {} sheet(s) to {}'.format(len(sheets), pdf_dir))
+    if _TIMES:
+        _log.append(u'== slowest functions (inclusive s, calls)')
+        for key, (secs, calls) in sorted(_TIMES.items(), key=lambda kv: -kv[1][0])[:40]:
+            _log.append(u'    {:8.1f} {:7d}  {}'.format(secs, calls, key))
     _log.append(u'total {:.0f} s'.format(time.time() - started))
 except Exception:
     import traceback

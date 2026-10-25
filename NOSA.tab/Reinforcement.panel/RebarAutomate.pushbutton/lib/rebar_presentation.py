@@ -820,8 +820,9 @@ def _hide_foreign(doc, view, rebars, hosts=()):
     from System.Collections.Generic import List
     own = set(get_id_value(r.Id) for r in rebars if r is not None and r.IsValidObject)
     ids = List[DB.ElementId]()
+    boxes = _host_boxes(hosts) if hosts else []
     for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
-        if get_id_value(r.Id) not in own and r.CanBeHidden(view) and not (hosts and _ends_inside(r, hosts)):
+        if get_id_value(r.Id) not in own and r.CanBeHidden(view) and not (hosts and _ends_inside(r, hosts, boxes)):
             ids.Add(r.Id)
     if ids.Count:
         try:
@@ -3774,13 +3775,28 @@ def _written(doc, view):
 END_INSIDE_TOL_MM = 5.0
 
 
-def _ends_inside(rebar, hosts):
-    """True when a bar of the set ends inside one of the hosts (a starter, an anchorage), not when it only passes."""
-    boxes = [h.get_BoundingBox(None) for h in hosts if h is not None]
-    boxes = [b for b in boxes if b is not None]
+def _host_boxes(hosts):
+    return [b for b in (h.get_BoundingBox(None) for h in hosts if h is not None) if b is not None]
+
+
+def _ends_inside(rebar, hosts, boxes=None):
+    """
+    True when a bar of the set ends inside one of the hosts (a starter, an anchorage), not when it only passes.
+    boxes: the hosts' boxes, worked out once by a caller testing many bars; a bar whose own box meets none of them
+    is answered without reading its curves (building test 2026-10-25: 246 views x 972 bars).
+    """
+    boxes = _host_boxes(hosts) if boxes is None else boxes
     if not boxes:
         return False
     tol = END_INSIDE_TOL_MM / _MM_PER_FT
+    try:
+        own = rebar.get_BoundingBox(None)
+    except Exception:
+        own = None
+    if own is not None and not any(own.Min.X < b.Max.X - tol and b.Min.X + tol < own.Max.X and
+                                   own.Min.Y < b.Max.Y - tol and b.Min.Y + tol < own.Max.Y and
+                                   own.Min.Z < b.Max.Z - tol and b.Min.Z + tol < own.Max.Z for b in boxes):
+        return False
     try:
         n = rebar.NumberOfBarPositions
     except Exception:
@@ -3791,8 +3807,7 @@ def _ends_inside(rebar, hosts):
             continue
         for p in (chain[0].GetEndPoint(0), chain[-1].GetEndPoint(1)):
             for b in boxes:
-                if b.Min.X + tol < p.X < b.Max.X - tol and b.Min.Y + tol < p.Y < b.Max.Y - tol and \
-                        b.Min.Z + tol < p.Z < b.Max.Z - tol:
+                if b.Min.X + tol < p.X < b.Max.X - tol and b.Min.Y + tol < p.Y < b.Max.Y - tol and                         b.Min.Z + tol < p.Z < b.Max.Z - tol:
                     return True
     return False
 
@@ -3805,10 +3820,11 @@ def foreign_bars(doc, view, own_ids, hosts):
     """
     from System.Collections.Generic import List
     hide, keep = List[DB.ElementId](), []
+    boxes = _host_boxes(hosts)
     for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
         if get_id_value(r.Id) in own_ids or not r.CanBeHidden(view):
             continue
-        if _ends_inside(r, hosts):
+        if _ends_inside(r, hosts, boxes):
             keep.append(r)
         else:
             hide.Add(r.Id)

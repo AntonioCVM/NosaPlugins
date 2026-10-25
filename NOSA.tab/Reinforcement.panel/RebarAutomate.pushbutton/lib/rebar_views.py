@@ -1005,6 +1005,9 @@ def _hide_viewers(doc, view, keep=None):
     from System.Collections.Generic import List
     from nosa_utils.revit_helpers import get_id_value
     viewers = set((int(DB.BuiltInCategory.OST_Viewers), int(DB.BuiltInCategory.OST_Views)))
+    ids = List[DB.ElementId]()
+    # the marks hidden in one call (building test 2026-10-25: one HideElements per mark, per view, on a 4-storey
+    # frame's 246 views)
     for e in DB.FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType():
         try:
             if e.Category is None or get_id_value(e.Category.Id) not in viewers or e.Id == view.Id \
@@ -1012,11 +1015,19 @@ def _hide_viewers(doc, view, keep=None):
                 continue
             if keep and (e.Name or u'').startswith(keep):
                 continue
-            ids = List[DB.ElementId]()
             ids.Add(e.Id)
-            view.HideElements(ids)
         except Exception:
             continue
+    if not ids.Count:
+        return
+    try:
+        view.HideElements(ids)
+    except Exception:
+        for i in ids:                       # one that will not go leaves the others hidden
+            try:
+                view.HideElements(List[DB.ElementId]([i]))
+            except Exception:
+                continue
 
 
 def hide_section_marks(view):
