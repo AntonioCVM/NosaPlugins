@@ -65,10 +65,32 @@ def _column(outline_mm):
 
 
 def _haunched_beam(fam):
-    # side elevation in the beam's XZ plane: 600 deep, 900 at each end over 1000 mm, 6000 long, 300 wide
-    pts = [(0, 0), (6000, 0), (6000, -900), (5000, -600), (1000, -600), (0, -900)]
-    plane = DB.Plane.CreateByNormalAndOrigin(DB.XYZ.BasisY, DB.XYZ(0.0, f(-150.0), 0.0))
-    _extrusion(fam, [DB.XYZ(f(x), f(-150.0), f(z)) for x, z in pts], plane, 300.0)
+    """
+    300 wide, 600 deep, 900 at each end over 1000 mm. The template's own beam extrusion stays (locked to the
+    member ends, so it stretches with the instance): its section planes are moved to 300 x 600, and a blend on
+    each member-end plane makes the haunch, so the haunches move with the ends. A free extrusion drawn along the
+    beam does not: Revit maps it off the member (2026-10-25 probe).
+    """
+    planes = list(DB.FilteredElementCollector(fam).OfClass(DB.ReferencePlane))
+    for r in planes:
+        if r.Name != u'Reference Plane':
+            continue
+        if abs(abs(r.Normal.Y) - 1.0) < 1e-6:
+            DB.ElementTransformUtils.MoveElement(fam, r.Id, DB.XYZ(0.0, f(50.0 if r.BubbleEnd.Y > 0 else -50.0), 0.0))
+        elif abs(abs(r.Normal.Z) - 1.0) < 1e-6 and r.BubbleEnd.Z < 0:
+            DB.ElementTransformUtils.MoveElement(fam, r.Id, DB.XYZ(0.0, 0.0, f(-300.0)))
+
+    def section(x, bottom_mm):
+        arr = DB.CurveArray()
+        pts = [DB.XYZ(x, f(-150.0), f(150.0)), DB.XYZ(x, f(150.0), f(150.0)), DB.XYZ(x, f(150.0), f(bottom_mm)),
+               DB.XYZ(x, f(-150.0), f(bottom_mm))]
+        for a, b in zip(pts, pts[1:] + pts[:1]):
+            arr.Append(DB.Line.CreateBound(a, b))
+        return arr
+    for end in [r for r in planes if r.Name in (u'Member Left', u'Member Right')]:
+        x0 = end.BubbleEnd.X
+        x1 = x0 + f(1000.0) * (1.0 if x0 < 0 else -1.0)
+        fam.FamilyCreate.NewBlend(True, section(x1, -450.0), section(x0, -750.0), DB.SketchPlane.Create(fam, end.Id))
 
 
 _log = []

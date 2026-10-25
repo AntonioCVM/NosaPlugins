@@ -1029,6 +1029,41 @@ def build_stirrup_rectangle(axis_curve, dist_mm, width_dir, height_dir,
             DB.Line.CreateBound(p3, p4), DB.Line.CreateBound(p4, p1)]
 
 
+def _soffit_drop_fn(host, p_start, axis_dir, height_dir, top_ft, face_ft, inset_mm):
+    """
+    mm a link's bottom can go below the bottom face (face_ft along height_dir from p_start) at a distance along the
+    axis, down the section's centre line: a haunch's extra depth, its cover (inset_mm) kept square to the sloping
+    soffit; 0 elsewhere.
+    """
+    from nosa_utils import solids as _solids
+    found = _solids.get_solids(host)
+    reach = 3000.0 / _MM_PER_FT
+
+    def drop(dist_mm):
+        base = p_start + axis_dir.Multiply(dist_mm / _MM_PER_FT)
+        probe = DB.Line.CreateBound(base + height_dir.Multiply(top_ft + 0.1), base + height_dir.Multiply(face_ft - reach))
+        lowest = None
+        for so in found:
+            try:
+                res = so.IntersectWithCurve(probe, DB.SolidCurveIntersectionOptions())
+            except Exception:
+                continue
+            for k in range(res.SegmentCount):
+                seg = res.GetCurveSegment(k)
+                for p in (seg.GetEndPoint(0), seg.GetEndPoint(1)):
+                    h = (p - p_start).DotProduct(height_dir)
+                    lowest = h if lowest is None else min(lowest, h)
+        return max((face_ft - lowest) * _MM_PER_FT, 0.0) if lowest is not None else 0.0
+
+    def link_drop(dist_mm):
+        down = drop(dist_mm)
+        if down <= 0.0:
+            return 0.0
+        slope = abs(drop(dist_mm + 25.0) - drop(dist_mm - 25.0)) / 50.0
+        return max(down - inset_mm * (math.sqrt(1.0 + slope * slope) - 1.0), 0.0)
+    return link_drop
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Orchestration
 # ══════════════════════════════════════════════════════════════════════════
@@ -1289,34 +1324,43 @@ def build_beam_rebar_curves(doc, host, cover_mm, bar_diameter_mm,
                 g['zone'] = u'span {} {}'.format(k + 1, g['zone'])
         zone_groups.extend(groups)
 
+    from nosa_utils import haunch as _haunch
+    # T8.58: under a haunch the soffit drops below the bottom face the links were sized on
+    soffit = _soffit_drop_fn(host, p_start, axis.Direction, height_dir, h_top_ft, h_bot_ft - inset_mm / _MM_PER_FT,
+                             inset_mm)
     stirrups = []
     stirrup_sets = []
+    haunched = set()
     for zg in zone_groups:
-        zone_curves = [
-            build_stirrup_rectangle(axis, d, width_dir, height_dir,
-                                    half_width_mm, half_height_mm,
-                                    section_origin=section_origin)
-            for d in zg['positions']
-        ]
-        stirrups.extend(zone_curves)
-        if not zone_curves:
-            continue
-        n = len(zone_curves)
-        # The Set spans the zone's real positions, at its real (evenly
-        # distributed) step: the nominal spacing overshot into the next zone.
-        positions = zg['positions']
-        array_mm = positions[-1] - positions[0] if n > 1 else 0.0
-        spacing = (array_mm / (n - 1) + 0.01) if n > 1 else zg['spacing_mm']
-        stirrup_sets.append({
-            'zone': zg['zone'],
-            'curves': zone_curves[0],
-            'all_curves': zone_curves,
-            'spacing_mm': spacing,
-            'array_length_mm': array_mm,
-            'count': n,
-            'normal': axis.Direction.Normalize(),
-            'positions': positions,
-        })
+        for positions, drop in _haunch.depth_runs(zg['positions'], [soffit(d) for d in zg['positions']]):
+            origin = section_origin - height_dir.Multiply(drop / 2.0 / _MM_PER_FT)
+            zone_curves = [
+                build_stirrup_rectangle(axis, d, width_dir, height_dir,
+                                        half_width_mm, half_height_mm + drop / 2.0,
+                                        section_origin=origin)
+                for d in positions
+            ]
+            stirrups.extend(zone_curves)
+            n = len(zone_curves)
+            if drop:
+                haunched.add(u'start' if positions[0] < axis.Length * _MM_PER_FT / 2.0 else u'end')
+            # The Set spans the zone's real positions, at its real (evenly
+            # distributed) step: the nominal spacing overshot into the next zone.
+            array_mm = positions[-1] - positions[0] if n > 1 else 0.0
+            spacing = (array_mm / (n - 1) + 0.01) if n > 1 else zg['spacing_mm']
+            stirrup_sets.append({
+                'zone': zg['zone'] + (u' haunch' if drop else u''),
+                'curves': zone_curves[0],
+                'all_curves': zone_curves,
+                'spacing_mm': spacing,
+                'array_length_mm': array_mm,
+                'count': n,
+                'normal': axis.Direction.Normalize(),
+                'positions': positions,
+            })
+    for end in sorted(haunched):
+        warnings.append(u'haunch at the {}: the links follow the soffit, one per depth; the bars along the haunch '
+                        u'soffit are not made - detail them by hand (T8.58).'.format(end))
 
     # Additional bars (user decision 2026-10-05): hogging bars over the supports, sagging bars in
     # the spans — EC2 + UK NA, Concrete Centre / IStructE simplified curtailment (continuous_beam).

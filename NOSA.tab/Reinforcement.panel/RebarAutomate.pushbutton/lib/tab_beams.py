@@ -1099,11 +1099,12 @@ class BeamsMixin(object):
                                 get_id_value(host.Id), sset.get('zone', u''),
                                 wrapper.last_error))
                 else:
-                    rebar = wrapper.create_from_curves(
-                        host, sset['curves'], bar_type_st,
-                        normal=sset.get('normal'),
-                        style=DBS.RebarStyle.StirrupTie,
-                        transaction_name=u'NOSA — Create Beam Stirrup')
+                    # one link (a haunch's links, one per depth - T8.58): hooked like the sets' links
+                    rebar = wrapper.create_rebar_set(
+                        host, sset['curves'], bar_type_st, sset['spacing_mm'], 0.0,
+                        normal=sset.get('normal'), style=DBS.RebarStyle.StirrupTie,
+                        transaction_name=u'NOSA — Create Beam Stirrup',
+                        link_hook=re_engine.get_link_hook_type(self.doc))
                     if rebar is None:
                         errors.append(u'Beam {}: stirrup — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
