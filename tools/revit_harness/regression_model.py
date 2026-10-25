@@ -9,6 +9,7 @@ Run in each Revit version before a merge (extends T8.2). Scope: doc, EXT_ROOT, P
 harness report). Result: RESULT.
 """
 import io
+import math
 import os
 import time
 
@@ -126,8 +127,65 @@ def build():
         DB.BuiltInCategory.OST_StructuralFoundation, u'Pile Cap-4 Pile', u'2000 x 2000 x 900mm'), ground,
         DBS.StructuralType.Footing)
     cases.append((u'footings_floors', u'pile cap, 4 piles', [cap.Id]))
+    # T8.58 (2026-10-25): a column leaning 10 degrees and a slab sloping 10 %
+    lean = math.tan(math.radians(10.0)) * H
+    slanted = doc.Create.NewFamilyInstance(DB.Line.CreateBound(xyz(30000, 20000), xyz(30000 + lean, 20000, H)),
+                                           rect_sq, ground, DBS.StructuralType.Column)
+    cases.append((u'columns', u'inclined column 10 deg', [slanted.Id]))
+    from System.Collections.Generic import List
+    ftype = [x for x in DB.FilteredElementCollector(doc).OfClass(DB.FloorType)
+             if DB.Element.Name.GetValue(x).startswith(u'300mm RC')][0]
+    sloped_loops = List[DB.CurveLoop]()
+    sloped_loops.Add(loop([(36000, 20000), (44000, 20000), (44000, 25000), (36000, 25000)]))
+    sloped = DB.Floor.Create(doc, sloped_loops, ftype.Id, first.Id, True,
+                             DB.Line.CreateBound(xyz(36000, 22500), xyz(44000, 22500)), 0.1)
+    cases.append((u'footings_floors', u'inclined slab 10 %', [sloped.Id],
+                  u'{"ChkIncludeTopMat": true, "ChkIncludePerimeterUBars": true}'))
     t.Commit()
     return cases, [c1.Id, c2.Id, c3.Id]
+
+
+def _host_solids(host):
+    opts = DB.Options()
+    opts.ComputeReferences = False
+    out = []
+    for g in host.get_Geometry(opts):
+        items = g.GetInstanceGeometry() if isinstance(g, DB.GeometryInstance) else [g]
+        out.extend(x for x in items if isinstance(x, DB.Solid) and x.Volume > 1e-6)
+    return out
+
+
+def inside_report(ids):
+    """The worst share of a bar's length inside its host's concrete, per host (T8.58: bars of sloping members)."""
+    lines = []
+    for eid in ids:
+        host = doc.GetElement(eid)
+        hd = DBS.RebarHostData.GetRebarHostData(host)
+        if hd is None:
+            continue
+        solids = _host_solids(host)
+        worst, where = 1.0, u''
+        for r in hd.GetRebarsInHost():
+            n = r.NumberOfBarPositions
+            for i in sorted(set([0, n // 2, n - 1])):
+                try:
+                    curves = r.GetTransformedCenterlineCurves(False, False, False,
+                                                              DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i)
+                except Exception:
+                    continue
+                total = inside = 0.0
+                for c in curves:
+                    total += c.Length
+                    for so in solids:
+                        res = so.IntersectWithCurve(c, DB.SolidCurveIntersectionOptions())
+                        inside += sum(res.GetCurveSegment(k).Length for k in range(res.SegmentCount))
+                share = inside / total if total > 0 else 1.0
+                if share < worst:
+                    worst, where = share, u'{} bar {}'.format(r.LookupParameter(u'NOSA_Rebar_Layer').AsString()
+                                                              if r.LookupParameter(u'NOSA_Rebar_Layer') else u'', i)
+        lines.append(u'    host {}: worst bar {:.0%} inside the concrete ({})'.format(
+            eid.Value if hasattr(eid, 'Value') else eid.IntegerValue, worst, where))
+    return lines
 
 
 _log = []
@@ -137,11 +195,13 @@ try:
     started = time.time()
     cases, support_ids = build()
     harness = os.path.join(EXT_ROOT, 'tools', 'revit_harness', 'ra_harness.py')
-    for mode, label, ids in cases:
+    for case in cases:
+        mode, label, ids = case[:3]
+        controls = case[3] if len(case) > 3 else u'{}'
         if 'ONLY' in globals() and ONLY and label not in ONLY:
             continue
         scope = {'doc': doc, 'MODE': mode, 'IDS': [el.Value if hasattr(el, 'Value') else el.IntegerValue for el in ids],
-                 'CONTROLS': u'{}', 'OVERRIDES': u'{}', 'EXT_ROOT': EXT_ROOT, 'PYREVIT': PYREVIT,
+                 'CONTROLS': controls, 'OVERRIDES': u'{}', 'EXT_ROOT': EXT_ROOT, 'PYREVIT': PYREVIT,
                  'ROLLBACK': True, 'ASSIMILATE': True, '__name__': '__nosa_case__'}
         t0 = time.time()
         try:
@@ -154,6 +214,10 @@ try:
         _log.append(u'{} [{}]: {} {:.1f} s{}'.format(label, mode, made[0] if made else u'nothing made',
                                                     time.time() - t0, u'' if not bad else u'\n    ' + u'\n    '.join(
                                                         b[:300] for b in bad)))
+        try:
+            _log.extend(inside_report(ids))
+        except Exception as e:
+            _log.append(u'    inside check failed: {}'.format(e))
         if 'FULL' in globals() and FULL:
             _log.append(text)
     _log.append(u'total {:.0f} s'.format(time.time() - started))

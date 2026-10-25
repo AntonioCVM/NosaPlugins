@@ -2277,4 +2277,57 @@ def build_floor_reinforcement(doc, host,
                 diagonals['top'] = _diagonal_bars(engine, DB, segments, diag_top_z, -step)
         result['opening_diagonals'] = diagonals
 
-    return result
+    # T8.58 (2026-10-25): a sloping slab's bars, worked out flat, lifted onto its faces (they were all left
+    # level and 0 % inside the concrete)
+    return _onto_slope(DB, result, bottom_face, footing_mod.get_footing_top_face(cover_mgr))
+
+
+def _onto_slope(DB, result, bottom_face, top_face):
+    """Every bar of a sloping slab on its faces, its sets spread in the slab's plane; a level slab as it is."""
+    from nosa_utils import sloped
+
+    def face(f):
+        if f is None:
+            return None
+        return (f.origin.X, f.origin.Y, f.origin.Z), (f.normal.X, f.normal.Y, f.normal.Z)
+    bottom, top = face(bottom_face), face(top_face)
+    if not sloped.tilted(bottom) and (top is None or not sloped.tilted(top)):
+        return result
+
+    def pt(p):
+        return DB.XYZ(*sloped.lift((p.X, p.Y, p.Z), bottom, top))
+
+    def curve(c):
+        if isinstance(c, DB.Line):
+            return DB.Line.CreateBound(pt(c.GetEndPoint(0)), pt(c.GetEndPoint(1)))
+        if isinstance(c, DB.Arc):
+            return DB.Arc.Create(pt(c.GetEndPoint(0)), pt(c.GetEndPoint(1)), pt(c.Evaluate(0.5, True)))
+        return c
+
+    def face_of(p):
+        below = p.Z - bottom[0][2]
+        above = top[0][2] - p.Z if top is not None else None
+        return top if above is not None and above < below else bottom
+
+    def walk(o):
+        if isinstance(o, DB.Curve):
+            return curve(o)
+        if isinstance(o, list):
+            return [walk(x) for x in o]
+        if isinstance(o, tuple):
+            return tuple(walk(x) for x in o)
+        if not isinstance(o, dict):
+            return o
+        out = dict((k, walk(v)) for k, v in o.items())
+        flat = o.get('curves')
+        if flat and isinstance(o.get('normal'), DB.XYZ) and ('spacing_mm' in o or 'array_length_mm' in o):
+            first = out['curves'][0]
+            d = (first.GetEndPoint(1) - first.GetEndPoint(0)).Normalize()
+            n = o['normal']
+            direction, k = sloped.set_direction((n.X, n.Y, n.Z), (d.X, d.Y, d.Z), face_of(flat[0].GetEndPoint(0)))
+            out['normal'] = DB.XYZ(*direction)
+            for key in ('spacing_mm', 'array_length_mm'):
+                if o.get(key) is not None:
+                    out[key] = o[key] * k
+        return out
+    return walk(result)
