@@ -150,3 +150,12 @@ def test_trimmer_reach_is_the_anchorage_450_min():
 
 def test_distribution_pitch_is_a_float():
     assert isinstance(mr.distribution_pitch_mm(200.0, 10.0), float)
+
+
+def test_ms1_edge_beams_just_inside_the_slab_are_end_supports():
+    # 4-storey test 2026-10-25: beams on grids 0 / 6000 / 12000, the slab 225 mm past them (bars from -185)
+    odd, even = mr.alternate_bottom_mm(-185.0, 12185.0, [0.0, 6000.0, 12000.0], 640.0)
+    pieces = odd + even
+    assert pieces and min(b - a for a, b in pieces) > 4000.0           # no stub bars over the edge beams
+    assert min(a for a, _b in pieces) == -185.0 and max(b for _a, b in pieces) == 12185.0
+    assert mr.alternate_bottom_mm(-185.0, 6185.0, [0.0, 6000.0], 640.0) == ([], [])    # one span: continuous

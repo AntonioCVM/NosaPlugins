@@ -6,6 +6,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'NOSA.tab', 'Reinforcement.panel',
                                 'RebarAutomate.pushbutton', 'lib'))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
 import bar_schedules as bs  # noqa: E402
 
 
@@ -23,3 +24,19 @@ def test_schedule_keys():
     assert bs.schedule_key(u'4501', 1) == u'4501-01'
     assert bs.schedule_ref(u'4501-01', u'A') == u'4501-01-A'
     assert bs.natural_key(u'C10') > bs.natural_key(u'C9')
+
+
+def test_a_typical_details_sheet_names_no_schedules():
+    import rc_legends
+    text, warnings = rc_legends.drawing_notes(u'4515', {}, {}, schedule_refs=(), bars=False)
+    assert u'none, no bars are detailed on this drawing' in text and u'to be issued' not in text
+    assert not [w for w in warnings if u'no bar schedules' in w]
+    text, warnings = rc_legends.drawing_notes(u'4516', {}, {}, schedule_refs=())
+    assert u'to be issued (refs 4516-01' in text and [w for w in warnings if u'no bar schedules' in w]
+
+
+def test_a_mark_is_one_bbs_length():
+    import rebar_marking as rm
+    assert rm.bbs_length_mm(4600.0) == 4600 and rm.bbs_length_mm(4600.4) == 4600
+    assert rm.bbs_length_mm(4601.0) == 4625 and rm.bbs_length_mm(4624.6) == 4625
+    assert rm.bbs_length_mm(5360.0) == rm.bbs_length_mm(5361.0) == 5375

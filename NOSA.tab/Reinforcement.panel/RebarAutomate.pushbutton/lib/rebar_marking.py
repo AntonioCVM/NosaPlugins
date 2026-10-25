@@ -61,6 +61,16 @@ def _round_to_tolerance(value_mm, tolerance_mm):
     return round(value_mm / tolerance_mm) * tolerance_mm
 
 
+def bbs_length_mm(value_mm, step_mm=25):
+    """
+    The length the bar schedule gives a bar: to the mm, then up to the next 25 (BS 8666). One mark is one BBS row, so
+    bars share a mark only when this agrees (4-storey test 2026-10-25: 4600 and 4601 mm shared mark 04 and scheduled
+    4600 and 4625).
+    """
+    import math
+    return int(math.ceil(int(round(value_mm)) / float(step_mm)) * step_mm)
+
+
 def _parse_shape_params(shape_params_str, tolerance_mm):
     """
     Parsea NOSA_Rebar_Shape_Params (formato: "A=2000;B=300;C=150;R=50")
@@ -176,7 +186,7 @@ def _dedup_key(doc, rebar, tolerance_mm, is_varying):
             _parse_shape_params(_read(doc, rid, "NOSA_Rebar_Shape_Params") or "", tolerance_mm),
             _read(doc, rid, "NOSA_Rebar_Start_Hook_Type") or "",
             _read(doc, rid, "NOSA_Rebar_End_Hook_Type") or "",
-            _round_to_tolerance(unit_length_mm, tolerance_mm))
+            bbs_length_mm(unit_length_mm))
 
 
 def _existing_marks(doc, exclude_ids, partition, tolerance_mm):

@@ -299,9 +299,12 @@ def alternate_bottom_mm(lo_mm, hi_mm, supports_mm, lap_mm, share=BOTTOM_BAR_SPAN
     span every other bar runs from its left support (half a tension lap past it) to 0.8 x span, the others
     reversed from the right one, so both overlap over the middle 0.6 span. Over an end support the bars run
     on to the slab edge. Returns (pieces of the odd bars, pieces of the even bars): [(a, b)]; ([], []) when
-    there is no interior support (one span: the bars stay continuous).
+    there is no interior support (one span: the bars stay continuous). A support within a lap of the slab's edge
+    (an edge beam just inside it) is an end support (4-storey test 2026-10-25: a 185 mm 'span' made H16 bars
+    125 mm long).
     """
-    inner = sorted(p for p in supports_mm if lo_mm + min_mm < p < hi_mm - min_mm)
+    band = max(min_mm, lap_mm)
+    inner = sorted(p for p in supports_mm if lo_mm + band < p < hi_mm - band)
     if not inner:
         return [], []
     edges = [lo_mm] + inner + [hi_mm]

@@ -109,7 +109,7 @@ def fixing_notes(kinds):
 
 def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'', deviation=u'', aggregate=u'',
                   schedule_refs=(), ga_refs=u'', buildability=None, details=(), details_drawing=u'',
-                  slab_cover=u''):
+                  slab_cover=u'', bars=True):
     """
     SMDSC 4th ed. 3.7 / 4th ed. 6.x.3 (T9.6): the notes of one reinforcement drawing from what is on it, so they never
     disagree with the model. grades {element kind: grade or ''}; covers {element kind: (top, bottom, sides) mm};
@@ -155,7 +155,7 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         warnings.append(u'{}: no maximum aggregate size set (NOSA_GN_Aggregate_Max): the SMDSC standard '
                         u'20 mm is stated, to be confirmed.'.format(drawing))
     refs = u', '.join(schedule_refs)
-    if not refs:
+    if not refs and bars:
         warnings.append(u'{}: no bar schedules issued yet for this drawing.'.format(drawing))
     lines = [
         u'REINFORCEMENT NOTES',
@@ -164,7 +164,8 @@ def drawing_notes(drawing, grades, covers, project_grade=u'', project_cover=u'',
         u'this drawing.'.format(u' ' + ga_refs if ga_refs else u''),
         u'2. Concrete: {}.'.format(u'; '.join(grade_bits) or u'to the general notes'),
         u'3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar '
-        u'schedules: {}.'.format(refs or u'to be issued (refs {}-01 ...)'.format(drawing)),
+        u'schedules: {}.'.format(refs or (u'to be issued (refs {}-01 ...)'.format(drawing) if bars else
+                                          u'none, no bars are detailed on this drawing (typical details only)')),
         u'4. Nominal cover c_nom to all reinforcement, links included{}: {}.'.format(
             u' (includes delta c_dev = {:.0f})'.format(dev) if dev is not None else u'',
             u'; '.join(cover_bits) or u'to the general notes'),
@@ -468,7 +469,7 @@ def sheet_notes(doc, sheet, hosts, rebars, buildability=None, typical=(), typica
         sheet.SheetNumber, grades, covers, project_grade, _project_value(doc, u'NOSA_GN_Cover_Typical'),
         _project_value(doc, u'NOSA_GN_Cover_Deviation'), _project_value(doc, u'NOSA_GN_Aggregate_Max'), refs,
         _project_value(doc, u'NOSA_GN_GA_Drawings'), buildability, typical, typical_drawing,
-        _project_value(doc, u'NOSA_GN_Cover_Slabs'))
+        _project_value(doc, u'NOSA_GN_Cover_Slabs'), bars=bool(rebars))
     top = LEGEND_BOX[3]
     for port in [doc.GetElement(i) for i in sheet.GetAllViewports()]:
         view = doc.GetElement(port.ViewId)

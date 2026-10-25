@@ -22,7 +22,7 @@ def main(folder):
     unreadable = [k for k, v in r['rebars'].items() if 'error' in v]
     model = collections.defaultdict(lambda: {'n': 0, 'len': set(), 'dia': set(), 'shape': set()})
     for v in rebars.values():
-        if v['key']:
+        if v['key'] and v.get('scheduled', True):        # copies of identical members: their original's row counts them
             m = model[(v['key'], v['partition'], v['mark'])]
             m['n'] += v['qty']
             m['len'].add(v['bar_length'])
@@ -58,7 +58,9 @@ def main(folder):
         problems += [('scheduled bar in no row', k) for k in model if k[0] == key and k not in seen]
     by = collections.defaultdict(set)
     for v in rebars.values():
-        by[(v['drawing'], v['mark'])].add((v['dia'], v['shape'], v['bar_length'], v['varying']))
+        # one bar as the BBS lists it: its length rounded up to 25 (5360 and 5361 mm are one mark)
+        length = int(math.ceil(v['bar_length'] / 25.0) * 25) if v['bar_length'] else v['bar_length']
+        by[(v['drawing'], v['mark'])].add((v['dia'], v['shape'], length, v['varying']))
     problems += [('mark names two bars on one drawing', k) for k, s in by.items() if len(s) > 1]
     for s in r['sheets']:
         if re.search(r'\(\d+\)', s['name']):
@@ -71,6 +73,8 @@ def main(folder):
             refs = sorted(set(v['key'] for v in rebars.values() if v['drawing'] == s['number'] and v['key']))
             listed = re.search(r'Bar schedules: ([^.]*)\.', notes)
             listed = sorted(x.strip() for x in listed.group(1).split(',')) if listed else []
+            if listed and listed[0].startswith('none'):
+                listed = []                     # a drawing of typical details only: no schedules, said so
             if refs != listed:
                 problems.append(('notes list other schedules', s['number'], listed, refs))
             if u'Buildability check' in notes and u'0 error(s)' not in notes:

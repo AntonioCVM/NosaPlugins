@@ -145,7 +145,11 @@ for r in DB.FilteredElementCollector(doc).OfClass(Rebar):
             'bar_length': round(r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_LENGTH).AsDouble() * FT),  # nosa-lint: disable=NOSA002 - harness script runs in Revit
             'total_length': round(r.TotalLength * FT), 'volume_cm3': round(r.Volume * 28316.8466, 1),
             'layer': text(r, u'NOSA_Rebar_Layer'), 'partition': text(r, u'Partition'),
-            'varying': text(r, u'NOSA_Rebar_Is_Variable'), 'lens_sample': lens[:3]}
+            'varying': text(r, u'NOSA_Rebar_Is_Variable'), 'lens_sample': lens[:3],
+            # an identical member's copy: drawn, marked and referenced, counted by its original's row (No. of mbrs)
+            'scheduled': not (r.LookupParameter(u'NOSA_Rebar_Show_In_Schedule') is not None and
+                              r.LookupParameter(u'NOSA_Rebar_Show_In_Schedule').HasValue and
+                              r.LookupParameter(u'NOSA_Rebar_Show_In_Schedule').AsInteger() == 0)}
     except Exception as e:
         report['rebars'][str(r.Id.Value)] = {'error': u'{}'.format(e)}
 
