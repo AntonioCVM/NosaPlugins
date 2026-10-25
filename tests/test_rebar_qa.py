@@ -99,3 +99,80 @@ def test_distribution_pitch_md_s1():
 def test_bars_in_contact_are_not_congested():
     assert qa.pair_issue(1.1 * 12.0 + 0.5, 1.0, 500.0, 12.0, 12.0) is None       # a hole U-bar beside its cut bar
     assert qa.pair_issue(25.0, 1.0, 500.0, 12.0, 12.0)[0] == qa.WARNING           # a 12 mm gap is congestion
+
+
+class _Id(object):
+    def __init__(self, v):
+        self.IntegerValue = v
+
+
+class _Bar(object):
+    def __init__(self, v):
+        self.Id = _Id(v)
+
+
+def _gid(eid):
+    return eid.IntegerValue
+
+
+def _random_samples(rng, sets=12, bars=6):
+    """Bar sets crossing, running side by side, lapping and bending, packed in a 1 m cube."""
+    samples = []
+    for s in range(sets):
+        bar = _Bar(1000 + s)
+        dia = rng.choice((10.0, 12.0, 16.0, 20.0, 25.0))
+        axis = rng.randrange(3)
+        for k in range(bars):
+            a = [rng.uniform(0, 1000) for _ in range(3)]
+            b = list(a)
+            b[axis] += rng.uniform(100, 900)
+            chain = [(tuple(a), tuple(b), False)]
+            if rng.random() < 0.3:                        # a leg after a bend
+                c = list(b)
+                c[(axis + 1) % 3] += rng.uniform(50, 300)
+                chain.append((tuple(b), tuple(c), True))
+            if rng.random() < 0.2 and samples:            # a bar lapped on another set's bar
+                other = samples[rng.randrange(len(samples))][2][0]
+                chain = [(other[0], tuple(p + 40.0 * (i == axis) for i, p in enumerate(other[1])), False)]
+            samples.append((bar, dia, chain, u'{:02d}'.format(s)))
+    return samples
+
+
+def _key(findings):
+    return [(f.Mark, f.Check, f.Severity, f.Issue, f.ElementId.IntegerValue) for f in findings]
+
+
+def test_pairs_sweep_gives_what_the_double_loop_gave():
+    import random
+    rng = random.Random(2026)
+    for trial in range(60):
+        samples = _random_samples(rng, sets=rng.randrange(2, 14), bars=rng.randrange(1, 8))
+        owner = None
+        if trial % 2:                                      # a joint: only bars of different members count
+            owner = dict((1000 + s, s % 3) for s in range(20))
+        new = qa._pairs(samples, u'X', 20.0, _gid, owner)
+        old = qa._pairs_reference(samples, u'X', 20.0, _gid, owner)
+        assert _key(new) == _key(old), trial
+
+
+def test_pairs_sweep_finds_a_clash_and_skips_far_bars():
+    a = (_Bar(1), 16.0, [((0.0, 0.0, 0.0), (1000.0, 0.0, 0.0), False)], u'01')
+    b = (_Bar(2), 16.0, [((500.0, -500.0, 0.0), (500.0, 500.0, 0.0), False)], u'02')
+    far = (_Bar(3), 16.0, [((0.0, 5000.0, 0.0), (1000.0, 5000.0, 0.0), False)], u'03')
+    found = qa._pairs([a, b, far], u'X', 20.0, _gid)
+    assert len(found) == 1 and found[0].Severity == qa.ERROR and found[0].Mark == u'01 / 02'
+    assert qa.candidate_pairs(qa._segments([a, far], _gid), 75.0) == []
+
+
+def test_candidate_pairs_are_exactly_the_double_loop_box_test():
+    import random
+    rng = random.Random(7)
+    for trial in range(40):
+        segs = qa._segments(_random_samples(rng, sets=rng.randrange(2, 12), bars=rng.randrange(1, 7)), _gid)
+        owner = dict((1000 + s, s % 2) for s in range(20)) if trial % 2 else None
+        reach = 75.0
+        brute = [(i, j) for i in range(len(segs)) for j in range(i + 1, len(segs))
+                 if segs[i][0] != segs[j][0] and not (owner is not None and owner.get(segs[i][0]) == owner.get(segs[j][0]))
+                 and not any(segs[i][5][k] - reach > segs[j][6][k] or segs[j][5][k] - reach > segs[i][6][k]
+                             for k in range(3))]
+        assert qa.candidate_pairs(segs, reach, owner) == brute, trial

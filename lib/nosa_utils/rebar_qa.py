@@ -883,6 +883,73 @@ def _pairs(samples, label, aggregate_mm, get_id_value, owner=None):
     Clashes and crowding between bars of different sets, one finding per pair of sets; owner {rebar id: host}:
     only pairs of bars of different members (a joint).
     """
+    segs = _segments(samples, get_id_value)
+    if len(segs) > MAX_SEGMENTS:
+        return [Finding(u'', label, u'', u'Clashes', WARNING, u'{} bar segments: too many to check clashes '
+                        u'here, check this host on its own'.format(len(segs)))]
+    reach = 3.0 * min_clear_mm(40.0, aggregate_mm)
+    out, seen = [], set()
+    for i, j in candidate_pairs(segs, reach, owner):
+        si, sj = segs[i], segs[j]
+        pair = (min(si[0], sj[0]), max(si[0], sj[0]))
+        if pair in seen:
+            continue
+        dist, cos, overlap, at = segment_distance(si[3], si[4], sj[3], sj[4])
+        if is_lap(dist, cos, overlap, _length(si[3], si[4]), _length(sj[3], sj[4]), si[2], sj[2]):
+            continue                  # two bars lapped: modelled on one line, in contact on site
+        found = pair_issue(dist, cos, overlap, si[2], sj[2], aggregate_mm, si[8] or sj[8])
+        if found:
+            seen.add(pair)
+            severity, issue = found
+            issue += u' at ({:.0f}, {:.0f}, {:.0f})'.format(*at)
+            out.append(Finding(u'', label, u'{} / {}'.format(si[7], sj[7]), u'Clash' if severity == ERROR
+                               else u'Congestion', severity, issue, si[1].Id))
+    return out
+
+
+def _segments(samples, get_id_value):
+    """[(set id, rebar, dia, a, b, lo, hi, mark, bend)] of the sampled bars, their boxes grown by the bar size."""
+    segs = []
+    for rebar, dia, chain, mark in samples:
+        rid = get_id_value(rebar.Id)
+        for a, b, bend in chain:
+            lo = (min(a[0], b[0]) - dia, min(a[1], b[1]) - dia, min(a[2], b[2]) - dia)
+            hi = (max(a[0], b[0]) + dia, max(a[1], b[1]) + dia, max(a[2], b[2]) + dia)
+            segs.append((rid, rebar, dia, a, b, lo, hi, mark, bend))
+    return segs
+
+
+def candidate_pairs(segs, reach, owner=None):
+    """
+    The (i, j), i < j, of segments of different sets (and members, with owner) whose boxes come within reach, in the
+    order a plain double loop over segs finds them (so the first clash of two sets is the same one). Found by a sweep
+    along x (4-storey test 2026-10-25: the double loop over every pair built some 0.3 GB of objects per joint).
+    """
+    order = sorted(range(len(segs)), key=lambda k: segs[k][5][0])
+    out = []
+    active = []                       # indices whose x range may still meet the next segment's
+    for k in order:
+        sk = segs[k]
+        lo_x = sk[5][0] - reach
+        active = [m for m in active if segs[m][6][0] >= lo_x]
+        klo, khi = sk[5], sk[6]
+        for m in active:
+            sm = segs[m]
+            if sm[0] == sk[0]:
+                continue
+            if owner is not None and owner.get(sm[0]) == owner.get(sk[0]):
+                continue
+            mlo, mhi = sm[5], sm[6]
+            if klo[1] - reach > mhi[1] or mlo[1] - reach > khi[1] or klo[2] - reach > mhi[2] or                     mlo[2] - reach > khi[2] or klo[0] - reach > mhi[0] or mlo[0] - reach > khi[0]:
+                continue
+            out.append((m, k) if m < k else (k, m))
+        active.append(k)
+    out.sort()
+    return out
+
+
+def _pairs_reference(samples, label, aggregate_mm, get_id_value, owner=None):
+    """The plain double loop _pairs replaced (2026-10-25), kept for the tests that prove them the same."""
     segs = []
     for rebar, dia, chain, mark in samples:
         for a, b, bend in chain:
