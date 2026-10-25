@@ -368,6 +368,18 @@ def find_support_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft=10.0, tol_ft=
     return best
 
 
+def slab_beyond(doc, run, reach_mm=300.0, depth_mm=150.0):
+    """
+    The floor (or beam) a flight without an upper landing runs into: under a point reach_mm past its top end, its
+    top at the flight's top within depth_mm. None when nothing is there (building test 2026-10-25: the bars were
+    lapped into a slab that did not exist).
+    """
+    mid_v = (run['v_min'] + run['v_max']) / 2.0
+    top = run['upper']['top']
+    p = run['frame'].xyz(run['length'] + reach_mm, mid_v, top)
+    return find_support_below(doc, p.X, p.Y, (top + 1.0) / _FT, search_depth_ft=depth_mm / _FT)
+
+
 def starter_support(doc, re_engine, run, cover_mm, starter_dia_mm, mode, embed_mm=None,
                     support_cover_mm=None):
     """

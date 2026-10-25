@@ -211,16 +211,23 @@ class StairsMixin(object):
                     a_mm = stair_rebar.a_length_mm(
                         abs(hi - lo), self._anchorage_mm(host, run_values['top_dia']))
                 starters, starter_host = self._stair_starters(host, run, cover, anchorage, values, errors)
+                slab_anchor = values['slab_anchor']
+                if run['upper']['kind'] == 'floor' and slab_anchor:
+                    if stair_host.slab_beyond(self.doc, run) is None:
+                        slab_anchor = False
+                        errors.append(u'Stair {}: a flight ends without a landing and no floor slab was found '
+                                      u'beyond it — its bars stop in the flight; detail the connection by '
+                                      u'hand.'.format(hid))
+                    else:
+                        errors.append(u'Stair {}: a flight ends without a landing — its bars are lapped '
+                                      u'{:.0f} mm into the floor slab beyond.'.format(hid, anchorage))
                 for bar_set in stair_rebar.build_flight(
                         run, cover, run_values['main_dia'], run_values['main_spacing'], run_values['dist_dia'],
                         run_values['dist_spacing'], anchorage, top_dia=run_values['top_dia'],
-                        top_spacing=run_values['top_spacing'], slab_anchor=values['slab_anchor'],
+                        top_spacing=run_values['top_spacing'], slab_anchor=slab_anchor,
                         starters=starters, a_mm=a_mm):
                     jobs.append((run['frame'], bar_set,
                                  starter_host if bar_set['layer'] == u'stair_starter' else host))
-                if run['upper']['kind'] == 'floor' and values['slab_anchor']:
-                    errors.append(u'Stair {}: a flight ends without a landing — its bars are lapped '
-                                  u'{:.0f} mm into the floor slab beyond.'.format(hid, anchorage))
             for landing in data['landings']:
                 for bar_set in stair_rebar.build_landing(
                         landing, cover, values['main_dia'], values['dist_dia'], values['dist_spacing'],

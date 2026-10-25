@@ -111,6 +111,26 @@ def _dedupe(points):
     return out
 
 
+MIN_END_D = 5.0                  # SMDSC Table B1 / BS 8666: straight end P past a bend, 5d
+
+
+def _no_short_ends(pts, dia):
+    """
+    The bar without an end shorter than P = 5d past a bend (building test 2026-10-25: 34 mm ends on H12 flight
+    bars): the bar stops at the bend instead, a point already inside the concrete with its cover.
+    """
+    pts = list(pts)
+    p_min = MIN_END_D * dia
+
+    def length(a, b):
+        return math.hypot(b[0] - a[0], b[1] - a[1])
+    while len(pts) > 2 and length(pts[0], pts[1]) < p_min - 1e-6:
+        pts.pop(0)
+    while len(pts) > 2 and length(pts[-2], pts[-1]) < p_min - 1e-6:
+        pts.pop()
+    return pts
+
+
 def _edge_inset(end, cover, dia):
     """(inset of the bar axis from a landing's free edge, closing leg wanted)."""
     u_dia = end.get('u_dia')
@@ -152,7 +172,7 @@ def bottom_bar(run, cover, dia, anchorage, slab_anchor=True, starter=False):
     else:
         s_end = run['length'] - half
         pts.append((s_end, line.z(s_end)))
-    return _dedupe(pts)
+    return _no_short_ends(_dedupe(pts), dia)
 
 
 def top_bar(run, cover, dia, anchorage, slab_anchor=True, starter=False):
@@ -164,7 +184,9 @@ def top_bar(run, cover, dia, anchorage, slab_anchor=True, starter=False):
     s_down = line.s_at(level)
     if lower['kind'] == 'landing':
         inset, _leg = _edge_inset(lower, cover, dia)
-        pts = [(max(lower['s_far'] + inset + dia, s_down - anchorage), level), (s_down, level)]
+        s_start = max(lower['s_far'] + inset + dia, s_down - anchorage)
+        # a landing edge past the knee: the bar starts on the slope there, no turning back
+        pts = [(s_start, level), (s_down, level)] if s_start < s_down else [(s_start, line.z(s_start))]
     elif starter:
         pts = [(s_down, level)]                                    # the top starter laps from here
     else:
@@ -174,15 +196,18 @@ def top_bar(run, cover, dia, anchorage, slab_anchor=True, starter=False):
     if upper['kind'] == 'landing':
         inset, leg = _edge_inset(upper, cover, dia)
         s_far = upper['s_far'] - inset
-        pts += [(s_up, top_level), (s_far, top_level)]
-        if leg:
-            pts.append((s_far, upper['bottom'] + half))
+        if s_up >= s_far - dia:
+            pts.append((s_far, line.z(s_far)))       # the landing edge before the top level: no turning back
+        else:
+            pts += [(s_up, top_level), (s_far, top_level)]
+            if leg:
+                pts.append((s_far, upper['bottom'] + half))
     elif slab_anchor:
         pts += [(s_up, top_level), (s_up + anchorage, top_level)]
     else:
         s_end = min(s_up, run['length'] - half)
         pts.append((s_end, line.z(s_end)))
-    return _dedupe(pts)
+    return _no_short_ends(_dedupe(pts), dia)
 
 
 def upper_knee_bar(run, cover, dia, dia_t, anchorage):
