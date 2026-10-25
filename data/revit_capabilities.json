@@ -234,6 +234,11 @@
       "versions": "2027", 
       "area": "hooks", 
       "defect": "RebarHookOrientation is replaced by BarTerminationsData (rebar_engine.rebar_from_curves handles both)."
+    }, 
+    {
+      "versions": "2027", 
+      "area": "free form", 
+      "defect": "Rebar.CreateFreeForm(doc, type, host, loops) with the validation result out is gone: the overload takes a RebarStyle and returns a RebarFreeFormCreationResult (.Rebar, .Error). rebar_engine.create_free_form handles both."
     }
   ]
 }
