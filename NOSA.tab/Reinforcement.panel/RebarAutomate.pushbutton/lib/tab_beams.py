@@ -191,6 +191,23 @@ class BeamsMixin(object):
             except Exception:
                 log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_elevation_preview')
 
+        spans = self._beam_line_spans(beams) if len(beams) > 1 else []
+        if spans:
+            # several beams in line: every span between its supports (user 2026-10-18: no preview of a
+            # continuous beam)
+            try:
+                parts = [(x0, rebar_preview.compute_beam_elevation_preview(
+                    x1 - x0, height_mm, cover, bar_dia, bar_dia, st_dia, st_spacing,
+                    end_offset_mm=end_offset, densify_ends=densify,
+                    dense_spacing_mm=dense_spacing, confine_length_mm=confine_length)) for x0, x1 in spans]
+            except Exception:
+                return
+            # the faces between spans; spans meeting at a support's centre line get a nominal 300 mm support
+            supports = [(a1, b0) if b0 - a1 > 1.0 else (a1 - 150.0, a1 + 150.0)
+                        for (_a0, a1), (b0, _b1) in zip(spans, spans[1:])]
+            supports = [(-150.0, 150.0)] + supports + [(spans[-1][1] - 150.0, spans[-1][1] + 150.0)]
+            self._draw_beam_line_preview(canvas, parts, supports, height_mm, spans[-1][1])
+            return
         try:
             data = rebar_preview.compute_beam_elevation_preview(
                 length_mm, height_mm, cover, bar_dia, bar_dia, st_dia, st_spacing,
@@ -199,6 +216,69 @@ class BeamsMixin(object):
         except Exception:
             return
         self._draw_beam_elevation_preview(canvas, data)
+
+    def _beam_line_spans(self, beams):
+        """[(start, end) mm] of beams in one line along the first one's axis, from 0, in order; [] when not in line."""
+        try:
+            axes = [beam_rebar.get_beam_axis(b) for b in beams]
+            d = axes[0].Direction.Normalize()
+            origin = axes[0].GetEndPoint(0)
+            spans = []
+            for ax in axes:
+                if abs(ax.Direction.Normalize().DotProduct(d)) < 0.99:
+                    return []
+                t = sorted((ax.GetEndPoint(i) - origin).DotProduct(d) * 304.8 for i in (0, 1))
+                spans.append((t[0], t[1]))
+        except Exception:
+            return []
+        spans.sort()
+        base = spans[0][0]
+        return [(a - base, b - base) for a, b in spans]
+
+    def _draw_beam_line_preview(self, canvas, parts, supports, h_mm, total_mm):
+        """The elevation of a line of spans: each span's bars and links, the supports between cut (as on the drawings)."""
+        canvas.Children.Clear()
+        cw = canvas.Width or 700.0
+        ch = canvas.Height or 220.0
+        margin = 16.0
+        lo = min([0.0] + [a for a, _b in supports])
+        hi = max([total_mm] + [b for _a, b in supports])
+        scale = min((cw - 2 * margin) / max(hi - lo, 1.0), (ch - 2 * margin) / (h_mm * 2.0))
+        off_x = (cw - (hi - lo) * scale) / 2.0 - lo * scale
+        off_y = ch / 2.0
+
+        def sx(x_mm):
+            return off_x + x_mm * scale
+
+        def sy(y_mm):
+            return off_y - (y_mm - h_mm / 2.0) * scale
+
+        def rect(x0, x1, y0, y1, fill):
+            r = SWS.Rectangle()
+            r.Width, r.Height = max(1.0, (x1 - x0) * scale), max(1.0, (y1 - y0) * scale)
+            r.Stroke, r.StrokeThickness, r.Fill = _PREVIEW_CONCRETE_STROKE, 1.5, fill
+            SWC.Canvas.SetLeft(r, sx(x0))
+            SWC.Canvas.SetTop(r, sy(y1))
+            canvas.Children.Add(r)
+        rect(0.0, total_mm, 0.0, h_mm, _PREVIEW_ELEVATION_FILL)
+        for a, b in supports:
+            if b - a > 1.0:
+                rect(a, b, -h_mm * 0.6, h_mm, _PREVIEW_SECTION_FILL)
+        for x0, data in parts:
+            for st in data.get('stirrups', []):
+                line = SWS.Line()
+                line.X1 = line.X2 = sx(x0 + st['x_mm'])
+                line.Y1, line.Y2 = sy(st['y0_mm']), sy(st['y1_mm'])
+                line.Stroke = _PREVIEW_BAR_FILL
+                line.StrokeThickness = max(1.0, float(st.get('diameter_mm') or 8.0) * scale * 0.6)
+                canvas.Children.Add(line)
+            for bar in data.get('bars', []):
+                line = SWS.Line()
+                line.X1, line.Y1 = sx(x0 + bar['x0_mm']), sy(bar['y0_mm'])
+                line.X2, line.Y2 = sx(x0 + bar['x1_mm']), sy(bar['y1_mm'])
+                line.Stroke = _PREVIEW_BAR_FILL
+                line.StrokeThickness = max(1.5, float(bar.get('diameter_mm') or 16.0) * scale)
+                canvas.Children.Add(line)
 
     def _draw_beam_elevation_preview(self, canvas, data):
         canvas.Children.Clear()
@@ -228,9 +308,9 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(0.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)
@@ -373,7 +453,7 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
@@ -482,9 +562,9 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(0.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)

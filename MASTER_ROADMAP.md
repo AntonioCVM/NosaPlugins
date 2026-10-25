@@ -347,17 +347,47 @@ la interfaz actual no cambia en `develop`/`main` hasta que el usuario la apruebe
 
 | | ID | Tarea | Oleada | Alcance / criterio de aceptación |
 |---|---|---|:-:|---|
-| [ ] | T10.1 | Maqueta navegable | A | Maqueta HTML de la ventana (todas las secciones, modo claro/oscuro) aprobada por el usuario antes de tocar el XAML |
-| [ ] | T10.2 | Navegación lateral | A | Project · Slabs · Bases · Beams · Columns · Walls · Stairs · Drawings · Schedules & Export · Check & Manage; abre en el elemento seleccionado |
-| [ ] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced en cada elemento; Footings & Slabs separados |
-| [ ] | T10.4 | Barras de selección y de acción | A | Selección resumida arriba; GENERATE, resultado y «siguiente paso» fijos abajo |
-| [ ] | T10.5 | Aspecto NOSA | B | Cards de NosaTheme, iconos vectoriales, espaciado 8 pt, modo oscuro revisado |
-| [ ] | T10.6 | Vista previa grande | B | Sección y alzado a escala con colores de material y capas; insignia QA A+/A/B/C |
-| [ ] | T10.7 | SMDSC defaults y validación | C | Botón que rellena con las tablas (MD W1, MD S1, MD B1…); validación en línea con la regla en el tooltip |
-| [ ] | T10.8 | Mostrar solo lo que aplica | C | Sin «(… only)»: las opciones se muestran según la selección |
-| [ ] | T10.9 | Resultado útil | C | Resumen antes de generar; notas pulsables que seleccionan el elemento; recuerda pestaña y valores |
-| [ ] | T10.10 | Textos 4.ª ed. | D | Inglés británico, citas de la 4.ª ed. en todo el XAML, tooltips con cláusula |
-| [ ] | T10.11 | Validación y versiones | E | Test de XAML; prueba en 2024 y luego 2025–2027; capturas antes/después; merge tras aprobación |
+| [x] | T10.1 | Maqueta navegable | A | Capturas reales de la ventana (todas las secciones, claro y oscuro) renderizadas en Revit 2024 en lugar de una maqueta HTML (2026-10-18) |
+| [x] | T10.2 | Navegación lateral | A | Project · Slabs & bases · Columns · Beams · Walls · Stairs · Drawings · Schedules & export · Check & manage, iconos vectoriales; abre en el elemento seleccionado o en la última pestaña |
+| [x] | T10.3 | Plantilla común de elemento | A | Design reinforcement / Detailing rules (SMDSC 4th ed.) / Advanced / Run log en cada elemento; *Slabs* (forjados y losas de cimentación) y *Bases & pile caps* (zapatas y encepados) como pestañas propias sobre un mismo formulario (2026-10-18) |
+| [x] | T10.4 | Barras de selección y de acción | A | Barra de selección con recuento y marcas; barra de acción con estado, insignia QA, «Create drawings ▸» y GENERATE único |
+| [x] | T10.5 | Aspecto NOSA | B | Cards, iconos Path, modo oscuro corregido (pinceles congelados sustituidos en NOSAWindow.ApplyTheme) |
+| [x] | T10.6 | Vista previa grande | B | Vistas previas con el hormigón en naranja claro (corte) y gris (visto); insignia QA A+/A/B/C de rebar_qa tras cada generación |
+| [x] | T10.7 | SMDSC defaults y validación | C | Recuadro *Detailing limits (EC2, UK NA)* con As,min y separación máxima de la selección (losas, zapatas, muros) y aviso si la malla no los cumple; botón *Apply EC2 minimum* rotulado como mínimo, no de cálculo (`nosa_utils.min_steel`); validación en línea y «Reset to defaults» |
+| [x] | T10.8 | Mostrar solo lo que aplica | C | Sin «(… only)»: las tarjetas de solo losas / solo zapatas se ocultan según la selección |
+| [x] | T10.9 | Resultado útil | C | Resumen de la selección siempre visible; notas del registro pulsables (doble clic selecciona el elemento); recuerda la pestaña |
+| [x] | T10.10 | Textos 4.ª ed. | D | Etiquetas en sentence case británico; citas de la 4.ª ed. (MD C6a, CB1, C2a, B1, RW1/RW2, ST1, PB1, S1/S2, S5, OP1, Appendix D, 5.1.10, Fig. 6.7); depósitos a EC2-3 |
+| [~] | T10.11 | Validación y versiones | E | test_ui_v2 (controles usados por el código presentes, sin SelectedIndex en XAML, sin español); ventana probada en 2024. Pendiente: 2025–2027 cuando el usuario lo autorice, y merge tras su aprobación |
+
+### Fase 11 — Propuesta tras la comparativa (docs/FASE11_BENCHMARK_RA.md)
+
+| Estado | ID | Tarea | Alcance |
+|---|---|---|---|
+| [-] | T11.1 | ~~Plano de pilotes~~ | Descartada (2026-10-18): lo hace el plugin Piles / Pile Master del usuario, dinámico con el modelo |
+| [x] | T11.2 | Planillas emitidas congeladas | Check & manage › Issue drawings: al emitir un plano sus barras quedan Finalized, sus planillas toman la revisión siguiente (A, B…) y estado P/T/C, y el registro (`rebar_project.json`, `issues`) guarda fecha, marcas y cambios frente a la emisión anterior; «Reopen for revision» las libera; GENERATE se niega sobre elementos con barras emitidas (`rebar_manage`) |
+| [x] | T11.3 | Copiar armado a elementos idénticos | Check & manage › Copy to identical members: mismo tipo y tamaño en sus ejes, sin barras; se copian con la transformación de un elemento a otro y se re-hospedan; Partitions… los programa una vez con No. of mbrs |
+| [x] | T11.4 | Visibilidad por capa | Check & manage › Visibility: T1/T2/B1/B2/N1/N2/F1/F2, U, trimmers y diagonales, esperas, cercos; aislar, ocultar o seleccionar (temporal) y Reset view |
+| [x] | T11.5 | Resaltar por marca | Check & manage › Bar marks: seleccionar (vista o modelo) o aislar una o varias marcas; «1» encuentra «01» |
+| [-] | T11.6 | ~~Paneles de armado adicional por contorno~~ | Elegir un rectángulo o polígono en planta (refuerzo superior sobre apoyos, zonas del cálculo), cara y capa, barra y separación; generado con las reglas NOSA (anclajes, capas, marcas, planilla). Inspirado en «Slab Rebar» de KS Digital. Descartada (2026-10-18): el usuario no la ve necesaria |
+| [x] | T11.7 | Presentación según las figuras de planos tipo del SMDSC | Plantas (losas, zapatas, encepados) y alzados de muro: rótulo en la prolongación recta de su línea indicadora, en columnas y filas alineadas sin cruces (`callout_layout.align_rows`), decidido por el usuario con el plano de KS Digital (2026-10-18). Después (2026-10-18, manual de Arup / R. Whittle 1.5.1): texto nivelado sobre su subrayado, que sale en escuadra de la línea indicadora o de la barra hasta una columna a cada lado; zonas y barras sueltas juntas; quiebros escalonados sin cruces; ALT/STG apilados en un solo rótulo |
+
+## Fase 12 — RebarAutomate 2.x: etiquetas nativas y flujo completo (petición del usuario 2026-10-18)
+
+Decisiones del usuario (2026-10-18): directrices **siempre en escuadra** (tramo perpendicular desde la barra o la
+línea de reparto hasta la altura del texto y hombro horizontal, un solo codo nativo); recubrimientos en uniones por
+**jerarquía fija** cimentación > muro > pilar > viga > losa.
+
+| Estado | ID | Tarea | Alcance |
+|---|---|---|---|
+| [x] | T12.1 | Etiquetas nativas | Rótulos con IndependentTag / MRA de Revit: directriz nativa con codo y punto (tipo «- Dot»), sin líneas de detalle ni regiones rellenas; filas ordenadas sin cruces (`callout_layout.align_rows(native=True)`), codos controlados para que no se pisen. Hecho: el hombro de Revit se une 0,46 mm (papel) sobre la cabecera (medido en 2026); los tipos «- Dot» sin flecha reciben la de punto |
+| [x] | T12.2 | Planta de losa sin longitudes | Sin cotas de longitud de barra en plantas: la longitud está en la planilla |
+| [x] | T12.3 | Secciones alineadas en el plano | Secciones de un mismo elemento en una fila con la misma altura de referencia (plano 4503) |
+| [x] | T12.4 | Secciones de viga curva entre estaciones | Cada sección a media distancia entre dos estaciones CH, nunca sobre una |
+| [x] | T12.5 | Recubrimientos del modelo | Recubrimiento de cada cara leído del elemento (ya lo hacía `get_native_cover_mm`); en uniones manda el de mayor rango (`nosa_utils.cover_rules`). Hecho (2026-10-24): vigas rectas, continuas y curvas ancladas en pilar o cimentación (cara lejana con el recubrimiento del apoyo), pie de pilar bajo losa (no más cerca de la cara que el recubrimiento del pilar), esperas de muro en cimentación (recubrimiento inferior de la cimentación), borde de losa sobre muro/viga/pilar perimetral (el mayor). Probado en 2026 con rollback |
+| [~] | T12.6 | Hormigón y recubrimiento comprobados | Clase de hormigón del material y recubrimiento del modelo contrastados con las notas generales automáticamente; propuesta de corrección. Hecho: clase leída también del activo estructural (resistencia → C fck/fcu); avisos agrupados una vez para todos los planos. Pendiente: acción para corregir |
+| [x] | T12.7 | Planillas con los planos | Al crear cada plano se generan y vinculan sus planillas (BBS) |
+| [x] | T12.8 | Revisión automática | Al terminar cada generación, auditoría de anotaciones (A1–A7, cruces, solapes, marcas sueltas) con lista en la ventana |
+| [ ] | T12.9 | Actualizar en vez de regenerar | Cambia un elemento → solo sus vistas y planos se rehacen; se conservan ajustes manuales y numeración |
 
 ## Fase 12 — RebarAutomate 2.x: etiquetas nativas y flujo completo (petición del usuario 2026-10-18)
 

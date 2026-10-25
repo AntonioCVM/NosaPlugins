@@ -80,3 +80,15 @@
 | **E — Validación** | Test de XAML (nombres, sin `SelectedIndex` en XAML), prueba en Revit 2024 y después 2025–2027, capturas antes/después, rama `feature/ra-ui-v2` → `develop` → `main` | Cierre |
 
 Todo en la rama aparte `feature/ra-ui-v2`: la interfaz actual sigue intacta en `develop`/`main` hasta que se apruebe.
+
+## Estado (2026-10-18, rama `feature/ra-ui-v2`)
+
+Hecho en las cinco oleadas:
+- **A:** `ui.xaml` reconstruido a partir de las tarjetas actuales (`build_ui_v2.py`, en `%TEMP%
+osa_tools`), conservando los 226 controles con nombre; navegación lateral; plantilla común de elemento; barras de selección y de acción. La lógica nueva está en `tab_shell.py` (ShellMixin).
+- **B:** iconos vectoriales, cards, vistas previas con colores de material, insignia QA, modo oscuro corregido en `NOSAWindow.ApplyTheme`.
+- **C:** GENERATE único que llama al de la pestaña activa; «Create drawings ▸» tras generar; tarjetas ocultas según la selección; validación en línea; «Reset to defaults»; pestaña recordada; doble clic en el registro selecciona el elemento.
+- **D:** etiquetas en sentence case; referencias de la 4.ª ed.; depósitos a EC2-3.
+- **E:** `tests/test_ui_v2.py`; ventana construida y renderizada en Revit 2024 (claro y oscuro).
+
+Pendiente: SMDSC defaults por tabla (a confirmar), prueba en 2025–2027 y merge a `develop`/`main` tras la aprobación del usuario.
