@@ -7,6 +7,7 @@ Only the test models are accepted. Exporting a schedule to CSV does not change t
 """
 import io
 import os
+import re
 import json
 import clr
 clr.AddReference('RevitAPI')
@@ -16,8 +17,8 @@ from Autodesk.Revit.DB.Structure import Rebar
 
 TEST_MODELS = (u'Rebar test 2024', u'Rebar test 2026',
                u'Rebar test 2025 (copia de 2024)', u'Rebar test 2027 (copia de 2026)', u'Rebar test 2024 (copia)', u'Rebar test 2026 (copia)')  # T10.11 copies
-if doc.Title not in TEST_MODELS:
-    raise RuntimeError(u'not a test model')
+if doc.Title not in TEST_MODELS and not (not doc.PathName and re.match(u'^Project[0-9]+$', doc.Title)):
+    raise RuntimeError(u'not a test model')      # or a new, never saved project (building_test.py)
 FT = 304.8
 
 

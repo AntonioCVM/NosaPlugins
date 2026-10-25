@@ -196,18 +196,32 @@ def _rows_per_member(doc):
     return rows
 
 
+def homes(members):
+    """
+    {member: drawing} its bars are scheduled on ({drawing: {member: ...}} as _members gives it). An identical
+    member's copies may be drawn on another sheet of the drawing (the 4-storey test, 2026-10-25: F2 to F9 on
+    4502-4505, their original F1 on 4501); their bars are scheduled, marked and referenced with the original's.
+    """
+    out = {}
+    for drawing in sorted(members, key=natural_key):
+        for member in members[drawing]:
+            out.setdefault(member, drawing)
+    return out
+
+
 def _copies(doc, members):
-    """{drawing: {member: [rebar]}}: bars of identical members' copies, left out of the BBS (Show in schedule = No)."""
+    """{drawing: {member: [rebar]}}: bars of identical members' copies, left out of the BBS (Show in schedule = No),
+    under the drawing their original is scheduled on, whichever sheet the copy is drawn on."""
     from Autodesk.Revit import DB  # Lazy import
     import rebar_schedule
+    home = homes(members)
     out = {}
-    for rebar in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Rebar) \
-            .WhereElementIsNotElementType():
+    for rebar in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Rebar)             .WhereElementIsNotElementType():
         if rebar_schedule.shows_in_schedule(rebar) or not _text(rebar, u'NOSA_Rebar_Batch_Id'):
             continue
-        drawing, member = _text(rebar, DRAWING_PARAM), rebar_schedule._partition_of(rebar)
-        if member in members.get(drawing, {}):
-            out.setdefault(drawing, {}).setdefault(member, []).append(rebar)
+        member = rebar_schedule._partition_of(rebar)
+        if member in home:
+            out.setdefault(home[member], {}).setdefault(member, []).append(rebar)
     return out
 
 
@@ -361,6 +375,10 @@ def create(doc, capacity=ROWS_PER_A4):
     for drawing, found in members.items():
         for name, entry in found.items():
             for rebar in entry[2]:
+                _set(rebar, SCHEDULE_PARAM, keys[name])
+    for found in _copies(doc, members).values():
+        for name, bars in found.items():
+            for rebar in bars:          # a copy's drawing notes name the schedule its bars are counted on
                 _set(rebar, SCHEDULE_PARAM, keys[name])
     order = dict((name, (m[0], natural_key(name))) for found in drawings.values() for m in found
                  for name in [m[1]])
