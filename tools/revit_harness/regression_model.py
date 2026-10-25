@@ -74,9 +74,32 @@ def floor(loops, level=None):
 
 
 def column(x, y, sym):
+    if not sym.IsActive:
+        sym.Activate()
     c = doc.Create.NewFamilyInstance(xyz(x, y), sym, ground, DBS.StructuralType.Column)
     c.get_Parameter(DB.BuiltInParameter.FAMILY_TOP_LEVEL_PARAM).Set(first.Id)
     return c
+
+
+FAMILIES = os.path.join(os.environ.get('LOCALAPPDATA', u''), u'Temp', u'nosa_t858')
+
+
+def test_family(name):
+    """
+    A test family (make_test_families.py made it once and saved it): loaded, never made here - creating family
+    documents from the harness killed Revit 2026 (2026-10-25). None when it has not been made.
+    """
+    path = os.path.join(FAMILIES, name + u'.rfa')
+    if not os.path.exists(path):
+        return None
+    t = DB.Transaction(doc, u'NOSA test family')
+    t.Start()
+    loaded = doc.LoadFamily(path)
+    t.Commit()
+    fam = loaded[1] if isinstance(loaded, tuple) else None
+    if fam is None:
+        fam = [x for x in DB.FilteredElementCollector(doc).OfClass(DB.Family) if x.Name == name][0]
+    return doc.GetElement(list(fam.GetFamilySymbolIds())[0])
 
 
 def build():
@@ -86,6 +109,8 @@ def build():
     rect_sq = symbol(DB.BuiltInCategory.OST_StructuralColumns, u'Concrete Square', u'450x450mm')
     round_ = symbol(DB.BuiltInCategory.OST_StructuralColumns, u'Concrete Round', u'450mm Ø')
     beam = symbol(DB.BuiltInCategory.OST_StructuralFraming, u'RC Beam', u'300x600mm')
+    l_sym, t_sym = test_family(u'NOSA test L column'), test_family(u'NOSA test T column')
+    haunch = test_family(u'NOSA test haunched beam')
     t = DB.Transaction(doc, u'NOSA T8.57 model')
     t.Start()
     c1, c2, c3 = column(0, 0, rect_sq), column(6000, 0, rect_sq), column(12000, 0, rect_sq)
@@ -127,6 +152,17 @@ def build():
         DB.BuiltInCategory.OST_StructuralFoundation, u'Pile Cap-4 Pile', u'2000 x 2000 x 900mm'), ground,
         DBS.StructuralType.Footing)
     cases.append((u'footings_floors', u'pile cap, 4 piles', [cap.Id]))
+    # T8.58 (2026-10-25): an L and a T column and a haunched beam (test families, make_test_families.py)
+    if l_sym is not None:
+        cases.append((u'columns', u'L column 600x600x250', [column(20000, 30000, l_sym).Id]))
+    if t_sym is not None:
+        cases.append((u'columns', u'T column 800x600x250', [column(24000, 30000, t_sym).Id]))
+    if haunch is not None:
+        if not haunch.IsActive:
+            haunch.Activate()
+        hb = doc.Create.NewFamilyInstance(DB.Line.CreateBound(xyz(28000, 30000, z), xyz(34000, 30000, z)), haunch,
+                                          first, DBS.StructuralType.Beam)
+        cases.append((u'beams', u'haunched beam 600/900', [hb.Id]))
     # T8.58 (2026-10-25): a column leaning 10 degrees and a slab sloping 10 %
     lean = math.tan(math.radians(10.0)) * H
     slanted = doc.Create.NewFamilyInstance(DB.Line.CreateBound(xyz(30000, 20000), xyz(30000 + lean, 20000, H)),
@@ -153,6 +189,30 @@ def _host_solids(host):
         items = g.GetInstanceGeometry() if isinstance(g, DB.GeometryInstance) else [g]
         out.extend(x for x in items if isinstance(x, DB.Solid) and x.Volume > 1e-6)
     return out
+
+
+def _link_tilt(host, hd):
+    """How far a column's or beam's links lean off square to its axis (degrees), None without links or axis."""
+    loc = host.Location
+    axis = loc.Curve if isinstance(loc, DB.LocationCurve) else None
+    if axis is None or not isinstance(axis, DB.Line):
+        return None
+    a = axis.Direction
+    worst = None
+    for r in hd.GetRebarsInHost():
+        layer = r.LookupParameter(u'NOSA_Rebar_Layer')
+        if layer is None or (layer.AsString() or u'') not in (u'stirrup', u'link'):
+            continue
+        curves = [c for c in r.GetCenterlineCurves(False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+                  if isinstance(c, DB.Line)]
+        if len(curves) < 2:
+            continue
+        n = curves[0].Direction.CrossProduct(curves[1].Direction)
+        if n.GetLength() < 1e-6:
+            continue
+        ang = math.degrees(math.acos(min(1.0, abs(n.Normalize().DotProduct(a)))))
+        worst = ang if worst is None else max(worst, ang)
+    return worst
 
 
 def inside_report(ids):
@@ -185,6 +245,10 @@ def inside_report(ids):
                                                               if r.LookupParameter(u'NOSA_Rebar_Layer') else u'', i)
         lines.append(u'    host {}: worst bar {:.0%} inside the concrete ({})'.format(
             eid.Value if hasattr(eid, 'Value') else eid.IntegerValue, worst, where))
+        tilt = _link_tilt(host, hd)
+        if tilt is not None:
+            lines.append(u'    host {}: links {:.1f} deg off square to the member axis'.format(
+                eid.Value if hasattr(eid, 'Value') else eid.IntegerValue, tilt))
     return lines
 
 

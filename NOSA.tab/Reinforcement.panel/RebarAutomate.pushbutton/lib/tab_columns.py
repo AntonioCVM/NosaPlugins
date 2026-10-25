@@ -541,6 +541,13 @@ class ColumnsMixin(object):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'column'))
         try:
+            section = column_rebar.detect_column_geometry(self.doc, host)
+        except Exception:
+            section = None
+        if section and section.get('shape') == 'poly':
+            return self._process_polygon_column(host, values, section, cover_mm, wrapper, bar_types, errors,
+                                                created_rebars)
+        try:
             # T8.47, SMDSC 4th ed. 5.2/5.3: do the bars fit inside the links at their actual size?
             import fit_checks
             geom = column_rebar.detect_column_geometry(self.doc, host)
@@ -785,6 +792,65 @@ class ColumnsMixin(object):
                 wrapper, [{'bars': lines, 'hand': hand, 'foundation': foundation}
                           for foundation, lines in by_foundation.values()],
                 values['bar_dia'], cover_mm, errors, created_rebars, u'Column', host)
+
+    def _process_polygon_column(self, host, values, section, cover_mm, wrapper, bar_types, errors, created_rebars):
+        """
+        T8.58 (2026-10-25): an L, T or other square-cornered column - a bar at every corner of the section and of
+        its links, bars between where the gap is over 200, one closed link per leg in each link zone.
+        """
+        from nosa_utils import polygon_section
+        label = u'Column {}'.format(get_id_value(host.Id))
+        lay = polygon_section.layout(section['outline_mm'], cover_mm, values['link_dia'], values['bar_dia'])
+        if lay is None:
+            errors.append(u'{}: section not square-cornered - not reinforced.'.format(label))
+            return
+        axis = column_rebar.get_column_axis(host)
+        z0, z1 = sorted((axis.GetEndPoint(0).Z, axis.GetEndPoint(1).Z))
+        x0, y0 = axis.GetEndPoint(0).X, axis.GetEndPoint(0).Y
+        lap_mm = column_rebar.default_lap_length_mm(values['bar_dia'], std=self._host_std(host))
+        above = None
+        try:
+            above = column_rebar.find_column_above(self.doc, host, z1, x0, y0)
+        except Exception:
+            log_swallowed(_LOG, u'polygon column above')
+        top = z1 + lap_mm / 304.8 if above is not None else z1 - cover_mm / 304.8
+        bar_type = bar_types.get(values['bar_dia'])
+        for x, y in lay['bars']:
+            line = DB.Line.CreateBound(DB.XYZ(x / 304.8, y / 304.8, z0), DB.XYZ(x / 304.8, y / 304.8, top))
+            rebar = wrapper.create_from_curves(host, [line], bar_type, normal=DB.XYZ.BasisX,
+                                               transaction_name=u'NOSA — Create Column Vertical Bar')
+            if rebar is None:
+                errors.append(u'{}: vertical bar - {}'.format(label, wrapper.last_error))
+                continue
+            self._stamp_layer(rebar, u'vertical')
+            created_rebars.append(rebar)
+        clear_mm = (z1 - z0) * 304.8
+        xs = [p[0] for p in section['outline_mm']]
+        ys = [p[1] for p in section['outline_mm']]
+        joint = column_rebar.default_joint_zone_length_mm(max(max(xs) - min(xs), max(ys) - min(ys)), clear_mm,
+                                                          std=self._host_std(host))
+        zones = column_rebar.generate_column_stirrup_zones(
+            clear_mm, joint, values.get('dense_spacing') or values['link_spacing'], values['link_spacing'],
+            values['densify'])
+        link_type = bar_types.get(values['link_dia'])
+        hook = re_engine.get_link_hook_type(self.doc)
+        for rect in lay['links']:
+            for zone in zones:
+                z = z0 + zone['start_mm'] / 304.8
+                pts = [DB.XYZ(px / 304.8, py / 304.8, z) for px, py in rect]
+                curves = [DB.Line.CreateBound(pts[k], pts[(k + 1) % 4]) for k in range(4)]
+                rebar = wrapper.create_rebar_set(
+                    host, curves, link_type, zone['spacing_mm'], zone['end_mm'] - zone['start_mm'],
+                    normal=DB.XYZ.BasisZ, style=DBS.RebarStyle.StirrupTie,
+                    transaction_name=u'NOSA — Create Column Links', link_hook=hook)
+                if rebar is None:
+                    errors.append(u'{}: links - {}'.format(label, wrapper.last_error))
+                    continue
+                self._stamp_layer(rebar, u'stirrup')
+                created_rebars.append(rebar)
+        errors.append(u'{}: {}-sided section - {} bars, {} closed link(s) per level, one per leg (T8.58); starters '
+                      u'into the foundation and cranked laps are not made for this section yet - detail them by '
+                      u'hand.'.format(label, len(section['outline_mm']), len(lay['bars']), len(lay['links'])))
 
     def _create_helix(self, host, bar_type, circle, zone, errors, created_rebars, link_rebars):
         """IStructE SMDSC 4th ed. MD C6: the zone's circular links as helical binding, 12 m pieces lapped one turn."""

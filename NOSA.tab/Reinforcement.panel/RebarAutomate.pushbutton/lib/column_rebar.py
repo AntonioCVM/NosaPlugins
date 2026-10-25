@@ -624,6 +624,31 @@ def _half_extents_from_source(engine, axis, source, inset_mm):
         source['u_dir'], source['v_dir'], inset_mm)
 
 
+def section_outline_mm(cover_mgr):
+    """The plan outline (mm) of a column whose section has more than 4 sides, all square to each other; else None."""
+    from nosa_utils import polygon_section
+    import slab_topology
+    if cover_mgr.solid is None:
+        return None
+    bottom = None
+    for face in cover_mgr.faces:
+        if face.normal.Z < -0.99 and (bottom is None or face.origin.Z < bottom.origin.Z):
+            bottom = face
+    if bottom is None:
+        return None
+    try:
+        loops = slab_topology.extract_loops_mm(bottom.face)
+    except Exception:
+        return None
+    if not loops:
+        return None
+    outer = max(loops, key=lambda lp: abs(polygon_section._area(lp)))
+    outer = polygon_section._clean(outer)
+    if len(outer) <= 4 or not polygon_section.square_cornered(outer):
+        return None
+    return outer
+
+
 def detect_column_geometry(doc, host):
     """
     PHASE 3.4 item 4 — best-effort read of a column host's REAL
@@ -740,6 +765,12 @@ def detect_column_geometry(doc, host):
     cyl_diameter_mm = _find_cylindrical_face_diameter_mm()
     if cyl_diameter_mm is not None:
         return {'shape': 'circle', 'diameter_mm': cyl_diameter_mm}
+
+    # T8.58 (2026-10-25): an L or T section has more than 4 sides, all square to each other - it was taken for a
+    # faceted circle below and its bars came out of the concrete
+    outline = section_outline_mm(cover_mgr)
+    if outline is not None:
+        return {'shape': 'poly', 'outline_mm': outline}
 
     try:
         axis = get_column_axis(host)

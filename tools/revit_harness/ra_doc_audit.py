@@ -15,7 +15,7 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.DB.Structure import Rebar
 
 TEST_MODELS = (u'Rebar test 2024', u'Rebar test 2026',
-               u'Rebar test 2025 (copia de 2024)', u'Rebar test 2027 (copia de 2026)', u'Rebar test 2024 (copia)')  # T10.11 copies
+               u'Rebar test 2025 (copia de 2024)', u'Rebar test 2027 (copia de 2026)', u'Rebar test 2024 (copia)', u'Rebar test 2026 (copia)')  # T10.11 copies
 if doc.Title not in TEST_MODELS:
     raise RuntimeError(u'not a test model')
 FT = 304.8
