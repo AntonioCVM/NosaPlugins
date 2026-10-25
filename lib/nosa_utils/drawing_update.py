@@ -144,7 +144,7 @@ def from_revit_date(text):
     Revit's own Sheet Issue Date of a new sheet, m/d/yy (10/24/26), as dd/mm/yy; None when it does not read so
     (a date the user wrote is kept as it is).
     """
-    m = re.match(u'^\s*(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})\s*$', text or u'')
+    m = re.match(u'^ *([0-9]{1,2})/([0-9]{1,2})/([0-9]{2}|[0-9]{4}) *$', text or u'')
     if not m:
         return None
     month, day, year = int(m.group(1)), int(m.group(2)), int(m.group(3)) % 100
