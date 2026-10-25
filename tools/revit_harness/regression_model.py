@@ -17,7 +17,7 @@ from Autodesk.Revit import DB
 from Autodesk.Revit.DB import Structure as DBS
 
 import re
-if doc.PathName or not re.match(u'^Project\d+$', doc.Title):      # a new, never saved project only
+if doc.PathName or not re.match(u'^Project[0-9]+$', doc.Title):      # a new, never saved project only
     raise RuntimeError(u'not the unsaved test project: ' + doc.Title)
 
 _MM = 304.8
