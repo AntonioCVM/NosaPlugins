@@ -86,6 +86,19 @@ def schedule_marks(bars):
     return out
 
 
+def stale_schedules(names, keys):
+    """
+    The drawing schedules left without bars ('BBS 4506-01' once PC10 joined drawing 4505, m6 2026-10-25): the names
+    of the form 'BBS dddd-nn' whose key is not among the current keys.
+    """
+    out = []
+    for name in names:
+        m = re.match(u'^' + MASTER_BBS + u' ([0-9]{4}-[0-9]{2})$', name or u'')
+        if m and m.group(1) not in keys:
+            out.append(name)
+    return out
+
+
 def drawing_marks(bars):
     """
     SMDSC 4th ed. 4.5.1 (user 2026-10-11): marks unique per drawing, so per schedule too. bars: [(member order,
@@ -383,4 +396,45 @@ def create(doc, capacity=ROWS_PER_A4):
                         schedule_ref(key, revision), used[key], capacity))
         except Exception as e:
             report['errors'].append(u'{}: {}'.format(key, e))
+    _retire_stale(doc, set(keys.values()), report)
     return report
+
+
+def _retire_stale(doc, keys, report):
+    """
+    A schedule left without bars goes, its A4 sheet with it when that holds nothing else and was never issued;
+    an issued one stays, reported.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name
+    views = dict((element_name(v), v) for v in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))
+    for name in stale_schedules(list(views), keys):
+        view = views[name]
+        key = name[len(MASTER_BBS) + 1:]
+        sheet = _sheet_for(doc, key)
+        if sheet is not None and _text(sheet, u'NOSA_BBS_Revision'):
+            report['errors'].append(u'{}: no bars are scheduled on it any more; kept, it was issued (revision {}).'
+                                    .format(name, _text(sheet, u'NOSA_BBS_Revision')))
+            continue
+        try:
+            if sheet is not None and _only_schedules(doc, sheet, view):
+                doc.Delete(sheet.Id)
+            doc.Delete(view.Id)
+            report.setdefault('retired', []).append(name)
+            report['errors'].append(u'{}: no bars are scheduled on it any more; removed with its sheet.'.format(name))
+        except Exception as e:
+            report['errors'].append(u'{}: left without bars, not removed ({}).'.format(name, e))
+
+
+def _only_schedules(doc, sheet, view):
+    """A BBS sheet holding its title block, its schedule and the title block's revision table only."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    for e in DB.FilteredElementCollector(doc, sheet.Id).OwnedByView(sheet.Id):
+        if isinstance(e, DB.ScheduleSheetInstance):
+            if e.ScheduleId != view.Id and not e.IsTitleblockRevisionSchedule:
+                return False
+        elif not (isinstance(e, DB.FamilyInstance) and e.Category is not None and
+                  get_id_value(e.Category.Id) == int(DB.BuiltInCategory.OST_TitleBlocks)):
+            return False
+    return True

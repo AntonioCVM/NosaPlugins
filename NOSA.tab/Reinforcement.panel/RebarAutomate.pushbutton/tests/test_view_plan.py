@@ -218,3 +218,21 @@ def test_sections_numbered_on_never_read_2():
                 sys.modules[k] = v
     assert [v.Name for v in views] == [u'Beam B1-B3 - Section {0}-{0}'.format(i) for i in range(5, 11)]
     print(u'[PASS] test_sections_numbered_on_never_read_2')
+
+
+def test_a_member_fills_the_sheet_before_another_is_opened():
+    # m6 (2026-10-25): S2 went alone to a second sheet; its sections beside its plan fit the first one's free room
+    area = (0.0, 0.0, 700.0, 550.0)
+    big = ([(680.0, 300.0, None)], [])                       # takes the top of the sheet
+    s2 = ([(300.0, 150.0, None)], [(250.0, 60.0), (250.0, 60.0)])   # 310 tall stacked under, 150 beside
+    under = vp.arrange_block(*s2)
+    beside = vp.arrange_block(s2[0], s2[1], beside=True)
+    assert under[1] > 230.0 and beside[1] <= 150.0 + 1e-6 and beside[0] == 300.0 + vp.GAP_MM + 250.0
+    spots = vp.layout_packed([big, s2], area=area)
+    assert set(s for s, _x, _y in spots) == {0}              # one sheet
+    # the plan and its sections stay together, sections to the plan's right
+    (_s, px, py), (_s1, sx, sy) = spots[1], spots[2]
+    assert sx > px + 150.0 - 1e-6 and abs((py + 75.0) - (sy + 30.0)) < 1e-6
+    # nothing changes when the preferred way fits
+    assert vp.layout_choices([[(100.0, 100.0), (50.0, 50.0)]], area=area)[0][3] == 0
+    print(u'[PASS] test_a_member_fills_the_sheet_before_another_is_opened')

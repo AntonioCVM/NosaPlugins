@@ -242,6 +242,12 @@ class Updater(object):
                 if sheet.SheetNumber not in self.by_kind[kind]:
                     self.by_kind[kind].append(sheet.SheetNumber)
                 self.sheets[sheet.SheetNumber] = sheet
+        # a drawing's sheet left with none of its views (a run that packed it on fewer sheets) is still its own
+        for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+            kind = read(sheet).get('kind')
+            if kind in kinds and sheet.SheetNumber not in self.sheets:
+                self.by_kind.setdefault(kind, []).append(sheet.SheetNumber)
+                self.sheets[sheet.SheetNumber] = sheet
         for number, sheet in self.sheets.items():
             self._clear_sheet(sheet, [s['view'] for s in self.old.values()])
             sheet.SheetNumber = _TEMP_PREFIX + number
@@ -374,9 +380,11 @@ class Updater(object):
 
     def _user_items(self, sheet):
         from Autodesk.Revit import DB  # Lazy import
+        # the title block's own revision table is Revit's, not the user's (2026-10-25, Revit 2025: sheet 4506 kept)
         return [e for e in DB.FilteredElementCollector(self.doc, sheet.Id).OwnedByView(sheet.Id)
                 if e.Category is not None and _id(e.Category.Id) != int(DB.BuiltInCategory.OST_TitleBlocks)
-                and not isinstance(e, DB.Viewport)]
+                and not isinstance(e, DB.Viewport)
+                and not (isinstance(e, DB.ScheduleSheetInstance) and e.IsTitleblockRevisionSchedule)]
 
     def _record(self, view, sheet, port, sigs, report):
         doc = self.doc

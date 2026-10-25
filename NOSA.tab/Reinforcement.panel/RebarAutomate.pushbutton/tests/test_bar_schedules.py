@@ -95,3 +95,11 @@ def test_bar_schedule_sheets_are_filed_in_rc_schedules():
     assert rebar_views.sheet_package(u'4503') == u"4500's - RC details"
     assert rebar_views.sheet_package(u'') == rebar_views.RC_PACKAGE
     print(u'[PASS] test_bar_schedule_sheets_are_filed_in_rc_schedules')
+
+
+def test_schedules_left_without_bars():
+    # m6 (2026-10-25, Revit 2025): PC10 joined drawing 4505, so 'BBS 4506-01' was left empty
+    names = [u'BBS', u'BBS 4505-01', u'BBS 4506-01', u'BBS 4506-01 copy', u'Rebar schedule']
+    assert bs.stale_schedules(names, set([u'4505-01'])) == [u'BBS 4506-01']
+    assert bs.stale_schedules(names, set([u'4505-01', u'4506-01'])) == []
+    print(u'[PASS] test_schedules_left_without_bars')

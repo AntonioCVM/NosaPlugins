@@ -65,35 +65,52 @@ def layout(sizes, area=A1_AREA, gap=GAP_MM, reserved=()):
     the area's edge or next to a view already placed; when none fits, a new sheet starts.
     reserved: boxes every sheet keeps free (the legends' corner).
     """
+    return [(s, x, y) for s, x, y, _k in layout_choices([[wh] for wh in sizes], area, gap, reserved)]
+
+
+def _spot(rects, w, h, area, gap):
+    """The highest, then leftmost, free rectangle w x h among rects, or None."""
     ax0, ay0, ax1, ay1 = area
-    order = sorted(range(len(sizes)), key=lambda i: (-sizes[i][0] * sizes[i][1], i))
-    placed_out = [None] * len(sizes)
+    xs = sorted(set([ax0] + [r[2] + gap for r in rects]))
+    ys = sorted(set([ay1] + [r[1] - gap for r in rects]), reverse=True)
+    for top in ys:
+        for left in xs:
+            rect = (left, top - h, left + w, top)
+            if rect[2] > ax1 + 1e-6 or rect[1] < ay0 - 1e-6:
+                continue
+            if _free(rect, rects, gap - 1e-6):
+                return rect
+    return None
+
+
+def layout_choices(options, area=A1_AREA, gap=GAP_MM, reserved=()):
+    """
+    layout() where each item may be drawn several ways (options: [[(w, h), ...]], preferred first): a sheet is filled
+    before another is opened - an item takes the first of its ways that fits on a sheet already started (m6, user
+    2026-10-25: S2 alone on sheet 4503 with room on 4502), and only then a new sheet in its preferred way. Returns
+    [(sheet index, centre x, centre y, way)] in the input order.
+    """
+    ax0, ay0, ax1, ay1 = area
+    order = sorted(range(len(options)), key=lambda i: (-options[i][0][0] * options[i][0][1], i))
+    placed_out = [None] * len(options)
     sheets = [list(reserved)]
     for i in order:
-        w, h = sizes[i]
         spot = None
         for sheet_index, rects in enumerate(sheets):
-            xs = sorted(set([ax0] + [r[2] + gap for r in rects]))
-            ys = sorted(set([ay1] + [r[1] - gap for r in rects]), reverse=True)
-            for top in ys:
-                for left in xs:
-                    rect = (left, top - h, left + w, top)
-                    if rect[2] > ax1 + 1e-6 or rect[1] < ay0 - 1e-6:
-                        continue
-                    if _free(rect, rects, gap - 1e-6):
-                        spot = (sheet_index, rect)
-                        break
-                if spot:
+            for k, (w, h) in enumerate(options[i]):
+                rect = _spot(rects, w, h, area, gap)
+                if rect is not None:
+                    spot = (sheet_index, rect, k)
                     break
             if spot:
                 break
         if spot is None:
             sheets.append(list(reserved))
-            rect = (ax0, ay1 - h, ax0 + w, ay1)
-            spot = (len(sheets) - 1, rect)
-        sheet_index, rect = spot
+            w, h = options[i][0]
+            spot = (len(sheets) - 1, (ax0, ay1 - h, ax0 + w, ay1), 0)
+        sheet_index, rect, k = spot
         sheets[sheet_index].append(rect)
-        placed_out[i] = (sheet_index, (rect[0] + rect[2]) / 2.0, (rect[1] + rect[3]) / 2.0)
+        placed_out[i] = (sheet_index, (rect[0] + rect[2]) / 2.0, (rect[1] + rect[3]) / 2.0, k)
     return placed_out
 
 
@@ -194,12 +211,21 @@ def next_mark(prefix, taken):
     return u'{}{}'.format(prefix, n)
 
 
-def arrange_block(mains, secs, gap=GAP_MM):
+def arrange_block(mains, secs, gap=GAP_MM, beside=False):
     """
     One member's views as one compact block: its plans and elevations side by side (their datums level), its
-    sections under them in rows no wider than the block. mains [(w, h, anchor)], secs [(w, h)]. Returns (width,
-    height, [(x, y) centre from the block's top left, y down]) - mains then sections.
+    sections under them in rows no wider than the block - or, beside, in a column to their right, flush with their
+    top (m6: the way that fits a sheet's free room). mains [(w, h, anchor)], secs [(w, h)]. Returns (width, height,
+    [(x, y) centre from the block's top left, y down]) - mains then sections.
     """
+    if beside and mains and secs:
+        w0, h0, centres = arrange_block(mains, [], gap)
+        col_w = max(w for w, _h in secs)
+        y, out = 0.0, list(centres)
+        for w, h in secs:
+            out.append((w0 + gap + w / 2.0, y + h / 2.0))      # flush left in the column, one under another
+            y += h + gap
+        return w0 + gap + col_w, max(h0, y - gap), out
     lift = max([a for _w, _h, a in mains if a is not None] or [0.0])
     width = max([sum(w for w, _h, _a in mains) + gap * max(0, len(mains) - 1)] + [w for w, _h in secs] + [0.0])
     out, x, top_h = [], 0.0, 0.0
@@ -235,10 +261,12 @@ def layout_packed(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):
     highest, then leftmost, free spot (layout). blocks [(mains, secs)] as arrange_block takes them. Returns [(sheet
     index, centre x, centre y)], each block's mains then its sections, in the blocks' order.
     """
-    shapes = [arrange_block(mains, secs, gap) for mains, secs in blocks]
-    spots = layout([(w, h) for w, h, _c in shapes], area=area, gap=gap, reserved=reserved)
+    ways = [[arrange_block(mains, secs, gap)] + ([arrange_block(mains, secs, gap, beside=True)] if mains and secs
+                                                  else []) for mains, secs in blocks]
+    spots = layout_choices([[(w, h) for w, h, _c in way] for way in ways], area=area, gap=gap, reserved=reserved)
     out = []
-    for (w, h, centres), (sheet, cx, cy) in zip(shapes, spots):
+    for way, (sheet, cx, cy, k) in zip(ways, spots):
+        w, h, centres = way[k]
         left, top = cx - w / 2.0, cy + h / 2.0
         out.extend((sheet, left + x, top - y) for x, y in centres)
     return out
