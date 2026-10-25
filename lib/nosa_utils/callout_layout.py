@@ -785,7 +785,7 @@ def _clear_blocks(pos, tier, widths, blocks, gap):
                 break
 
 
-def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None, blocks=None):
+def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None, blocks=None, lines=None):
     """
     Marks of bars in a section or elevation: items [{'id', 'anchor' (x, y) on the bar, 'length', 'height',
     'vertical' (optional: the text turned to run up the sheet), 'side' (optional: 'top' | 'bottom' | 'left' |
@@ -795,7 +795,8 @@ def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None, bloc
     side by side split into up to MAX_TIERS rows (tiers); marks with pointers go in a row beyond them.
     edges: {side: coordinate} where a row starts instead of the box's edge; free_gap: between free marks (they
     need less room than texts with pointers). blocks: {side: [coordinates along the row]} of lines no mark may
-    stand on (the grid lines a section shows, 2026-10-18 audit). Returns {id: {'centre', 'side', 'box'}}.
+    stand on (the grid lines a section shows, 2026-10-18 audit). lines: [((x, y), (x, y))] of the bars drawn, which
+    a free mark keeps off (_free_off_lines). Returns {id: {'centre', 'side', 'box'}}.
     """
     rows = {}
     for it in items:
@@ -840,4 +841,39 @@ def place_pointers(items, box, gap, outside_gap, edges=None, free_gap=None, bloc
             c = (pos[i], level) if horizontal else (level, pos[i])
             out[it['id']] = {'centre': c, 'side': side,
                              'box': (c[0] - w / 2.0, c[1] - h / 2.0, c[0] + w / 2.0, c[1] + h / 2.0)}
+    if lines:
+        _free_off_lines(items, out, lines, gap if free_gap is None else free_gap)
     return out
+
+
+def _free_off_lines(items, out, lines, gap):
+    """
+    A free mark standing on a bar drawn in the view moved beside it, then further out (2026-10-25, Revit 2025 F10:
+    the cut starter links' '06' stood on the column's starter bar).
+    """
+    taken = [o['box'] for o in out.values()]
+    for it in items:
+        if not it.get('free') or it['id'] not in out:
+            continue
+        o = out[it['id']]
+        if not box_hits(o['box'], lines):
+            continue
+        w, h = o['box'][2] - o['box'][0], o['box'][3] - o['box'][1]
+        along = (1.0, 0.0) if o['side'] in ('top', 'bottom') else (0.0, 1.0)
+        out_dir = {'top': (0.0, 1.0), 'bottom': (0.0, -1.0), 'right': (1.0, 0.0), 'left': (-1.0, 0.0)}[o['side']]
+        step_a = (w if along[0] else h) / 2.0 + gap
+        step_o = (h if along[0] else w) + gap
+        tries = []
+        for k in range(1, 5):
+            for s in (-1.0, 1.0):
+                tries.append((along[0] * s * k * step_a, along[1] * s * k * step_a))
+        tries.sort(key=lambda d: abs(d[0]) + abs(d[1]))
+        tries += [(out_dir[0] * k * step_o, out_dir[1] * k * step_o) for k in range(1, 4)]
+        for dx, dy in tries:
+            b = (o['box'][0] + dx, o['box'][1] + dy, o['box'][2] + dx, o['box'][3] + dy)
+            if box_hits(b, lines) or any(q is not o['box'] and overlap(b, q, gap / 2.0) for q in taken):
+                continue
+            taken[taken.index(o['box'])] = b
+            o['box'] = b
+            o['centre'] = (o['centre'][0] + dx, o['centre'][1] + dy)
+            break

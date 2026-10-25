@@ -300,17 +300,49 @@ def single_clusters(bars, reach_mm=CLUSTER_MM):
 ARROW_PAPER_MM = 6.0
 
 
-def end_arrow(end, outward, side, text_w, text_h, scale, gap, row=0):
+def end_arrow(end, outward, side, text_w, text_h, scale, gap, row=0, extra=0.0):
     """
     Where a bar's end mark goes (user 2026-10-12: a horizontal arrow to where the bar stops, its mark at the tail):
     the arrow runs along the bar, `row` steps of the text height to the side `side` (unit, view mm) of it, its tip
-    level with the end. Returns (tip, text centre, text box).
+    level with the end; `extra` lengthens it. Returns (tip, text centre, text box).
     """
     off = (row + 0.5) * text_h + gap
     tip = (end[0] + side[0] * off, end[1] + side[1] * off)
-    along = ARROW_PAPER_MM * scale + (text_w if abs(outward[0]) >= abs(outward[1]) else text_h) / 2.0
+    along = ARROW_PAPER_MM * scale + extra + (text_w if abs(outward[0]) >= abs(outward[1]) else text_h) / 2.0
     c = (tip[0] - outward[0] * along, tip[1] - outward[1] * along)
     return tip, c, (c[0] - text_w / 2.0, c[1] - text_h / 2.0, c[0] + text_w / 2.0, c[1] + text_h / 2.0)
+
+
+def past_lines(box, outward, xs, gap, tries=4):
+    """
+    How much longer an end mark's arrow must be for its text (box, at the arrow's tail) to stand clear of the
+    upright lines at xs (2026-10-25, Revit 2025 B1-B3: '04' stood on grid C past the bar's end). 0 when clear.
+    """
+    extra = 0.0
+    for _ in range(tries):
+        x0, x1 = box[0] - outward[0] * extra, box[2] - outward[0] * extra
+        hit = [g for g in xs if x0 - gap / 2.0 < g < x1 + gap / 2.0]
+        if not hit:
+            return extra
+        if outward[0] < 0:
+            extra += max(hit) + gap / 2.0 - x0
+        else:
+            extra += x1 - (min(hit) - gap / 2.0)
+    return extra
+
+
+def off_lines(x, width, xs, gap, lo=None, hi=None):
+    """
+    A text centred at x moved along its line the least so it stands clear of the upright lines at xs, kept within
+    lo..hi (2026-10-25, Revit 2025 B1-B3: a beam's '129H8-11 LINKS' centred on grid C). x when it cannot.
+    """
+    def clear(c):
+        inside = (lo is None or c - width / 2.0 >= lo) and (hi is None or c + width / 2.0 <= hi)
+        return inside and not any(abs(g - c) < width / 2.0 + gap / 2.0 for g in xs)
+    if clear(x) or not xs:
+        return x
+    tries = sorted([g + s * (width / 2.0 + gap / 2.0 + 1e-6) for g in xs for s in (-1.0, 1.0)], key=lambda c: abs(c - x))
+    return next((c for c in tries if clear(c)), x)
 
 
 def junction_fraction(slot):

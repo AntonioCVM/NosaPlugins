@@ -324,6 +324,12 @@ def member_of_view(view_name, titles):
     return u''
 
 
+def member_prefix(view_name):
+    """'Foundation F10 - Plan' -> 'Foundation F10 - ': what the names of that member's views start with."""
+    head = (view_name or u'').split(u' - ')[0]
+    return head + u' - ' if head else u''
+
+
 def holds(view_label, host_mark):
     """A view of member 'B3-B4' (a beam line) or 'S2' holds the member marked host_mark."""
     return bool(host_mark) and (view_label == host_mark or host_mark in view_label.split(u'-'))
