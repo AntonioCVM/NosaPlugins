@@ -679,7 +679,14 @@ class ToolsMixin(object):
                         title=u'NOSA — Create Views')
             return
         beams = [h for h in hosts if rebar_views.host_kind(h) == 'beam']
-        groups = [[h] for h in hosts if rebar_views.host_kind(h) != 'beam']
+        columns = [h for h in hosts if rebar_views.host_kind(h) == 'column']
+        groups = []
+        for h in hosts:
+            kind = rebar_views.host_kind(h)
+            if kind not in ('beam', 'column'):
+                groups.append([h])
+            elif kind == 'column' and h is columns[0]:
+                groups += rebar_views.column_stacks(columns)      # one elevation a stack (user 2026-10-25)
         groups += beam_rebar.group_beam_lines(beams) if beams else []
         import drawing_registry
         kinds = sorted(set(rebar_views.host_kind(g[0]) for g in groups))

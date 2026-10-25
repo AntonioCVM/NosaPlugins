@@ -73,6 +73,8 @@ ui.forms.alert = _alert
 from pyrevit import forms as _forms
 _forms.alert = _alert
 import rebar_views
+if 'ON_MODULES' in dir():
+    ON_MODULES(rebar_views)       # building_test.py: the drawing phases measured on the module ui loaded
 _build = rebar_views.build_drawings
 
 

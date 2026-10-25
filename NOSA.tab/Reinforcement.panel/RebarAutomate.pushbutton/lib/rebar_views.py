@@ -149,6 +149,20 @@ def _local_axes(element):
 LINK_LEAD_MM = 20.0          # a curved beam's section cut this far in front of the link it shows
 
 
+def column_stacks(columns):
+    """The columns as stacks, each drawn as one member with a continuous elevation (view_plan.column_stacks)."""
+    items = []
+    for c in columns:
+        box = c.get_BoundingBox(None)
+        if box is None:
+            items.append((c, (0.0, 0.0, 0.0, 0.0), 0.0, 0.0))
+            continue
+        items.append((c, (_mm(box.Min.X), _mm(box.Min.Y), _mm(box.Max.X), _mm(box.Max.Y)), _mm(box.Min.Z),
+                      _mm(box.Max.Z)))
+    import view_plan
+    return view_plan.column_stacks(items)
+
+
 def _arc_box(arc, width_mm, box):
     """
     Plan box of a curved beam from its arc, half its width either side (Revit's own box of an arc beam ran 6 m
@@ -221,22 +235,32 @@ def view_specs(doc, hosts, re_engine, beam_rebar=None, stair_host=None):
     z_axis = DB.XYZ.BasisZ
     specs = []
     if kind == 'column':
-        box = _box(host, re_engine)
         x, y = _local_axes(host)
         if x.CrossProduct(y).Z < 0:
             y = y.Negate()
-        centre = (box.Min + box.Max).Multiply(0.5)
-        wx = _mm(_extent(box, x)[1] - _extent(box, x)[0])
-        wy = _mm(_extent(box, y)[1] - _extent(box, y)[0])
-        height = _mm(box.Max.Z - box.Min.Z)
-        # drawn as a plan cut through the column looking down (SMDSC): Revit leaves a column out of a horizontal
-        # section (user 2026-10-12: no concrete in C1's section)
-        spec = _section(u'Section', 'member_section', centre, x, y, wx / 2 + 150, wy / 2 + 150, 0.0, 60.0)
-        spec.update({'as_plan': True, 'level': _level_of(doc, host), 'box': box, 'cut_z': _mm(centre.Z),
-                     'bottom_z': _mm(centre.Z) - 60.0, 'margin': 150.0})
-        specs.append(spec)
-        # one elevation, of the wider face, the whole column in the view's depth (SMDSC 4th ed. MD C1-C5; user
+        boxes = [_box(h, re_engine) for h in hosts]
+        # a stack (user 2026-10-25): a section of each column, its floor's, and one continuous elevation
+        for h, box in zip(hosts, boxes):
+            centre = (box.Min + box.Max).Multiply(0.5)
+            wx = _mm(_extent(box, x)[1] - _extent(box, x)[0])
+            wy = _mm(_extent(box, y)[1] - _extent(box, y)[0])
+            # drawn as a plan cut through the column looking down (SMDSC): Revit leaves a column out of a
+            # horizontal section (user 2026-10-12: no concrete in C1's section)
+            title = u'Section' if len(hosts) == 1 else u'Section {}'.format(host_label(h))
+            spec = _section(title, 'member_section', centre, x, y, wx / 2 + 150, wy / 2 + 150, 0.0, 60.0)
+            spec.update({'as_plan': True, 'level': _level_of(doc, h), 'box': box, 'cut_z': _mm(centre.Z),
+                         'bottom_z': _mm(centre.Z) - 60.0, 'margin': 150.0})
+            specs.append(spec)
+        # one elevation, of the wider face, the whole stack in the view's depth (SMDSC 4th ed. MD C1-C5; user
         # 2026-10-18: the section already gives the bars round it, a second elevation repeated the first)
+        lo = DB.XYZ(min(b.Min.X for b in boxes), min(b.Min.Y for b in boxes), min(b.Min.Z for b in boxes))
+        hi = DB.XYZ(max(b.Max.X for b in boxes), max(b.Max.Y for b in boxes), max(b.Max.Z for b in boxes))
+        whole = DB.BoundingBoxXYZ()
+        whole.Min, whole.Max = lo, hi
+        centre = (lo + hi).Multiply(0.5)
+        wx = _mm(_extent(whole, x)[1] - _extent(whole, x)[0])
+        wy = _mm(_extent(whole, y)[1] - _extent(whole, y)[0])
+        height = _mm(hi.Z - lo.Z)
         face, w_face, w_across = (x, wx, wy) if wx >= wy else (y, wy, wx)
         specs.append(_section(u'Elevation', 'column_elevation', centre, face, z_axis, w_face / 2 + 300,
                               height / 2 + 700, w_across / 2 + 60, w_across / 2 + 60))
@@ -1476,8 +1500,7 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import element_name, get_id_value
     kind = host_kind(hosts[0])
-    label = host_label(hosts[0]) if len(hosts) == 1 else u'{}-{}'.format(host_label(hosts[0]),
-                                                                         host_label(hosts[-1]))
+    label = view_plan.stack_label([host_label(h) for h in hosts])
     report = {'views': [], 'sheets': [], 'tags': 0, 'errors': []}
     specs = view_specs(doc, hosts, re_engine, beam_rebar, stair_host)
     if not specs:

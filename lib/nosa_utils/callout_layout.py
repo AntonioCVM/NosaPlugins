@@ -183,7 +183,8 @@ def _dots_on(laid, strips, gap):
 
 
 def _crossing_score(laid, blockers):
-    hits = sum(1 for r in laid.values() for seg in zip(r['path'], r['path'][1:]) for b in blockers if _crosses(seg, b))
+    hits = blocker_hits([r['path'] for r in laid.values()],
+                        _boxed([(None, tuple(tuple(p) for p in b)) for b in blockers]))
     return path_crossings(laid) + hits
 
 
@@ -223,6 +224,7 @@ def _align_rows_once(items, box, gap, outside, placed=(), lift=0.0, obstacles=()
     sides = {}
     level = {}
     lines = dict((k, (it['a'], it['b'])) for k, it in items.items())
+    boxed_blockers = _boxed([(None, tuple(tuple(p) for p in b)) for b in blockers])
 
     def crossings(key, start, side):
         # the other items' indicator lines a level run from start out to the member's side would cross
@@ -406,10 +408,7 @@ def _align_rows_once(items, box, gap, outside, placed=(), lift=0.0, obstacles=()
                 if r[2] is not None:
                     y = laid[r[0]]['path'][-1][1] if native else laid[r[0]]['path'][0][1]
                     over += max(0.0, r[2][0] - y, y - r[2][1])
-            hits = 0
-            for r_ in laid.values():
-                for seg in zip(r_['path'], r_['path'][1:]):
-                    hits += sum(1 for b in blockers if _crosses(seg, b))
+            hits = blocker_hits([r_['path'] for r_ in laid.values()], boxed_blockers)
             n = path_crossings(laid)       # two leaders crossing read worse than a leader over a dimension
             return (n, n + hits, round(over, 3))
 
@@ -498,10 +497,37 @@ def _dump_layout(items, box, gap, outside, placed, lift, obstacles, neighbours, 
         pass
 
 
+def _boxed(segs):
+    """[(key, segment, (x0, y0, x1, y1))]: a segment's box, so the pairs whose boxes miss are never tested."""
+    out = []
+    for k, ((ax, ay), (bx, by)) in segs:
+        out.append((k, ((ax, ay), (bx, by)), (min(ax, bx), min(ay, by), max(ax, bx), max(ay, by))))
+    return out
+
+
 def path_crossings(laid):
     """How many pairs of segments of different calling-ups' lines cross."""
-    segs = [(k, seg) for k, r in laid.items() for seg in zip(r['path'], r['path'][1:])]
-    return sum(1 for i, (k1, s1) in enumerate(segs) for k2, s2 in segs[i + 1:] if k1 != k2 and _crosses(s1, s2))
+    segs = _boxed([(k, seg) for k, r in laid.items() for seg in zip(r['path'], r['path'][1:])])
+    n = 0
+    # boxes first (building test 2026-10-25: 11 million _crosses for one 18-row plan): the same count, faster
+    for i, (k1, s1, b1) in enumerate(segs):
+        for k2, s2, b2 in segs[i + 1:]:
+            if k1 != k2 and b1[0] <= b2[2] and b2[0] <= b1[2] and b1[1] <= b2[3] and b2[1] <= b1[3]                     and _crosses(s1, s2):
+                n += 1
+    return n
+
+
+def blocker_hits(paths, blockers):
+    """How many (segment, blocker) pairs cross; blockers as _boxed gives them."""
+    n = 0
+    for path in paths:
+        for (ax, ay), (bx, by) in zip(path, path[1:]):
+            x0, x1 = (ax, bx) if ax <= bx else (bx, ax)
+            y0, y1 = (ay, by) if ay <= by else (by, ay)
+            for _k, b, bb in blockers:
+                if x0 <= bb[2] and bb[0] <= x1 and y0 <= bb[3] and bb[1] <= y1 and _crosses(((ax, ay), (bx, by)), b):
+                    n += 1
+    return n
 
 
 def jog_order(keys, ys):

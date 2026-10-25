@@ -682,6 +682,11 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
                 and _mra_set(view, rebar):
             d['layer'] = _text(rebar, u'NOSA_Rebar_Layer')
             zones.append(d)
+            if d['view_dot'] < 0.5 and hosts is not None:
+                # its typical bar's curtailed ends get their 30 degree obliques too, plans included (user 2026-10-25)
+                shown = shown_positions(rebar, view)
+                typical = dict(d, chain=_centreline(rebar, shown[0]) if shown else d['chain'])
+                report['ticks'] += _ticks(doc, view, typical, hosts, cover_mm, scale, style, made_ticks)
             continue
         if d['view_dot'] >= 0.5 and not plan:
             if (kind == 'column_elevation' and _is_links(rebar) and d['spread_dir'] is not None
@@ -3093,8 +3098,12 @@ def _line_up(doc, view, pending):
 
 
 def _visible(doc, view, element):
-    return any(get_id_value(e) == get_id_value(element.Id) for e in
-               DB.FilteredElementCollector(doc, view.Id).OfClass(DB.IndependentTag).ToElementIds())
+    """The view draws the element: asked of that one id (building test 2026-10-25: every tag of the view was
+    listed again after each new one)."""
+    from System.Collections.Generic import List
+    ids = List[DB.ElementId]([element.Id])
+    return DB.FilteredElementCollector(doc, view.Id).WherePasses(DB.ElementIdSetFilter(ids)) \
+        .GetElementCount() > 0
 
 
 def _tag_bar(doc, view, rebar, index, type_id):

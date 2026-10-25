@@ -826,19 +826,53 @@ class BeamsMixin(object):
     def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars, span=None):
         if beam_rebar.get_beam_arc(host) is not None:
             return self._process_curved_beam(host, values, wrapper, bar_types, errors, created_rebars)
-        # A floor that cuts the beam leaves it only the depth below the slab: the bars,
-        # links and anchorage legs then lose that depth (found in the 2026-10-01 smoke test).
+        return self._process_straight_beam(host, values, wrapper, bar_types, errors, created_rebars, span)
+
+    def _full_depth(self, beams, errors):
+        """
+        A floor that cuts a beam leaves it only the depth below the slab (2026-10-01 smoke test); beams are always
+        reinforced full depth (user 2026-10-25): [(beam, floor ids)] whose join is switched for the run (put back
+        by _join_back, so the slab is not cut by the beams: 4-storey test, a slab cut by them fell into panels).
+        """
+        switched = []
+        for host in beams:
+            try:
+                cutting = [jid for jid in DB.JoinGeometryUtils.GetJoinedElements(self.doc, host)
+                           if isinstance(self.doc.GetElement(jid), DB.Floor) and
+                           DB.JoinGeometryUtils.IsCuttingElementInJoin(self.doc, self.doc.GetElement(jid), host)]
+            except Exception:
+                cutting = []
+            if cutting:
+                switched.append((host, cutting))
+        if not switched:
+            return []
         try:
-            for joined_id in DB.JoinGeometryUtils.GetJoinedElements(self.doc, host):
-                joined = self.doc.GetElement(joined_id)
-                if isinstance(joined, DB.Floor) and DB.JoinGeometryUtils.IsCuttingElementInJoin(
-                        self.doc, joined, host):
-                    errors.append(u'Beam {}: floor {} cuts this beam, so it is reinforced only '
-                                  u'below the slab. For a full-depth beam use Modify > Join > '
-                                  u'Switch Join Order, then regenerate.'.format(
-                                      get_id_value(host.Id), get_id_value(joined_id)))
-        except Exception:
-            log_swallowed(_LOG, u'RebarAutomateWindow._process_beam')
+            self._switch_joins(switched, u'NOSA — Beam Full Depth (Switch Join Order)')
+        except Exception as e:
+            errors.append(u'Beams {}: a floor cuts them and the join order could not be switched ({}): they are '
+                          u'reinforced below the slab only.'.format(
+                              u', '.join(str(get_id_value(h.Id)) for h, _f in switched), e))
+            return []
+        return switched
+
+    def _join_back(self, switched, errors):
+        if not switched:
+            return
+        try:
+            self._switch_joins(switched, u'NOSA — Beam Full Depth (Join Order Back)')
+        except Exception as e:
+            errors.append(u'Beams {}: reinforced full depth, but the slab join could not be put back ({}): they now '
+                          u'cut the slab.'.format(u', '.join(str(get_id_value(h.Id)) for h, _f in switched), e))
+
+    def _switch_joins(self, switched, name):
+        with nosa_tx.guard(DB.Transaction(self.doc, name)) as t:
+            t.Start()
+            for host, floor_ids in switched:
+                for jid in floor_ids:
+                    DB.JoinGeometryUtils.SwitchJoinOrder(self.doc, self.doc.GetElement(jid), host)
+            t.Commit()
+
+    def _process_straight_beam(self, host, values, wrapper, bar_types, errors, created_rebars, span=None):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
         if is_ground_beam(host):
@@ -1338,20 +1372,31 @@ class BeamsMixin(object):
                                       u', '.join(str(get_id_value(h.Id)) for h in line)))
             lines = [[b] for b in beams]
         for line in lines:
-            if len(line) > 1:
-                try:
-                    self._process_beam_line(line, values, wrapper, bar_types, errors, created_rebars)
-                    continue
-                except Exception as e:
-                    errors.append(u'Beams {}: not reinforced as one continuous line — {}. Each span '
-                                  u'is reinforced on its own.'.format(
-                                      u', '.join(str(get_id_value(h.Id)) for h in line), e))
-            for host in line:
-                try:
-                    self._process_beam(host, values, wrapper, bar_types, errors, created_rebars)
-                except Exception as e:
-                    errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
+            switched = self._full_depth(line, errors)
+            try:
+                self._process_line_or_spans(line, values, wrapper, bar_types, errors, created_rebars)
+            finally:
+                self._join_back(switched, errors)
+            if switched:
+                errors.append(u'Beams {}: a floor cuts them; reinforced full depth with the join switched for the '
+                              u'run, then put back (the slab is not cut).'.format(
+                                  u', '.join(str(get_id_value(h.Id)) for h, _f in switched)))
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
+
+    def _process_line_or_spans(self, line, values, wrapper, bar_types, errors, created_rebars):
+        if len(line) > 1:
+            try:
+                self._process_beam_line(line, values, wrapper, bar_types, errors, created_rebars)
+                return
+            except Exception as e:
+                errors.append(u'Beams {}: not reinforced as one continuous line — {}. Each span '
+                              u'is reinforced on its own.'.format(
+                                  u', '.join(str(get_id_value(h.Id)) for h in line), e))
+        for host in line:
+            try:
+                self._process_beam(host, values, wrapper, bar_types, errors, created_rebars)
+            except Exception as e:
+                errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
 
 
 _OWN = set(globals())

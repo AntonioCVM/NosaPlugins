@@ -358,9 +358,63 @@ def member_prefix(view_name):
     return head + u' - ' if head else u''
 
 
+def _split_mark(mark):
+    """'C12' -> ('C', 12); None when the mark does not end in a number."""
+    i = len(mark)
+    while i > 0 and mark[i - 1].isdigit():
+        i -= 1
+    return (mark[:i], int(mark[i:])) if i < len(mark) else None
+
+
 def holds(view_label, host_mark):
-    """A view of member 'B3-B4' (a beam line) or 'S2' holds the member marked host_mark."""
-    return bool(host_mark) and (view_label == host_mark or host_mark in view_label.split(u'-'))
+    """
+    A view of member 'B3-B4' (a beam line), 'C1-C4' (a column stack: C2 and C3 too, 2026-10-25) or 'S2' holds the
+    member marked host_mark.
+    """
+    if not host_mark:
+        return False
+    parts = view_label.split(u'-')
+    if view_label == host_mark or host_mark in parts:
+        return True
+    if len(parts) == 2:
+        a, b, m = _split_mark(parts[0]), _split_mark(parts[1]), _split_mark(host_mark)
+        return bool(a and b and m and a[0] == b[0] == m[0] and a[1] <= m[1] <= b[1])
+    return False
+
+
+def column_stacks(items, tol_mm=50.0):
+    """
+    Columns standing on each other, one drawing each (user 2026-10-25: one continuous elevation, the same column
+    through several floors or one changing size or shape between them). items: [(key, (x0, y0, x1, y1) plan box mm,
+    z0, z1)]. A column goes on the stack whose top is at its base (within tol_mm) and whose top column's plan box
+    overlaps its own. Returns [[key, ...]] bottom up, stacks in the order of their lowest column's item.
+    """
+    def overlap(a, b):
+        return a[0] < b[2] and b[0] < a[2] and a[1] < b[3] and b[1] < a[3]
+    stacks = []
+    for key, box, z0, z1 in sorted(items, key=lambda it: it[2]):
+        home = None
+        for st in stacks:
+            _k, top_box, _t0, top_z1 = st[-1]
+            if abs(top_z1 - z0) <= tol_mm and overlap(top_box, box):
+                home = st
+                break
+        if home is None:
+            stacks.append([(key, box, z0, z1)])
+        else:
+            home.append((key, box, z0, z1))
+    order = dict((it[0], i) for i, it in enumerate(items))
+    stacks.sort(key=lambda st: min(order[k] for k, _b, _z0, _z1 in st))
+    return [[k for k, _b, _z0, _z1 in st] for st in stacks]
+
+
+def stack_label(marks):
+    """The label of a drawing of members: 'C1' (one, or one Mark through every floor), else 'C1-C4'."""
+    unique = []
+    for m in marks:
+        if m not in unique:
+            unique.append(m)
+    return unique[0] if len(unique) == 1 else u'{}-{}'.format(unique[0], unique[-1])
 
 
 def sheet_names(base, labels_per_sheet):
