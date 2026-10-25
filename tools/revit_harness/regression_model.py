@@ -5,7 +5,8 @@ typology and shape the plugin claims (rectangular and circular columns; straight
 columns; rectangular slab with an opening, L-shaped slab, slab with a curved edge; straight wall with an opening,
 curved wall; pad foundation, pile cap), reinforces each through RebarAutomate's real path (ra_harness.py, one
 element at a time so a failure is pinned to its case) and reports what each case made and every Revit error.
-Run in each Revit version before a merge (extends T8.2). Scope: doc, EXT_ROOT, PYREVIT, OUT. Result: RESULT.
+Run in each Revit version before a merge (extends T8.2). Scope: doc, EXT_ROOT, PYREVIT, OUT, ONLY (optional: case labels to run), FULL (optional: each case's whole
+harness report). Result: RESULT.
 """
 import io
 import os
@@ -137,6 +138,8 @@ try:
     cases, support_ids = build()
     harness = os.path.join(EXT_ROOT, 'tools', 'revit_harness', 'ra_harness.py')
     for mode, label, ids in cases:
+        if 'ONLY' in globals() and ONLY and label not in ONLY:
+            continue
         scope = {'doc': doc, 'MODE': mode, 'IDS': [el.Value if hasattr(el, 'Value') else el.IntegerValue for el in ids],
                  'CONTROLS': u'{}', 'OVERRIDES': u'{}', 'EXT_ROOT': EXT_ROOT, 'PYREVIT': PYREVIT,
                  'ROLLBACK': True, 'ASSIMILATE': True, '__name__': '__nosa_case__'}
@@ -151,6 +154,8 @@ try:
         _log.append(u'{} [{}]: {} {:.1f} s{}'.format(label, mode, made[0] if made else u'nothing made',
                                                     time.time() - t0, u'' if not bad else u'\n    ' + u'\n    '.join(
                                                         b[:300] for b in bad)))
+        if 'FULL' in globals() and FULL:
+            _log.append(text)
     _log.append(u'total {:.0f} s'.format(time.time() - started))
 except Exception:
     import traceback

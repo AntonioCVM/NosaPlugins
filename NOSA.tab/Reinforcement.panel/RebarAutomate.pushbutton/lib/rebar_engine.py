@@ -154,6 +154,20 @@ _MM_PER_FT = 304.8
 # SECTION 1 — Geometry & Cover
 # ══════════════════════════════════════════════════════════════════════════
 
+def create_free_form(dbs, doc, bar_type, host, loops):
+    """
+    Rebar.CreateFreeForm across versions: up to 2026 (doc, bar type, host, loops) with the validation result out;
+    Revit 2027 dropped that overload for one taking a RebarStyle and returning a RebarFreeFormCreationResult
+    (2026-10-25, T8.57: every FreeForm group failed with 'expected Guid, got RebarBarType', so curved beams lost
+    their top and bottom bars). Returns (rebar, validation) on every version.
+    """
+    try:
+        return dbs.Rebar.CreateFreeForm(doc, bar_type, host, loops)
+    except TypeError:
+        made = dbs.Rebar.CreateFreeForm(doc, bar_type, host, loops, dbs.RebarStyle.Standard)
+        return getattr(made, 'Rebar', None), getattr(made, 'Error', None)
+
+
 class HostFaceInfo(object):
     """
     A single planar face of a host element's solid, with its outward
@@ -2377,7 +2391,7 @@ class RebarWrapper(object):
 
         try:
             with nosa_tx.revit_transaction(transaction_name):
-                result = DBS.Rebar.CreateFreeForm(self.doc, bar_type, host, loop_list)
+                result = create_free_form(DBS, self.doc, bar_type, host, loop_list)
                 if isinstance(result, tuple):
                     rebar, validation = result[0], result[1]
                 else:

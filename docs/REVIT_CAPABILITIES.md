@@ -35,3 +35,4 @@ Written from `data/revit_capabilities.json`, which `tools/revit_harness/capabili
 | 2024 | schedules | A schedule takes at most 4 sorting/grouping fields. |
 | 2024 | ui | The modal 'Project Not Saved Recently' reminder blocks every API call until it is closed (close it, never save for the user). |
 | 2027 | hooks | RebarHookOrientation is replaced by BarTerminationsData (rebar_engine.rebar_from_curves handles both). |
+| 2027 | free form | `Rebar.CreateFreeForm(doc, type, host, loops)` with the validation result out is gone: the overload takes a `RebarStyle` and returns a `RebarFreeFormCreationResult` (`.Rebar`, `.Error`). Found by T8.57 (curved beams lost their top and bottom bars); `rebar_engine.create_free_form` handles both. |
