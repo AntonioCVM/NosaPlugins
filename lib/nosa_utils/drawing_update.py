@@ -6,6 +6,7 @@ an update compares the drawing as it now is with it to tell the user's changes f
 Points are view or sheet mm; tolerances paper mm.
 """
 import json
+import re
 
 MOVED_PAPER_MM = 0.5
 RECORD_VERSION = 1
@@ -131,3 +132,22 @@ def keep_marks(bars):
         known[key] = number
         taken[number] = key
     return known, todo
+
+
+def issue_date(day):
+    """A sheet's issue date as the drawings write it: dd/mm/yy (decision 2026-10-24)."""
+    return u'{:02d}/{:02d}/{:02d}'.format(day.day, day.month, day.year % 100)
+
+
+def from_revit_date(text):
+    """
+    Revit's own Sheet Issue Date of a new sheet, m/d/yy (10/24/26), as dd/mm/yy; None when it does not read so
+    (a date the user wrote is kept as it is).
+    """
+    m = re.match(u'^\s*(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})\s*$', text or u'')
+    if not m:
+        return None
+    month, day, year = int(m.group(1)), int(m.group(2)), int(m.group(3)) % 100
+    if not (1 <= month <= 12 and 1 <= day <= 31):
+        return None
+    return u'{:02d}/{:02d}/{:02d}'.format(day, month, year)

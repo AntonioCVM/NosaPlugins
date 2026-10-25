@@ -371,13 +371,16 @@ def create(doc, capacity=ROWS_PER_A4):
         try:
             view, _new = _schedule_view(doc, master, key)
             sheet = _sheet_for(doc, key)
-            if sheet is None:
+            new = sheet is None
+            if new:
                 sheet = DB.ViewSheet.Create(doc, titleblock.Id)
                 sheet.SheetNumber = _next_number(doc, taken)
                 sheet.Name = u'Bar schedule {}'.format(key)
                 report['new_sheets'].append(sheet.SheetNumber)
             import rebar_views
+            import drawing_registry
             rebar_views.classify_sheet(doc, sheet)      # also a sheet filed before in 4500's (user 2026-10-24)
+            drawing_registry.stamp_issue_date(sheet, new)
             revision = _text(sheet, u'NOSA_BBS_Revision')
             if not _text(sheet, u'NOSA_BBS_Status'):
                 _set(sheet, u'NOSA_BBS_Status', DEFAULT_STATUS)

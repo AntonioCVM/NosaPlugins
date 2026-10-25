@@ -1183,16 +1183,19 @@ UPDATE = None         # T12.9: the drawing_registry.Updater of an update run
 
 def _new_sheet(doc, titleblock, number, name):
     from Autodesk.Revit import DB  # Lazy import
+    import drawing_registry
     sheet = REUSE_SHEETS.pop(number, None)
     if sheet is not None and sheet.IsValidObject:
         sheet.SheetNumber = number
         sheet.Name = name
         classify_sheet(doc, sheet)
+        drawing_registry.stamp_issue_date(sheet, new=False)
         return sheet
     sheet = DB.ViewSheet.Create(doc, titleblock.Id)
     sheet.SheetNumber = number
     sheet.Name = name
     classify_sheet(doc, sheet)
+    drawing_registry.stamp_issue_date(sheet, new=True)
     return sheet
 
 

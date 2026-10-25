@@ -78,3 +78,12 @@ def test_users_changes_stay_theirs_on_the_next_update():
            'user_crop': True, 'user_scale': True, 'user_place': True}
     assert du.view_changed(rec, [0.0, 0.0, 1200.0, 500.0], 20) == (True, True)       # unchanged since: still theirs
     assert du.viewport_moved(rec, [420.0, 300.0])
+
+
+def test_issue_dates_read_dd_mm_yy():
+    import datetime
+    assert du.issue_date(datetime.date(2026, 10, 25)) == u'25/10/26'
+    assert du.from_revit_date(u'10/24/26') == u'24/10/26'           # Revit's own m/d/yy
+    assert du.from_revit_date(u'1/5/2026') == u'05/01/26'
+    assert du.from_revit_date(u'25/10/26') is None                  # not Revit's: kept as written
+    assert du.from_revit_date(u'Oct 2026') is None and du.from_revit_date(u'') is None

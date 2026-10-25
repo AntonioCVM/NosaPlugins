@@ -58,6 +58,28 @@ def write(element, record):
     element.SetEntity(entity)
 
 
+def stamp_issue_date(sheet, new):
+    """
+    The sheet's issue date in dd/mm/yy once (decision 2026-10-24: Revit wrote 10/24/26): today on a new sheet, Revit's
+    own m/d/yy turned round on one made before; a date the user wrote stays. In a transaction.
+    """
+    import datetime
+    from Autodesk.Revit import DB  # Lazy import
+    rec = read(sheet)
+    if rec.get('issue_date'):
+        return
+    try:
+        p = sheet.get_Parameter(DB.BuiltInParameter.SHEET_ISSUE_DATE)
+        if p is not None and not p.IsReadOnly:
+            value = du.issue_date(datetime.date.today()) if new else du.from_revit_date(p.AsString())
+            if value:
+                p.Set(value)
+    except Exception:  # nosa-lint: disable=NOSA006 - a title block without the date: nothing to write
+        return
+    rec['issue_date'] = True
+    write(sheet, rec)
+
+
 def _xy(view, p):
     return (p.DotProduct(view.RightDirection) * _FT, p.DotProduct(view.UpDirection) * _FT)
 
@@ -368,7 +390,7 @@ class Updater(object):
                 continue
             kinds = [records[_id(v.Id)].get('kind') for v, s, _p in drawn if s.Id == sheet.Id]
             ports = [doc.GetElement(p) for p in sheet.GetAllViewports()]
-            write(sheet, {'kind': kinds[0] if kinds else None,
+            write(sheet, {'kind': kinds[0] if kinds else None, 'issue_date': read(sheet).get('issue_date'),
                           'ports': [_id(p.ViewId) for p in ports if p is not None and self._plugin_port(p, drawn)]})
         return self.log
 

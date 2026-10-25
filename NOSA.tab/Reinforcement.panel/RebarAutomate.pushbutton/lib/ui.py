@@ -2026,10 +2026,13 @@ class RebarAutomateWindow(_tab_shell.ShellMixin, _tab_columns.ColumnsMixin, _tab
                 rebar = None
                 wrapper.last_error = u'rows step along an inclined edge'
             else:
+                # a closed link is bent with its hooks (shape 52, decision 4 of 2026-10-24) wherever it is made:
+                # starter links round a column's cage were still shape 51 (2026-10-25, Revit 2024/2025 F10-06)
                 rebar = wrapper.create_rebar_set(
                     host, s['curves'], bar_type, s['spacing_mm'], s['array_length_mm'],
                     normal=s['normal'], style=style,
-                    transaction_name=u'NOSA — Create {}'.format(label))
+                    transaction_name=u'NOSA — Create {}'.format(label),
+                    link_hook=re_engine.get_link_hook_type(self.doc) if s.get('style') == 'StirrupTie' else None)
             propagated = rebar is not None and not (
                 wrapper.last_error and u'propagation failed' in wrapper.last_error)
             if propagated:
