@@ -330,6 +330,9 @@ try:
             key = (fd.Severity, fd.Check, re.sub(u'[0-9]+', u'n', fd.Issue or u'')[:150])
             groups.setdefault(key, []).append(fd)
         _log.append(u'== QA: {} finding(s) in {:.0f} s'.format(len(found), time.time() - t0))
+        zones = [fd for fd in found if fd.Check == u'Link zone']
+        _log.append(u'== QA link zones: {} finding(s){}'.format(len(zones), u''.join(
+            u'\n    {} {} | {}'.format(fd.Host, fd.Mark, fd.Issue) for fd in zones[:12])))
         for (sev, check, issue), fds in sorted(groups.items(), key=lambda kv: -len(kv[1]))[:30]:
             _log.append(u'    {:4d} {} | {} | {} | e.g. {} {}'.format(len(fds), sev, check, issue, fds[0].Host,
                                                                    fds[0].Mark))

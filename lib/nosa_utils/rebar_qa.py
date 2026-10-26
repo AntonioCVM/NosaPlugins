@@ -508,6 +508,76 @@ def audit(doc, host_ids=None, fck_mpa=32.0, aggregate_mm=AGGREGATE_MM):
         out.extend(_buildability_host(doc, DB, hosts[hid], by_host[hid], hosts, by_host, aggregate_mm,
                                       parts[hid][1] if hid in parts else u'', get_id_value))
         out.extend(_rule_added(hosts[hid], by_host[hid], parts[hid][1] if hid in parts else u''))
+        if _kind(DB, hosts[hid]) == u'beam':
+            out.extend(_link_zones(DB, hosts[hid], by_host[hid], hosts, parts[hid][1] if hid in parts else u'',
+                                   get_id_value))
+    return out
+
+
+LINK_ZONE_TOL_MM = 1.0
+
+
+def link_zone_issues(stations_mm, supports_mm, tol_mm=LINK_ZONE_TOL_MM):
+    """
+    Where a beam's link set lies along it (user 2026-10-26, after 6d58a08 turned the zones round with the same
+    counts and lengths, so the BBS did not see it): stations_mm the set's links along the beam's axis, supports_mm
+    [(a, b)] the columns it rests on along the same axis. [issue] - links inside a support, a zone across one.
+    """
+    if not stations_mm:
+        return []
+    supports = sorted((min(a, b), max(a, b)) for a, b in supports_mm)
+    inside = [s for s in stations_mm if any(a + tol_mm < s < b - tol_mm for a, b in supports)]
+    out = []
+    if inside:
+        out.append(u'{} of {} links inside a support ({:.0f} to {:.0f} mm along the beam)'.format(
+            len(inside), len(stations_mm), min(inside), max(inside)))
+    bays = set(sum(1 for a, _b in supports if a < s) for s in stations_mm if s not in inside)
+    if len(bays) > 1:
+        out.append(u'one zone across {} support(s) ({:.0f} to {:.0f} mm along the beam): each zone stays in its '
+                   u'span'.format(len(bays) - 1, min(stations_mm), max(stations_mm)))
+    return out
+
+
+def _link_zones(DB, beam, rebars, hosts, label, get_id_value):
+    """link_zone_issues for every link set of a beam, its supports the columns its line passes through."""
+    curve, axis = _beam_axis(beam)
+    if curve is None:
+        return []
+    origin = curve.GetEndPoint(0)
+    line = (_xyz(origin), _xyz(curve.GetEndPoint(1)))
+    supports = []
+    for h in hosts.values():
+        if _kind(DB, h) != u'column':
+            continue
+        bb = h.get_BoundingBox(None)
+        if bb is None or bb.Max.Z < min(origin.Z, curve.GetEndPoint(1).Z) - 1e-6:
+            continue
+        lo, hi = _xyz(bb.Min), _xyz(bb.Max)
+        # the beam's line passes through the column in plan, at a height the column reaches
+        mid = ((line[0][0] + line[1][0]) / 2.0, (line[0][1] + line[1][1]) / 2.0)
+        d = (line[1][0] - line[0][0], line[1][1] - line[0][1])
+        n = (d[0] ** 2 + d[1] ** 2) ** 0.5 or 1.0
+        off = abs((((lo[0] + hi[0]) / 2.0) - mid[0]) * d[1] - (((lo[1] + hi[1]) / 2.0) - mid[1]) * d[0]) / n
+        if off > max(hi[0] - lo[0], hi[1] - lo[1]) / 2.0 or lo[2] > line[0][2] + 1.0 or hi[2] < line[0][2] - 2000.0:
+            continue
+        along = [((x - line[0][0]) * d[0] + (y - line[0][1]) * d[1]) / n for x in (lo[0], hi[0]) for y in (lo[1], hi[1])]
+        supports.append((min(along), max(along)))
+    out = []
+    for r in rebars:
+        if not _text(r, u'NOSA_Rebar_Layer').startswith(u'stirrup'):
+            continue
+        stations = []
+        for i in range(r.NumberOfBarPositions):
+            chain = _chain(DB, r, i)
+            if not chain:
+                continue
+            p = chain[0][0]
+            stations.append(((p[0] - line[0][0]) * axis.X + (p[1] - line[0][1]) * axis.Y
+                             + (p[2] - line[0][2]) * axis.Z))
+        for issue in link_zone_issues(stations, supports):
+            out.append(Finding(_text(r, u'NOSA_Rebar_Group'), label,
+                               _text(r, u'NOSA_Rebar_Mark') or _text(r, u'Schedule Mark'), u'Link zone', ERROR, issue,
+                               r.Id))
     return out
 
 

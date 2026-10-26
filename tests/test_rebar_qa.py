@@ -176,3 +176,23 @@ def test_candidate_pairs_are_exactly_the_double_loop_box_test():
                  and not any(segs[i][5][k] - reach > segs[j][6][k] or segs[j][5][k] - reach > segs[i][6][k]
                              for k in range(3))]
         assert qa.candidate_pairs(segs, reach, owner) == brute, trial
+
+
+def test_link_zones_of_b1_b2_in_their_spans_and_the_regression_caught():
+    # B1-B2 (6000 mm between column centres, columns 450 wide): after 947c985 the zones are 12@100 275..1375,
+    # 16@200 1500..4500, 12@100 4625..5725; 6d58a08 had turned them round (12 at -825..275, 16 at -1500..1500)
+    from nosa_utils import rebar_qa as q
+    supports = [(-225.0, 225.0), (5775.0, 6225.0)]
+    zones = [[275.0 + 100.0 * k for k in range(12)], [1500.0 + 200.0 * k for k in range(16)],
+             [4625.0 + 100.0 * k for k in range(12)]]
+    assert all(q.link_zone_issues(z, supports) == [] for z in zones)
+    turned = [[-825.0 + 100.0 * k for k in range(12)], [-1500.0 + 200.0 * k for k in range(16)]]
+    first, middle = [q.link_zone_issues(z, supports) for z in turned]
+    assert any(u'inside a support' in i for i in first) and any(u'across 1 support' in i for i in first)
+    assert any(u'inside a support' in i for i in middle) and any(u'across 1 support' in i for i in middle)
+
+
+def test_link_zone_touching_a_support_face_is_not_inside_it():
+    from nosa_utils import rebar_qa as q
+    assert q.link_zone_issues([225.0, 325.0], [(-225.0, 225.0)]) == []
+    assert q.link_zone_issues([], [(-225.0, 225.0)]) == []
