@@ -142,7 +142,7 @@ for r in DB.FilteredElementCollector(doc).OfClass(Rebar):
             r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK).AsString(),  # nosa-lint: disable=NOSA002 - harness script runs in Revit
             'key': text(r, u'NOSA_Rebar_Assembly'), 'drawing': text(r, u'NOSA_Rebar_Group'),
             'dia': round(bt.BarNominalDiameter * FT, 1), 'n': n, 'qty': r.Quantity, 'shape': shape_name,
-            'bar_length': round(r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_LENGTH).AsDouble() * FT),  # nosa-lint: disable=NOSA002 - harness script runs in Revit
+            'bar_length': round(r.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_LENGTH).AsDouble() * FT, 2),  # nosa-lint: disable=NOSA002 - harness script runs in Revit
             'total_length': round(r.TotalLength * FT), 'volume_cm3': round(r.Volume * 28316.8466, 1),
             'layer': text(r, u'NOSA_Rebar_Layer'), 'partition': text(r, u'Partition'),
             'varying': text(r, u'NOSA_Rebar_Is_Variable'), 'lens_sample': lens[:3],

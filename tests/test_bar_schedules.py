@@ -37,6 +37,6 @@ def test_a_typical_details_sheet_names_no_schedules():
 
 def test_a_mark_is_one_bbs_length():
     import rebar_marking as rm
-    assert rm.bbs_length_mm(4600.0) == 4600 and rm.bbs_length_mm(4600.4) == 4600
+    assert rm.bbs_length_mm(4600.0) == 4600 and rm.bbs_length_mm(4600.0004) == 4600 and rm.bbs_length_mm(4600.3) == 4625
     assert rm.bbs_length_mm(4601.0) == 4625 and rm.bbs_length_mm(4624.6) == 4625
     assert rm.bbs_length_mm(5360.0) == rm.bbs_length_mm(5361.0) == 5375

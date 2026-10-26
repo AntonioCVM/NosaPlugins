@@ -63,12 +63,12 @@ def _round_to_tolerance(value_mm, tolerance_mm):
 
 def bbs_length_mm(value_mm, step_mm=25):
     """
-    The length the bar schedule gives a bar: to the mm, then up to the next 25 (BS 8666). One mark is one BBS row, so
-    bars share a mark only when this agrees (4-storey test 2026-10-25: 4600 and 4601 mm shared mark 04 and scheduled
-    4600 and 4625).
+    The length the bar schedule gives a bar: its real length up to the next 25 (BS 8666; the template BBS rounds the
+    unrounded length, 4600.3 -> 4625). One mark is one BBS row, so bars share a mark only when this agrees (4-storey
+    test 2026-10-25: 4600 and 4601 mm shared mark 04 and scheduled 4600 and 4625).
     """
     import math
-    return int(math.ceil(int(round(value_mm)) / float(step_mm)) * step_mm)
+    return int(math.ceil((value_mm - 1e-3) / float(step_mm)) * step_mm)
 
 
 def _parse_shape_params(shape_params_str, tolerance_mm):
@@ -181,6 +181,14 @@ def _dedup_key(doc, rebar, tolerance_mm, is_varying):
         return ('varying', get_id_value(rid))
     import rebar_bending
     unit_length_mm = rebar_bending.unit_cut_length_mm(rebar)
+    try:
+        # the bar length the BBS reads (a set's TotalLength is rounded by Revit: 4600 and 4601 mm read alike)
+        from Autodesk.Revit.DB import BuiltInParameter  # Lazy import
+        native = rebar.get_Parameter(BuiltInParameter.REBAR_ELEM_LENGTH)
+        if native is not None and native.HasValue and native.AsDouble() > 0 and not rebar.IsRebarFreeForm():
+            unit_length_mm = native.AsDouble() * 304.8
+    except Exception:  # nosa-lint: disable=NOSA006 - no native length: the cut length applies
+        pass
     return (int(round(_bar_diameter_mm(doc, rebar))),
             _read(doc, rid, "NOSA_Rebar_Shape_Code") or "99",
             _parse_shape_params(_read(doc, rid, "NOSA_Rebar_Shape_Params") or "", tolerance_mm),
