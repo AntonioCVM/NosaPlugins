@@ -1953,9 +1953,10 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             ok = presentation.free_junction(cands, dxy, span, seen, tol_along)
             if ok is None and joint is not None and joint.get('side') == 'right' and not flat:
                 # a column with no clear place between its bars (an edge column at 1:50, a beam's link legs 90 mm
-                # off its middle bar): the link line beside its face, on the side of its texts, not along a bar
-                # (user 2026-10-26, point 5); its ticks still mark every link level
-                out = _point(view, (box[2] + gap, _xy(view, junction)[1]), junction)
+                # off its middle bar): the link line beside its face, not along a bar
+                # (user 2026-10-26, point 5); its ticks still mark every link level. On the face away from the texts:
+                # beside them every calling-up's leader crossed it (147 A4 on the 4-storey building)
+                out = _point(view, (box[0] - gap, _xy(view, junction)[1]), junction)
                 if presentation.free_junction([_xy(view, out)], dxy, span, seen, tol_along) == 0:
                     junction, ok = out, 0
             if ok is None:

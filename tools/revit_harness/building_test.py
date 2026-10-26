@@ -286,6 +286,10 @@ class _Log(list):
 
 _log = _Log()
 started = time.time()
+if os.path.isdir(OUTDIR) and os.listdir(OUTDIR):
+    # a run under a name used before: its files set aside, not mixed with this run's (2026-10-26: last night's
+    # PDFs and BBS CSVs in 'nosa_final_s4' read as duplicates and untraced rows)
+    os.rename(OUTDIR, u'{}_prev_{}'.format(OUTDIR, time.strftime('%Y%m%d_%H%M%S')))
 group = DB.TransactionGroup(doc, u'NOSA building test')
 group.Start()
 try:
