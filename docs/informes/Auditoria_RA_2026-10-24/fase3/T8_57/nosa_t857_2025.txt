@@ -1,0 +1,14 @@
+Revit 2025
+rectangular column 450x600 [columns]: 3 Rebar element(s) created (sets count as one each). 3.7 s
+circular column 450 [columns]: 9 Rebar element(s) created (sets count as one each). 2.8 s
+continuous beam over three columns [beams]: 10 Rebar element(s) created. 2.4 s
+inclined beam [beams]: 5 Rebar element(s) created. 2.2 s
+curved beam [beams]: 38 Rebar element(s) created. 5.2 s
+slab with an opening [footings_floors]: 18 Rebar element(s) created (sets count as one each). 3.0 s
+L-shaped slab [footings_floors]: 4 Rebar element(s) created (sets count as one each). 2.8 s
+slab with a curved edge [footings_floors]: 3 Rebar element(s) created (sets count as one each). 2.3 s
+straight wall with an opening [walls]: 31 Rebar element(s) created. 4.4 s
+curved wall [walls]: 6 Rebar element(s) created. 10.4 s
+pad foundation [footings_floors]: 2 Rebar element(s) created (sets count as one each). 1.9 s
+pile cap, 4 piles [footings_floors]: 3 Rebar element(s) created (sets count as one each). 2.9 s
+total 45 s

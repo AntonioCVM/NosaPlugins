@@ -1,0 +1,7414 @@
+{
+ "rebars": {
+  "1563123": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 110250.0, 
+   "qty": 14, 
+   "schedule_mark": "09", 
+   "partition": "S1", 
+   "n": 14, 
+   "mark": "09", 
+   "bar_length": 7875.0, 
+   "volume_cm3": 12469.0, 
+   "layer": "top_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563122": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 20250.0, 
+   "qty": 6, 
+   "schedule_mark": "11", 
+   "partition": "S1", 
+   "n": 6, 
+   "mark": "11", 
+   "bar_length": 3375.0, 
+   "volume_cm3": 2290.1999999999998, 
+   "layer": "top_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563121": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 17250.0, 
+   "qty": 6, 
+   "schedule_mark": "12", 
+   "partition": "S1", 
+   "n": 6, 
+   "mark": "12", 
+   "bar_length": 2875.0, 
+   "volume_cm3": 1950.9000000000001, 
+   "layer": "top_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563120": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 118125.0, 
+   "qty": 15, 
+   "schedule_mark": "09", 
+   "partition": "S1", 
+   "n": 15, 
+   "mark": "09", 
+   "bar_length": 7875.0, 
+   "volume_cm3": 13359.6, 
+   "layer": "top_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563127": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 116875.0, 
+   "qty": 17, 
+   "schedule_mark": "10", 
+   "partition": "S1", 
+   "n": 17, 
+   "mark": "10", 
+   "bar_length": 6875.0, 
+   "volume_cm3": 13218.299999999999, 
+   "layer": "top_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563126": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 21400.0, 
+   "qty": 8, 
+   "schedule_mark": "14", 
+   "partition": "S1", 
+   "n": 8, 
+   "mark": "14", 
+   "bar_length": 2675.0, 
+   "volume_cm3": 2420.3000000000002, 
+   "layer": "top_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563125": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 23000.0, 
+   "qty": 8, 
+   "schedule_mark": "12", 
+   "partition": "S1", 
+   "n": 8, 
+   "mark": "12", 
+   "bar_length": 2875.0, 
+   "volume_cm3": 2601.1999999999998, 
+   "layer": "top_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563124": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 103125.0, 
+   "qty": 15, 
+   "schedule_mark": "10", 
+   "partition": "S1", 
+   "n": 15, 
+   "mark": "10", 
+   "bar_length": 6875.0, 
+   "volume_cm3": 11663.200000000001, 
+   "layer": "top_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563129": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 5150.0, 
+   "qty": 2, 
+   "schedule_mark": "06", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "06", 
+   "bar_length": 2575.0, 
+   "volume_cm3": 1035.5, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563128": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 5150.0, 
+   "qty": 2, 
+   "schedule_mark": "06", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "06", 
+   "bar_length": 2575.0, 
+   "volume_cm3": 1035.5, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1568351": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B2", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1499709, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1563193": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3500.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "C3", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 3490.0, 
+   "volume_cm3": 1099.5999999999999, 
+   "layer": "vertical", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1563192": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 10500.0, 
+   "qty": 3, 
+   "schedule_mark": "03", 
+   "partition": "C3", 
+   "n": 3, 
+   "mark": "03", 
+   "bar_length": 3490.0, 
+   "volume_cm3": 3298.6999999999998, 
+   "layer": "vertical", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1563191": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 10500.0, 
+   "qty": 3, 
+   "schedule_mark": "03", 
+   "partition": "C3", 
+   "n": 3, 
+   "mark": "03", 
+   "bar_length": 3490.0, 
+   "volume_cm3": 3298.6999999999998, 
+   "layer": "vertical", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1568350": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 28050.0, 
+   "qty": 17, 
+   "schedule_mark": "03", 
+   "partition": "B2", 
+   "n": 17, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1409.9000000000001, 
+   "layer": "stirrup", 
+   "host": 1499709, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1563197": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 13400.0, 
+   "qty": 8, 
+   "schedule_mark": "02", 
+   "partition": "C3", 
+   "n": 8, 
+   "mark": "02", 
+   "bar_length": 1656.0, 
+   "volume_cm3": 1052.4000000000001, 
+   "layer": "stirrup", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "52"
+  }, 
+  "1619356": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619357": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619354": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619355": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1563196": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3350.0, 
+   "qty": 2, 
+   "schedule_mark": "02", 
+   "partition": "C3", 
+   "n": 2, 
+   "mark": "02", 
+   "bar_length": 1656.0, 
+   "volume_cm3": 263.10000000000002, 
+   "layer": "stirrup", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "52"
+  }, 
+  "1619353": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1563195": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 15075.0, 
+   "qty": 9, 
+   "schedule_mark": "02", 
+   "partition": "C3", 
+   "n": 9, 
+   "mark": "02", 
+   "bar_length": 1656.0, 
+   "volume_cm3": 1184.0, 
+   "layer": "stirrup", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "52"
+  }, 
+  "1563194": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3500.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "C3", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 3490.0, 
+   "volume_cm3": 1099.5999999999999, 
+   "layer": "vertical", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1563198": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 15075.0, 
+   "qty": 9, 
+   "schedule_mark": "02", 
+   "partition": "C3", 
+   "n": 9, 
+   "mark": "02", 
+   "bar_length": 1656.0, 
+   "volume_cm3": 1184.0, 
+   "layer": "stirrup", 
+   "host": 1552833, 
+   "drawing": "4500", 
+   "shape": "52"
+  }, 
+  "1568353": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B3", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1499711, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1568352": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 20925.0, 
+   "qty": 3, 
+   "schedule_mark": "09", 
+   "partition": "B3", 
+   "n": 3, 
+   "mark": "09", 
+   "bar_length": 6953.0, 
+   "volume_cm3": 6573.8000000000002, 
+   "layer": "bottom", 
+   "host": 1499711, 
+   "drawing": "4507", 
+   "shape": "11"
+  }, 
+  "1568355": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B3", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1499711, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1568354": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 28050.0, 
+   "qty": 17, 
+   "schedule_mark": "03", 
+   "partition": "B3", 
+   "n": 17, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1409.9000000000001, 
+   "layer": "stirrup", 
+   "host": 1499711, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619350": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619358": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619359": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619351": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619352": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1563163": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 4875.0, 
+   "qty": 1, 
+   "schedule_mark": "19", 
+   "partition": "S20", 
+   "n": 1, 
+   "mark": "19", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 980.20000000000005, 
+   "layer": "bottom_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563162": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 53625.0, 
+   "qty": 11, 
+   "schedule_mark": "19", 
+   "partition": "S20", 
+   "n": 11, 
+   "mark": "19", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 10781.9, 
+   "layer": "bottom_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563161": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 73125.0, 
+   "qty": 15, 
+   "schedule_mark": "19", 
+   "partition": "S20", 
+   "n": 15, 
+   "mark": "19", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 14702.700000000001, 
+   "layer": "bottom_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563160": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 53625.0, 
+   "qty": 11, 
+   "schedule_mark": "19", 
+   "partition": "S20", 
+   "n": 11, 
+   "mark": "19", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 10781.9, 
+   "layer": "bottom_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563167": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 17625.0, 
+   "qty": 3, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 3, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1993.3, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563166": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 11750.0, 
+   "qty": 2, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1328.9000000000001, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563165": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 47000.0, 
+   "qty": 8, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 8, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 5315.6000000000004, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563164": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 11750.0, 
+   "qty": 2, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1328.9000000000001, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1551372": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 40600.0, 
+   "qty": 14, 
+   "schedule_mark": "03", 
+   "partition": "W10", 
+   "n": 14, 
+   "mark": "03", 
+   "bar_length": 2900.0, 
+   "volume_cm3": 4591.8000000000002, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1563169": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 47000.0, 
+   "qty": 8, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 8, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 5315.6000000000004, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563168": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 11750.0, 
+   "qty": 2, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1328.9000000000001, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1551373": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 23600.0, 
+   "qty": 4, 
+   "schedule_mark": "02", 
+   "partition": "W10", 
+   "n": 4, 
+   "mark": "02", 
+   "bar_length": 5900.0, 
+   "volume_cm3": 2669.0999999999999, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551370": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 4350.0, 
+   "qty": 6, 
+   "schedule_mark": "07", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "07", 
+   "bar_length": 720.0, 
+   "volume_cm3": 492.0, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551371": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 5400.0, 
+   "qty": 6, 
+   "schedule_mark": "06", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "06", 
+   "bar_length": 900.0, 
+   "volume_cm3": 610.70000000000005, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551376": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 29500.0, 
+   "qty": 5, 
+   "schedule_mark": "02", 
+   "partition": "W10", 
+   "n": 5, 
+   "mark": "02", 
+   "bar_length": 5900.0, 
+   "volume_cm3": 3336.4000000000001, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551377": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 23600.0, 
+   "qty": 4, 
+   "schedule_mark": "02", 
+   "partition": "W10", 
+   "n": 4, 
+   "mark": "02", 
+   "bar_length": 5900.0, 
+   "volume_cm3": 2669.0999999999999, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551374": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 11550.0, 
+   "qty": 6, 
+   "schedule_mark": "05", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "05", 
+   "bar_length": 1910.0, 
+   "volume_cm3": 1306.3, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551375": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 16350.0, 
+   "qty": 6, 
+   "schedule_mark": "04", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "04", 
+   "bar_length": 2710.0, 
+   "volume_cm3": 1849.0999999999999, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551378": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 11550.0, 
+   "qty": 6, 
+   "schedule_mark": "05", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "05", 
+   "bar_length": 1910.0, 
+   "volume_cm3": 1306.3, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551379": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 16350.0, 
+   "qty": 6, 
+   "schedule_mark": "04", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "04", 
+   "bar_length": 2710.0, 
+   "volume_cm3": 1849.0999999999999, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1568341": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 26800.0, 
+   "qty": 16, 
+   "schedule_mark": "02", 
+   "partition": "C4", 
+   "n": 16, 
+   "mark": "02", 
+   "bar_length": 1656.0, 
+   "volume_cm3": 2104.9000000000001, 
+   "layer": "stirrup", 
+   "host": 1499703, 
+   "drawing": "4500", 
+   "shape": "52"
+  }, 
+  "1568340": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C4", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1499703, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1568343": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 32850.0, 
+   "qty": 3, 
+   "schedule_mark": "08", 
+   "partition": "B3", 
+   "n": 3, 
+   "mark": "08", 
+   "bar_length": 10943.0, 
+   "volume_cm3": 10320.1, 
+   "layer": "top", 
+   "host": 1499711, 
+   "drawing": "4507", 
+   "shape": "11"
+  }, 
+  "1568342": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 32850.0, 
+   "qty": 3, 
+   "schedule_mark": "07", 
+   "partition": "B1", 
+   "n": 3, 
+   "mark": "07", 
+   "bar_length": 10943.0, 
+   "volume_cm3": 10320.1, 
+   "layer": "top", 
+   "host": 1499707, 
+   "drawing": "4507", 
+   "shape": "11"
+  }, 
+  "1568345": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B1", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1499707, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1568344": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 20925.0, 
+   "qty": 3, 
+   "schedule_mark": "09", 
+   "partition": "B1", 
+   "n": 3, 
+   "mark": "09", 
+   "bar_length": 6953.0, 
+   "volume_cm3": 6573.8000000000002, 
+   "layer": "bottom", 
+   "host": 1499707, 
+   "drawing": "4507", 
+   "shape": "11"
+  }, 
+  "1568347": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B1", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1499707, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1568346": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 28050.0, 
+   "qty": 17, 
+   "schedule_mark": "03", 
+   "partition": "B1", 
+   "n": 17, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1409.9000000000001, 
+   "layer": "stirrup", 
+   "host": 1499707, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1568349": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B2", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1499709, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1568348": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 19200.0, 
+   "qty": 3, 
+   "schedule_mark": "04", 
+   "partition": "B2", 
+   "n": 3, 
+   "mark": "04", 
+   "bar_length": 6400.0, 
+   "volume_cm3": 6031.8999999999996, 
+   "layer": "bottom", 
+   "host": 1499709, 
+   "drawing": "4507", 
+   "shape": "00"
+  }, 
+  "1619342": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619343": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619340": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619341": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619344": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619345": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619346": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619347": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619348": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619349": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1550684": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B11", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1521815, 
+   "drawing": "4508", 
+   "shape": "52"
+  }, 
+  "1550683": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 24750.0, 
+   "qty": 15, 
+   "schedule_mark": "03", 
+   "partition": "B11", 
+   "n": 15, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1244.0999999999999, 
+   "layer": "stirrup", 
+   "host": 1521815, 
+   "drawing": "4508", 
+   "shape": "52"
+  }, 
+  "1550682": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B11", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1521815, 
+   "drawing": "4508", 
+   "shape": "52"
+  }, 
+  "1550681": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 19575.0, 
+   "qty": 3, 
+   "schedule_mark": "02", 
+   "partition": "B11", 
+   "n": 3, 
+   "mark": "02", 
+   "bar_length": 6503.0, 
+   "volume_cm3": 6149.6999999999998, 
+   "layer": "bottom", 
+   "host": 1521815, 
+   "drawing": "4508", 
+   "shape": "11"
+  }, 
+  "1550680": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B10", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1521813, 
+   "drawing": "4508", 
+   "shape": "52"
+  }, 
+  "1521849": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 12000.0, 
+   "qty": 4, 
+   "schedule_mark": "01", 
+   "partition": "C1", 
+   "n": 4, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 3769.9000000000001, 
+   "layer": "vertical", 
+   "host": 1521808, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1552120": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 3350.0, 
+   "qty": 2, 
+   "schedule_mark": "22", 
+   "partition": "S10", 
+   "n": 2, 
+   "mark": "22", 
+   "bar_length": 1675.0, 
+   "volume_cm3": 673.60000000000002, 
+   "layer": "trimmer_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552121": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 3350.0, 
+   "qty": 2, 
+   "schedule_mark": "22", 
+   "partition": "S10", 
+   "n": 2, 
+   "mark": "22", 
+   "bar_length": 1675.0, 
+   "volume_cm3": 673.60000000000002, 
+   "layer": "trimmer_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1550677": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 19575.0, 
+   "qty": 3, 
+   "schedule_mark": "02", 
+   "partition": "B10", 
+   "n": 3, 
+   "mark": "02", 
+   "bar_length": 6503.0, 
+   "volume_cm3": 6149.6999999999998, 
+   "layer": "bottom", 
+   "host": 1521813, 
+   "drawing": "4508", 
+   "shape": "11"
+  }, 
+  "1550676": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 12825.0, 
+   "qty": 3, 
+   "schedule_mark": "10", 
+   "partition": "B11", 
+   "n": 3, 
+   "mark": "10", 
+   "bar_length": 4268.0, 
+   "volume_cm3": 4029.0999999999999, 
+   "layer": "top", 
+   "host": 1521815, 
+   "drawing": "4508", 
+   "shape": "11"
+  }, 
+  "1550675": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 30825.0, 
+   "qty": 3, 
+   "schedule_mark": "01", 
+   "partition": "B10", 
+   "n": 3, 
+   "mark": "01", 
+   "bar_length": 10268.0, 
+   "volume_cm3": 9684.0, 
+   "layer": "top", 
+   "host": 1521813, 
+   "drawing": "4508", 
+   "shape": "11"
+  }, 
+  "1521858": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521859": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521856": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521857": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521854": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521855": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1550679": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 24750.0, 
+   "qty": 15, 
+   "schedule_mark": "03", 
+   "partition": "B10", 
+   "n": 15, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1244.0999999999999, 
+   "layer": "stirrup", 
+   "host": 1521813, 
+   "drawing": "4508", 
+   "shape": "52"
+  }, 
+  "1550678": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4508-01", 
+   "varying": "No", 
+   "total_length": 21450.0, 
+   "qty": 13, 
+   "schedule_mark": "03", 
+   "partition": "B10", 
+   "n": 13, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 1078.2, 
+   "layer": "stirrup", 
+   "host": 1521813, 
+   "drawing": "4508", 
+   "shape": "52"
+  }, 
+  "1521853": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521850": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 12000.0, 
+   "qty": 4, 
+   "schedule_mark": "01", 
+   "partition": "C1", 
+   "n": 4, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 3769.9000000000001, 
+   "layer": "vertical", 
+   "host": 1521808, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521851": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 31600.0, 
+   "qty": 16, 
+   "schedule_mark": "04", 
+   "partition": "C1", 
+   "n": 16, 
+   "mark": "04", 
+   "bar_length": 1956.0, 
+   "volume_cm3": 2481.9000000000001, 
+   "layer": "stirrup", 
+   "host": 1521808, 
+   "drawing": "4500", 
+   "shape": "52"
+  }, 
+  "1563133": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4550.0, 
+   "qty": 2, 
+   "schedule_mark": "08", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "08", 
+   "bar_length": 2275.0, 
+   "volume_cm3": 914.79999999999995, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563132": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4550.0, 
+   "qty": 2, 
+   "schedule_mark": "08", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "08", 
+   "bar_length": 2275.0, 
+   "volume_cm3": 914.79999999999995, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563131": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 5150.0, 
+   "qty": 2, 
+   "schedule_mark": "06", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "06", 
+   "bar_length": 2575.0, 
+   "volume_cm3": 1035.5, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563130": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 5150.0, 
+   "qty": 2, 
+   "schedule_mark": "06", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "06", 
+   "bar_length": 2575.0, 
+   "volume_cm3": 1035.5, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563137": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 8100.0, 
+   "qty": 3, 
+   "schedule_mark": "13", 
+   "partition": "S1", 
+   "n": 3, 
+   "mark": "13", 
+   "bar_length": 2700.0, 
+   "volume_cm3": 916.10000000000002, 
+   "layer": "trimmer_top", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563136": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4600.0, 
+   "qty": 2, 
+   "schedule_mark": "07", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "07", 
+   "bar_length": 2300.0, 
+   "volume_cm3": 924.89999999999998, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563135": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4550.0, 
+   "qty": 2, 
+   "schedule_mark": "08", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "08", 
+   "bar_length": 2275.0, 
+   "volume_cm3": 914.79999999999995, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563134": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4550.0, 
+   "qty": 2, 
+   "schedule_mark": "08", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "08", 
+   "bar_length": 2275.0, 
+   "volume_cm3": 914.79999999999995, 
+   "layer": "trimmer_bottom", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563139": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4750.0, 
+   "qty": 2, 
+   "schedule_mark": "16", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "16", 
+   "bar_length": 2375.0, 
+   "volume_cm3": 537.20000000000005, 
+   "layer": "trimmer_top", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563138": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 8100.0, 
+   "qty": 3, 
+   "schedule_mark": "13", 
+   "partition": "S1", 
+   "n": 3, 
+   "mark": "13", 
+   "bar_length": 2700.0, 
+   "volume_cm3": 916.10000000000002, 
+   "layer": "trimmer_top", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1552110": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 6875.0, 
+   "qty": 5, 
+   "schedule_mark": "23", 
+   "partition": "S10", 
+   "n": 5, 
+   "mark": "23", 
+   "bar_length": 1375.0, 
+   "volume_cm3": 1382.3, 
+   "layer": "bottom_y", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552111": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 18875.0, 
+   "qty": 5, 
+   "schedule_mark": "20", 
+   "partition": "S10", 
+   "n": 5, 
+   "mark": "20", 
+   "bar_length": 3775.0, 
+   "volume_cm3": 3795.0, 
+   "layer": "bottom_y", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552112": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 223250.0, 
+   "qty": 38, 
+   "schedule_mark": "17", 
+   "partition": "S10", 
+   "n": 38, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 44887.099999999999, 
+   "layer": "bottom_y", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552113": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 1100.0, 
+   "qty": 1, 
+   "schedule_mark": "24", 
+   "partition": "S10", 
+   "n": 1, 
+   "mark": "24", 
+   "bar_length": 1100.0, 
+   "volume_cm3": 221.19999999999999, 
+   "layer": "diagonal_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552114": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 1100.0, 
+   "qty": 1, 
+   "schedule_mark": "24", 
+   "partition": "S10", 
+   "n": 1, 
+   "mark": "24", 
+   "bar_length": 1100.0, 
+   "volume_cm3": 221.19999999999999, 
+   "layer": "diagonal_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552115": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 1100.0, 
+   "qty": 1, 
+   "schedule_mark": "24", 
+   "partition": "S10", 
+   "n": 1, 
+   "mark": "24", 
+   "bar_length": 1100.0, 
+   "volume_cm3": 221.19999999999999, 
+   "layer": "diagonal_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552116": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 1100.0, 
+   "qty": 1, 
+   "schedule_mark": "24", 
+   "partition": "S10", 
+   "n": 1, 
+   "mark": "24", 
+   "bar_length": 1100.0, 
+   "volume_cm3": 221.19999999999999, 
+   "layer": "diagonal_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552117": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 3800.0, 
+   "qty": 2, 
+   "schedule_mark": "21", 
+   "partition": "S10", 
+   "n": 2, 
+   "mark": "21", 
+   "bar_length": 1900.0, 
+   "volume_cm3": 764.0, 
+   "layer": "trimmer_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552118": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 3800.0, 
+   "qty": 2, 
+   "schedule_mark": "21", 
+   "partition": "S10", 
+   "n": 2, 
+   "mark": "21", 
+   "bar_length": 1900.0, 
+   "volume_cm3": 764.0, 
+   "layer": "trimmer_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552119": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 3350.0, 
+   "qty": 2, 
+   "schedule_mark": "22", 
+   "partition": "S10", 
+   "n": 2, 
+   "mark": "22", 
+   "bar_length": 1675.0, 
+   "volume_cm3": 673.60000000000002, 
+   "layer": "trimmer_bottom", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1563172": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 9750.0, 
+   "qty": 2, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 1102.7, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563171": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 5875.0, 
+   "qty": 1, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 1, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 664.39999999999998, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563170": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 11750.0, 
+   "qty": 2, 
+   "schedule_mark": "25", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "25", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1328.9000000000001, 
+   "layer": "top_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563173": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 39000.0, 
+   "qty": 8, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 8, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 4410.8000000000002, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563176": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 9750.0, 
+   "qty": 2, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 1102.7, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563175": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 29250.0, 
+   "qty": 6, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 6, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 3308.0999999999999, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563174": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 9750.0, 
+   "qty": 2, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 1102.7, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563177": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 39000.0, 
+   "qty": 8, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 8, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 4410.8000000000002, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1619332": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 15800.0, 
+   "qty": 2, 
+   "schedule_mark": "06", 
+   "partition": "PC10", 
+   "n": 2, 
+   "mark": "06", 
+   "bar_length": 7899.0, 
+   "volume_cm3": 1786.9000000000001, 
+   "layer": "side", 
+   "host": 1521841, 
+   "drawing": "4505", 
+   "shape": "52"
+  }, 
+  "1563179": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 4875.0, 
+   "qty": 1, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 1, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 551.29999999999995, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563178": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 9750.0, 
+   "qty": 2, 
+   "schedule_mark": "26", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "26", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 1102.7, 
+   "layer": "top_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1619330": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 44850.0, 
+   "qty": 13, 
+   "schedule_mark": "04", 
+   "partition": "PC10", 
+   "n": 13, 
+   "mark": "04", 
+   "bar_length": 3440.0, 
+   "volume_cm3": 9017.6000000000004, 
+   "layer": "bottom_x", 
+   "host": 1521841, 
+   "drawing": "4505", 
+   "shape": "21"
+  }, 
+  "1619331": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 44525.0, 
+   "qty": 13, 
+   "schedule_mark": "05", 
+   "partition": "PC10", 
+   "n": 13, 
+   "mark": "05", 
+   "bar_length": 3408.0, 
+   "volume_cm3": 8952.2999999999993, 
+   "layer": "bottom_y", 
+   "host": 1521841, 
+   "drawing": "4505", 
+   "shape": "21"
+  }, 
+  "1619333": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "Yes", 
+   "total_length": 25000.0, 
+   "qty": 3, 
+   "schedule_mark": "05", 
+   "partition": "B12", 
+   "n": 3, 
+   "mark": "05", 
+   "bar_length": 0.0, 
+   "volume_cm3": 7854.0, 
+   "layer": "top", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "00"
+  }, 
+  "1619334": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "Yes", 
+   "total_length": 22425.0, 
+   "qty": 3, 
+   "schedule_mark": "06", 
+   "partition": "B12", 
+   "n": 3, 
+   "mark": "06", 
+   "bar_length": 0.0, 
+   "volume_cm3": 7045.0, 
+   "layer": "bottom", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "00"
+  }, 
+  "1619335": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619336": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619337": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619338": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619339": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1521860": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C2", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1521861": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 26000.0, 
+   "qty": 16, 
+   "schedule_mark": "05", 
+   "partition": "C2", 
+   "n": 16, 
+   "mark": "05", 
+   "bar_length": 1606.0, 
+   "volume_cm3": 2042.0, 
+   "layer": "stirrup", 
+   "host": 1521809, 
+   "drawing": "4500", 
+   "shape": "75"
+  }, 
+  "1568337": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 9000.0, 
+   "qty": 3, 
+   "schedule_mark": "01", 
+   "partition": "C4", 
+   "n": 3, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 2827.4000000000001, 
+   "layer": "vertical", 
+   "host": 1499703, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1568339": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 3000.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "C4", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 942.5, 
+   "layer": "vertical", 
+   "host": 1499703, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1568338": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4500-01", 
+   "varying": "No", 
+   "total_length": 9000.0, 
+   "qty": 3, 
+   "schedule_mark": "01", 
+   "partition": "C4", 
+   "n": 3, 
+   "mark": "01", 
+   "bar_length": 2990.0, 
+   "volume_cm3": 2827.4000000000001, 
+   "layer": "vertical", 
+   "host": 1499703, 
+   "drawing": "4500", 
+   "shape": "00"
+  }, 
+  "1551382": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 8550.0, 
+   "qty": 6, 
+   "schedule_mark": "08", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "08", 
+   "bar_length": 1408.0, 
+   "volume_cm3": 967.0, 
+   "layer": "opening_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1551383": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 8700.0, 
+   "qty": 6, 
+   "schedule_mark": "09", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "09", 
+   "bar_length": 1432.0, 
+   "volume_cm3": 983.89999999999998, 
+   "layer": "opening_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1551380": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 29500.0, 
+   "qty": 5, 
+   "schedule_mark": "02", 
+   "partition": "W10", 
+   "n": 5, 
+   "mark": "02", 
+   "bar_length": 5900.0, 
+   "volume_cm3": 3336.4000000000001, 
+   "layer": "horizontal", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551381": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 8550.0, 
+   "qty": 6, 
+   "schedule_mark": "08", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "08", 
+   "bar_length": 1408.0, 
+   "volume_cm3": 967.0, 
+   "layer": "opening_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1551386": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551387": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551384": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 8700.0, 
+   "qty": 6, 
+   "schedule_mark": "09", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "09", 
+   "bar_length": 1432.0, 
+   "volume_cm3": 983.89999999999998, 
+   "layer": "opening_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1551385": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551388": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551389": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1552105": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 78750.0, 
+   "qty": 10, 
+   "schedule_mark": "01", 
+   "partition": "S10", 
+   "n": 10, 
+   "mark": "01", 
+   "bar_length": 7875.0, 
+   "volume_cm3": 15833.6, 
+   "layer": "bottom_x", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552106": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 5500.0, 
+   "qty": 4, 
+   "schedule_mark": "23", 
+   "partition": "S10", 
+   "n": 4, 
+   "mark": "23", 
+   "bar_length": 1375.0, 
+   "volume_cm3": 1105.8, 
+   "layer": "bottom_x", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552107": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 22300.0, 
+   "qty": 4, 
+   "schedule_mark": "18", 
+   "partition": "S10", 
+   "n": 4, 
+   "mark": "18", 
+   "bar_length": 5575.0, 
+   "volume_cm3": 4483.6999999999998, 
+   "layer": "bottom_x", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552108": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 204750.0, 
+   "qty": 26, 
+   "schedule_mark": "01", 
+   "partition": "S10", 
+   "n": 26, 
+   "mark": "01", 
+   "bar_length": 7875.0, 
+   "volume_cm3": 41167.400000000001, 
+   "layer": "bottom_x", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1552109": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4503-01", 
+   "varying": "No", 
+   "total_length": 58750.0, 
+   "qty": 10, 
+   "schedule_mark": "17", 
+   "partition": "S10", 
+   "n": 10, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 11812.4, 
+   "layer": "bottom_y", 
+   "host": 1521823, 
+   "drawing": "4503", 
+   "shape": "00"
+  }, 
+  "1619326": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619327": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619324": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619325": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619322": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619323": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619320": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 13750.0, 
+   "qty": 10, 
+   "schedule_mark": "02", 
+   "partition": "F10", 
+   "n": 10, 
+   "mark": "02", 
+   "bar_length": 1375.0, 
+   "volume_cm3": 2764.5999999999999, 
+   "layer": "bottom_y", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "00"
+  }, 
+  "1619321": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619328": {
+   "dia": 20.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 2200.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "F10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2184.0, 
+   "volume_cm3": 691.20000000000005, 
+   "layer": "dowel", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "11"
+  }, 
+  "1619329": {
+   "dia": 10.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 4725.0, 
+   "qty": 3, 
+   "schedule_mark": "03", 
+   "partition": "F10", 
+   "n": 3, 
+   "mark": "03", 
+   "bar_length": 1557.0, 
+   "volume_cm3": 371.10000000000002, 
+   "layer": "starter_link", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "52"
+  }, 
+  "1563142": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 2400.0, 
+   "qty": 1, 
+   "schedule_mark": "15", 
+   "partition": "S1", 
+   "n": 1, 
+   "mark": "15", 
+   "bar_length": 2400.0, 
+   "volume_cm3": 271.39999999999998, 
+   "layer": "trimmer_top", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563141": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 7125.0, 
+   "qty": 3, 
+   "schedule_mark": "16", 
+   "partition": "S1", 
+   "n": 3, 
+   "mark": "16", 
+   "bar_length": 2375.0, 
+   "volume_cm3": 805.79999999999995, 
+   "layer": "trimmer_top", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563140": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 4750.0, 
+   "qty": 2, 
+   "schedule_mark": "16", 
+   "partition": "S1", 
+   "n": 2, 
+   "mark": "16", 
+   "bar_length": 2375.0, 
+   "volume_cm3": 537.20000000000005, 
+   "layer": "trimmer_top", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1619366": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619367": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619364": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619365": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1551392": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551393": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 21750.0, 
+   "qty": 15, 
+   "schedule_mark": "09", 
+   "partition": "W10", 
+   "n": 15, 
+   "mark": "09", 
+   "bar_length": 1432.0, 
+   "volume_cm3": 2459.9000000000001, 
+   "layer": "end_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1551390": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551391": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 2050.0, 
+   "qty": 1, 
+   "schedule_mark": "01", 
+   "partition": "W10", 
+   "n": 1, 
+   "mark": "01", 
+   "bar_length": 2050.0, 
+   "volume_cm3": 412.19999999999999, 
+   "layer": "trimmer", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1619360": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619361": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1551394": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 21750.0, 
+   "qty": 15, 
+   "schedule_mark": "09", 
+   "partition": "W10", 
+   "n": 15, 
+   "mark": "09", 
+   "bar_length": 1432.0, 
+   "volume_cm3": 2459.9000000000001, 
+   "layer": "end_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1551395": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 42750.0, 
+   "qty": 30, 
+   "schedule_mark": "08", 
+   "partition": "W10", 
+   "n": 30, 
+   "mark": "08", 
+   "bar_length": 1408.0, 
+   "volume_cm3": 4834.8999999999996, 
+   "layer": "top_ubar", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "21"
+  }, 
+  "1619362": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619363": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1619368": {
+   "dia": 8.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4507-01", 
+   "varying": "No", 
+   "total_length": 1650.0, 
+   "qty": 1, 
+   "schedule_mark": "03", 
+   "partition": "B12", 
+   "n": 1, 
+   "mark": "03", 
+   "bar_length": 1642.0, 
+   "volume_cm3": 82.900000000000006, 
+   "layer": "stirrup", 
+   "host": 1521819, 
+   "drawing": "4507", 
+   "shape": "52"
+  }, 
+  "1563113": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 23000.0, 
+   "qty": 8, 
+   "schedule_mark": "04", 
+   "partition": "S1", 
+   "n": 8, 
+   "mark": "04", 
+   "bar_length": 2875.0, 
+   "volume_cm3": 4624.3999999999996, 
+   "layer": "bottom_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563112": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 157500.0, 
+   "qty": 20, 
+   "schedule_mark": "01", 
+   "partition": "S1", 
+   "n": 20, 
+   "mark": "01", 
+   "bar_length": 7875.0, 
+   "volume_cm3": 31667.299999999999, 
+   "layer": "bottom_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563117": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 28750.0, 
+   "qty": 10, 
+   "schedule_mark": "04", 
+   "partition": "S1", 
+   "n": 10, 
+   "mark": "04", 
+   "bar_length": 2875.0, 
+   "volume_cm3": 5780.5, 
+   "layer": "bottom_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563116": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 137500.0, 
+   "qty": 20, 
+   "schedule_mark": "02", 
+   "partition": "S1", 
+   "n": 20, 
+   "mark": "02", 
+   "bar_length": 6875.0, 
+   "volume_cm3": 27646.0, 
+   "layer": "bottom_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563115": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 149625.0, 
+   "qty": 19, 
+   "schedule_mark": "01", 
+   "partition": "S1", 
+   "n": 19, 
+   "mark": "01", 
+   "bar_length": 7875.0, 
+   "volume_cm3": 30083.900000000001, 
+   "layer": "bottom_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563114": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 27000.0, 
+   "qty": 8, 
+   "schedule_mark": "03", 
+   "partition": "S1", 
+   "n": 8, 
+   "mark": "03", 
+   "bar_length": 3375.0, 
+   "volume_cm3": 5428.6999999999998, 
+   "layer": "bottom_x", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563119": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 158125.0, 
+   "qty": 23, 
+   "schedule_mark": "02", 
+   "partition": "S1", 
+   "n": 23, 
+   "mark": "02", 
+   "bar_length": 6875.0, 
+   "volume_cm3": 31792.900000000001, 
+   "layer": "bottom_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563118": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4502-01", 
+   "varying": "No", 
+   "total_length": 26750.0, 
+   "qty": 10, 
+   "schedule_mark": "05", 
+   "partition": "S1", 
+   "n": 10, 
+   "mark": "05", 
+   "bar_length": 2675.0, 
+   "volume_cm3": 5378.3999999999996, 
+   "layer": "bottom_y", 
+   "host": 1499715, 
+   "drawing": "4502", 
+   "shape": "00"
+  }, 
+  "1563157": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 5875.0, 
+   "qty": 1, 
+   "schedule_mark": "17", 
+   "partition": "S20", 
+   "n": 1, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1181.2, 
+   "layer": "bottom_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563156": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 64625.0, 
+   "qty": 11, 
+   "schedule_mark": "17", 
+   "partition": "S20", 
+   "n": 11, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 12993.6, 
+   "layer": "bottom_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563155": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 52875.0, 
+   "qty": 9, 
+   "schedule_mark": "17", 
+   "partition": "S20", 
+   "n": 9, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 10631.1, 
+   "layer": "bottom_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563154": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 70500.0, 
+   "qty": 12, 
+   "schedule_mark": "17", 
+   "partition": "S20", 
+   "n": 12, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 14174.9, 
+   "layer": "bottom_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563159": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 9750.0, 
+   "qty": 2, 
+   "schedule_mark": "19", 
+   "partition": "S20", 
+   "n": 2, 
+   "mark": "19", 
+   "bar_length": 4875.0, 
+   "volume_cm3": 1960.4000000000001, 
+   "layer": "bottom_y", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1563158": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null
+   ], 
+   "key": "4501-01", 
+   "varying": "No", 
+   "total_length": 5875.0, 
+   "qty": 1, 
+   "schedule_mark": "17", 
+   "partition": "S20", 
+   "n": 1, 
+   "mark": "17", 
+   "bar_length": 5875.0, 
+   "volume_cm3": 1181.2, 
+   "layer": "bottom_x", 
+   "host": 1552840, 
+   "drawing": "4501", 
+   "shape": "00"
+  }, 
+  "1551366": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 4350.0, 
+   "qty": 6, 
+   "schedule_mark": "07", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "07", 
+   "bar_length": 720.0, 
+   "volume_cm3": 492.0, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551367": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 5400.0, 
+   "qty": 6, 
+   "schedule_mark": "06", 
+   "partition": "W10", 
+   "n": 6, 
+   "mark": "06", 
+   "bar_length": 900.0, 
+   "volume_cm3": 610.70000000000005, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551365": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 29000.0, 
+   "qty": 10, 
+   "schedule_mark": "03", 
+   "partition": "W10", 
+   "n": 10, 
+   "mark": "03", 
+   "bar_length": 2900.0, 
+   "volume_cm3": 3279.8000000000002, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551368": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 40600.0, 
+   "qty": 14, 
+   "schedule_mark": "03", 
+   "partition": "W10", 
+   "n": 14, 
+   "mark": "03", 
+   "bar_length": 2900.0, 
+   "volume_cm3": 4591.8000000000002, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1551369": {
+   "dia": 12.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4504-01", 
+   "varying": "No", 
+   "total_length": 29000.0, 
+   "qty": 10, 
+   "schedule_mark": "03", 
+   "partition": "W10", 
+   "n": 10, 
+   "mark": "03", 
+   "bar_length": 2900.0, 
+   "volume_cm3": 3279.8000000000002, 
+   "layer": "vertical", 
+   "host": 1521832, 
+   "drawing": "4504", 
+   "shape": "00"
+  }, 
+  "1619319": {
+   "dia": 16.0, 
+   "lens_sample": [
+    null, 
+    null, 
+    null
+   ], 
+   "key": "4505-01", 
+   "varying": "No", 
+   "total_length": 13750.0, 
+   "qty": 10, 
+   "schedule_mark": "02", 
+   "partition": "F10", 
+   "n": 10, 
+   "mark": "02", 
+   "bar_length": 1375.0, 
+   "volume_cm3": 2764.5999999999999, 
+   "layer": "bottom_x", 
+   "host": 1521840, 
+   "drawing": "4505", 
+   "shape": "00"
+  }
+ }, 
+ "units_length": "autodesk.unit.unit:millimeters-1.0.1", 
+ "path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+ "version": "2024", 
+ "sheets": [
+  {
+   "number": "4501", 
+   "name": "Slabs reinforcement - S20", 
+   "id": 1615672, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Slabs reinforcement - S20", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "18/10/26", 
+    "None": "1615676", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: slabs C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4501-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): slabs 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Slabs: bottom mat on spacers, top mat on chairs to BS 7973 chosen by the contractor (SMDSC 4th ed. 4.2.6); bars tied at alternate intersections, at every one along edges and round openings.\r13. Buildability check: A+ (100/100; 0 error(s), 0 warning(s)) - see the RC QA report.\r14. Typical details: TD S1 (MD S1), TD OP1 (MD OP1 / 6.2.2.12) on drawing 4501 (after the SMDSC 4th ed. model details; confirm with design).\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Slab S20 - Bottom reinforcement", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      400.0, 
+      270.0, 
+      575.0
+     ], 
+     "title": "S20 Bottom reinforcement", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Slab S20 - Top reinforcement", 
+     "scale": 50, 
+     "box": [
+      290.0, 
+      400.0, 
+      532.0, 
+      575.0
+     ], 
+     "title": "S20 Top reinforcement", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Slab S20 - Section E-E", 
+     "scale": 25, 
+     "box": [
+      25.0, 
+      335.0, 
+      298.0, 
+      380.0
+     ], 
+     "title": "S20 Section E-E", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Slab S20 - Section F-F", 
+     "scale": 25, 
+     "box": [
+      25.0, 
+      265.0, 
+      258.0, 
+      315.0
+     ], 
+     "title": "S20 Section F-F", 
+     "type": "Section"
+    }, 
+    {
+     "view": "TD S1 - SLAB TOP BARS AT AN INTERNAL SUPPORT", 
+     "scale": 20, 
+     "box": [
+      160.0, 
+      127.0, 
+      288.0, 
+      245.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }, 
+    {
+     "view": "TD OP1 - SLAB OPENING TRIMMING", 
+     "scale": 20, 
+     "box": [
+      25.0, 
+      111.0, 
+      133.0, 
+      245.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "4502", 
+   "name": "Slabs reinforcement - S1", 
+   "id": 1615699, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Slabs reinforcement - S1", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "18/10/26", 
+    "None": "1615703", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: slabs C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4502-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): slabs 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Slabs: bottom mat on spacers, top mat on chairs to BS 7973 chosen by the contractor (SMDSC 4th ed. 4.2.6); bars tied at alternate intersections, at every one along edges and round openings.\r13. Buildability check: A+ (100/100; 0 error(s), 0 warning(s)) - see the RC QA report.\r14. Typical details: TD S1 (MD S1), TD OP1 (MD OP1 / 6.2.2.12) on drawing 4502 (after the SMDSC 4th ed. model details; confirm with design).\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Slab S1 - Bottom reinforcement", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      317.0, 
+      384.0, 
+      575.0
+     ], 
+     "title": "S1 Bottom reinforcement", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Slab S1 - Top reinforcement", 
+     "scale": 50, 
+     "box": [
+      404.0, 
+      317.0, 
+      762.0, 
+      575.0
+     ], 
+     "title": "S1 Top reinforcement", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Slab S1 - Section A-A", 
+     "scale": 25, 
+     "box": [
+      25.0, 
+      181.0, 
+      449.0, 
+      297.0
+     ], 
+     "title": "S1 Section A-A", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Slab S1 - Section B-B", 
+     "scale": 25, 
+     "box": [
+      25.0, 
+      46.0, 
+      409.0, 
+      161.0
+     ], 
+     "title": "S1 Section B-B", 
+     "type": "Section"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "4503", 
+   "name": "Slabs reinforcement - S10", 
+   "id": 1615709, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Slabs reinforcement - S10", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "18/10/26", 
+    "None": "1615713", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: slabs C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4503-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): slabs 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Slabs: bottom mat on spacers, top mat on chairs to BS 7973 chosen by the contractor (SMDSC 4th ed. 4.2.6); bars tied at alternate intersections, at every one along edges and round openings.\r13. Buildability check: A+ (100/100; 0 error(s), 0 warning(s)) - see the RC QA report.\r14. Typical details: TD S1 (MD S1), TD OP1 (MD OP1 / 6.2.2.12) on drawing 4503 (after the SMDSC 4th ed. model details; confirm with design).\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Slab S10 - Plan", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      379.0, 
+      311.0, 
+      575.0
+     ], 
+     "title": "S10 Plan", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Slab S10 - Section C-C", 
+     "scale": 25, 
+     "box": [
+      25.0, 
+      315.0, 
+      378.0, 
+      359.0
+     ], 
+     "title": "S10 Section C-C", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Slab S10 - Section D-D", 
+     "scale": 25, 
+     "box": [
+      25.0, 
+      249.0, 
+      298.0, 
+      295.0
+     ], 
+     "title": "S10 Section D-D", 
+     "type": "Section"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "4504", 
+   "name": "Walls reinforcement", 
+   "id": 1615932, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Walls reinforcement", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "18/10/26", 
+    "None": "1615936", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: walls C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4504-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): walls 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Walls: the two faces held apart by spacers or links at 1.0 m centres max; horizontal bars outside the vertical bars unless shown otherwise.\r13. Buildability check: A+ (97/100; 0 error(s), 1 warning(s)) - see the RC QA report.\r14. Typical details: TD W4 (MD W4), TD W1 (MD W1) on drawing 4504 (after the SMDSC 4th ed. model details; confirm with design).\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Wall W10 - Elevation", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      477.0, 
+      257.0, 
+      575.0
+     ], 
+     "title": "W10 Elevation", 
+     "type": "Detail"
+    }, 
+    {
+     "view": "Wall W10 - Section 1-1", 
+     "scale": 20, 
+     "box": [
+      25.0, 
+      231.0, 
+      95.0, 
+      457.0
+     ], 
+     "title": "W10 Section 1-1", 
+     "type": "Section"
+    }, 
+    {
+     "view": "TD W4 - WALL OPENING", 
+     "scale": 20, 
+     "box": [
+      407.0, 
+      441.0, 
+      505.0, 
+      575.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }, 
+    {
+     "view": "TD W1 - WALL BASE, KICKER AND TOP", 
+     "scale": 20, 
+     "box": [
+      277.0, 
+      441.0, 
+      387.0, 
+      575.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "4505", 
+   "name": "Foundations reinforcement", 
+   "id": 1616126, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Foundations reinforcement", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "18/10/26", 
+    "None": "1616130", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: foundations C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4505-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): foundations 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Foundations: bottom mat on 50 mm spacers on the blinding; starter bars fixed to a template; lacers tied to every bent-up leg. Multi-column bases and rafts: top mat on chairs and edge U-bars to BS 7973, sized for the pour sequence (SMDSC 4th ed. 6.7.2).\r13. Typical details: TD C1 (MD C1 / MD F1), TD PC1 (MD PC1 / 6.7) on drawing 4505 (after the SMDSC 4th ed. model details; confirm with design).\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Foundation F10 - Plan", 
+     "scale": 20, 
+     "box": [
+      25.0, 
+      413.0, 
+      382.0, 
+      575.0
+     ], 
+     "title": "F10 Plan", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Foundation F10 - Section A-A", 
+     "scale": 20, 
+     "box": [
+      25.0, 
+      274.0, 
+      180.0, 
+      393.0
+     ], 
+     "title": "F10 Section A-A", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Foundation F10 - Section B-B", 
+     "scale": 20, 
+     "box": [
+      200.0, 
+      275.0, 
+      320.0, 
+      393.0
+     ], 
+     "title": "F10 Section B-B", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Foundation PC10 - Plan", 
+     "scale": 20, 
+     "box": [
+      25.0, 
+      31.0, 
+      250.0, 
+      254.0
+     ], 
+     "title": "PC10 Plan", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Foundation PC10 - Section C-C", 
+     "scale": 20, 
+     "box": [
+      270.0, 
+      173.0, 
+      415.0, 
+      254.0
+     ], 
+     "title": "PC10 Section C-C", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Foundation PC10 - Section D-D", 
+     "scale": 20, 
+     "box": [
+      270.0, 
+      72.0, 
+      429.0, 
+      153.0
+     ], 
+     "title": "PC10 Section D-D", 
+     "type": "Section"
+    }, 
+    {
+     "view": "TD C1 - COLUMN STARTERS AND KICKER", 
+     "scale": 20, 
+     "box": [
+      402.0, 
+      456.0, 
+      516.0, 
+      575.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }, 
+    {
+     "view": "TD PC1 - PILE CAP", 
+     "scale": 20, 
+     "box": [
+      536.0, 
+      451.0, 
+      645.0, 
+      575.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "4507", 
+   "name": "Beams reinforcement - B1-B3, B12", 
+   "id": 1616789, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Beams reinforcement - B1-B3, B12", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "18/10/26", 
+    "None": "1616793", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: beams C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4507-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): beams 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Beams: links tied to every corner bar and to alternate bars elsewhere; top bars carried on the links, bottom bars on spacers to BS 7973 at 1.0 m centres max. Cages may be prefabricated, lifting points by the contractor.\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Beam B1-B3 - Elevation", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      407.0, 
+      539.0, 
+      575.0
+     ], 
+     "title": "B1-B3 Elevation", 
+     "type": "Detail"
+    }, 
+    {
+     "view": "Beam B1-B3 - Section 5-5", 
+     "scale": 20, 
+     "box": [
+      31.0, 
+      322.0, 
+      80.0, 
+      387.0
+     ], 
+     "title": "B1-B3 Section 5-5", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B1-B3 - Section 6-6", 
+     "scale": 20, 
+     "box": [
+      112.0, 
+      322.0, 
+      161.0, 
+      387.0
+     ], 
+     "title": "B1-B3 Section 6-6", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B1-B3 - Section 7-7", 
+     "scale": 20, 
+     "box": [
+      193.0, 
+      318.0, 
+      242.0, 
+      387.0
+     ], 
+     "title": "B1-B3 Section 7-7", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B1-B3 - Section 8-8", 
+     "scale": 20, 
+     "box": [
+      274.0, 
+      322.0, 
+      323.0, 
+      387.0
+     ], 
+     "title": "B1-B3 Section 8-8", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B1-B3 - Section 9-9", 
+     "scale": 20, 
+     "box": [
+      355.0, 
+      322.0, 
+      404.0, 
+      387.0
+     ], 
+     "title": "B1-B3 Section 9-9", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B1-B3 - Section 10-10", 
+     "scale": 20, 
+     "box": [
+      439.0, 
+      322.0, 
+      488.0, 
+      387.0
+     ], 
+     "title": "B1-B3 Section 10-10", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B12 - Plan", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      199.0, 
+      199.0, 
+      297.0
+     ], 
+     "title": "B12 Plan", 
+     "type": "EngineeringPlan"
+    }, 
+    {
+     "view": "Beam B12 - Section 11-11", 
+     "scale": 20, 
+     "box": [
+      30.0, 
+      124.0, 
+      81.0, 
+      179.0
+     ], 
+     "title": "B12 Section 11-11", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B12 - Section 12-12", 
+     "scale": 20, 
+     "box": [
+      111.0, 
+      124.0, 
+      162.0, 
+      179.0
+     ], 
+     "title": "B12 Section 12-12", 
+     "type": "Section"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "4508", 
+   "name": "Beams reinforcement - B10-B11", 
+   "id": 1619006, 
+   "fields": {
+    "Functional Breakdown": null, 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": null, 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": null, 
+    "Sheet Name": "Beams reinforcement - B10-B11", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": "As indicated", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619010", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": null, 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "4500's - RC details", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": null, 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [
+    "REINFORCEMENT NOTES\r\r1. Read with the general arrangement drawings 1000 series and the general notes (0900). Do not scale from this drawing.\r2. Concrete: beams C32/40.\r3. Reinforcement: high yield ribbed bars B500B to BS 4449, scheduled to BS 8666:2020. Bar schedules: 4508-01.\r4. Nominal cover c_nom to all reinforcement, links included (includes delta c_dev = 10): beams 40.\r5. Maximum aggregate size 20 mm.\r6. Bar notation: number, type and size, mark, centres, layer, e.g. 20H16-63-150 B1; centres and layer not given for beams and columns. Link zones (13@100): 13 links at 100 centres.\r7. Layers: T top, B bottom, N near face, F far face; 1 outer layer, 2 second layer (see the layer notation key). EF each face, EW each way, ES each side, STG staggered, ALT alternate, ABR alternate bar reversed, UB U-bars (SMDSC 4th ed. Appendix I).\r8. Laps and anchorages to the table in the general notes (0900) unless dimensioned; laps of adjacent bars staggered unless shown otherwise.\r9. Bars bent cold to BS 8666; none heated, welded or rebent on site without approval.\r10. Construction joints, holes and cast-in items only as shown or agreed.\r11. Reinforcement inspected before concreting; no bar substituted without approval.\r12. Fixing: Beams: links tied to every corner bar and to alternate bars elsewhere; top bars carried on the links, bottom bars on spacers to BS 7973 at 1.0 m centres max. Cages may be prefabricated, lifting points by the contractor.\r"
+   ], 
+   "schedules": [], 
+   "viewports": [
+    {
+     "view": "Beam B10-B11 - Elevation", 
+     "scale": 50, 
+     "box": [
+      25.0, 
+      462.0, 
+      314.0, 
+      575.0
+     ], 
+     "title": "B10-B11 Elevation", 
+     "type": "Detail"
+    }, 
+    {
+     "view": "Beam B10-B11 - Section 1-1", 
+     "scale": 20, 
+     "box": [
+      34.0, 
+      372.0, 
+      83.0, 
+      442.0
+     ], 
+     "title": "B10-B11 Section 1-1", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B10-B11 - Section 2-2", 
+     "scale": 20, 
+     "box": [
+      121.0, 
+      377.0, 
+      170.0, 
+      442.0
+     ], 
+     "title": "B10-B11 Section 2-2", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B10-B11 - Section 3-3", 
+     "scale": 20, 
+     "box": [
+      208.0, 
+      377.0, 
+      257.0, 
+      442.0
+     ], 
+     "title": "B10-B11 Section 3-3", 
+     "type": "Section"
+    }, 
+    {
+     "view": "Beam B10-B11 - Section 4-4", 
+     "scale": 20, 
+     "box": [
+      34.0, 
+      287.0, 
+      83.0, 
+      352.0
+     ], 
+     "title": "B10-B11 Section 4-4", 
+     "type": "Section"
+    }, 
+    {
+     "view": "RC layer notation", 
+     "scale": 10, 
+     "box": [
+      648.0, 
+      113.0, 
+      715.0, 
+      215.0
+     ], 
+     "title": "", 
+     "type": "Legend"
+    }
+   ], 
+   "titleblock": {
+    "w": 841.0, 
+    "h": 594.0, 
+    "family": "NOSA_Titleblock_A1_QR"
+   }
+  }, 
+  {
+   "number": "5500", 
+   "name": "Bar Bending Schedule", 
+   "id": 457712, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": null, 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "", 
+    "Sheet Name": "Bar Bending Schedule", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "03/21/23", 
+    "None": "457716", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": null, 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      -1.0, 
+      -110.0, 
+      202.0, 
+      264.0
+     ], 
+     "schedule": "BBS"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5501", 
+   "name": "Bar schedule 4500-01", 
+   "id": 1619047, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4500-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4500", 
+    "Sheet Name": "Bar schedule 4500-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619051", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      192.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4500-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5503", 
+   "name": "Bar schedule 4501-01", 
+   "id": 1619077, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4501-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4501", 
+    "Sheet Name": "Bar schedule 4501-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619081", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      220.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4501-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5505", 
+   "name": "Bar schedule 4502-01", 
+   "id": 1619107, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4502-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4502", 
+    "Sheet Name": "Bar schedule 4502-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619111", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      173.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4502-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5507", 
+   "name": "Bar schedule 4503-01", 
+   "id": 1619137, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4503-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4503", 
+    "Sheet Name": "Bar schedule 4503-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619141", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      204.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4503-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5509", 
+   "name": "Bar schedule 4504-01", 
+   "id": 1619167, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4504-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4504", 
+    "Sheet Name": "Bar schedule 4504-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619171", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      200.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4504-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5511", 
+   "name": "Bar schedule 4505-01", 
+   "id": 1619197, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4505-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4505", 
+    "Sheet Name": "Bar schedule 4505-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619201", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      208.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4505-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5515", 
+   "name": "Bar schedule 4507-01", 
+   "id": 1619257, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4507-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4507", 
+    "Sheet Name": "Bar schedule 4507-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619261", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      165.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4507-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }, 
+  {
+   "number": "5517", 
+   "name": "Bar schedule 4508-01", 
+   "id": 1619287, 
+   "fields": {
+    "Functional Breakdown": "ZZ", 
+    "Visibility/Graphics Overrides": null, 
+    "Referencing Detail": "", 
+    "Revit version": null, 
+    "Designed By": "Designer", 
+    "Engineer": null, 
+    "Checked By": "Checker", 
+    "Current Revision Issued By": "", 
+    "NOSA_BBS_Ref": "4508-01", 
+    "View Template": "None", 
+    "Family Name": null, 
+    "Discipline": "S", 
+    "Appears In Sheet List": "Yes", 
+    "NOSA_BBS_Drawing": "4508", 
+    "Sheet Name": "Bar schedule 4508-01", 
+    "Current Revision Description": "", 
+    "Type Id": "31123", 
+    "Category": "Sheets", 
+    "Scale": " ", 
+    "Design Option": "-1", 
+    "Approved By": "Approver", 
+    "Referencing Sheet": "", 
+    "Sheet Issue Date": "25/10/26", 
+    "None": "1619291", 
+    "Family and Type": "Sheet: Sheet", 
+    "Spatial Breakdown": "ZZZ", 
+    "NOSA_BBS_Status": "P", 
+    "Current Revision Issued": "No", 
+    "Type Name": null, 
+    "Package": "5500's - RC schedules", 
+    "Current Revision Issued To": "", 
+    "Current Revision Date": "", 
+    "Guide Grid": "<None>", 
+    "Form": "L", 
+    "Detail Number": "", 
+    "Dependency": "Independent", 
+    "File Path": "C:\\Users\\AntonioCVi&#241;as\\Documents\\NOSA_T10_11_copias\\Rebar test 2024 (copia).rvt", 
+    "Family": "Sheet", 
+    "Revisions on Sheet": null, 
+    "NOSA_BBS_Revision": null, 
+    "Sheet Number": "", 
+    "Drawn By": "Author", 
+    "Type": "Sheet", 
+    "Current Revision": ""
+   }, 
+   "notes": [], 
+   "schedules": [
+    {
+     "box": [
+      6.0, 
+      208.0, 
+      209.0, 
+      264.0
+     ], 
+     "schedule": "BBS 4508-01"
+    }
+   ], 
+   "viewports": [], 
+   "titleblock": {
+    "w": 210.0, 
+    "h": 297.0, 
+    "family": "NOSA_TitleBlock_A4 for Rebar Schedule"
+   }
+  }
+ ], 
+ "schedules": [
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }
+   ], 
+   "name": "BBS", 
+   "id": 506233, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5500"
+   ], 
+   "itemized": false, 
+   "csv": "BBS.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4500-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4500-01", 
+   "id": 1619033, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5501"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4500-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4501-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4501-01", 
+   "id": 1619054, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5503"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4501-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4502-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4502-01", 
+   "id": 1619084, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5505"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4502-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4503-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4503-01", 
+   "id": 1619114, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5507"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4503-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4504-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4504-01", 
+   "id": 1619144, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5509"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4504-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4505-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4505-01", 
+   "id": 1619174, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5511"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4505-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4507-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4507-01", 
+   "id": 1619234, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5515"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4507-01.csv"
+  }, 
+  {
+   "filters": [
+    {
+     "field": "NOSA_Rebar_Show_In_Schedule", 
+     "value": "", 
+     "type": "NotEqual"
+    }, 
+    {
+     "field": "NOSA_Rebar_Assembly", 
+     "value": "4508-01", 
+     "type": "Equal"
+    }
+   ], 
+   "name": "BBS 4508-01", 
+   "id": 1619264, 
+   "fields": [
+    {
+     "heading": "Member", 
+     "hidden": false, 
+     "name": "Partition"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": true, 
+     "name": "Schedule Mark"
+    }, 
+    {
+     "heading": "Bar\r\nmark", 
+     "hidden": false, 
+     "name": "Bar\r\nmark"
+    }, 
+    {
+     "heading": "Type\r\nand\r\nsize", 
+     "hidden": false, 
+     "name": "Type"
+    }, 
+    {
+     "heading": "No. of\r\nMbrs", 
+     "hidden": false, 
+     "name": "Number of Members"
+    }, 
+    {
+     "heading": "No. of\r\nbars in\r\neach", 
+     "hidden": false, 
+     "name": "Quantity"
+    }, 
+    {
+     "heading": "Total\r\nNo.", 
+     "hidden": false, 
+     "name": "Total quantity"
+    }, 
+    {
+     "heading": "Length\r\nof each\r\nbar\r\n[mm]", 
+     "hidden": false, 
+     "name": "Bar Length"
+    }, 
+    {
+     "heading": "Shape\r\ncode", 
+     "hidden": false, 
+     "name": "Shape"
+    }, 
+    {
+     "heading": "Shape", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Shape_Image"
+    }, 
+    {
+     "heading": "A *\r\n[mm]", 
+     "hidden": false, 
+     "name": "A"
+    }, 
+    {
+     "heading": "B *\r\n[mm]", 
+     "hidden": false, 
+     "name": "B"
+    }, 
+    {
+     "heading": "C *\r\n[mm]", 
+     "hidden": false, 
+     "name": "C"
+    }, 
+    {
+     "heading": "D *\r\n[mm]", 
+     "hidden": false, 
+     "name": "D"
+    }, 
+    {
+     "heading": "E *\r\n[mm]", 
+     "hidden": false, 
+     "name": "E"
+    }, 
+    {
+     "heading": "F *\r\n[mm]", 
+     "hidden": false, 
+     "name": "F"
+    }, 
+    {
+     "heading": "R *\r\n[mm]", 
+     "hidden": false, 
+     "name": "R"
+    }, 
+    {
+     "heading": "Weight\r\n[kg]", 
+     "hidden": false, 
+     "name": "Total weight (Kg)"
+    }, 
+    {
+     "heading": "Rev.", 
+     "hidden": false, 
+     "name": "Rebar revision"
+    }, 
+    {
+     "heading": "Mark\r\n Mrk.", 
+     "hidden": true, 
+     "name": "Mark\r\n Mrk."
+    }, 
+    {
+     "heading": "Bar Mrk.", 
+     "hidden": true, 
+     "name": "Rebar Number"
+    }, 
+    {
+     "heading": "Rebar Number Suffix", 
+     "hidden": true, 
+     "name": "Rebar Number Suffix"
+    }, 
+    {
+     "heading": "Multip.", 
+     "hidden": true, 
+     "name": "Multiplier"
+    }, 
+    {
+     "heading": "Density", 
+     "hidden": true, 
+     "name": "Density"
+    }, 
+    {
+     "heading": "Bar Diameter", 
+     "hidden": true, 
+     "name": "Bar Diameter"
+    }, 
+    {
+     "heading": "Reinforcement Volume", 
+     "hidden": true, 
+     "name": "Reinforcement Volume"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Show_In_Schedule", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Show_In_Schedule"
+    }, 
+    {
+     "heading": "NOSA_Rebar_Assembly", 
+     "hidden": true, 
+     "name": "NOSA_Rebar_Assembly"
+    }
+   ], 
+   "category": "-2009000", 
+   "sheets": [
+    "5517"
+   ], 
+   "itemized": false, 
+   "csv": "BBS_4508-01.csv"
+  }
+ ], 
+ "model": "Rebar test 2024 (copia)"
+}
