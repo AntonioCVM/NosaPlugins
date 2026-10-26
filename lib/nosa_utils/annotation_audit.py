@@ -27,6 +27,21 @@ def _near(p, q, tol=TOUCH_MM):
     return abs(p[0] - q[0]) <= tol and abs(p[1] - q[1]) <= tol
 
 
+RELATION_WORDS = (u'ALT', u'STG')
+LINE_MM = 2.5              # NOSA lettering: a text line on paper
+
+
+def stacked_lines(a, b, word_a=None, word_b=None, line_mm=LINE_MM):
+    """
+    A stacked calling-up's relation word (ALT / STG) and one of its lines, apart: their centres a whole text line
+    or more apart up the sheet. Their boxes, as Revit gives them, are taller than the print and overlap (2026-10-26,
+    4515 S1: the print leaves 1.4 and 1.65 mm clear over and under every ALT); text on text is still an overlap.
+    """
+    if word_a not in RELATION_WORDS and word_b not in RELATION_WORDS:
+        return False
+    return abs((a[1] + a[3]) / 2.0 - (b[1] + b[3]) / 2.0) >= line_mm
+
+
 def centred_box(head, box):
     """The part of box centred on head: each way, the shorter of the two halves (a box stretched to one side)."""
     hx = min(head[0] - box[0], box[2] - head[0])

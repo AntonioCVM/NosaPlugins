@@ -359,6 +359,81 @@ def _check_mark(doc, tag, issue):
         return
 
 
+_CONCRETE = ('OST_StructuralFoundation', 'OST_StructuralColumns', 'OST_StructuralFraming', 'OST_Walls', 'OST_Floors')
+
+
+def _others_drawn(doc, view, f):
+    """
+    Paper boxes of the other members' concrete a plan draws, by category [(id, category, box)]: what is not one of
+    the members its name holds. A11 (2026-10-26: S1's calling-ups on the stair beside it).
+    """
+    import view_plan
+    label = view_plan.member_of_view(_name(view), [u'Column', u'Beam', u'Foundation', u'Slab', u'Wall', u'Stair'])
+    if not label:
+        return []
+    found, tops = [], []
+    for name in ('OST_Floors', 'OST_Stairs'):
+        for e in DB.FilteredElementCollector(doc, view.Id).OfCategory(getattr(DB.BuiltInCategory, name)) \
+                .WhereElementIsNotElementType():
+            bb = e.get_BoundingBox(None)
+            if bb is None:
+                continue
+            try:
+                mark = (e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK).AsString() or u'').strip()
+            except Exception:
+                mark = u''
+            if mark and view_plan.holds(label, mark):
+                tops.append(bb.Max.Z)
+                continue
+            found.append((e, name[4:], bb))
+    out = []
+    for e, what, bb in found:
+        # another floor the plan's range shows (the one below) is not beside it: same level only, or a stair
+        if what == u'Floors' and not any(abs(bb.Max.Z - t) * _MM_PER_FT <= 50.0 for t in tops):
+            continue
+        b = f.box(e.get_BoundingBox(view))
+        if b is not None:
+            out.append((_id(e.Id), what, b))
+    return out
+
+
+def _strangers(doc, view):
+    """
+    A10 (user 2026-10-26: the floor below drawn under SUPPORT in the upper beam elevations): the concrete an
+    elevation draws that touches none of its own members - those whose Mark the view's name holds ('Beam B5-B6 -
+    Elevation': B5, B6). [(id, category)]; none when the view names no member.
+    """
+    import view_plan
+    label = view_plan.member_of_view(_name(view), [u'Column', u'Beam', u'Foundation', u'Slab', u'Wall', u'Stair'])
+    if not label:
+        return []
+
+    def box(e):
+        bb = e.get_BoundingBox(None)
+        if bb is None:
+            return None
+        return ((bb.Min.X * _MM_PER_FT, bb.Min.Y * _MM_PER_FT, bb.Min.Z * _MM_PER_FT),
+                (bb.Max.X * _MM_PER_FT, bb.Max.Y * _MM_PER_FT, bb.Max.Z * _MM_PER_FT))
+    seen, own = [], []
+    for name in _CONCRETE:
+        for e in DB.FilteredElementCollector(doc, view.Id).OfCategory(getattr(DB.BuiltInCategory, name)) \
+                .WhereElementIsNotElementType():
+            b = box(e)
+            if b is None:
+                continue
+            try:
+                mark = (e.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK).AsString() or u'').strip()
+            except Exception:
+                mark = u''
+            if mark and view_plan.holds(label, mark):
+                own.append(b)
+            else:
+                seen.append((e, b, name[4:]))
+    if not own:
+        return []
+    return [(_id(e.Id), what) for e, b, what in seen if not any(view_plan.boxes_touch(b, o) for o in own)]
+
+
 def audit_view(doc, view, sheet_number):
     """Inventory and incidents of one view. Returns {'rows': [...], 'issues': [...], 'metrics': {...}}."""
     from nosa_utils import annotation_audit as aa
@@ -370,6 +445,10 @@ def audit_view(doc, view, sheet_number):
     def issue(cat, element, family, problem):
         issues.append({'sheet': sheet_number, 'view': vname, 'category': cat, 'element': element,
                        'family': family, 'problem': problem})
+
+    if _kind(view) == u'elevation':
+        for eid, what in _strangers(doc, view):
+            issue(u'A10', eid, what, u'concrete of another member drawn, touching none of the view\'s own')
 
     # MRAs: their tag and indicator line belong together
     group = {}
@@ -406,7 +485,7 @@ def audit_view(doc, view, sheet_number):
         labels[key] = b
         label_info[key] = {'family': u'Text note : ' + _name(doc.GetElement(note.GetTypeId())), 'kind': u'text',
                            'turned': abs(f.xy(note.BaseDirection)[0]) < 0.99 * f.k,
-                           'tagged': [], 'group': None}
+                           'tagged': [], 'group': None, 'word': note.Text.strip()}
         rows.append({'sheet': sheet_number, 'view': vname, 'kind': u'text', 'family': label_info[key]['family'],
                      'element': note.Text.strip()[:40], 'id': _id(note.Id)})
     dim_lines, dim_texts = {}, {}
@@ -474,8 +553,17 @@ def audit_view(doc, view, sheet_number):
     member = _union(members)
     crop = _crop(view, f)
 
+    if _kind(view) == u'plan':
+        others = _others_drawn(doc, view, f)
+        for key, box in labels.items():
+            for eid, what, ob in others:
+                if aa.area_overlap(box, ob):
+                    issue(u'A11', key, label_info[key]['family'], u'label over {} {}'.format(what.lower(), eid))
+                    break
     same = lambda a, b: (label_info[a]['group'] is not None and label_info[a]['group'] == label_info[b]['group'])
     for a, b in aa.overlapping_pairs(labels, same=same):
+        if aa.stacked_lines(labels[a], labels[b], label_info[a].get('word'), label_info[b].get('word')):
+            continue        # a stacked calling-up's ALT / STG and its lines: boxes taller than the print, lines apart
         issue(u'A3', a, label_info[a]['family'], u'label over label {}'.format(b))
     for key, box in labels.items():
         mine = label_info[key]['group']

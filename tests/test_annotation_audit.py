@@ -67,3 +67,14 @@ if __name__ == '__main__':
     test_frame_and_bands()
     test_callout_lines()
     print('test_annotation_audit: OK')
+
+
+def test_a_stacked_alt_is_not_over_its_lines_but_text_on_text_is():
+    from nosa_utils import annotation_audit as aa
+    # 4515 S1 (2026-10-26): 'ALT' between two calling-ups, its centre 3.5 mm under the upper one; boxes overlap
+    upper, alt, lower = (0.0, 10.0, 40.0, 14.5), (5.0, 6.5, 12.0, 10.5), (0.0, 3.0, 40.0, 7.5)
+    assert aa.area_overlap(upper, alt) and aa.area_overlap(alt, lower)
+    assert aa.stacked_lines(upper, alt, None, u'ALT') and aa.stacked_lines(alt, lower, u'ALT', None)
+    # an ALT written on a line, or two calling-ups over each other, are still overlaps
+    assert not aa.stacked_lines(upper, (5.0, 10.5, 12.0, 14.0), None, u'ALT')
+    assert not aa.stacked_lines(upper, lower, None, None)
