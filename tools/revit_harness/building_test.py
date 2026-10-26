@@ -330,6 +330,27 @@ try:
             key = (fd.Severity, fd.Check, re.sub(u'[0-9]+', u'n', fd.Issue or u'')[:150])
             groups.setdefault(key, []).append(fd)
         _log.append(u'== QA: {} finding(s) in {:.0f} s'.format(len(found), time.time() - t0))
+        try:
+            # every finding, to classify them (user 2026-10-26, point 9): by check, element and storey
+            if not os.path.isdir(OUTDIR):
+                os.makedirs(OUTDIR)
+            from nosa_utils.revit_helpers import get_id_value as _gid
+
+            def _z(fd):
+                try:
+                    el = doc.GetElement(fd.ElementId) if fd.ElementId is not None else None
+                    bb = el.get_BoundingBox(None) if el is not None else None
+                    return round(bb.Min.Z * 304.8) if bb is not None else None
+                except Exception:
+                    return None
+            qa_rows = [{'host': fd.Host, 'mark': fd.Mark, 'check': fd.Check, 'severity': fd.Severity,
+                     'issue': fd.Issue, 'id': _gid(fd.ElementId) if fd.ElementId is not None else None,
+                     'z_mm': _z(fd)} for fd in found]
+            with io.open(os.path.join(OUTDIR, 'qa_findings.json'), 'w', encoding='utf-8') as fh:
+                fh.write(u'{}'.format(json.dumps(qa_rows, ensure_ascii=True)))
+        except Exception:
+            import traceback
+            _log.append(u'== QA dump EXCEPTION ' + traceback.format_exc()[-300:])
         zones = [fd for fd in found if fd.Check == u'Link zone']
         _log.append(u'== QA link zones: {} finding(s){}'.format(len(zones), u''.join(
             u'\n    {} {} | {}'.format(fd.Host, fd.Mark, fd.Issue) for fd in zones[:12])))
