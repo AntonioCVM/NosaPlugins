@@ -190,8 +190,8 @@ def _bars(doc, view, f):
     """Bars seen in the view: centreline segments, and dots for bars seen end on."""
     from Autodesk.Revit.DB.Structure import Rebar, MultiplanarOption
     segs, dots = [], []
-    from rebar_presentation import shown_positions
-    depth = _depth_range(view)
+    from rebar_presentation import shown_positions, _within_depth as within_depth, _depth_range as depth_range
+    depth = depth_range(view)
     for r in _elements(doc, view, Rebar):
         for i in shown_positions(r, view):
             try:
@@ -209,17 +209,10 @@ def _bars(doc, view, f):
                     if depth is not None:
                         # a section draws what lies within its depth: a curved wall's other bars and the run of
                         # its horizontal arcs beyond the cut are not drawn (2026-10-24, W2 section 2-2)
-                        za, zb = depth[0].OfPoint(model[k]).Z, depth[0].OfPoint(model[k + 1]).Z
-                        if max(za, zb) < depth[1] - 1e-3 or min(za, zb) > depth[2] + 1e-3:
+                        a3, b3 = within_depth(depth, model[k], model[k + 1])
+                        if a3 is None:
                             continue
-                        if abs(zb - za) > 1e-9:
-                            # only the part within the depth
-                            t0 = min(max((depth[1] - za) / (zb - za), 0.0), 1.0)
-                            t1 = min(max((depth[2] - za) / (zb - za), 0.0), 1.0)
-                            t0, t1 = min(t0, t1), max(t0, t1)
-                            a3, b3 = model[k], model[k + 1]
-                            p = f.xy(a3 + (b3 - a3).Multiply(t0))
-                            q = f.xy(a3 + (b3 - a3).Multiply(t1))
+                        p, q = f.xy(a3), f.xy(b3)
                     if abs(p[0] - q[0]) + abs(p[1] - q[1]) < CUT_BAR_MM:
                         dots.append((p[0] - CUT_BAR_MM, p[1] - CUT_BAR_MM, p[0] + CUT_BAR_MM, p[1] + CUT_BAR_MM))
                     else:
@@ -319,17 +312,6 @@ def _spans_member(seg, member, share=0.85):
     if abs(b[0] - a[0]) >= abs(b[1] - a[1]):
         return abs(b[0] - a[0]) >= share * (member[2] - member[0])
     return abs(b[1] - a[1]) >= share * (member[3] - member[1])
-
-
-def _depth_range(view):
-    """(inverse crop transform, min z, max z) of a section's crop box: the depth it draws; None for other views."""
-    try:
-        if not isinstance(view, DB.ViewSection) or not view.CropBoxActive:
-            return None
-        cb = view.CropBox
-        return cb.Transform.Inverse, cb.Min.Z, cb.Max.Z
-    except Exception:
-        return None
 
 
 def _model_crop(view, f):
@@ -597,10 +579,18 @@ def audit_sheet(doc, sheet):
     if tbs:
         bb = tbs[0].get_BoundingBox(sheet)
         frame = (bb.Min.X * _MM_PER_FT, bb.Min.Y * _MM_PER_FT, bb.Max.X * _MM_PER_FT, bb.Max.Y * _MM_PER_FT)
+        problem = u'viewport outside the title block'
+        if abs(frame[2] - frame[0] - 841.0) < 2.0 and abs(frame[3] - frame[1] - 594.0) < 2.0:
+            # the NOSA A1: inside its drawing area, not only the paper (user 2026-10-26: no view outside the usable
+            # area; B1-B2 ran over the border onto the margin) - sheet mm, as the layout places the views (the title
+            # block's own box starts at 12.06, 10.90)
+            import view_plan
+            frame = view_plan.A1_AREA
+            problem = u'viewport outside the drawing area'
         for name, box in boxes.items():
             if aa.outside(box, frame, tol=0.5):
                 issues.append({'sheet': sheet.SheetNumber, 'view': name, 'category': u'A7', 'element': name,
-                               'family': u'viewport', 'problem': u'viewport outside the title block'})
+                               'family': u'viewport', 'problem': problem})
     return issues
 
 

@@ -557,11 +557,36 @@ def build_drawings(doc, groups, re_engine, rebar_detailing, view_plan, sheet_num
             else:
                 _hide_viewers(doc, v, keep=view_plan.member_prefix(v.Name))
             rebar_presentation.foreign_bars(doc, v, own, hosts)
+        doc.Regenerate()
+        _keep_inside(doc, report['sheets'], view_plan)
         t.Commit()
     if schedules and report['sheets']:
         issue_schedules(doc, report)
     report['review'] = review_drawings(doc, report['sheets'], report['errors'])
     return report
+
+
+def _keep_inside(doc, numbers, view_plan):
+    """The viewports of these sheets moved back inside the drawing area and off one another once they have grown."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    wanted = set(numbers)
+    for sheet in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet):
+        if sheet.SheetNumber not in wanted:
+            continue
+        boxes, fixed, ports = {}, [], {}
+        for port in DB.FilteredElementCollector(doc, sheet.Id).OfClass(DB.Viewport):
+            o = port.GetBoxOutline()
+            box = (_mm(o.MinimumPoint.X), _mm(o.MinimumPoint.Y), _mm(o.MaximumPoint.X), _mm(o.MaximumPoint.Y))
+            view = doc.GetElement(port.ViewId)
+            if view is not None and view.ViewType == DB.ViewType.Legend:
+                fixed.append(box)                   # the legends' corner stays as rc_legends put it
+                continue
+            key = get_id_value(port.Id)
+            boxes[key], ports[key] = box, port
+        for key, dx in view_plan.push_inside(boxes, fixed=fixed).items():
+            port = ports[key]
+            port.SetBoxCenter(port.GetBoxCenter() + DB.XYZ(_ft(dx), 0.0, 0.0))
 
 
 def issue_schedules(doc, report):
@@ -1655,6 +1680,9 @@ def build_element_views(doc, hosts, re_engine, rebar_detailing, view_plan, sheet
             own = set(get_id_value(r.Id) for r in rebars)
             for view, _spec, _scale in created:
                 rebar_presentation.foreign_bars(doc, view, own, hosts)
+            if report['sheets']:
+                doc.Regenerate()
+                _keep_inside(doc, report['sheets'], view_plan)
     except Exception as e:
         t.RollBack()
         report['errors'].append(u'{} {}: {}'.format(_TITLES.get(kind, u''), label, e))

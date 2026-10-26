@@ -134,6 +134,31 @@ def test_packed_blocks_fill_the_sheet():
     assert out[1][2] < out[0][2] and out[2][2] < out[0][2]
 
 
+def test_stair_plan_at_1_25_when_it_fits():
+    # ST1 (2026-10-26): about 3.6 x 2.4 m with its margins
+    assert vp.choose_scale('stair_plan', 3600.0, 2400.0) == 25
+    assert vp.choose_scale('stair_plan', 9000.0, 6000.0) == 50
+
+
+def test_packed_block_too_wide_for_a_sheet_is_split_not_run_off():
+    # 2026-10-26 audit, A7 on 4516-4519: a slab's bottom and top plans (441 mm each at 1:50 with their calling-ups)
+    # side by side, its two sections under them - the top plan ran off the sheet to x = 927 mm
+    legends = (630.0, 100.0, 715.0, 220.0)
+    sizes = [(441.0, 312.0), (441.0, 312.0), (559.0, 58.0), (559.0, 63.0)]
+    out = vp.layout_packed([([(441.0, 312.0, None), (441.0, 312.0, None)], [(559.0, 58.0), (559.0, 63.0)])],
+                           reserved=(legends,))
+    for (s, x, y), (w, h) in zip(out, sizes):
+        assert vp.A1_AREA[0] - 1e-6 <= x - w / 2.0 and x + w / 2.0 <= vp.A1_AREA[2] + 1e-6
+        assert vp.A1_AREA[1] - 1e-6 <= y - h / 2.0 and y + h / 2.0 <= vp.A1_AREA[3] + 1e-6
+    assert [s for s, _x, _y in out] == [0, 1, 0, 0]        # the bottom plan with its sections, the top plan next
+    assert out[2][2] < out[0][2] and out[3][2] < out[0][2]
+
+
+def test_a_view_too_big_for_any_sheet_takes_the_first_not_a_blank_one():
+    out = vp.layout_packed([([(900.0, 300.0, None)], [])])
+    assert out[0][0] == 0
+
+
 def test_arrange_block_rows_of_sections():
     w, h, c = vp.arrange_block([(200.0, 100.0, None)], [(150.0, 50.0), (150.0, 50.0)], gap=20.0)
     assert w == 200.0 and len(c) == 3
@@ -236,3 +261,28 @@ def test_a_member_fills_the_sheet_before_another_is_opened():
     # nothing changes when the preferred way fits
     assert vp.layout_choices([[(100.0, 100.0), (50.0, 50.0)]], area=area)[0][3] == 0
     print(u'[PASS] test_a_member_fills_the_sheet_before_another_is_opened')
+
+
+def test_viewports_grown_after_the_layout_are_pushed_back_inside():
+    # 4510 (2026-10-26): B1-B2's 'SEE DRG 4505' put its box 20 mm past the area's left edge and onto B5-B6
+    boxes = {'B1-B2 Elevation': (5.0, 468.0, 313.0, 575.0), 'B5-B6 Elevation': (312.0, 468.0, 620.0, 575.0),
+             'B1-B2 Section 1-1': (37.0, 392.0, 93.0, 448.0), 'B5-B6 Section 9-9': (345.0, 392.0, 381.0, 448.0)}
+    legends = ((630.0, 100.0, 715.0, 220.0),)
+    moves = vp.push_inside(boxes, fixed=legends)
+    e1, e2 = boxes['B1-B2 Elevation'], boxes['B5-B6 Elevation']
+    a = e1[0] + moves.get('B1-B2 Elevation', 0.0)
+    b = e2[0] + moves.get('B5-B6 Elevation', 0.0)
+    assert a >= vp.A1_AREA[0] - 1e-6
+    assert b >= a + (e1[2] - e1[0]) + vp.GAP_MM / 2.0 - 1e-6
+    assert b + (e2[2] - e2[0]) <= vp.A1_AREA[2] + 1e-6
+    assert 'B1-B2 Section 1-1' not in moves and 'B5-B6 Section 9-9' not in moves
+
+
+def test_push_inside_leaves_a_row_that_cannot_fit():
+    boxes = {'a': (25.0, 100.0, 400.0, 200.0), 'b': (380.0, 100.0, 760.0, 200.0)}
+    assert vp.push_inside(boxes) == {}
+
+
+def test_push_inside_moves_nothing_already_clear():
+    boxes = {'a': (25.0, 100.0, 300.0, 200.0), 'b': (320.0, 100.0, 600.0, 200.0)}
+    assert vp.push_inside(boxes) == {}

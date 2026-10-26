@@ -20,7 +20,9 @@ SCALES = {
     'slab_section': ((25, 50, 100), (660.0, 120.0)),   # 1:25 first: room for a mark over every cut bar
     'plan': ((50, 100, 200), (420.0, 360.0)),
     'stair_section': ((20, 50), (420.0, 300.0)),
-    'stair_plan': ((50, 100), (260.0, 300.0)),
+    # 1:25 first, as the slab sections (2026-10-26 audit, A9 on ST1 plan: at 1:50 its top and bottom bars, 91 mm apart
+    # in plan, left no place for an indicator line 1 mm off them, and the plan was small on an empty sheet)
+    'stair_plan': ((25, 50, 100), (260.0, 300.0)),
 }
 
 # NOSA A1 QR titleblock: room for viewports, read from the template's own sheets (mm)
@@ -105,7 +107,8 @@ def layout_choices(options, area=A1_AREA, gap=GAP_MM, reserved=()):
             if spot:
                 break
         if spot is None:
-            sheets.append(list(reserved))
+            if len(sheets[-1]) > len(reserved):
+                sheets.append(list(reserved))       # an empty sheet is used, not left blank (one too big for it)
             w, h = options[i][0]
             spot = (len(sheets) - 1, (ax0, ay1 - h, ax0 + w, ay1), 0)
         sheet_index, rect, k = spot
@@ -163,7 +166,49 @@ def layout_rows(streams, area=A1_AREA, gap=GAP_MM, reserved=()):
     return out
 
 
-RC_SERIES = 4500       # NOSA protocol: 45xx RC details (user 2026-10-17: the reinforcement drawings start at 4500)
+def push_inside(boxes, area=A1_AREA, gap=GAP_MM / 2.0, fixed=()):
+    """
+    Viewports grown after the layout (the other members' 'SEE DRG' notes, written once every drawing has its number:
+    2026-10-26 audit, B1-B2 ran 20 mm past the drawing area's left edge and onto B5-B6) moved sideways the least to
+    lie inside the area and clear of one another and of the fixed boxes (the legends). boxes {key: (x0, y0, x1, y1)};
+    returns {key: dx} for the boxes that move. Boxes that cannot all fit a row are left where they are.
+    """
+    def level(a, b):
+        return a[1] < b[3] + gap and b[1] < a[3] + gap
+    keys = sorted(boxes, key=lambda k: (boxes[k][0], k))
+    x0 = dict((k, boxes[k][0]) for k in keys)
+    width = dict((k, boxes[k][2] - boxes[k][0]) for k in keys)
+    for i, k in enumerate(keys):
+        lo = area[0]
+        for j in keys[:i]:
+            if level(boxes[j], boxes[k]):
+                lo = max(lo, x0[j] + width[j] + gap)
+        for f in fixed:
+            if level(f, boxes[k]) and f[0] < boxes[k][0]:
+                lo = max(lo, f[2] + gap)
+        x0[k] = max(x0[k], lo)
+    for i in range(len(keys) - 1, -1, -1):
+        k = keys[i]
+        hi = area[2]
+        for j in keys[i + 1:]:
+            if level(boxes[j], boxes[k]):
+                hi = min(hi, x0[j] - gap)
+        for f in fixed:
+            if level(f, boxes[k]) and f[0] >= boxes[k][0]:
+                hi = min(hi, f[0] - gap)
+        if x0[k] + width[k] > hi:
+            x0[k] = hi - width[k]
+    ok = all(area[0] - 1e-6 <= x0[k] and x0[k] + width[k] <= area[2] + 1e-6 for k in keys)
+    for i, k in enumerate(keys):
+        for j in keys[i + 1:]:
+            if level(boxes[j], boxes[k]) and x0[j] < x0[k] + width[k] + gap - 1e-6:
+                ok = False
+    if not ok:
+        return {}
+    return dict((k, x0[k] - boxes[k][0]) for k in keys if abs(x0[k] - boxes[k][0]) > 1e-6)
+
+
+RC_SERIES = 4500      # NOSA protocol: 45xx RC details (user 2026-10-17: the reinforcement drawings start at 4500)
 
 
 def next_sheet_numbers(existing, count, series=RC_SERIES):
@@ -261,15 +306,49 @@ def layout_packed(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):
     highest, then leftmost, free spot (layout). blocks [(mains, secs)] as arrange_block takes them. Returns [(sheet
     index, centre x, centre y)], each block's mains then its sections, in the blocks' order.
     """
-    ways = [[arrange_block(mains, secs, gap)] + ([arrange_block(mains, secs, gap, beside=True)] if mains and secs
-                                                  else []) for mains, secs in blocks]
+    parts, owner = [], []
+    for b, (mains, secs) in enumerate(blocks):
+        for m, s in _split_to_fit(list(range(len(mains))), list(range(len(secs))), mains, secs, area, gap, reserved):
+            parts.append(([mains[i] for i in m], [secs[i] for i in s]))
+            owner.append((b, m, s))
+    ways = [_ways(mains, secs, gap) for mains, secs in parts]
     spots = layout_choices([[(w, h) for w, h, _c in way] for way in ways], area=area, gap=gap, reserved=reserved)
-    out = []
-    for way, (sheet, cx, cy, k) in zip(ways, spots):
+    placed = [([None] * len(mains), [None] * len(secs)) for mains, secs in blocks]
+    for way, (sheet, cx, cy, k), (b, m, s) in zip(ways, spots, owner):
         w, h, centres = way[k]
         left, top = cx - w / 2.0, cy + h / 2.0
-        out.extend((sheet, left + x, top - y) for x, y in centres)
-    return out
+        at = [(sheet, left + x, top - y) for x, y in centres]
+        for i, p in zip(m, at[:len(m)]):
+            placed[b][0][i] = p
+        for j, p in zip(s, at[len(m):]):
+            placed[b][1][j] = p
+    return [p for mains, secs in placed for p in mains + secs]
+
+
+def _ways(mains, secs, gap):
+    return [arrange_block(mains, secs, gap)] + ([arrange_block(mains, secs, gap, beside=True)] if mains and secs
+                                                else [])
+
+
+def _split_to_fit(m, s, mains, secs, area, gap, reserved):
+    """
+    A block that fits an empty sheet in none of its ways, cut into parts that do (2026-10-26 audit, A7 on 4516-4519:
+    a slab's bottom and top plans side by side were 902 mm wide for 690 mm of drawing area and ran off the sheet):
+    its plans one a part, the sections with the first; a lone view too big for any sheet is left whole.
+    [(main indices, section indices)].
+    """
+    def fits(mm, ss):
+        return any(_spot(list(reserved), w, h, area, gap) is not None
+                   for w, h, _c in _ways([mains[i] for i in mm], [secs[i] for i in ss], gap))
+    if fits(m, s) or len(m) + len(s) <= 1:
+        return [(m, s)]
+    if len(m) > 1:
+        return _split_to_fit(m[:1], s, mains, secs, area, gap, reserved) + \
+            [p for i in m[1:] for p in _split_to_fit([i], [], mains, secs, area, gap, reserved)]
+    if m and s:
+        return _split_to_fit(m, [], mains, secs, area, gap, reserved) + \
+            _split_to_fit([], s, mains, secs, area, gap, reserved)
+    return [(m, s)]
 
 
 def layout_blocks(blocks, area=A1_AREA, gap=GAP_MM, reserved=()):

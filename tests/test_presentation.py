@@ -218,3 +218,41 @@ def test_callout_moves_off_a_grid_line_within_its_line():
     assert abs(x - -10000.0) >= 500.0 + 37.5 - 1e-6 and -15000.0 <= x - 500.0
     assert pr.off_lines(-7500.0, 1000.0, [-10000.0, -5000.0], 75.0) == -7500.0
     assert pr.off_lines(0.0, 1000.0, [0.0], 75.0, -400.0, 400.0) == 0.0          # no room: stays
+
+
+def test_where_no_place_is_clear_the_line_shares_least_with_the_bars():
+    # 2026-10-26, C1 elevation at 1:50 (tol 50 mm): the middle bar at 0 the full height, a beam's link legs at +-90
+    # over its top 340 mm, the base's starters at +-137 up to 850 - no x is clear of all of them
+    up, span = (0.0, 1.0), (-1541.0, 1349.0)
+    bars = [((0.0, 5.0), (0.0, 2846.0)), ((-90.0, 2476.0), (-90.0, 2816.0)), ((90.0, 2476.0), (90.0, 2816.0)),
+            ((-137.0, -838.0), (-137.0, 850.0)), ((137.0, -838.0), (137.0, 850.0))]
+    candidates = [(float(x), 1596.0) for x in range(-180, 181, 9)]
+    assert pr.free_junction(candidates, up, span, bars, 50.0) is None
+    i = pr.least_along(candidates, up, span, bars, 50.0)
+    x = candidates[i][0]
+    assert abs(x) >= 50.0                                  # off the middle bar its whole length
+    assert pr.along_length(candidates[i], up, span, bars, 50.0) <= 340.0 + 1e-6
+    assert pr.along_length((0.0, 1596.0), up, span, bars, 50.0) > 2700.0
+
+
+def test_along_length_merges_overlapping_bars():
+    up = (0.0, 1.0)
+    bars = [((10.0, 0.0), (10.0, 100.0)), ((-10.0, 50.0), (-10.0, 150.0))]
+    assert abs(pr.along_length((0.0, 0.0), up, (0.0, 120.0), bars, 20.0) - 120.0) < 1e-6
+    assert pr.along_length((0.0, 0.0), up, (0.0, 120.0), [], 20.0) == 0.0
+
+
+def test_zone_texts_on_one_line_are_kept_apart():
+    # B1-B2 at 1:50 (2026-10-26): '(16@200)' over a 1225 mm zone ending where '(2@100)' of a 100 mm zone starts
+    xs = pr.spread([10.0, 14.0, 60.0], [16.0, 14.0, 14.0], 1.0)
+    assert xs[1] - xs[0] >= (16.0 + 14.0) / 2.0 + 1.0 - 1e-9
+    assert abs(((xs[0] - 8.0) + (xs[1] + 7.0)) / 2.0 - 12.0) < 1e-9    # the pair centred where they wanted to be
+    assert xs[2] == 60.0                                   # one clear of them stays put
+    assert pr.spread([5.0], [3.0], 1.0) == [5.0]
+    assert pr.spread([], [], 1.0) == []
+
+
+def test_spread_merges_runs_until_nothing_touches():
+    xs = pr.spread([0.0, 1.0, 2.0, 3.0], [4.0] * 4, 0.5)
+    for a, b in zip(sorted(xs), sorted(xs)[1:]):
+        assert b - a >= 4.5 - 1e-9

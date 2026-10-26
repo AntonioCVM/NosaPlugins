@@ -404,6 +404,72 @@ def free_junction(candidates, direction, span, segments, tol):
     return None
 
 
+def along_length(point, direction, span, segments, tol):
+    """How much (view mm along direction, within span) of a line through point runs along any of segments."""
+    covered = []
+    for seg in segments:
+        if runs_along(point, direction, span, seg, tol):
+            (ax, ay), (bx, by) = seg
+            ta = (ax - point[0]) * direction[0] + (ay - point[1]) * direction[1]
+            tb = (bx - point[0]) * direction[0] + (by - point[1]) * direction[1]
+            covered.append((max(min(ta, tb), min(span)), min(max(ta, tb), max(span))))
+    total, end = 0.0, None
+    for a, b in sorted(covered):
+        if end is None or a > end:
+            total += b - a
+            end = b
+        elif b > end:
+            total += b - end
+            end = b
+    return total
+
+
+def least_along(candidates, direction, span, segments, tol):
+    """
+    Index of the candidate whose line runs along the bars for the least length, the first on a tie: where no place is
+    clear (2026-10-26, edge columns at 1:50: a beam's link legs 90 mm off the middle bar), the line goes where it
+    shares least, not over a bar its whole length.
+    """
+    if not candidates:
+        return None
+    lengths = [along_length(p, direction, span, segments, tol) for p in candidates]
+    return min(range(len(candidates)), key=lambda i: (round(lengths[i], 3), i))
+
+
+def spread(centres, widths, gap):
+    """
+    Texts on one line kept apart (2026-10-26 audit, A3 on B1-B2: '(16@200)' over '(2@100)' of a 100 mm zone at 1:50):
+    each run of texts that would touch is laid side by side, gap between, centred where the run wanted to be. Returns
+    the new centres in the input order.
+    """
+    order = sorted(range(len(centres)), key=lambda i: centres[i])
+    runs = [[i] for i in order]
+    while True:
+        def place(run):
+            total = sum(widths[i] for i in run) + gap * (len(run) - 1)
+            mid = sum(centres[i] for i in run) / float(len(run))
+            out, x = {}, mid - total / 2.0
+            for i in run:
+                out[i] = x + widths[i] / 2.0
+                x += widths[i] + gap
+            return out
+        placed = [place(r) for r in runs]
+        merged = False
+        for k in range(len(runs) - 1):
+            right = placed[k][runs[k][-1]] + widths[runs[k][-1]] / 2.0
+            left = placed[k + 1][runs[k + 1][0]] - widths[runs[k + 1][0]] / 2.0
+            if left - right < gap - 1e-9:
+                runs[k:k + 2] = [runs[k] + runs[k + 1]]
+                merged = True
+                break
+        if not merged:
+            out = [None] * len(centres)
+            for p in placed:
+                for i, x in p.items():
+                    out[i] = x
+            return out
+
+
 def clearest(xs, avoid):
     """Index of the x in xs farthest from every x in avoid (an indicator line between bars), None with no xs."""
     if not xs:

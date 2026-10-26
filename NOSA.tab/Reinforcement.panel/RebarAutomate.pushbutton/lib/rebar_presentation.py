@@ -514,6 +514,7 @@ def _seen_bars(view):
     """The straight bits of the bars drawn in the view, view mm: what a calling-up's line must not run along."""
     out = []
     doc = view.Document
+    depth = _depth_range(view)
     for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
         for i in shown_positions(r, view):
             try:
@@ -525,10 +526,41 @@ def _seen_bars(view):
                 # arcs too, as their tessellation: a curved wall's horizontals seen in elevation (W2, 2026-10-18)
                 pts = [c.GetEndPoint(0), c.GetEndPoint(1)] if isinstance(c, DB.Line) else list(c.Tessellate())
                 for p, q in zip(pts, pts[1:]):
+                    if depth is not None:
+                        # only what the section draws: the view takes a set by its box, so a beam's links beyond
+                        # its far clip came in and kept a column's link line on its middle bar (2026-10-26, A9)
+                        p, q = _within_depth(depth, p, q)
+                        if p is None:
+                            continue
                     a, b = _xy(view, p), _xy(view, q)
                     if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
                         out.append((a, b))
     return out
+
+
+def _depth_range(view):
+    """(inverse crop transform, min z, max z) of a section's crop box: the depth it draws; None for other views."""
+    try:
+        if not isinstance(view, DB.ViewSection) or not view.CropBoxActive:
+            return None
+        cb = view.CropBox
+        return cb.Transform.Inverse, cb.Min.Z, cb.Max.Z
+    except Exception:
+        return None
+
+
+def _within_depth(depth, p, q):
+    """The part of segment p-q (model points) within a section's depth, (None, None) when none of it is."""
+    inverse, lo, hi = depth
+    za, zb = inverse.OfPoint(p).Z, inverse.OfPoint(q).Z
+    if max(za, zb) < lo - 1e-3 or min(za, zb) > hi + 1e-3:
+        return None, None
+    if abs(zb - za) < 1e-9:
+        return p, q
+    t0 = min(max((lo - za) / (zb - za), 0.0), 1.0)
+    t1 = min(max((hi - za) / (zb - za), 0.0), 1.0)
+    t0, t1 = min(t0, t1), max(t0, t1)
+    return p + (q - p).Multiply(t0), p + (q - p).Multiply(t1)
 
 
 def _text_box(view, tag):
@@ -1875,6 +1907,8 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             dxy = (dxy[0] / norm, dxy[1] / norm)
             cands = [_xy(view, junction)] + [_xy(view, slide.Evaluate(x, True)) for x in ts]
             ok = presentation.free_junction(cands, dxy, span, seen, tol_along)
+            if ok is None:
+                ok = presentation.least_along(cands, dxy, span, seen, tol_along)
             if ok:
                 junction = slide.Evaluate(ts[ok - 1], True)
         t = sorted((ln.Evaluate(0.5, True) - junction).DotProduct(direction) for ln in (first, last))
@@ -2909,14 +2943,18 @@ def _beam_links(doc, view, zones, mra_type, det, box, gap, outside, row, placed,
                 except Exception:
                     pass
         doc.Regenerate()
+        texts = []
         for d, mra, a, b in pending:
             tag = doc.GetElement(mra.TagId)
             if tag is None:
                 continue
-            size = _size(view, tag, _text(d['rebar'], ZONE_QTY_PARAM))
-            w, h, offset = size
-            centre = (presentation.off_lines((a + b) / 2.0, w, _grid_blocks(view)['bottom'], gap, a, b),
-                      y_zone + gap / 2.0 + h / 2.0)
+            w, h, offset = _size(view, tag, _text(d['rebar'], ZONE_QTY_PARAM))
+            x = presentation.off_lines((a + b) / 2.0, w, _grid_blocks(view)['bottom'], gap, a, b)
+            texts.append((d, tag, a, b, w, h, offset, x))
+        # the zones' texts side by side, not over each other where the zones are short
+        xs = presentation.spread([t[7] for t in texts], [t[4] for t in texts], gap / 2.0)
+        for (d, tag, a, b, w, h, offset, _x), x in zip(texts, xs):
+            centre = (x, y_zone + gap / 2.0 + h / 2.0)
             _move_head(view, tag, centre, offset)
             try:
                 tag.HasLeader = False
