@@ -933,6 +933,76 @@ def realign_closed_loop(doc, rebar, curves, tol_mm=0.05):
     delta = _curves_min_corner(curves) - _curves_min_corner(list(placed))
     if delta.GetLength() * _MM_PER_FT > tol_mm:
         DB.ElementTransformUtils.MoveElement(doc, rebar.Id, delta)
+    _fit_closed_loop(doc, rebar, curves, tol_mm)
+    LOOPS.append((rebar.Id, list(curves), tol_mm))
+
+
+LOOPS = []    # the closed loops fitted in this run: Revit moves them again as the member's other bars are made
+
+
+def refit_loops(doc):
+    """
+    Every closed loop of the run back on its asked lines, once all the bars are made (4-storey test 2026-10-26: an
+    edge column's links fitted at creation were moved 5 mm by Revit when its L-bars were added). In a transaction.
+    Returns how many were moved.
+    """
+    moved = 0
+    loops, LOOPS[:] = list(LOOPS), []
+    for rid, curves, tol_mm in loops:
+        rebar = doc.GetElement(rid)
+        if rebar is None or not rebar.IsValidObject:
+            continue
+        before = _curves_min_corner(list(rebar.GetTransformedCenterlineCurves(
+            False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)))
+        realign_closed_loop(doc, rebar, curves, tol_mm)
+        after = _curves_min_corner(list(rebar.GetTransformedCenterlineCurves(
+            False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)))
+        if (after - before).GetLength() * _MM_PER_FT > tol_mm:
+            moved += 1
+    LOOPS[:] = []
+    return moved
+
+
+def _fit_closed_loop(doc, rebar, curves, tol_mm):
+    """
+    The loop brought to the size it was asked: Revit's re-fit leaves it half a bar short on two sides (4-storey test
+    2026-10-26: column links 355 x 355 for 360 x 360, beam links 204 x 464 for 212 x 468). ScaleToBox, with the box
+    corrected by each side's miss (nosa_utils.loop_fit), lands on the asked lines in two or three tries.
+    """
+    from nosa_utils import loop_fit
+    if not isinstance(curves[0], DB.Line):
+        return                                    # a circular link: its catalogue arc is its size
+    try:
+        acc = rebar.GetShapeDrivenAccessor()
+        n = acc.Normal.Normalize()
+    except Exception:
+        return
+    u = curves[0].Direction.Normalize()
+    v = n.CrossProduct(u).Normalize()
+    pts = [p for c in curves for p in (c.GetEndPoint(0), c.GetEndPoint(1))]
+    w = pts[0].DotProduct(n)
+    want = (min(p.DotProduct(u) for p in pts), max(p.DotProduct(u) for p in pts),
+            min(p.DotProduct(v) for p in pts), max(p.DotProduct(v) for p in pts))
+
+    def extents():
+        doc.Regenerate()
+        got = [p for c in rebar.GetTransformedCenterlineCurves(
+            False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)
+            for p in (c.GetEndPoint(0), c.GetEndPoint(1))]
+        return (min(p.DotProduct(u) for p in got), max(p.DotProduct(u) for p in got),
+                min(p.DotProduct(v) for p in got), max(p.DotProduct(v) for p in got))
+    got = extents()
+    box = want
+    for _try in range(loop_fit.TRIES):
+        if loop_fit.off_by(want, got) * _MM_PER_FT <= tol_mm + 0.05:
+            return
+        box = loop_fit.next_box(want, box, got) if _try else want
+        try:
+            acc.ScaleToBox(u.Multiply(box[0]) + v.Multiply(box[2]) + n.Multiply(w), u.Multiply(box[1] - box[0]),
+                           v.Multiply(box[3] - box[2]))
+        except Exception:
+            return
+        got = extents()
 
 
 def find_columns_above(doc, foundation, tol_mm=15.0):

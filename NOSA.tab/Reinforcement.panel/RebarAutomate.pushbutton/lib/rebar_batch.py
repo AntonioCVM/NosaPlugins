@@ -280,7 +280,14 @@ class RebarBatch(object):
             doc, u'NOSA RebarAutomate — {}'.format(self.ctx['batch_id']))
         transaction_group.Start()
         try:
+            engine = sys.modules.get('re_engine')
+            if engine is not None and hasattr(engine, 'LOOPS'):
+                engine.LOOPS[:] = []
             created_rebars, summary = generate_fn()
+            if engine is not None and hasattr(engine, 'refit_loops') and engine.LOOPS:
+                # the links back on their lines once every bar of the members is made (Revit re-seats them)
+                with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Links Back On Their Lines'):
+                    engine.refit_loops(doc)
 
             if created_rebars:
                 with nosa_tx.revit_transaction(u'NOSA RebarAutomate — Stamp Provenance'):

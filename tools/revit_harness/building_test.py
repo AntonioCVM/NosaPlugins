@@ -34,6 +34,7 @@ DRAWINGS = globals().get('DRAWINGS', True)
 PROFILE = globals().get('PROFILE', False)
 QA = globals().get('QA', True)
 DRAWING_QA = globals().get('DRAWING_QA', True)
+ON_UI = globals().get('ON_UI')                       # callable(ui) run on the modules each reinforcement loads
 PROBE = globals().get('PROBE')                       # a script run on the reinforced building (scope: doc, ids, _log, _mem)      # False: the drawings' buildability grade left out (measuring)
 _TIMES = {}
 
@@ -185,7 +186,7 @@ def ints(eids):
 def run(mode, eids, controls):
     scope = {'doc': doc, 'MODE': mode, 'IDS': ints(eids), 'CONTROLS': json.dumps(controls), 'OVERRIDES': u'{}',
              'EXT_ROOT': EXT_ROOT, 'PYREVIT': PYREVIT, 'ROLLBACK': True, 'ASSIMILATE': True,
-             'DETAIL': globals().get('DETAIL', False), '__name__': '__nosa_case__'}
+             'DETAIL': globals().get('DETAIL', False), 'ON_UI': ON_UI, '__name__': '__nosa_case__'}
     t0 = time.time()
     try:
         execfile(os.path.join(EXT_ROOT, 'tools', 'revit_harness', 'ra_harness.py'), scope)

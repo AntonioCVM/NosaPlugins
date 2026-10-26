@@ -103,6 +103,8 @@ try:
         return _revit_transaction(name, doc_ or doc, **kwargs)
     _transactions.revit_transaction = _on_doc
     ui = load_module('rebarautomate_ui', os.path.join(ra_lib, 'ui.py'))
+    if 'ON_UI' in globals() and ON_UI:
+        ON_UI(ui)                     # a probe given the modules ui has just loaded (building_test.py ON_UI)
 
     def _alert(msg, *args, **kwargs):
         _log.append(u'ALERT: ' + unicode(msg))
