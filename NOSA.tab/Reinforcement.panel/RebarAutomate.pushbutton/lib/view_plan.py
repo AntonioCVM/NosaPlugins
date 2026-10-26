@@ -496,21 +496,64 @@ def stack_label(marks):
     return unique[0] if len(unique) == 1 else u'{}-{}'.format(unique[0], unique[-1])
 
 
-def sheet_names(base, labels_per_sheet):
+def sheet_names(base, labels_per_sheet, parts_per_sheet=None):
     """
     The names of a drawing's sheets (2026-10-24 audit, m5: 'Slabs reinforcement (2)'): one sheet keeps the base
-    name, several are each named by the members on them - 'Slabs reinforcement - S1, S3', '... - S2'.
+    name, several are each named by the members on them - 'Slabs reinforcement - S1, S3', '... - S2'. A member on
+    more than one sheet is named with what each holds of it (user 2026-10-26: 'S1 - Bottom', 'S1 - Top'):
+    parts_per_sheet gives, beside each view's label, its part ('Bottom', or None for a section).
     """
     if len(labels_per_sheet) < 2:
         return [base] * len(labels_per_sheet)
-    out = []
-    for labels in labels_per_sheet:
-        seen = []
+    parts_per_sheet = parts_per_sheet or [[None] * len(labels) for labels in labels_per_sheet]
+    sheets_of = {}
+    for n, labels in enumerate(labels_per_sheet):
         for label in labels:
-            if label and label not in seen:
+            if label:
+                sheets_of.setdefault(label, set()).add(n)
+    out = []
+    for n, (labels, parts) in enumerate(zip(labels_per_sheet, parts_per_sheet)):
+        seen, held = [], {}
+        for label, part in zip(labels, parts):
+            if not label:
+                continue
+            if label not in seen:
                 seen.append(label)
-        out.append(u'{} - {}'.format(base, u', '.join(seen)) if seen else base)
+            if part and part not in held.setdefault(label, []):
+                held[label].append(part)
+        names = [u'{} - {}'.format(label, u', '.join(held[label])) if len(sheets_of[label]) > 1 and held.get(label)
+                 else label for label in seen]
+        out.append(u'{} - {}'.format(base, u', '.join(names)) if names else base)
     return out
+
+
+def view_part(view_name):
+    """'Slab S1 - Bottom reinforcement' -> 'Bottom', 'Beam B3-B4 - Elevation' -> 'Elevation'; None for a section."""
+    tail = (view_name or u'').split(u' - ', 1)[1] if u' - ' in (view_name or u'') else u''
+    word = tail.split(u' ')[0] if tail else u''
+    return None if not word or word == u'Section' else word
+
+
+PART_ORDER = (u'Bottom', u'Top')      # a slab's bottom plan's sheet before its top plan's
+
+
+def sheet_order(keys_per_sheet):
+    """
+    The order a drawing's sheets are numbered in (user 2026-10-26: S1..S4, each slab's bottom sheet then its top):
+    keys_per_sheet [[(member label, part)]] in layout order -> [old sheet index] by member (C2 before C10), then part
+    (PART_ORDER first), then layout order.
+    """
+    def member_key(label):
+        mark = _split_mark(label or u'')
+        return (mark[0], mark[1]) if mark else (label or u'', 0)
+
+    def key(n):
+        keys = keys_per_sheet[n]
+        if not keys:
+            return ((u'~', 0), len(PART_ORDER), n)
+        return min((member_key(label), PART_ORDER.index(part) if part in PART_ORDER else len(PART_ORDER), n)
+                   for label, part in keys)
+    return sorted(range(len(keys_per_sheet)), key=key)
 
 
 def boxes_touch(a, b, tol=50.0):

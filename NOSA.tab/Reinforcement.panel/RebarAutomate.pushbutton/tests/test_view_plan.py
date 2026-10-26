@@ -286,3 +286,33 @@ def test_push_inside_leaves_a_row_that_cannot_fit():
 def test_push_inside_moves_nothing_already_clear():
     boxes = {'a': (25.0, 100.0, 300.0, 200.0), 'b': (320.0, 100.0, 600.0, 200.0)}
     assert vp.push_inside(boxes) == {}
+
+
+def test_a_member_on_two_sheets_is_named_with_what_each_holds():
+    # user 2026-10-26: the bottom and top plans of S1 on two sheets read 'S1 - Bottom', 'S1 - Top'
+    labels = [[u'S1', u'S1', u'S1'], [u'S1'], [u'S2', u'S2', u'S2'], [u'S2']]
+    parts = [[u'Bottom', None, None], [u'Top'], [u'Bottom', None, None], [u'Top']]
+    assert vp.sheet_names(u'Slabs reinforcement', labels, parts) == [
+        u'Slabs reinforcement - S1 - Bottom', u'Slabs reinforcement - S1 - Top',
+        u'Slabs reinforcement - S2 - Bottom', u'Slabs reinforcement - S2 - Top']
+    # members each on one sheet keep their plain names
+    assert vp.sheet_names(u'Beams reinforcement', [[u'B1-B2', u'B3-B4'], [u'B5-B6']],
+                          [[u'Elevation', u'Elevation'], [u'Elevation']]) == [
+        u'Beams reinforcement - B1-B2, B3-B4', u'Beams reinforcement - B5-B6']
+
+
+def test_view_part():
+    assert vp.view_part(u'Slab S1 - Bottom reinforcement') == u'Bottom'
+    assert vp.view_part(u'Slab S1 - Section A-A') is None
+    assert vp.view_part(u'TD S1 - SLAB TOP BARS') == u'SLAB'
+    assert vp.view_part(u'Plan') is None
+
+
+def test_slab_sheets_numbered_by_slab_then_bottom_before_top():
+    # 2026-10-26: the layout filled S2, S3, S1, S4 bottoms first, then the tops
+    keys = [[(u'S2', u'Bottom'), (u'S2', None)], [(u'S3', u'Bottom')], [(u'S1', u'Bottom')], [(u'S4', u'Bottom')],
+            [(u'S1', u'Top')], [(u'S2', u'Top')], [(u'S3', u'Top')], [(u'S4', u'Top')], [(u'S10', u'Bottom')]]
+    order = vp.sheet_order(keys)
+    assert [keys[n][0] for n in order] == [(u'S1', u'Bottom'), (u'S1', u'Top'), (u'S2', u'Bottom'), (u'S2', u'Top'),
+                                          (u'S3', u'Bottom'), (u'S3', u'Top'), (u'S4', u'Bottom'), (u'S4', u'Top'),
+                                          (u'S10', u'Bottom')]

@@ -753,10 +753,12 @@ def _members_by_sheet(doc, kind, sheets, group):
     by_number = dict((s.SheetNumber, s) for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet)
                      if s.SheetNumber in sheets)
     titles = list(_TITLES.values())
-    labels = dict((n, [view_plan.member_of_view(element_name(doc.GetElement(v)), titles)
-                       for v in by_number[n].GetAllPlacedViews()]) for n in sheets if n in by_number)
+    views = dict((n, [element_name(doc.GetElement(v)) for v in by_number[n].GetAllPlacedViews()])
+                 for n in sheets if n in by_number)
+    labels = dict((n, [view_plan.member_of_view(v, titles) for v in vs]) for n, vs in views.items())
+    parts = dict((n, [view_plan.view_part(v) for v in vs]) for n, vs in views.items())
     names = view_plan.sheet_names(u'{} reinforcement'.format(_PLURAL.get(kind, kind)),
-                                  [labels.get(n, []) for n in sheets])
+                                  [labels.get(n, []) for n in sheets], [parts.get(n, []) for n in sheets])
     for n, name in zip(sheets, names):
         if n in by_number and by_number[n].Name != name:
             by_number[n].Name = name
@@ -809,7 +811,7 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
         # a drawing of several members goes on to a second sheet rather than below the SMDSC reading scales
         sheets = _place_on_sheets(doc, created + details, titleblock, sheet_numbers, view_plan,
                                   u'{} reinforcement'.format(_PLURAL.get(kind, kind)), retag=retag, legends=legends,
-                                  coarsen=False)
+                                  coarsen=False, in_order=kind == 'floor')
         if sheets:
             import bar_schedules
             _untitle_typical(doc, sheets, details)
@@ -1400,7 +1402,7 @@ def _datum_depth(port, view):
 
 
 def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, retag=None, legends=(),
-                     coarsen=True):
+                     coarsen=True, in_order=False):
     """
     Two passes: drop every view on the first sheet, read its real viewport size (tags and the
     view title included), then pack them. One sheet per element (user brief): while the views
@@ -1477,6 +1479,20 @@ def _place_on_sheets(doc, created, titleblock, sheet_numbers, view_plan, name, r
         if i in anchors:
             anchors[i] = _datum_depth(ports[i], view)
         placement = place()
+    if in_order:
+        # numbered by member then part, not in the order the layout filled them (user 2026-10-26: slabs S1..S4,
+        # each slab's bottom sheet then its top one); which views share a sheet stays as laid out
+        from nosa_utils.revit_helpers import element_name
+        titles = list(_TITLES.values())
+        count = max(p[0] for p in placement) + 1
+        keys = [[] for _n in range(count)]
+        for (view, _spec, _scale), (sheet_index, _cx, _cy) in zip(created, placement):
+            name = element_name(view)
+            label = view_plan.member_of_view(name, titles)
+            if label:                           # a typical detail goes where it is put, it does not order a sheet
+                keys[sheet_index].append((label, view_plan.view_part(name)))
+        new_index = dict((old, new) for new, old in enumerate(view_plan.sheet_order(keys)))
+        placement = [(new_index[s], cx, cy) for s, cx, cy in placement]
     for i, (sheet_index, cx, cy) in enumerate(placement):
         while sheet_index >= len(sheets):
             sheets.append(_new_sheet(doc, titleblock, sheet_numbers.pop(0),
