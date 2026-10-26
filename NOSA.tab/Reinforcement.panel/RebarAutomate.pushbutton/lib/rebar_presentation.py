@@ -1653,6 +1653,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
     # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1 elevation)
     bars = [(_xy(view, m.GetEndPoint(0)), _xy(view, m.GetEndPoint(1))) for _r, _i, m, _f in ends]
     uprights = _grid_blocks(view)['top']      # the grid lines an end mark's text keeps off (2026-10-25, B1-B3)
+    marks = []
     for rebar, index, main, free in ends:
         if not free:
             continue
@@ -1660,46 +1661,45 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
         side = (0.0, 1.0) if (a[1] + b[1]) / 2.0 > mid else (0.0, -1.0)
         left = min(a[0], b[0])
         for e in [_xy(view, p) for p in free]:
-            outward = (-1.0, 0.0) if abs(e[0] - left) < 1.0 else (1.0, 0.0)
-            try:
-                tag, _i = _tag_bar(doc, view, rebar, index, type_id)
-            except Exception:
-                tag = None
-            if tag is None:
+            marks.append((rebar, index, main, side, e, (-1.0, 0.0) if abs(e[0] - left) < 1.0 else (1.0, 0.0)))
+    # every end's tag made at once, one regeneration a round (_tag_bars), then each placed in turn as before
+    tags = _tag_bars(doc, view, [(rebar, index, type_id) for rebar, index, _m, _s, _e, _o in marks])
+    for (rebar, index, main, side, e, outward), (tag, _i) in zip(marks, tags):
+        if tag is None:
+            continue
+        w, h, offset = _estimate(view, tag)
+        spot = None
+        for k in range(END_ROWS):
+            tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k)
+            extra = presentation.past_lines(bx, outward, uprights, gap)
+            if extra:
+                tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k, extra=extra)
+            lane = (min(bx[0], tip[0]), bx[1], max(bx[2], tip[0]), bx[3])
+            if any(callout_layout.overlap(lane, q, gap / 2.0) for q in placed):
                 continue
-            w, h, offset = _estimate(view, tag)
-            spot = None
-            for k in range(END_ROWS):
-                tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k)
-                extra = presentation.past_lines(bx, outward, uprights, gap)
-                if extra:
-                    tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k, extra=extra)
-                lane = (min(bx[0], tip[0]), bx[1], max(bx[2], tip[0]), bx[3])
-                if any(callout_layout.overlap(lane, q, gap / 2.0) for q in placed):
-                    continue
-                run = (tip, (c[0], tip[1]))
-                if any(callout_layout._crosses(run, seg) for seg in leaders):
-                    continue
-                # two bars lapping in a support end side by side: their arrows point at each other and would cross
-                # (2026-10-24, B3-B4 '02' at the middle support) - the second goes a row further out
-                if any(o[1][0] == -outward[0] and abs(o[0][1] - tip[1]) < h and
-                       min(o[2][0], o[0][0]) - gap < max(bx[2], tip[0]) and min(bx[0], tip[0]) - gap < max(o[2][2], o[0][0])
-                       for o in arrows):
-                    continue
-                _put_end_mark(view, tag, c, offset, tip, main)
-                # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1
-                # elevation): judged on the tag as drawn, whose box Revit makes taller than the text
-                if callout_layout.box_hits(_drawn_box(doc, view, tag), bars):
-                    continue
-                spot = (tip, c, lane)
-                arrows.append((tip, outward, bx))
-                break
-            if spot is None:
-                doc.Delete(tag.Id)
+            run = (tip, (c[0], tip[1]))
+            if any(callout_layout._crosses(run, seg) for seg in leaders):
                 continue
-            pending.append((tag, 'h', spot[0]))
-            placed.append(spot[2])
-            report['marks'] += 1
+            # two bars lapping in a support end side by side: their arrows point at each other and would cross
+            # (2026-10-24, B3-B4 '02' at the middle support) - the second goes a row further out
+            if any(o[1][0] == -outward[0] and abs(o[0][1] - tip[1]) < h and
+                   min(o[2][0], o[0][0]) - gap < max(bx[2], tip[0]) and min(bx[0], tip[0]) - gap < max(o[2][2], o[0][0])
+                   for o in arrows):
+                continue
+            _put_end_mark(view, tag, c, offset, tip, main)
+            # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1
+            # elevation): judged on the tag as drawn, whose box Revit makes taller than the text
+            if callout_layout.box_hits(_drawn_box(doc, view, tag), bars):
+                continue
+            spot = (tip, c, lane)
+            arrows.append((tip, outward, bx))
+            break
+        if spot is None:
+            doc.Delete(tag.Id)
+            continue
+        pending.append((tag, 'h', spot[0]))
+        placed.append(spot[2])
+        report['marks'] += 1
     _line_up(doc, view, pending)
 
 
@@ -3139,51 +3139,118 @@ def _visible(doc, view, element):
         .GetElementCount() > 0
 
 
+def _visible_ids(doc, view, elements):
+    """The ids (ints) of those elements the view draws, asked in one go (4-storey profile 2026-10-26: _visible took
+    391 s over 1596 calls, a view collector each)."""
+    from System.Collections.Generic import List
+    if not elements:
+        return set()
+    ids = List[DB.ElementId]([e.Id for e in elements])
+    return set(get_id_value(i) for i in DB.FilteredElementCollector(doc, view.Id)
+               .WherePasses(DB.ElementIdSetFilter(ids)).ToElementIds())
+
+
 def _tag_bar(doc, view, rebar, index, type_id):
     """
     (tag, bar index): a tag on one bar of the set (Revit 2024 will not tag a whole set), no leader yet. Revit
     draws such a tag only for some bars of a set, so the shown bar is tried first, then the end ones and the
     neighbours.
     """
-    subs = list(rebar.GetSubelements())
-    try:
-        free_form = not rebar.IsRebarShapeDriven()
-    except Exception:
-        free_form = False
-    if free_form:
-        # a FreeForm group (curved beam bars, T8.58): a tag on one bar reads 1, on the element its Quantity
+    return _tag_bars(doc, view, [(rebar, index, type_id)], strict=True)[0]
+
+
+def _tag_bars(doc, view, asked, strict=False):
+    """
+    _tag_bar for many bars at once [(rebar, index, type_id)] -> [(tag, bar index)]: the same tries in the same
+    order, but each round's tags made together and checked after one regeneration (2026-10-26 profile, 1 storey:
+    378 _tag_bar calls took 254 s, a regeneration each try). Whether Revit draws a tag does not depend on the others.
+    """
+    out = [None] * len(asked)
+    tries = []                          # per request: [(kind, i, reference, point)] still to try
+    for n, (rebar, index, type_id) in enumerate(asked):
         try:
-            line = _main_line(rebar, index or 0, view)
-            tag = DB.IndependentTag.Create(doc, type_id, view.Id, DB.Reference(rebar), False,
-                                           DB.TagOrientation.Horizontal,
-                                           line.Evaluate(0.5, True) if line is not None else view.Origin)
-            doc.Regenerate()
-            if _visible(doc, view, tag):
-                return tag, index
-            doc.Delete(tag.Id)
+            subs = _subelements(rebar)
         except Exception:
-            pass
-    if not subs:
-        return DB.IndependentTag.Create(doc, type_id, view.Id, DB.Reference(rebar), False,
-                                        DB.TagOrientation.Horizontal, view.Origin), index
-    order = []
-    for i in [index, 0, len(subs) - 1] + sorted(range(len(subs)), key=lambda i: (abs(i - index), i)):
-        if 0 <= i < len(subs) and i not in order:
-            order.append(i)
-    order = order[:MAX_TAG_TRIES]
-    for i in order:
-        line = _main_line(rebar, i) or _main_line(rebar, 0)
-        point = line.Evaluate(0.5, True) if line is not None else view.Origin
-        try:
-            tag = DB.IndependentTag.Create(doc, type_id, view.Id, subs[i].GetReference(), False,
-                                           DB.TagOrientation.Horizontal, point)
-        except Exception:
+            out[n] = (None, index)
+            tries.append([])
             continue
-        doc.Regenerate()
-        if _visible(doc, view, tag):
-            return tag, i
-        doc.Delete(tag.Id)
-    return None, index
+        try:
+            free_form = not rebar.IsRebarShapeDriven()
+        except Exception:
+            free_form = False
+        mine = []
+        if free_form:
+            # a FreeForm group (curved beam bars, T8.58): a tag on one bar reads 1, on the element its Quantity
+            try:
+                line = _main_line(rebar, index or 0, view)
+                mine.append(('whole', index, DB.Reference(rebar),
+                             line.Evaluate(0.5, True) if line is not None else view.Origin))
+            except Exception:
+                pass
+        if subs:
+            order = []
+            for i in [index, 0, len(subs) - 1] + sorted(range(len(subs)), key=lambda i: (abs(i - index), i)):
+                if 0 <= i < len(subs) and i not in order:
+                    order.append(i)
+            for i in order[:MAX_TAG_TRIES]:
+                mine.append(('bar', i, subs[i], None))
+        else:
+            mine.append(('unchecked', index, DB.Reference(rebar), view.Origin))
+        tries.append(mine)
+    while True:
+        made = []
+        for n, (rebar, index, type_id) in enumerate(asked):
+            if out[n] is not None:
+                continue
+            while tries[n]:
+                kind, i, ref, point = tries[n].pop(0)
+                if kind == 'bar':
+                    line = _main_line(rebar, i) or _main_line(rebar, 0)
+                    point = line.Evaluate(0.5, True) if line is not None else view.Origin
+                    try:
+                        ref = ref.GetReference()
+                    except Exception:
+                        continue
+                try:
+                    tag = _new_tag(doc, type_id, view, ref, point)
+                except Exception:
+                    if kind == 'unchecked' and strict:
+                        raise                   # as _tag_bar always did: its callers catch it
+                    continue
+                if kind == 'unchecked':
+                    out[n] = (tag, i)           # a bar with no subelements: its tag as made, unchecked
+                else:
+                    made.append((n, i, tag))
+                break
+            else:
+                out[n] = (None, index)
+        if not made:
+            break
+        _regenerate(doc)
+        drawn = _visible_ids(doc, view, [tag for _n, _i, tag in made])
+        for n, i, tag in made:
+            if get_id_value(tag.Id) in drawn:
+                out[n] = (tag, i)
+            else:
+                _delete(doc, tag.Id)
+    return out
+
+
+# the API calls of _tag_bars on their own, so a profiled run (building_test PROFILE) times each
+def _subelements(rebar):
+    return list(rebar.GetSubelements())
+
+
+def _new_tag(doc, type_id, view, ref, point):
+    return DB.IndependentTag.Create(doc, type_id, view.Id, ref, False, DB.TagOrientation.Horizontal, point)
+
+
+def _regenerate(doc):
+    doc.Regenerate()
+
+
+def _delete(doc, eid):
+    doc.Delete(eid)
 
 
 def _clear_anchor(view, d, fraction, index, box, placed, gap):
@@ -3550,15 +3617,21 @@ def _marks(doc, view, items, cut, det, tag_types, box, gap, outside, placed, rep
                               'bottom': (p[0] - 2 * half, box[1] - 1e6, p[0] + 2 * half, p[1]),
                               'left': (box[0] - 1e6, p[1] - half, p[0], p[1] + half),
                               'right': (p[0], p[1] - half, box[2] + 1e6, p[1] + half)}[s])
+    asked = []
     for d in items:
         index = _shown_bar(view, d['rebar'], d['count'])
         # a section marks loose bars as it marks sets, mark only (2026-10-18: W2's verticals read '39H12-03', W1's '03')
         typed = d if mode else dict((k, v) for k, v in d.items() if k != 'total')
         try:
-            tag, index = _tag_bar(doc, view, d['rebar'], index, _single_type(
-                doc, typed, tag_types, det._tag_type_for_bar(doc, d['rebar'], base)))
+            asked.append((d['rebar'], index, _single_type(doc, typed, tag_types,
+                                                          det._tag_type_for_bar(doc, d['rebar'], base))))
         except Exception:
+            asked.append(None)
+    made = iter(_tag_bars(doc, view, [a for a in asked if a is not None]))
+    for d, a in zip(items, asked):
+        if a is None:
             continue
+        tag, index = next(made)
         anchor = _clear_anchor(view, d, fractions.get(d['id'], 0.5), index, box, ahead, gap)
         if tag is not None and anchor is not None:
             entries.append((d['id'], tag, anchor))

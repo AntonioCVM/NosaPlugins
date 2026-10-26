@@ -34,7 +34,8 @@ DRAWINGS = globals().get('DRAWINGS', True)
 PROFILE = globals().get('PROFILE', False)
 QA = globals().get('QA', True)
 DRAWING_QA = globals().get('DRAWING_QA', True)
-ON_UI = globals().get('ON_UI')                       # callable(ui) run on the modules each reinforcement loads
+SNAPSHOT = globals().get('SNAPSHOT', True)          # layout_snapshot.json of every annotation placed (OUTDIR)
+ON_UI = globals().get('ON_UI')                      # callable(ui) run on the modules each reinforcement loads
 PROBE = globals().get('PROBE')                       # a script run on the reinforced building (scope: doc, ids, _log, _mem)      # False: the drawings' buildability grade left out (measuring)
 _TIMES = {}
 
@@ -241,6 +242,7 @@ def _phase(name, fn):
     def wrapped(*a, **k):
         p0, _w0 = _mem()
         t0 = time.time()
+        c0 = _cpu()
         live = name in LIVE_PHASES
         if live:
             _progress(u'   > {} ({:.2f} GB)'.format(name, p0))
@@ -250,12 +252,23 @@ def _phase(name, fn):
             p1, w1 = _mem()
             if live:
                 _progress(u'   < {} ({:.2f} GB, {:+.2f}, {:.0f} s)'.format(name, p1, p1 - p0, time.time() - t0))
-            entry = _PHASES.setdefault(name, [p0, p1, w1, 0.0, 0, 0.0])
+            entry = _PHASES.setdefault(name, [p0, p1, w1, 0.0, 0, 0.0, 0.0])
             entry[1], entry[2] = p1, w1
             entry[3] += time.time() - t0
             entry[4] += 1
             entry[5] += p1 - p0
+            entry[6] += _cpu() - c0
     return wrapped
+
+
+def _cpu():
+    """Revit's processor time so far, s: what a phase costs whatever else the machine is doing (2026-10-26: the
+    same 1-storey run took 450 s of drawings, then 1161 s with the user's Revit 2025 busy beside it)."""
+    try:
+        from System.Diagnostics import Process
+        return Process.GetCurrentProcess().TotalProcessorTime.TotalSeconds
+    except Exception:
+        return 0.0
 
 
 class _Log(list):
@@ -375,6 +388,14 @@ try:
             _log.append(u'== audit ' + scope.get('RESULT', u''))
         except Exception as e:
             _log.append(u'== audit EXCEPTION {}'.format(e))
+        if SNAPSHOT:
+            # every annotation's place, to compare runs (layout_compare.py): speed work must not move anything
+            try:
+                execfile(os.path.join(EXT_ROOT, 'tools', 'revit_harness', 'layout_snapshot.py'),
+                         {'doc': doc, 'OUTDIR': OUTDIR, '_log': _log, '__name__': '__nosa_snapshot__'})
+            except Exception:
+                import traceback
+                _log.append(u'== snapshot EXCEPTION ' + traceback.format_exc())
         sheets = [s for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet)
                   if s.SheetNumber[:1] == u'4' or s.SheetNumber[:2] == u'55']
         pdf_dir = os.path.join(OUTDIR, u'pdf')
@@ -393,9 +414,9 @@ try:
         for key, (secs, calls) in sorted(_TIMES.items(), key=lambda kv: -kv[1][0])[:40]:
             _log.append(u'    {:8.1f} {:7d}  {}'.format(secs, calls, key))
     _log.append(u'== memory by phase (GB private: first start, last end, sum of increases; working set at end)')
-    for name, (p0, p1, w1, secs, calls, grown) in sorted(_PHASES.items(), key=lambda kv: kv[1][0]):
-        _log.append(u'    {:<48} start {:6.2f} end {:6.2f} grown {:+6.2f} ws {:6.2f}  {:7.0f} s  {:4d} call(s)'.format(
-            name, p0, p1, grown, w1, secs, calls))
+    for name, (p0, p1, w1, secs, calls, grown, cpu) in sorted(_PHASES.items(), key=lambda kv: kv[1][0]):
+        _log.append(u'    {:<48} start {:6.2f} end {:6.2f} grown {:+6.2f} ws {:6.2f}  {:7.0f} s  cpu {:7.0f} s  '
+                    u'{:4d} call(s)'.format(name, p0, p1, grown, w1, secs, cpu, calls))
     _log.append(u'total {:.0f} s'.format(time.time() - started))
 except Exception:
     import traceback
