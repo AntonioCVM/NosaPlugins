@@ -514,7 +514,8 @@ def _seen_bars(view):
     """The straight bits of the bars drawn in the view, view mm: what a calling-up's line must not run along."""
     out = []
     doc = view.Document
-    depth = _depth_range(view)
+    # every bar the view takes, not clipped to a section's depth: clipped, the beam sections' calling-ups lost the
+    # bars beyond the cut that kept them off the cut bars (A/B 2026-10-26: 8 'label over a cut bar' against 0)
     for r in DB.FilteredElementCollector(doc, view.Id).OfClass(DBS.Rebar):
         for i in shown_positions(r, view):
             try:
@@ -526,12 +527,6 @@ def _seen_bars(view):
                 # arcs too, as their tessellation: a curved wall's horizontals seen in elevation (W2, 2026-10-18)
                 pts = [c.GetEndPoint(0), c.GetEndPoint(1)] if isinstance(c, DB.Line) else list(c.Tessellate())
                 for p, q in zip(pts, pts[1:]):
-                    if depth is not None:
-                        # only what the section draws: the view takes a set by its box, so a beam's links beyond
-                        # its far clip came in and kept a column's link line on its middle bar (2026-10-26, A9)
-                        p, q = _within_depth(depth, p, q)
-                        if p is None:
-                            continue
                     a, b = _xy(view, p), _xy(view, q)
                     if abs(a[0] - b[0]) + abs(a[1] - b[1]) > 1.0:
                         out.append((a, b))
@@ -3765,6 +3760,9 @@ def _see_note(doc, view, line, text, text_type, hosts):
     w = (len(text) * 0.62 + 0.4) * h
     lift, gap = UNDERLINE_LIFT_PAPER_MM * scale, GAP_PAPER_MM * scale
     out = OUTSIDE_PAPER_MM * scale
+    from nosa_utils import annotation_audit as aa
+    bars = _seen_bars(view)
+    spots = []
     for t in (0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8):
         p = _xy(view, line.Evaluate(t, True))
         if not (member[1] <= p[1] <= member[3]):
@@ -3774,6 +3772,9 @@ def _see_note(doc, view, line, text, text_type, hosts):
         bx = (x0, p[1] + lift, x0 + w, p[1] + lift + h)
         if any(_hit(bx, q, gap) for q in taken):
             continue
+        # clear of the bars drawn too (2026-10-26 audit, B1-B2: 'SEE DRG 4509' crossed by the end column's bar)
+        spots.append((any(aa.segment_hits_box(seg, bx) for seg in bars), p, right, x0))
+    for crossed, p, right, x0 in sorted(spots, key=lambda s: s[0]):
         note = _note(doc, view, _point(view, (x0, p[1] + lift + 1.2 * h), line.GetEndPoint(0)), text, text_type)
         if note is None:
             return None
