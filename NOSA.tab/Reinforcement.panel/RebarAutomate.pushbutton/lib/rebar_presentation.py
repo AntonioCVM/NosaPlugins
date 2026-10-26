@@ -3772,7 +3772,18 @@ def _see_note(doc, view, line, text, text_type, hosts):
         bx = (x0, p[1] + lift, x0 + w, p[1] + lift + h)
         if any(_hit(bx, q, gap) for q in taken):
             continue
-        # clear of the bars drawn too (2026-10-26 audit, B1-B2: 'SEE DRG 4509' crossed by the end column's bar)
+        # clear of the bars drawn too (2026-10-26 audit, B1-B2: 'SEE DRG 4509' crossed by the end column's bar, which
+        # runs the whole height): moved out past the bars that cross it, on its line from the bar
+        for _k in range(4):
+            crossing = [seg for seg in bars if aa.segment_hits_box(seg, bx)
+                        and abs(seg[1][0] - seg[0][0]) < abs(seg[1][1] - seg[0][1])]
+            if not crossing:
+                break
+            xs = [x for seg in crossing for x in (seg[0][0], seg[1][0])]
+            x0 = max(xs) + gap if right else min(xs) - gap - w
+            bx = (x0, p[1] + lift, x0 + w, p[1] + lift + h)
+        if any(_hit(bx, q, gap) for q in taken):
+            continue
         spots.append((any(aa.segment_hits_box(seg, bx) for seg in bars), p, right, x0))
     for crossed, p, right, x0 in sorted(spots, key=lambda s: s[0]):
         note = _note(doc, view, _point(view, (x0, p[1] + lift + 1.2 * h), line.GetEndPoint(0)), text, text_type)

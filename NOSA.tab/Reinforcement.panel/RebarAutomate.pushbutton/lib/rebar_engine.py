@@ -931,10 +931,40 @@ def realign_closed_loop(doc, rebar, curves, tol_mm=0.05):
     placed = rebar.GetTransformedCenterlineCurves(
         False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, 0)
     delta = _curves_min_corner(curves) - _curves_min_corner(list(placed))
+    n = _loop_normal(rebar)
+    if n is not None:
+        # in the loop's own plane only: a set laid out again along its member after it was made (a beam's link zones
+        # off the supports) stays where it was put (2026-10-26: refit_loops took B1-B2's zones back to where they
+        # were first made, 12@100 starting 1225 mm in and 16@200 across the middle support)
+        delta = delta - n.Multiply(delta.DotProduct(n))
     if delta.GetLength() * _MM_PER_FT > tol_mm:
         DB.ElementTransformUtils.MoveElement(doc, rebar.Id, delta)
     _fit_closed_loop(doc, rebar, curves, tol_mm)
     LOOPS.append((rebar.Id, list(curves), tol_mm))
+
+
+def _flip_side(rebar):
+    """A shape-driven set laid out again on the other side of its first bar, same rule, number and pitch."""
+    acc = rebar.GetShapeDrivenAccessor()
+    side = not acc.BarsOnNormalSide
+    first, last = rebar.IncludeFirstBar, rebar.IncludeLastBar
+    rule = rebar.LayoutRule
+    if rule == DBS.RebarLayoutRule.NumberWithSpacing:
+        acc.SetLayoutAsNumberWithSpacing(rebar.NumberOfBarPositions, rebar.MaxSpacing, side, first, last)
+    elif rule == DBS.RebarLayoutRule.FixedNumber:
+        acc.SetLayoutAsFixedNumber(rebar.NumberOfBarPositions, acc.ArrayLength, side, first, last)
+    elif rule == DBS.RebarLayoutRule.MaximumSpacing:
+        acc.SetLayoutAsMaximumSpacing(rebar.MaxSpacing, acc.ArrayLength, side, first, last)
+    elif rule == DBS.RebarLayoutRule.MinimumClearSpacing:
+        acc.SetLayoutAsMinimumClearSpacing(rebar.MaxSpacing, acc.ArrayLength, side, first, last)
+
+
+def _loop_normal(rebar):
+    """The unit normal of a shape-driven bar's plane (its distribution's direction), None for a free-form one."""
+    try:
+        return rebar.GetShapeDrivenAccessor().Normal.Normalize()
+    except Exception:
+        return None
 
 
 LOOPS = []    # the closed loops fitted in this run: Revit moves them again as the member's other bars are made
@@ -980,7 +1010,14 @@ def _fit_closed_loop(doc, rebar, curves, tol_mm):
     u = curves[0].Direction.Normalize()
     v = n.CrossProduct(u).Normalize()
     pts = [p for c in curves for p in (c.GetEndPoint(0), c.GetEndPoint(1))]
-    w = pts[0].DotProduct(n)
+    def plane(i=0):
+        doc.Regenerate()
+        return rebar.GetTransformedCenterlineCurves(
+            False, False, False, DBS.MultiplanarOption.IncludeOnlyPlanarCurves, i)[0].GetEndPoint(0).DotProduct(n)
+    # the plane the bar is in now, not the one it was made in (its set may have been laid out again since)
+    w = plane()
+    last = rebar.NumberOfBarPositions - 1
+    reach = plane(last) - w if last > 0 else 0.0
     want = (min(p.DotProduct(u) for p in pts), max(p.DotProduct(u) for p in pts),
             min(p.DotProduct(v) for p in pts), max(p.DotProduct(v) for p in pts))
 
@@ -1002,6 +1039,18 @@ def _fit_closed_loop(doc, rebar, curves, tol_mm):
                            v.Multiply(box[3] - box[2]))
         except Exception:
             return
+        # ScaleToBox may turn a set to the other side of its first bar (2026-10-26: B1-B2's link zones ran back from
+        # where they start, 12@100 over -825..275 for 275..1375, 16@200 across the middle support): laid out again
+        # on the side it was, then its first bar put back in its plane
+        if reach and (plane(last) - w) * reach < 0:
+            try:
+                _flip_side(rebar)
+            except Exception:
+                from nosa_utils.telemetry import log_swallowed
+                log_swallowed(u'rebarautomate', u'link set side after ScaleToBox')
+        slip = w - plane()
+        if abs(slip) * _MM_PER_FT > tol_mm:
+            DB.ElementTransformUtils.MoveElement(doc, rebar.Id, n.Multiply(slip))
         got = extents()
 
 
