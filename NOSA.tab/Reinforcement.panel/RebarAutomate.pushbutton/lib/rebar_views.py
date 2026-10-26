@@ -801,7 +801,10 @@ def _place_group(doc, kind, created, group, view_plan, sheet_numbers, report):
             if spec.get('as_plan'):
                 _hide_viewers(doc, view)     # the marks of the views of the members built after this one
             if not spec['plan'] and spec['kind'] in ('elevation', 'column_elevation'):
-                _hide_strangers(doc, view, group['hosts'])
+                # the view's own members, not the whole drawing's: an upper beam line's elevation showed the floor
+                # below, which touches the lower beams of the same drawing (2026-10-26 audit, B5-B6 under SUPPORT)
+                _hide_strangers(doc, view, group.get('view_hosts', {}).get(get_id_value(view.Id))
+                                or group['hosts'])
 
         def retag(view):
             fn = group['retag'].get(get_id_value(view.Id))

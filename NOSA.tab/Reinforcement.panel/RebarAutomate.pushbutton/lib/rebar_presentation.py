@@ -751,6 +751,10 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
     if kind == 'footing_section':
         # the column cut above the base: its calling-up outside all cut concrete (user 2026-10-17, F10)
         placed.extend(_other_concrete(doc, view, hosts or members))
+    if kind == 'slab_section':
+        # a downstand beam the section runs along: the slab's bottom marks under it, not in its concrete over its
+        # bars (2026-10-26 audit, 4515 S1 B-B: '01 02 01' in the beam under the slab)
+        placed.extend(_along_concrete(doc, view, hosts or members, box))
     if hosts and elevation:
         # the levels first: the calling-up keeps off them (user 2026-10-12)
         report['geometry'] = _geometry(doc, view, hosts, kind, box, placed, scale)
@@ -795,7 +799,11 @@ def apply(doc, view, rebars, det, mra_type_id=None, hosts=None, cover_mm=40.0, k
         if joint is not None:
             # the grid lines drawn: a column of texts stands clear of them (2026-10-18 audit, S1: on grid C)
             grids = _grid_boxes(view, gap / 2.0)
-            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style, keep_off=grids,
+            # a stair beside a plan is drawn in it: its column of texts stands clear of it, not on it (2026-10-26
+            # audit, S1's lower right calling-ups) - other members only steer which side it takes
+            stairs = _neighbours(doc, view, hosts or members, categories=('OST_Stairs',)) if plan else []
+            _layout_joint(doc, view, joint, box, gap, outside, placed, report, total_style,
+                          keep_off=list(grids) + stairs,
                           neighbours=_neighbours(doc, view, hosts or members) if plan else ())
         if plan:
             if hosts and kind == 'plan':
@@ -944,10 +952,15 @@ def _concrete_cut(doc, view, members):
 NEIGHBOUR_REACH_MM = 15000.0
 
 
-def _neighbours(doc, view, hosts, reach=NEIGHBOUR_REACH_MM):
+NEIGHBOUR_CATEGORIES = ('OST_Floors', 'OST_StructuralFoundation', 'OST_Walls', 'OST_StructuralColumns',
+                        'OST_StructuralFraming', 'OST_Stairs')
+
+
+def _neighbours(doc, view, hosts, reach=NEIGHBOUR_REACH_MM, categories=NEIGHBOUR_CATEGORIES):
     """
     View boxes (mm) of the other members at a plan's members' level within reach of them: the plan shows them
     once its crop grows round the calling-ups, so the columns of texts keep off them (2026-10-18, Revit 2026).
+    The stairs too (2026-10-26 audit: S1's calling-ups stood on the stair beside it).
     """
     own = set(get_id_value(h.Id) for h in hosts if h is not None)
     boxes = [h.get_BoundingBox(None) for h in hosts if h is not None]
@@ -959,9 +972,8 @@ def _neighbours(doc, view, hosts, reach=NEIGHBOUR_REACH_MM):
     hi = DB.XYZ(max(b.Max.X for b in boxes) + r, max(b.Max.Y for b in boxes) + r, max(b.Max.Z for b in boxes))
     near = DB.BoundingBoxIntersectsFilter(DB.Outline(lo, hi))
     out = []
-    for cat in (DB.BuiltInCategory.OST_Floors, DB.BuiltInCategory.OST_StructuralFoundation,
-                DB.BuiltInCategory.OST_Walls, DB.BuiltInCategory.OST_StructuralColumns,
-                DB.BuiltInCategory.OST_StructuralFraming):
+    for name in categories:
+        cat = getattr(DB.BuiltInCategory, name)
         for e in DB.FilteredElementCollector(doc).OfCategory(cat).WhereElementIsNotElementType().WherePasses(near):
             if get_id_value(e.Id) in own:
                 continue
@@ -992,7 +1004,30 @@ def _other_concrete(doc, view, hosts):
     return out
 
 
-VIEWER_HEAD_PAPER_MM = 9.0     # round a section mark's head on a plan: its bubble and arrow
+def _along_concrete(doc, view, hosts, box):
+    """
+    View boxes (mm) of the beams a slab section runs along: framing the view draws besides its members, against the
+    slab's top or soffit and under or over at least half its length (presentation.runs_under).
+    """
+    own = set(get_id_value(h.Id) for h in hosts if h is not None)
+    crop = _clip_to_crop(view, (-1e9, -1e9, 1e9, 1e9))
+    scale = max(1, int(getattr(view, 'Scale', 25) or 25))
+    boxes = []
+    for e in DB.FilteredElementCollector(doc, view.Id).OfCategory(DB.BuiltInCategory.OST_StructuralFraming) \
+            .WhereElementIsNotElementType():
+        if get_id_value(e.Id) in own:
+            continue
+        bb = e.get_BoundingBox(None)
+        if bb is None:
+            continue
+        pts = [_xy(view, DB.XYZ(x, y, z)) for x in (bb.Min.X, bb.Max.X) for y in (bb.Min.Y, bb.Max.Y)
+               for z in (bb.Min.Z, bb.Max.Z)]
+        boxes.append((max(crop[0], min(p[0] for p in pts)), max(crop[1], min(p[1] for p in pts)),
+                      min(crop[2], max(p[0] for p in pts)), min(crop[3], max(p[1] for p in pts))))
+    return presentation.runs_under(boxes, box, GAP_PAPER_MM * scale)
+
+
+VIEWER_HEAD_PAPER_MM = 9.0    # round a section mark's head on a plan: its bubble and arrow
 
 
 def _skew_mark_boxes(view, viewer, line, head):
@@ -1652,6 +1687,10 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
             ends.append((d['rebar'], index, main, free))
     # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1 elevation)
     bars = [(_xy(view, m.GetEndPoint(0)), _xy(view, m.GetEndPoint(1))) for _r, _i, m, _f in ends]
+    # ... and, first, every other bar drawn: '03' stood on the continuous top bar beside the lap it marks
+    # (2026-10-26 audit, B5-B6); where no row is clear of them all the first clear of the ends' bars is kept, so
+    # no mark is lost (the '02' at a middle support, in its column's bars)
+    every = bars + _seen_bars(view)
     uprights = _grid_blocks(view)['top']      # the grid lines an end mark's text keeps off (2026-10-25, B1-B3)
     marks = []
     for rebar, index, main, free in ends:
@@ -1668,7 +1707,7 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
         if tag is None:
             continue
         w, h, offset = _estimate(view, tag)
-        spot = None
+        spot, fallback = None, None
         for k in range(END_ROWS):
             tip, c, bx = presentation.end_arrow(e, outward, side, w, h, scale, gap, row=k)
             extra = presentation.past_lines(bx, outward, uprights, gap)
@@ -1689,11 +1728,21 @@ def _end_marks(doc, view, items, tag_types, box, gap, scale, placed, report):
             _put_end_mark(view, tag, c, offset, tip, main)
             # a mark beside a sloping bar's end lies over the bar as it rises (2026-10-24, Revit 2027 B1
             # elevation): judged on the tag as drawn, whose box Revit makes taller than the text
-            if callout_layout.box_hits(_drawn_box(doc, view, tag), bars):
+            drawn = _drawn_box(doc, view, tag)
+            if callout_layout.box_hits(drawn, bars):
+                continue
+            if fallback is None:
+                fallback = (tip, c, lane, bx)
+            if callout_layout.box_hits(drawn, every):
                 continue
             spot = (tip, c, lane)
             arrows.append((tip, outward, bx))
             break
+        if spot is None and fallback is not None:
+            tip, c, lane, bx = fallback
+            _put_end_mark(view, tag, c, offset, tip, main)
+            spot = (tip, c, lane)
+            arrows.append((tip, outward, bx))
         if spot is None:
             doc.Delete(tag.Id)
             continue
@@ -1902,6 +1951,13 @@ def _zones(doc, view, zones, mra_type, det, box, gap, outside, row, placed, repo
             dxy = (dxy[0] / norm, dxy[1] / norm)
             cands = [_xy(view, junction)] + [_xy(view, slide.Evaluate(x, True)) for x in ts]
             ok = presentation.free_junction(cands, dxy, span, seen, tol_along)
+            if ok is None and joint is not None and joint.get('side') == 'right' and not flat:
+                # a column with no clear place between its bars (an edge column at 1:50, a beam's link legs 90 mm
+                # off its middle bar): the link line beside its face, on the side of its texts, not along a bar
+                # (user 2026-10-26, point 5); its ticks still mark every link level
+                out = _point(view, (box[2] + gap, _xy(view, junction)[1]), junction)
+                if presentation.free_junction([_xy(view, out)], dxy, span, seen, tol_along) == 0:
+                    junction, ok = out, 0
             if ok is None:
                 ok = presentation.least_along(cands, dxy, span, seen, tol_along)
             if ok:

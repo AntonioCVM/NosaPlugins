@@ -256,3 +256,15 @@ def test_spread_merges_runs_until_nothing_touches():
     xs = pr.spread([0.0, 1.0, 2.0, 3.0], [4.0] * 4, 0.5)
     for a, b in zip(sorted(xs), sorted(xs)[1:]):
         assert b - a >= 4.5 - 1e-9
+
+
+def test_a_beam_along_a_slab_section_and_one_across_it():
+    # 4515 S1 B-B (2026-10-26): the section runs along a line of downstands, one a span; slab 12 450 long (view mm)
+    slab = (-225.0, 2700.0, 12225.0, 3000.0)
+    line = [(0.0, 2400.0, 6000.0, 3000.0), (6000.0, 2400.0, 12000.0, 3000.0)]
+    across = [(-150.0, 2400.0, 150.0, 3000.0), (5850.0, 2400.0, 6150.0, 3000.0)]
+    apart = [(0.0, 400.0, 12000.0, 1000.0)]               # another floor's beams well below
+    assert len(pr.runs_under(line + across, slab, 37.5)) == 4
+    assert pr.runs_under(across, slab, 37.5) == []
+    assert pr.runs_under(line[:1], slab, 37.5) == []       # one span alone is under half the slab
+    assert pr.runs_under(apart, slab, 37.5) == []

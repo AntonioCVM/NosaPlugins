@@ -404,6 +404,32 @@ def free_junction(candidates, direction, span, segments, tol):
     return None
 
 
+def runs_under(others, member, touch, share=0.5):
+    """
+    The boxes (x0, y0, x1, y1) of other concrete a slab section is cut along: against the member box's soffit or
+    top (within touch) and, together, along at least `share` of its length - the beams of a line, one a span
+    (2026-10-26, 4515 S1 B-B: two beams of 6 m under a 12 m slab), not one cut across it. [] when they fall short.
+    """
+    def against(o):
+        if o[2] <= o[0] or o[3] <= o[1]:
+            return False
+        under = abs(o[3] - member[1]) <= touch or (o[1] < member[1] - touch < o[3])
+        over = abs(o[1] - member[3]) <= touch or (o[1] < member[3] + touch < o[3])
+        return under or over
+    found = [o for o in others if against(o)]
+    covered, end = 0.0, None
+    for a, b in sorted((max(o[0], member[0]), min(o[2], member[2])) for o in found):
+        if b <= a:
+            continue
+        if end is None or a > end:
+            covered += b - a
+            end = b
+        elif b > end:
+            covered += b - end
+            end = b
+    return found if covered >= share * (member[2] - member[0]) else []
+
+
 def along_length(point, direction, span, segments, tol):
     """How much (view mm along direction, within span) of a line through point runs along any of segments."""
     covered = []
