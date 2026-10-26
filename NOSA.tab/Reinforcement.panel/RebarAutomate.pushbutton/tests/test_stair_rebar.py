@@ -69,16 +69,19 @@ def test_bottom_bar_bends_round_the_convex_start_and_crosses_into_the_landing_to
     run = first_flight()
     pts = sr.bottom_bar(run, COVER, 12.0, 480.0)
     assert abs(pts[0][1] - 46.0) < 1e-6 and abs(pts[0][0] - 46.0) < 1e-6   # along the base, at cover
-    # straight on past the upper knee up to the landing top, then to the free edge with a closing leg
-    assert abs(pts[-3][1] - (1765.0 - 46.0)) < 1e-6 and pts[-3][0] > 2520.0
-    assert pts[-2] == (3520.0 - 46.0, 1765.0 - 46.0)
-    assert pts[-1] == (3520.0 - 46.0, 1615.0 + 46.0)
+    # straight on past the upper knee up to the landing top, then to the free edge; the closing leg down the edge
+    # (1719 -> 1661, 58 mm) is under 5d = 60 mm and dropped since b371327 (SMDSC 4th ed. Table B1 / BS 8666)
+    assert abs(pts[-2][1] - (1765.0 - 46.0)) < 1e-6 and pts[-2][0] > 2520.0
+    assert pts[-1] == (3520.0 - 46.0, 1765.0 - 46.0)
+    assert all(((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5 >= 5 * 12.0 - 1e-6 for a, b in zip(pts, pts[1:]))
 
 
 def test_top_bar_is_continuous_over_the_upper_knee_and_anchored_at_the_base():
     pts = sr.top_bar(first_flight(), COVER, 12.0, 480.0)
     assert abs(pts[0][1] - 46.0) < 1e-6                      # anchored in the bottom face at the start
-    assert pts[-2] == (3474.0, 1719.0) and pts[-1] == (3474.0, 1661.0)
+    # on along the landing's top to its free edge; no 58 mm leg down it (under 5d, dropped since b371327)
+    assert abs(pts[-2][1] - 1719.0) < 1e-6 and pts[-1] == (3474.0, 1719.0)
+    assert all(((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5 >= 5 * 12.0 - 1e-6 for a, b in zip(pts, pts[1:]))
 
 
 def test_every_flight_bar_stays_in_the_concrete():
