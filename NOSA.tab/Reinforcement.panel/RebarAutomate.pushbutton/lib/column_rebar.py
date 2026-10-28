@@ -1590,6 +1590,40 @@ def resolve_column_top(doc, host, axis, bar_diameter_mm, std=None,
             'foot_mm': top_l_foot_mm(anchorage_mm, embedment_mm, bar_diameter_mm)}
 
 
+def inward_foot_reaches(foot_mm, faces_apart_mm, bar_diameter_mm):
+    """
+    An L foot turned in across the column reaches the line of the opposite face's bars: it would run through them
+    (2026-10-28, user point 3.1: edge columns' top L-bars, 16 clashes a top storey). faces_apart_mm: the bars'
+    centrelines of the two faces apart; the foot must stop a bar's centre gap (real sizes + s_min) short of them.
+    """
+    from nosa_utils import rebar_qa
+    gap = rebar_qa.REAL_DIA * bar_diameter_mm + rebar_qa.min_clear_mm(bar_diameter_mm)
+    return foot_mm > faces_apart_mm - gap + 1e-6
+
+
+def detail_b_top(top, bar_diameter_mm, std=None):
+    """
+    The column top as SMDSC 4th ed. MD C4 detail B (bars straight under the slab's top mat, inverted U-bars of
+    the bar size lapped with them in tension, EC2 8.7) where an inward L foot cannot be anchored without running
+    through the opposite face's bars: shortened to clear them it falls short of the anchorage (450 column, H20:
+    225 + 293 < 800 mm).
+    """
+    out = dict(top, kind='u', reason='inward foot')
+    out.setdefault('slab_depth_mm', None)
+    out['lap_mm'] = default_lap_length_mm(bar_diameter_mm, std=std, in_compression=False)
+    return out
+
+
+def detail_b_bar_end_ft(top, bar_diameter_mm):
+    """
+    Where a column bar stops under detail B's U-bars: a centre gap (real sizes + s_min) under their backs, which
+    run over the other faces' bars (2026-10-28 run: a U-bar's back on the tip of each middle bar, 0 mm apart).
+    """
+    from nosa_utils import rebar_qa
+    gap = rebar_qa.REAL_DIA * bar_diameter_mm + rebar_qa.min_clear_mm(bar_diameter_mm)
+    return top['bend_ft'] - gap / _MM_PER_FT
+
+
 def _foot_fits(face, point, direction, foot_mm, side_cover_mm):
     """Every sample of the foot (and its end cover) lies over the slab's top face."""
     reach = foot_mm + side_cover_mm
@@ -1676,7 +1710,7 @@ def build_story_segment_chains(axis, offset, split_elevations_ft, lap_length_mm,
                                top['foot_mm'] / _MM_PER_FT))])
             continue
         if top_kind == 'u':
-            chains.append([DB.Line.CreateBound(seg_start, at(top['bend_ft']))])
+            chains.append([DB.Line.CreateBound(seg_start, at(detail_b_bar_end_ft(top, bar_diameter_mm)))])
             continue
         if top_kind not in ('lap', 'projection'):
             chains.append([DB.Line.CreateBound(seg_start, seg_end)])
@@ -1741,7 +1775,7 @@ def _mc4_ubar_sets(base, u_dir, v_dir, top, bar_dia_mm, faces):
         a_dir, x_dir = (u_dir, v_dir) if along == 'u' else (v_dir, u_dir)
         at, lo, hi = pairs[0]
         z_back = top['bend_ft'] - drop / _MM_PER_FT
-        z_foot = z_back - top['lap_mm'] / _MM_PER_FT
+        z_foot = detail_b_bar_end_ft(top, bar_dia_mm) - top['lap_mm'] / _MM_PER_FT    # the lap from the bars' ends
 
         def pt(x_mm, z_ft, at=at, a_dir=a_dir, x_dir=x_dir):
             p = base + a_dir.Multiply(at / _MM_PER_FT) + x_dir.Multiply(x_mm / _MM_PER_FT)
@@ -2525,6 +2559,7 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
     vertical_bars = []
     knuckles = []
     top = resolve_column_top(doc, host, axis, bar_diameter_mm, std, slab_top_mat_mm)
+    inward_reported = False
     for i in range(n):
         theta = 2.0 * math.pi * i / n
         offset = u_dir.Multiply(bar_radius_mm * math.cos(theta) / _MM_PER_FT) \
@@ -2555,6 +2590,13 @@ def _build_circular_column_reinforcement(doc, host, axis, diameter_mm, cover_mm,
             if not fits:
                 warnings.append(u'L foot of {:.0f} mm does not fit in the slab at bar {}: '
                                 u'check its anchorage.'.format(top['foot_mm'], i + 1))
+            if foot_dir.DotProduct(inward_dir) > 0.5 and not inward_reported and \
+                    inward_foot_reaches(top['foot_mm'], 2.0 * bar_radius_mm, bar_diameter_mm):
+                # user 2026-10-28 (3.1): a known limitation, said plainly on the column
+                inward_reported = True
+                warnings.append(u'Edge column top (circular): an L foot turned in runs through the opposite bars; '
+                                u'the plugin does not generate the inverted U-bars of SMDSC 4th ed. MD C4 detail B '
+                                u'for circular columns - detail them by hand and confirm with design.')
         chains_per_segment = build_story_segment_chains(
             axis, offset, split_elevations_ft, lap_mm, include_starter_bars,
             use_cranked_laps, inward_dir, crank_offset_fn, crank_slope,
@@ -2917,6 +2959,26 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     vertical_bar_sets = []
     top = resolve_column_top(doc, host, axis, bar_diameter_mm, std, slab_top_mat_mm)
     base = axis.GetEndPoint(0)
+    if top is not None and top['kind'] == 'l':
+        # an edge or corner column: a face whose feet turn in and reach the opposite face's bars is left with its L
+        # and said so, for technical review (user 2026-10-28, point 3.1 option a: detail B's U-bars on the edge face
+        # found no place clear of the opposite bars and the beams' bars at the 450/300 test joints; never moved to
+        # another clash - docs/PILARES_BORDE_L_CORONACION.md)
+        for face in _face_groups(bar_half_w_mm, bar_half_d_mm, n_u, n_v):
+            if not face['positions']:
+                continue
+            inward = (v_dir if face['edge_dir'] == 'u' else u_dir).Multiply(face['inward_sign'])
+            pts = [DB.XYZ(base.X, base.Y, top['bend_ft']) + u_dir.Multiply(pu / _MM_PER_FT)
+                   + v_dir.Multiply(pv / _MM_PER_FT) for pu, pv in (face['positions'][0], face['positions'][-1])]
+            direction, _fits = choose_foot_direction(top, pts, inward.Negate())
+            apart = 2.0 * (bar_half_d_mm if face['edge_dir'] == 'u' else bar_half_w_mm)
+            if direction.DotProduct(inward) > 0.5 and inward_foot_reaches(top['foot_mm'], apart, bar_diameter_mm):
+                warnings.append(u'Edge column top: the L feet of an edge face turn in and run through the opposite '
+                                u'face\'s bars ({:.0f} mm feet, {:.0f} mm between the faces\' bars). The plugin does '
+                                u'not replace them with SMDSC 4th ed. MD C4 detail B U-bars on its own: their place '
+                                u'must clear the opposite bars and the beams\' bars at this joint - pending technical '
+                                u'review.'.format(top['foot_mm'], apart))
+                break
     for face in _face_groups(bar_half_w_mm, bar_half_d_mm, n_u, n_v):
         positions = face['positions']
         if not positions:
@@ -2998,9 +3060,15 @@ def build_column_reinforcement(doc, host, cover_mm, bar_diameter_mm, bar_count,
     if top is not None and top['kind'] == 'u':
         top_ubar_sets = _mc4_ubar_sets(base, u_dir, v_dir, top, bar_diameter_mm,
                                        _face_groups(bar_half_w_mm, bar_half_d_mm, n_u, n_v))
-        warnings.append(u'Top in a {:.0f} mm slab, under the {:.0f} mm an L needs for H{:.0f}: inverted '
-                        u'U-bars lapped {:.0f} mm with the bars (SMDSC 4th ed. MD C4 detail B).'.format(
-                            top['slab_depth_mm'], top['min_depth_mm'], bar_diameter_mm, top['lap_mm']))
+        if top.get('reason') == 'inward foot':
+            warnings.append(u'Edge column top: an L foot turned in would run through the opposite face\'s bars, '
+                            u'and shortened to clear them it would not be anchored: inverted U-bars lapped {:.0f} mm '
+                            u'with the bars instead (SMDSC 4th ed. MD C4 detail B) - confirm with design.'.format(
+                                top['lap_mm']))
+        else:
+            warnings.append(u'Top in a {:.0f} mm slab, under the {:.0f} mm an L needs for H{:.0f}: inverted '
+                            u'U-bars lapped {:.0f} mm with the bars (SMDSC 4th ed. MD C4 detail B).'.format(
+                                top['slab_depth_mm'], top['min_depth_mm'], bar_diameter_mm, top['lap_mm']))
 
     return {'vertical_bars': vertical_bars, 'vertical_bar_sets': vertical_bar_sets,
             'top_ubar_sets': top_ubar_sets,

@@ -605,8 +605,11 @@ class ColumnsMixin(object):
             + self._preview_number(self.TxtTopDiaY, 12.0),
             coupler_joint_mm=self._coupler_joint_mm(values))
 
+        mark = host.get_Parameter(DB.BuiltInParameter.ALL_MODEL_MARK)
+        mark = (mark.AsString() or u'').strip() if mark is not None else u''
+        name = u'{} ({})'.format(mark, get_id_value(host.Id)) if mark else u'{}'.format(get_id_value(host.Id))
         for w in reinforcement.get('warnings', []):
-            errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))
+            errors.append(u'Column {}: {}'.format(name, w))
 
         # DIAGNOSTIC HARDENING (2026-09-01) — a circular column was
         # reported creating ZERO rebar with NO error at all, which

@@ -42,3 +42,38 @@ Lo que **no** funciona (probado el 2026-10-25 y revertido): cambiar la cota de l
 
 - ¿Apruebas la opción A para la cara de borde de los pilares de coronación?
 - ¿O prefieres la B con un lb,rqd de cálculo? En ese caso, indícame la clase de hormigón y las condiciones de adherencia que debo usar.
+
+## 5. Opción (a) aprobada (28/10): resultado de las pruebas
+
+Estado: **pendiente de revisión técnica.** El plugin no sustituye la L por el detalle B en la cara de borde; deja la L y un aviso por pilar.
+
+**Primera implementación (detalle B en las cuatro caras, horquillas pegadas por dentro de las verticales opuestas).** No era la propuesta aprobada y queda descartada.
+- En la ejecución de 2 plantas, los tramos horizontales de las horquillas pasaban por la punta de las verticales intermedias (ejes a 0 mm). Corregido: las verticales del detalle B terminan una separación entre ejes (1,1φ + s_min) bajo los tramos horizontales, y el solape se mide desde ese final (`detail_b_bar_end_ft`). Se mantiene para el detalle B en losas finas.
+- En el edificio de 4 plantas: «point 7», de 16 a 0. Hallazgos en los nudos de cubierta, de 274 a 333 (+59). Las patas, de 925 mm, atravesaban las barras de las vigas en el nudo: el choque se trasladaba de sitio.
+
+**Geometría medida en el nudo de coronación** (`tools/revit_harness/column_top_probe.py`). Pilar 450, vigas 300×600, losa 300, H20 en pilar y vigas. Cotas desde la cara superior de la losa; posiciones en planta desde el centro del pilar:
+
+| Barras | Posición en planta (mm) | Cota (mm) |
+|---|---|---|
+| Verticales del pilar | −162, 0, +162 en cada cara | — |
+| Parrilla superior de la losa | — | −46 a −58 (H12; cierres H16) |
+| Barras superiores de viga | −90, 0, +90 | −104 (una dirección) y −124 (la otra) |
+| Barras inferiores de viga | −90, 0, +90 | −540 |
+
+**Condiciones de una horquilla de la cara de borde.** Plano perpendicular a la cara en la posición p:
+1. Pata 2 entre las verticales opuestas a ≥ s_min (EC2 8.2(2); centro a centro 1,1φ + máx(φ, dg + 5, 20) = 47 mm con H20 y árido de 20): |p − {−162, 0, 162}| ≥ 47, de donde p ≤ 115 en la mitad positiva.
+2. Las patas bajan el solape de tracción (EC2 8.7.3) y cruzan las barras inferiores de la viga perpendicular a la cara: |p − {−90, 0, 90}| ≥ 47, de donde p ≥ 137.
+3. Pata 1 junto a la vertical que solapa, a una distancia libre ≤ 50 mm y ≤ 4φ (EC2 8.7.2(3)).
+4. El tramo horizontal no cabe entre la parrilla superior (−58) y las barras superiores de las vigas (−104): necesitaría unos 45 + 47 = 92 mm y hay 46. Debajo de las barras superiores (≤ −171) vuelve a cruzar las barras de la viga perpendicular salvo que se cumpla la condición 2.
+
+Las condiciones 1 y 2 son incompatibles: no existe ninguna posición válida en este nudo. La causa de fondo es la misma que la de los nudos R3 (point 6): las barras de las vigas caen sobre las líneas de barras del pilar.
+
+**Qué queda en el plugin.**
+- La cara de borde mantiene la L (16 choques en el edificio de 4 plantas, visibles en la QA como «point 7»).
+- Cada pilar afectado lleva el aviso «Edge column top: the L feet of an edge face turn in and run through the opposite face's bars ... pending technical review».
+- Pilares circulares: aviso equivalente, con el pilar identificado (marca e id); el plugin no genera horquillas en ellos.
+
+**Para resolverlo hace falta una decisión de proyecto:**
+- recolocar las barras de las vigas o del pilar en el nudo (cambio de diseño, como P1 en nudos);
+- o un detalle distinto: horquillas en planta dentro de la losa, o barras en U horizontales ancladas en la losa;
+- o aceptar la opción B con un lb,rqd de cálculo.

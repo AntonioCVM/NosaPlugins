@@ -247,7 +247,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_beam_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
-                    summary['errors'] = batch_result.errors
+                    summary['errors'] = list(batch_result.errors)
+                    summary['joints'] = window._resolve_joints(elements, summary['errors'])
                 except Exception as e:
                     forms.alert(u'Beam reinforcement generation failed:\n{}'.format(e))
                     return
@@ -849,8 +850,10 @@ class RebarAutomateWindow(_tab_shell.ShellMixin, _tab_columns.ColumnsMixin, _tab
         rebars = shape_images.nosa_rebars(self.doc)
         shapes = shape_images.shapes_of(self.doc, rebars)
         paths = shape_images.render_shapes(self.doc, shapes)
+        import bar_schedules
         schedules = [v for v in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewSchedule)
-                     if not v.IsTemplate and u'BBS' in (v.Name or u'').upper()]
+                     if not v.IsTemplate and u'BBS' in (v.Name or u'').upper()
+                     and not (v.Name or u'').endswith(bar_schedules.TOTAL_SUFFIX)]   # the one-row total weight
         done = added = 0
         try:
             with nosa_tx.revit_transaction(u'NOSA — BS 8666 Shape Images'):

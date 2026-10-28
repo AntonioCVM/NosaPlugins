@@ -38,14 +38,19 @@ def main(folder):
             m['shape'].add(v['shape'])
     rows, problems = 0, []
     checked = collections.Counter()
+    sums = collections.defaultdict(list)
+    totals = []
     report_rows = []
     for f in sorted(glob.glob(os.path.join(folder, 'BBS_45*.csv'))):
+        if f.endswith('_total_weight.csv'):
+            continue
         key = os.path.basename(f)[4:-4]
         seen = set()
         for row in csv.reader(open(f, encoding='utf-8-sig'), delimiter=';'):
             if row[0] == 'Member' or not row[1]:
-                if row[0].startswith('Grand') and u'Grand total:' in row[0]:
-                    problems.append(('grand total counts elements', key, row[0]))
+                if row[0].startswith('Grand'):
+                    # m4 option c (user 2026-10-28): no grand total row, the total weight is a schedule of its own
+                    problems.append(('grand total row shown', key, row[0]))
                 continue
             rows += 1
             member, mark, typ, mbrs, _each, total, length, shape = row[:8]
@@ -71,10 +76,13 @@ def main(folder):
             if weight.strip() and dia in MASS_KG_M and length.strip().isdigit() and total.strip().isdigit():
                 expected = int(total) * int(length) / 1000.0 * MASS_KG_M[dia]
                 checked['weight'] += 1
-                if abs(float(weight) - expected) > 0.051 + 0.0005 * expected:
+                # to the printed 0.1 kg, BS 4449's tabulated masses the criterion (user 2026-10-28, I1)
+                if abs(float(weight) - round(expected, 1)) > 0.05:
                     problems.append(('weight', k, mark, weight, round(expected, 1)))
             elif weight.strip() == u'':
                 problems.append(('weight missing', k, mark))
+            if re.match(r'^\d+(\.\d+)?$', weight.strip()):
+                sums[key].append(weight.strip())
             checked['rows'] += 1
             report_rows.append({'schedule': key, 'member': member, 'mark': mark, 'type': typ, 'members': mbrs,
                                 'total': total, 'length': length, 'shape': shape, 'weight': weight,
@@ -104,6 +112,28 @@ def main(folder):
                 problems.append(('notes list other schedules', s['number'], listed, refs))
             if u'Buildability check' in notes and u'0 error(s)' not in notes:
                 problems.append(('failed QA printed', s['number']))
+    for key, weights in sorted(sums.items()):
+        # the one-row schedule under each BBS (user 2026-10-28): Revit's own sum of the weight column, on the BBS's
+        # sheet; off the printed rows' sum by their rounding at most (0.05 kg a row), which the user accepts
+        printed = sum(float(w) for w in weights)
+        name = u'BBS {} total weight'.format(key)
+        on = [s['number'] for s in r['sheets'] for sc in s['schedules'] if sc['schedule'] == name]
+        bbs_on = [s['number'] for s in r['sheets'] for sc in s['schedules'] if sc['schedule'] == u'BBS ' + key]
+        path = os.path.join(folder, name.replace(u' ', u'_') + u'.csv')
+        values = []
+        if os.path.exists(path):
+            for row in csv.reader(open(path, encoding='utf-8-sig'), delimiter=';'):
+                values += [float(c) for c in row if re.match(r'^\d+(\.\d+)?$', c.strip())]
+        checked['total weight'] += 1
+        if not on or on != bbs_on:
+            problems.append(('total weight not on the BBS sheet', key, on, bbs_on))
+        elif len(values) != 1:
+            problems.append(('total weight unreadable', key, values))
+        elif abs(values[0] - printed) > 0.05 * len(weights) + 1e-6:
+            problems.append(('total weight off the rows', key, values[0], round(printed, 1)))
+        totals.append((key, values[0] if len(values) == 1 else None, round(printed, 1)))
+    for key, total, printed in totals:
+        print('  total {}: {} kg (rows printed {} kg)'.format(key, total, printed))
     print('rows {} | unreadable rebars {} | problems {} | checked {}'.format(rows, unreadable, len(problems),
                                                                             dict(checked)))
     with open(os.path.join(folder, 'bbs_crosscheck.json'), 'w', encoding='utf-8') as fh:

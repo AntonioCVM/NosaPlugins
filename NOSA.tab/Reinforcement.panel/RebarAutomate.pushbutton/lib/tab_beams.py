@@ -1383,6 +1383,23 @@ class BeamsMixin(object):
                                   u', '.join(str(get_id_value(h.Id)) for h, _f in switched)))
         return created_rebars, {'created': len(created_rebars), 'errors': errors}
 
+    def _resolve_joints(self, beams, errors):
+        """
+        Point 3.2 (user 2026-10-28), after the batch has stamped the new bars (their layers name them): every R1
+        applied and every joint left for review, in its own transaction; the log kept on the window.
+        """
+        import joint_apply
+        self.joint_log = []
+        try:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Beam/Column Joints')) as t:
+                t.Start()
+                joints = joint_apply.resolve(self.doc, beams, errors, self.joint_log)
+                t.Commit()
+        except Exception as e:
+            errors.append(u'Beam/column joints not checked ({}): review them by hand.'.format(e))
+            return None
+        return joints
+
     def _process_line_or_spans(self, line, values, wrapper, bar_types, errors, created_rebars):
         if len(line) > 1:
             try:

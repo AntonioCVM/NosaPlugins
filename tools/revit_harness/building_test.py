@@ -29,6 +29,7 @@ X0 = 400000.0
 BAY = 6000.0
 STOREYS = globals().get('STOREYS') or 4
 GRID = globals().get('GRID') or 3            # grid lines each way (3: 2 x 2 bays)
+BEAM_WIDTH = globals().get('BEAM_WIDTH') or 300
 ONLY = globals().get('ONLY') or None
 DRAWINGS = globals().get('DRAWINGS', True)
 PROFILE = globals().get('PROFILE', False)
@@ -121,6 +122,13 @@ def build():
     sq = symbol(DB.BuiltInCategory.OST_StructuralColumns, u'Concrete Square', u'450x450mm')
     beam = symbol(DB.BuiltInCategory.OST_StructuralFraming, u'RC Beam', u'300x600mm')
     pad = symbol(DB.BuiltInCategory.OST_StructuralFoundation, u'RC Pad foundation')
+    if BEAM_WIDTH and BEAM_WIDTH != 300:
+        # point 3.2 cases (user 2026-10-28): wider beams, whose middle bars can shift clear of the column's
+        t0 = DB.Transaction(doc, u'NOSA building test - beam type')
+        t0.Start()
+        beam = beam.Duplicate(u'{:.0f}x600mm'.format(float(BEAM_WIDTH)))
+        beam.LookupParameter(u'b').Set(f(BEAM_WIDTH))
+        t0.Commit()
     ftype = [x for x in DB.FilteredElementCollector(doc).OfClass(DB.FloorType)
              if name_of(x).startswith(u'300mm RC')][0]
     wtype = [w for w in DB.FilteredElementCollector(doc).OfClass(DB.WallType) if name_of(w) == u'300mm RC Wall'][0]
@@ -313,6 +321,12 @@ try:
         _log.append(u'== {} ({} elements): {} rebar elements, {} bars, {:.0f} s'.format(kind, len(ids[kind]), n, bars,
                                                                                     secs))
         _log.extend(u'    ' + l[:400] for l in issues[:60])
+        if kind == 'beams':
+            # point 3.2: the joints the beam run resolved (R1) and left for review (R3), past the first 60 lines
+            r1 = [l for l in issues if u'(R1,' in l]
+            r3 = [l for l in issues if u'(R3):' in l]
+            _log.append(u'== beam/column joints: {} R1 applied, {} R3 for review'.format(len(r1), len(r3)))
+            _log.extend(u'    ' + l[:300] for l in (r1 + r3)[:6])
     if PROBE:
         probe_scope = {'doc': doc, 'ids': ids, '_log': _log, '_mem': _mem, 'EXT_ROOT': EXT_ROOT, 'OUT': OUT,
                        '__name__': '__nosa_probe__'}

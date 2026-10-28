@@ -764,3 +764,17 @@ short = column_rebar.apply_lap_zones([{'start_mm': 475.0, 'end_mm': 2025.0, 'spa
 assert short[0]['start_mm'] == 475.0 and short[0]['end_mm'] - short[0]['start_mm'] >= 120.0 - 1e-6
 assert all(z['end_mm'] - z['start_mm'] >= 0.0 for z in short) and short[1]['spacing_mm'] == 200.0
 print("apply_lap_zones: no piece shorter than its pitch (two links 30 mm apart): OK")
+
+
+def test_an_inward_l_foot_reaching_the_opposite_bars_takes_detail_b():
+    # 2026-10-28, point 3.1: a 450 edge column, H20 at 170 mm from its centre (340 apart), foot 575 mm turned in
+    assert column_rebar.inward_foot_reaches(575.0, 340.0, 20.0)
+    # shortened to stop a centre gap (1.1 x 20 + 25 = 47) short of the opposite bars: 293 mm, which no longer reaches
+    assert not column_rebar.inward_foot_reaches(293.0, 340.0, 20.0)
+    assert column_rebar.inward_foot_reaches(293.5, 340.0, 20.0)
+
+
+def test_detail_b_bars_stop_a_centre_gap_under_the_u_bars_backs():
+    # 2026-10-28 run: the U-bars' backs ran over the middle bars' tips, 0 mm apart; H20 stops 47 mm lower
+    top = {'bend_ft': 10.0}
+    assert abs((10.0 - column_rebar.detail_b_bar_end_ft(top, 20.0)) * 304.8 - 47.0) < 1e-6

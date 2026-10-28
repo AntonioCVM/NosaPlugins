@@ -22,6 +22,11 @@ DRAWING_PARAM = u'NOSA_Rebar_Group'       # on rebars: the drawing the member is
 SCHEDULE_PARAM = u'NOSA_Rebar_Assembly'   # on rebars: the schedule key 4002-01
 SHEET_PARAMS = (u'NOSA_BBS_Drawing', u'NOSA_BBS_Ref', u'NOSA_BBS_Revision', u'NOSA_BBS_Status')
 SCHEDULE_ORIGIN_MM = (7.8, 261.9)        # top-left corner of the A4 frame; the template BBS is 199 mm, its full width
+WEIGHT_FIELD = u'Total weight (Kg)'
+TOTAL_SUFFIX = u' total weight'           # 'BBS 4002-01 total weight': the one-row schedule under each BBS
+TOTAL_HEADING = u'Total weight [kg]'
+TOTAL_GAP_MM = 2.0
+OLD_WEIGHT_NOTE = u'Total weight:'         # the text note an earlier run (2026-10-28) put there, replaced
 
 
 def schedule_key(drawing, number):
@@ -283,13 +288,95 @@ def _field_index(definition, name):
 def _plain_totals(view):
     """
     2026-10-24 audit: the grand total row read 'Grand total: 17', Revit elements counted as if bars. The fields keep
-    their totals: within a row they add the elements of one mark up ('No. of bars in each' 4 + 4 = 8).
+    their totals: within a row they add the elements of one mark up ('No. of bars in each' 4 + 4 = 8). User 2026-10-28
+    (m4, option c): no grand total row at all - Revit cannot drop the 'No. of bars in each' total alone without the
+    rows grouping members of different counts reading 'varies' - and the total weight in a schedule of its own
+    under the BBS (total_weight).
     """
     from nosa_utils.telemetry import log_swallowed
     try:
         view.Definition.ShowGrandTotalCount = False
+        view.Definition.ShowGrandTotal = False
     except Exception:
-        log_swallowed(u'rebarautomate', u'grand total count')
+        log_swallowed(u'rebarautomate', u'grand total row')
+
+
+def _same(a, b):
+    return u' '.join((a or u'').split()) == u' '.join((b or u'').split())
+
+
+def _width_after(definition, name):
+    """The printed width (ft) of the columns right of a field's: the total weight sits under the weight column."""
+    width, past = 0.0, False
+    for i in range(definition.GetFieldCount()):
+        field = definition.GetField(i)
+        if field.IsHidden:
+            continue
+        if past:
+            width += field.GridColumnWidth
+        if _same(field.GetName(), name):
+            past = True
+    return width
+
+
+def _total_view(doc, master, key):
+    """
+    'BBS 4002-01 total weight': the schedule's bars in one row, Revit adding their weights (the template's formula)
+    under one heading, every other field hidden, so it follows the model like the BBS itself (user 2026-10-28: the
+    total from the weight column, not a note; a few tenths off the printed rows' sum is accepted).
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name
+    name = u'{} {}{}'.format(MASTER_BBS, key, TOTAL_SUFFIX)
+    for view in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
+        if element_name(view) == name:
+            return view
+    base, _new = _schedule_view(doc, master, key)
+    view = doc.GetElement(base.Duplicate(DB.ViewDuplicateOption.Duplicate))
+    view.Name = name
+    definition = view.Definition
+    definition.ClearSortGroupFields()
+    definition.IsItemized = False
+    definition.ShowGrandTotal = False
+    definition.ShowTitle = False
+    found = False
+    for i in range(definition.GetFieldCount()):
+        field = definition.GetField(i)
+        mine = _same(field.GetName(), WEIGHT_FIELD)
+        field.IsHidden = not mine
+        if mine:
+            field.ColumnHeading = TOTAL_HEADING
+            found = True
+    if not found:
+        doc.Delete(view.Id)
+        return None
+    return view
+
+
+def total_weight(doc, master, sheet, key, bbs):
+    """
+    The total weight schedule placed under the BBS on its sheet, its right edge under the weight column's; an old
+    run's text note of the total removed. Returns the total as Revit prints it, or None when the BBS has no weight.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    view = _total_view(doc, master, key)
+    if view is None:
+        return None
+    for note in list(DB.FilteredElementCollector(doc, sheet.Id).OfClass(DB.TextNote)):
+        if (note.Text or u'').startswith(OLD_WEIGHT_NOTE):
+            doc.Delete(note.Id)
+    instances = dict((doc.GetElement(i).ScheduleId, doc.GetElement(i)) for i in sheet.GetDependentElements(
+        DB.ElementClassFilter(DB.ScheduleSheetInstance)))
+    total = instances.get(view.Id) or DB.ScheduleSheetInstance.Create(doc, sheet.Id, view.Id, DB.XYZ.Zero)
+    doc.Regenerate()
+    box = instances[bbs.Id].get_BoundingBox(sheet) if bbs.Id in instances else None
+    own = total.get_BoundingBox(sheet)
+    if box is not None and own is not None:
+        right = box.Max.X - _width_after(bbs.Definition, WEIGHT_FIELD)
+        top = box.Min.Y - TOTAL_GAP_MM / 304.8
+        DB.ElementTransformUtils.MoveElement(doc, total.Id, DB.XYZ(right - own.Max.X, top - own.Max.Y, 0.0))
+    body = view.GetTableData().GetSectionData(DB.SectionType.Body)
+    return view.GetCellText(DB.SectionType.Body, body.LastRowNumber, 0)
 
 
 def _schedule_view(doc, master, key):
@@ -383,7 +470,9 @@ def create(doc, capacity=ROWS_PER_A4):
     order = dict((name, (m[0], natural_key(name))) for found in drawings.values() for m in found
                  for name in [m[1]])
     report['renumbered'] = _renumber(doc, members, keys, order)
+    _plain_totals(master)
     taken = set()
+    placed_on = []
     for key in sorted(set(keys.values()), key=natural_key):
         drawing = key.rsplit(u'-', 1)[0]
         try:
@@ -410,6 +499,7 @@ def create(doc, capacity=ROWS_PER_A4):
                 x, y = SCHEDULE_ORIGIN_MM
                 DB.ScheduleSheetInstance.Create(doc, sheet.Id, view.Id, DB.XYZ(x / 304.8, y / 304.8, 0.0))
             report['schedules'].append(schedule_ref(key, revision))
+            placed_on.append((key, sheet, view))
             if used.get(key, 0) > capacity:
                 report['errors'].append(
                     u'{}: {} rows do not fit one A4 page ({}); a member is never split between schedules, '
@@ -417,6 +507,16 @@ def create(doc, capacity=ROWS_PER_A4):
                         schedule_ref(key, revision), used[key], capacity))
         except Exception as e:
             report['errors'].append(u'{}: {}'.format(key, e))
+    report['weights'] = {}
+    for key, sheet, view in placed_on:
+        try:
+            text = total_weight(doc, master, sheet, key, view)
+            if text is None:
+                report['errors'].append(u'{}: the BBS has no weight column; no total weight.'.format(key))
+            else:
+                report['weights'][key] = text
+        except Exception as e:
+            report['errors'].append(u'{}: total weight not placed ({}).'.format(key, e))
     _retire_stale(doc, set(keys.values()), report)
     return report
 
@@ -438,8 +538,11 @@ def _retire_stale(doc, keys, report):
                                     .format(name, _text(sheet, u'NOSA_BBS_Revision')))
             continue
         try:
-            if sheet is not None and _only_schedules(doc, sheet, view):
+            total = views.get(name + TOTAL_SUFFIX)
+            if sheet is not None and _only_schedules(doc, sheet, view, total):
                 doc.Delete(sheet.Id)
+            if total is not None:
+                doc.Delete(total.Id)
             doc.Delete(view.Id)
             report.setdefault('retired', []).append(name)
             report['errors'].append(u'{}: no bars are scheduled on it any more; removed with its sheet.'.format(name))
@@ -447,13 +550,14 @@ def _retire_stale(doc, keys, report):
             report['errors'].append(u'{}: left without bars, not removed ({}).'.format(name, e))
 
 
-def _only_schedules(doc, sheet, view):
-    """A BBS sheet holding its title block, its schedule and the title block's revision table only."""
+def _only_schedules(doc, sheet, view, total=None):
+    """A BBS sheet holding its title block, its schedule, its total weight and the title block's revision table only."""
     from Autodesk.Revit import DB  # Lazy import
     from nosa_utils.revit_helpers import get_id_value
+    mine = set([view.Id] + ([total.Id] if total is not None else []))
     for e in DB.FilteredElementCollector(doc, sheet.Id).OwnedByView(sheet.Id):
         if isinstance(e, DB.ScheduleSheetInstance):
-            if e.ScheduleId != view.Id and not e.IsTitleblockRevisionSchedule:
+            if e.ScheduleId not in mine and not e.IsTitleblockRevisionSchedule:
                 return False
         elif not (isinstance(e, DB.FamilyInstance) and e.Category is not None and
                   get_id_value(e.Category.Id) == int(DB.BuiltInCategory.OST_TitleBlocks)):
