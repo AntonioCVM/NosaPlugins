@@ -55,3 +55,26 @@ Las vistas de losa, las de más etiquetas, se ralentizan ×2–3 y el resto ×1,
 **I1 (3.3).** 69 de las 137 filas de 1, 2 y 4 plantas difieren de la masa tabulada de la BS 4449 (−1,8 a +0,2 kg). Todas se deben al criterio de la fórmula de densidad (`tools/revit_harness/bbs_weight_table.py`); ninguna al redondeo. La API de Revit no da acceso a las fórmulas de los campos calculados (ni lectura ni escritura), así que la corrección de la plantilla debe hacerse en su diálogo de campos.
 
 **3.2.** Mecánica de R1 verificada en Revit (vigas de 400, `joint_apply_probe_mech.py`): 12/12 barras con el mismo anfitrión, el conjunto con una barra menos y las demás en su sitio, y la barra desplazada con la misma forma, marca, diámetro y longitud, en su nueva posición (−47 mm). Pero en esos nudos cruza la otra viga a la misma cota: la QA pasaba de 749 a 790 (+41, ninguno eliminado). R1 se rechaza ahora cuando hay barras de otra viga cruzando la capa a su cota en el nudo, y pasa a R3 con ese motivo. Resultado: vigas de 300, 12 R3; vigas de 400, 36 R3; 0 R1. QA idéntica antes y después.
+
+## Decisiones del usuario (28/10 noche)
+
+- **I1 y 3.3: cerrados, aceptados por criterio del usuario.** El peso de la BBS se calcula con la fórmula de densidad de la plantilla (número de barras × longitud impresa × π·d²/4 × 7850 kg/m³), no con la masa tabulada de la BS 4449. Las diferencias frente a la BS 4449 (hasta unos 2 kg por fila; 298,3 frente a 298,6 kg en el caso revisado) son despreciables y no cuentan como incidencia. No se toca la plantilla.
+  - Desde ahora `ra_bbs_crosscheck.py` compara cada fila con esa fórmula. Solo es incidencia una fila que no cuadre más allá del redondeo a 0,1 kg.
+  - Repetida la comprobación sobre b28_s1, b28_s2, b28_s4 y e28_s1: 0 filas fuera de la fórmula.
+- **3.4.** La tabla «Total weight [kg]» debe dar el sumatorio de los pesos de su BBS. La diferencia con la suma de lo impreso, si solo viene del redondeo de cada fila (hasta 0,05 kg por fila), se desprecia. Cualquier otra es incidencia. Pendiente de verificar en todas las hojas de 1, 2 y 4 plantas (t28_*).
+- **3.1 y 3.2: para revisión técnica uno a uno.** Lista en `docs/informes/Cierre_RA_2026-10-28/REVISION_TECNICA_3.1_3.2.md`: 8 pilares de coronación y 84 barras de nudo en R3 (edificio de 4 plantas, `review_probe.py`). Motivo común de los nudos: la barra central tendría que desplazarse 47 mm, por encima del límite s/2 = 45,1 mm, y quedaría a menos de s_min de su vecina; el acodado necesitaría 47 mm, por encima de 2φ = 40 mm, y no hay esfuerzos para R2. En las barras superiores de algunos nudos se añaden barras paralelas de losa o de otra viga.
+
+## Mediciones en instancia limpia (28/10, 20:42–21:50)
+
+Revit 2026 pid 74692, recién abierto, con el vigilante de 12 GB en marcha. Equipo con Chrome cerrado: 8,0 GB de RAM libres y 37,0 GB comprometidos al empezar (antes, 4,8 y 42,7). Código c750f0f más la comprobación de pesos por densidad.
+
+| Ejecución | Total s | Pico GB | QA | Avisos de planos (A3 + A4; A4i aparte) | BBS: filas, incidencias de peso | Totales de peso |
+|---|---:|---:|---:|---|---|---|
+| 1 planta, en frío (t28_s1) | 383 | 2,9 | 530 | 51 (34 + 17; 14) | 41 filas, 0 | 6/6, diferencia ≤ 0,2 kg (redondeo) |
+| 2 plantas (t28_s2) | 725 | 3,4 | 1102 | 95 (49 + 46; 32) | 43 filas, 0 | 6/6, ≤ 0,2 kg |
+| 4 plantas (t28_s4) | 1457 | 3,73 | 2354 (igual que el 26/10) | 205 (92 + 113; 66) | 43 filas, 0 | 6/6, ≤ 0,1 kg |
+| 1 planta, en caliente (t28_s1w) | 386 | — | — | — | — | — |
+
+- **Arranque en frío:** 383 s en frío frente a 386 s en caliente. No tiene efecto medible. La lentitud de b28_s1 (1029 s) y de b28_s4 (2722 s) se debió a la presión de memoria del equipo (Revit con la mitad de su memoria fuera de RAM).
+- **4 plantas frente al 26/10 (final2_s4): 1549 → 1457 s (−92 s, −6 %), pico 4,53 → 3,73 GB.** La anotación pasa de 912 a 847 s (CPU 870 → 801). Las demás fases quedan dentro de ±6 s. Tabla fase a fase: `phase_table.py nosa_t28_s4.txt nosa_final2_s4.txt`.
+- **3.4 cerrado.** Las 18 tablas «Total weight [kg]» de 1, 2 y 4 plantas están en la hoja de su BBS y dan el sumatorio de sus pesos. La diferencia con la suma de lo impreso es de 0 a 0,2 kg y viene solo del redondeo de cada fila. Ninguna incidencia.

@@ -16,7 +16,12 @@ import re
 import sys
 
 
-MASS_KG_M = {6: 0.222, 8: 0.395, 10: 0.617, 12: 0.888, 16: 1.579, 20: 2.466, 25: 3.854, 32: 6.313, 40: 9.864}  # BS 4449
+STEEL_DENSITY = 7850.0          # kg/m3, the template BBS's weight formula
+
+
+def density_mass_kg_m(dia_mm):
+    """kg/m of a bar as the template computes it: pi d^2 / 4 x 7850 (H8 0.39458, BS 4449's table says 0.395)."""
+    return math.pi * (dia_mm / 1000.0) ** 2 / 4.0 * STEEL_DENSITY
 
 
 def bbs_len(mm):
@@ -70,14 +75,14 @@ def main(folder):
                 problems.append(('quantity', k, total, m['n'], mbrs))
             if mark == base and len(m['len']) == 1 and int(length) != bbs_len(list(m['len'])[0]):
                 problems.append(('length', k, length, m['len']))
-            # the row's weight from its own total and scheduled length (user decision 2026-10-24), BS 4449 masses
+            # the row's weight from its own total and scheduled length (user decision 2026-10-24) and the template's
+            # density formula, pi d^2 / 4 x 7850 kg/m3 (user 2026-10-28, I1 closed: not BS 4449's tabulated masses)
             weight = row[15] if len(row) > 15 else u''
             dia = int(typ[1:])
-            if weight.strip() and dia in MASS_KG_M and length.strip().isdigit() and total.strip().isdigit():
-                expected = int(total) * int(length) / 1000.0 * MASS_KG_M[dia]
+            if weight.strip() and length.strip().isdigit() and total.strip().isdigit():
+                expected = int(total) * int(length) / 1000.0 * density_mass_kg_m(dia)
                 checked['weight'] += 1
-                # to the printed 0.1 kg, BS 4449's tabulated masses the criterion (user 2026-10-28, I1)
-                if abs(float(weight) - round(expected, 1)) > 0.05:
+                if abs(float(weight) - round(expected, 1)) > 0.05:      # beyond the printed 0.1 kg's rounding
                     problems.append(('weight', k, mark, weight, round(expected, 1)))
             elif weight.strip() == u'':
                 problems.append(('weight missing', k, mark))
