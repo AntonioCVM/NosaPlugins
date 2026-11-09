@@ -4,3 +4,4 @@ layout:
   - AddPileToPilecap
   - CreatePilecapType
   - PilecapLoadChecker
+  - UnjoinPiles
