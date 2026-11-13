@@ -1,0 +1,138 @@
+{
+ "classes": {
+  "a column link 1 mm short of its cover at the joint": 27,
+  "a column's lap crank on its top link": 27,
+  "point 7: column top L-bars": 16,
+  "a column's bars closer than s_min at a lap": 6,
+  "design: 300 beams with 3H20 leave no 75 mm poker gap (SMDSC MD B1)": 336,
+  "design: slab bars at 600 over the 400 allowed (SMDSC 6.2)": 88,
+  "design: steel under the EC2 minimum": 20,
+  "design: distribution bars over 450 (SMDSC MD S1)": 8,
+  "slab bars on each other (U-bars and main bars at edges and supports)": 256,
+  "slab bars closer than s_min (U-bars and main bars at edges and supports)": 172,
+  "other: Cover (stair)": 4,
+  "other: Clash (stair)": 4,
+  "column/column at a storey joint: lap bars": 27,
+  "point 6: beam/column joint": 414,
+  "slab bars through a column cage, not set round its bars": 648,
+  "beam bars crossing at an interior joint (the secondary's 20 mm drop not enough)": 84,
+  "slab bars on a beam's bars at the same level": 196,
+  "info: bars a detailing rule added (confirm with design)": 21
+ },
+ "detail": {
+  "a column link 1 mm short of its cover at the joint": {
+   "Error | Cover | column | storey 1": 9,
+   "Error | Cover | column | storey 2": 9,
+   "Error | Cover | column | storey 3": 9
+  },
+  "a column's lap crank on its top link": {
+   "Error | Clash | column | storey 1": 9,
+   "Error | Clash | column | storey 2": 9,
+   "Error | Clash | column | storey 3": 9
+  },
+  "point 7: column top L-bars": {
+   "Error | Clash | column | storey 4": 16
+  },
+  "a column's bars closer than s_min at a lap": {
+   "Warning | Congestion | column | storey 4": 6
+  },
+  "design: 300 beams with 3H20 leave no 75 mm poker gap (SMDSC MD B1)": {
+   "Warning | Vibrator gap | beam | storey 1": 84,
+   "Warning | Vibrator gap | beam | storey 2": 84,
+   "Warning | Vibrator gap | beam | storey 3": 84,
+   "Warning | Vibrator gap | beam | storey 4": 84
+  },
+  "design: slab bars at 600 over the 400 allowed (SMDSC 6.2)": {
+   "Warning | Pitch | slab | storey 1": 22,
+   "Warning | Pitch | slab | storey 2": 22,
+   "Warning | Pitch | slab | storey 3": 22,
+   "Warning | Pitch | slab | storey 4": 22
+  },
+  "design: steel under the EC2 minimum": {
+   "Warning | Steel ratio | slab | storey 1": 4,
+   "Warning | Steel ratio | wall | storey 1": 1,
+   "Warning | Steel ratio | slab | storey 2": 4,
+   "Warning | Steel ratio | wall | storey 2": 1,
+   "Warning | Steel ratio | slab | storey 3": 4,
+   "Warning | Steel ratio | wall | storey 3": 1,
+   "Warning | Steel ratio | slab | storey 4": 4,
+   "Warning | Steel ratio | wall | storey 4": 1
+  },
+  "design: distribution bars over 450 (SMDSC MD S1)": {
+   "Warning | Distribution pitch | slab | storey 1": 2,
+   "Warning | Distribution pitch | slab | storey 2": 2,
+   "Warning | Distribution pitch | slab | storey 3": 2,
+   "Warning | Distribution pitch | slab | storey 4": 2
+  },
+  "slab bars on each other (U-bars and main bars at edges and supports)": {
+   "Error | Clash | slab | storey 1": 64,
+   "Error | Clash | slab | storey 2": 64,
+   "Error | Clash | slab | storey 3": 64,
+   "Error | Clash | slab | storey 4": 64
+  },
+  "slab bars closer than s_min (U-bars and main bars at edges and supports)": {
+   "Warning | Congestion | slab | storey 1": 43,
+   "Warning | Congestion | slab | storey 2": 43,
+   "Warning | Congestion | slab | storey 3": 43,
+   "Warning | Congestion | slab | storey 4": 43
+  },
+  "other: Cover (stair)": {
+   "Error | Cover | stair | storey 1": 4
+  },
+  "other: Clash (stair)": {
+   "Error | Clash | stair | storey 1": 4
+  },
+  "column/column at a storey joint: lap bars": {
+   "Error | Joint clash | column | storey 2": 9,
+   "Error | Joint clash | column | storey 3": 9,
+   "Error | Joint clash | column | storey 4": 9
+  },
+  "point 6: beam/column joint": {
+   "Error | Joint clash | beam / column | storey 1": 96,
+   "Warning | Joint congestion | beam / column | storey 1": 12,
+   "Error | Joint clash | beam / column | storey 2": 96,
+   "Warning | Joint congestion | beam / column | storey 2": 12,
+   "Error | Joint clash | beam / column | storey 3": 96,
+   "Warning | Joint congestion | beam / column | storey 3": 12,
+   "Warning | Joint congestion | beam / column | storey 4": 36,
+   "Error | Joint clash | beam / column | storey 4": 54
+  },
+  "slab bars through a column cage, not set round its bars": {
+   "Error | Joint clash | column / slab | storey 1": 135,
+   "Warning | Joint congestion | column / slab | storey 1": 27,
+   "Error | Joint clash | column / slab | storey 2": 135,
+   "Warning | Joint congestion | column / slab | storey 2": 27,
+   "Error | Joint clash | column / slab | storey 3": 135,
+   "Warning | Joint congestion | column / slab | storey 3": 27,
+   "Warning | Joint congestion | column / slab | storey 4": 45,
+   "Error | Joint clash | column / slab | storey 4": 117
+  },
+  "beam bars crossing at an interior joint (the secondary's 20 mm drop not enough)": {
+   "Error | Joint clash | beam | storey 1": 21,
+   "Error | Joint clash | beam | storey 2": 21,
+   "Error | Joint clash | beam | storey 3": 21,
+   "Error | Joint clash | beam | storey 4": 21
+  },
+  "slab bars on a beam's bars at the same level": {
+   "Error | Joint clash | beam / slab | storey 1": 26,
+   "Warning | Joint congestion | beam / slab | storey 1": 23,
+   "Error | Joint clash | beam / slab | storey 2": 26,
+   "Warning | Joint congestion | beam / slab | storey 2": 23,
+   "Error | Joint clash | beam / slab | storey 3": 26,
+   "Warning | Joint congestion | beam / slab | storey 3": 23,
+   "Error | Joint clash | beam / slab | storey 4": 26,
+   "Warning | Joint congestion | beam / slab | storey 4": 23
+  },
+  "info: bars a detailing rule added (confirm with design)": {
+   "Info | Rule-added bars | foundation | foundation": 9,
+   "Info | Rule-added bars | slab | storey 1": 1,
+   "Info | Rule-added bars | wall | storey 1": 2,
+   "Info | Rule-added bars | slab | storey 2": 1,
+   "Info | Rule-added bars | wall | storey 2": 2,
+   "Info | Rule-added bars | slab | storey 3": 1,
+   "Info | Rule-added bars | wall | storey 3": 2,
+   "Info | Rule-added bars | slab | storey 4": 1,
+   "Info | Rule-added bars | wall | storey 4": 2
+  }
+ }
+}

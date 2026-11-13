@@ -1,0 +1,812 @@
+{
+ "rows": [
+  {
+   "schedule": "4501-01",
+   "member": "F1 to F9",
+   "mark": "01",
+   "type": "H20",
+   "members": "9",
+   "total": "36",
+   "length": "2200",
+   "shape": "11",
+   "weight": "195.3",
+   "model_bars": 36,
+   "model_lengths": [
+    2183.66
+   ],
+   "model_shapes": [
+    "11"
+   ]
+  },
+  {
+   "schedule": "4501-01",
+   "member": "F1 to F9",
+   "mark": "02",
+   "type": "H16",
+   "members": "9",
+   "total": "180",
+   "length": "1375",
+   "shape": "00",
+   "weight": "390.6",
+   "model_bars": 180,
+   "model_lengths": [
+    1375.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4501-01",
+   "member": "F1 to F9",
+   "mark": "03",
+   "type": "H10",
+   "members": "9",
+   "total": "27",
+   "length": "1500",
+   "shape": "52",
+   "weight": "25.0",
+   "model_bars": 27,
+   "model_lengths": [
+    1480.19
+   ],
+   "model_shapes": [
+    "52"
+   ]
+  },
+  {
+   "schedule": "4512-01",
+   "member": "C1 to C35",
+   "mark": "02",
+   "type": "H20",
+   "members": "27",
+   "total": "216",
+   "length": "4000",
+   "shape": "26",
+   "weight": "2130.8",
+   "model_bars": 216,
+   "model_lengths": [
+    3990.76
+   ],
+   "model_shapes": [
+    "26"
+   ]
+  },
+  {
+   "schedule": "4512-01",
+   "member": "C1 to C35",
+   "mark": "03",
+   "type": "H10",
+   "members": "27",
+   "total": "459",
+   "length": "1700",
+   "shape": "52",
+   "weight": "481.1",
+   "model_bars": 459,
+   "model_lengths": [
+    1675.62
+   ],
+   "model_shapes": [
+    "52"
+   ]
+  },
+  {
+   "schedule": "4512-01",
+   "member": "C4 to C36",
+   "mark": "01",
+   "type": "H20",
+   "members": "9",
+   "total": "72",
+   "length": "3675",
+   "shape": "11",
+   "weight": "652.5",
+   "model_bars": 72,
+   "model_lengths": [
+    3660.66
+   ],
+   "model_shapes": [
+    "11"
+   ]
+  },
+  {
+   "schedule": "4512-01",
+   "member": "C4 to C36",
+   "mark": "03",
+   "type": "H10",
+   "members": "9",
+   "total": "144",
+   "length": "1700",
+   "shape": "52",
+   "weight": "150.9",
+   "model_bars": 144,
+   "model_lengths": [
+    1675.62
+   ],
+   "model_shapes": [
+    "52"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "01",
+   "type": "H16",
+   "members": "4",
+   "total": "496",
+   "length": "5375",
+   "shape": "00",
+   "weight": "4207.8",
+   "model_bars": 496,
+   "model_lengths": [
+    5360.5
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "02",
+   "type": "H16",
+   "members": "4",
+   "total": "168",
+   "length": "5225",
+   "shape": "00",
+   "weight": "1385.5",
+   "model_bars": 168,
+   "model_lengths": [
+    5225.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "03",
+   "type": "H16",
+   "members": "4",
+   "total": "336",
+   "length": "4950",
+   "shape": "00",
+   "weight": "2625.1",
+   "model_bars": 336,
+   "model_lengths": [
+    4925.5
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "04",
+   "type": "H16",
+   "members": "4",
+   "total": "168",
+   "length": "4625",
+   "shape": "00",
+   "weight": "1226.4",
+   "model_bars": 168,
+   "model_lengths": [
+    4600.5
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "05",
+   "type": "H16",
+   "members": "4",
+   "total": "160",
+   "length": "3600",
+   "shape": "00",
+   "weight": "909.1",
+   "model_bars": 160,
+   "model_lengths": [
+    3575.5
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "06",
+   "type": "H16",
+   "members": "4",
+   "total": "160",
+   "length": "2125",
+   "shape": "00",
+   "weight": "536.6",
+   "model_bars": 160,
+   "model_lengths": [
+    2125.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "07",
+   "type": "H16",
+   "members": "4",
+   "total": "168",
+   "length": "1100",
+   "shape": "00",
+   "weight": "291.7",
+   "model_bars": 168,
+   "model_lengths": [
+    1100.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "08",
+   "type": "H16",
+   "members": "4",
+   "total": "168",
+   "length": "925",
+   "shape": "00",
+   "weight": "245.3",
+   "model_bars": 168,
+   "model_lengths": [
+    910.5
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "09",
+   "type": "H16",
+   "members": "4",
+   "total": "664",
+   "length": "2525",
+   "shape": "21",
+   "weight": "2646.2",
+   "model_bars": 664,
+   "model_lengths": [
+    2519.66
+   ],
+   "model_shapes": [
+    "21"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "10",
+   "type": "H16",
+   "members": "4",
+   "total": "664",
+   "length": "2500",
+   "shape": "21",
+   "weight": "2620.0",
+   "model_bars": 664,
+   "model_lengths": [
+    2493.66
+   ],
+   "model_shapes": [
+    "21"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "11",
+   "type": "H12",
+   "members": "4",
+   "total": "248",
+   "length": "12000",
+   "shape": "00",
+   "weight": "2642.1",
+   "model_bars": 248,
+   "model_lengths": [
+    12000.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "12",
+   "type": "H12",
+   "members": "4",
+   "total": "248",
+   "length": "10925",
+   "shape": "00",
+   "weight": "2405.4",
+   "model_bars": 248,
+   "model_lengths": [
+    10925.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "13",
+   "type": "H12",
+   "members": "4",
+   "total": "248",
+   "length": "2225",
+   "shape": "00",
+   "weight": "489.9",
+   "model_bars": 248,
+   "model_lengths": [
+    2225.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4513-01",
+   "member": "S1 to S4",
+   "mark": "14",
+   "type": "H12",
+   "members": "4",
+   "total": "248",
+   "length": "1150",
+   "shape": "00",
+   "weight": "253.2",
+   "model_bars": 248,
+   "model_lengths": [
+    1150.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4522-01",
+   "member": "W1 to W4",
+   "mark": "01",
+   "type": "H12",
+   "members": "4",
+   "total": "120",
+   "length": "5900",
+   "shape": "00",
+   "weight": "628.6",
+   "model_bars": 120,
+   "model_lengths": [
+    5900.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4522-01",
+   "member": "W1 to W4",
+   "mark": "02",
+   "type": "H12",
+   "members": "4",
+   "total": "240",
+   "length": "2900",
+   "shape": "00",
+   "weight": "617.9",
+   "model_bars": 240,
+   "model_lengths": [
+    2900.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4522-01",
+   "member": "W1 to W4",
+   "mark": "03",
+   "type": "H12",
+   "members": "4",
+   "total": "120",
+   "length": "1450",
+   "shape": "21",
+   "weight": "154.5",
+   "model_bars": 120,
+   "model_lengths": [
+    1432.25
+   ],
+   "model_shapes": [
+    "21"
+   ]
+  },
+  {
+   "schedule": "4522-01",
+   "member": "W1 to W4",
+   "mark": "04",
+   "type": "H12",
+   "members": "4",
+   "total": "120",
+   "length": "1425",
+   "shape": "21",
+   "weight": "151.8",
+   "model_bars": 120,
+   "model_lengths": [
+    1408.25
+   ],
+   "model_shapes": [
+    "21"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "01",
+   "type": "H12",
+   "members": "1",
+   "total": "5",
+   "length": "1200",
+   "shape": "00",
+   "weight": "5.3",
+   "model_bars": 5,
+   "model_lengths": [
+    1181.92
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "02",
+   "type": "H12",
+   "members": "1",
+   "total": "3",
+   "length": "900",
+   "shape": "00",
+   "weight": "2.4",
+   "model_bars": 3,
+   "model_lengths": [
+    884.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "03",
+   "type": "H12",
+   "members": "1",
+   "total": "6",
+   "length": "750",
+   "shape": "00",
+   "weight": "4.0",
+   "model_bars": 6,
+   "model_lengths": [
+    740.74
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "04",
+   "type": "H12",
+   "members": "1",
+   "total": "6",
+   "length": "525",
+   "shape": "00",
+   "weight": "2.8",
+   "model_bars": 6,
+   "model_lengths": [
+    507.09
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "05",
+   "type": "H12",
+   "members": "1",
+   "total": "4",
+   "length": "1025",
+   "shape": "21",
+   "weight": "3.6",
+   "model_bars": 4,
+   "model_lengths": [
+    1010.25
+   ],
+   "model_shapes": [
+    "21"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "06",
+   "type": "H12",
+   "members": "1",
+   "total": "5",
+   "length": "3925",
+   "shape": "26",
+   "weight": "17.4",
+   "model_bars": 5,
+   "model_lengths": [
+    3916.22
+   ],
+   "model_shapes": [
+    "26"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "07",
+   "type": "H12",
+   "members": "1",
+   "total": "5",
+   "length": "3975",
+   "shape": "15",
+   "weight": "17.6",
+   "model_bars": 5,
+   "model_lengths": [
+    3962.58
+   ],
+   "model_shapes": [
+    "15"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "08",
+   "type": "H12",
+   "members": "1",
+   "total": "6",
+   "length": "1175",
+   "shape": "15",
+   "weight": "6.3",
+   "model_bars": 6,
+   "model_lengths": [
+    1166.25
+   ],
+   "model_shapes": [
+    "15"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "09",
+   "type": "H12",
+   "members": "1",
+   "total": "6",
+   "length": "950",
+   "shape": "15",
+   "weight": "5.1",
+   "model_bars": 6,
+   "model_lengths": [
+    925.42
+   ],
+   "model_shapes": [
+    "15"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "10",
+   "type": "H12",
+   "members": "1",
+   "total": "6",
+   "length": "625",
+   "shape": "15",
+   "weight": "3.3",
+   "model_bars": 6,
+   "model_lengths": [
+    613.45
+   ],
+   "model_shapes": [
+    "15"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "11",
+   "type": "H8",
+   "members": "1",
+   "total": "12",
+   "length": "2450",
+   "shape": "00",
+   "weight": "11.6",
+   "model_bars": 12,
+   "model_lengths": [
+    2444.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4523-01",
+   "member": "ST1",
+   "mark": "12",
+   "type": "H8",
+   "members": "1",
+   "total": "48",
+   "length": "925",
+   "shape": "00",
+   "weight": "17.5",
+   "model_bars": 48,
+   "model_lengths": [
+    920.0
+   ],
+   "model_shapes": [
+    "00"
+   ]
+  },
+  {
+   "schedule": "4529-01",
+   "member": "B1 to B47",
+   "mark": "01",
+   "type": "H20",
+   "members": "24",
+   "total": "72",
+   "length": "10225",
+   "shape": "11",
+   "weight": "1815.6",
+   "model_bars": 72,
+   "model_lengths": [
+    10223.16
+   ],
+   "model_shapes": [
+    "11"
+   ]
+  },
+  {
+   "schedule": "4529-01",
+   "member": "B1 to B47",
+   "mark": "02",
+   "type": "H20",
+   "members": "24",
+   "total": "72",
+   "length": "6475",
+   "shape": "11",
+   "weight": "1149.7",
+   "model_bars": 72,
+   "model_lengths": [
+    6462.66
+   ],
+   "model_shapes": [
+    "11"
+   ]
+  },
+  {
+   "schedule": "4529-01",
+   "member": "B1 to B47",
+   "mark": "04",
+   "type": "H8",
+   "members": "24",
+   "total": "960",
+   "length": "1575",
+   "shape": "52",
+   "weight": "596.6",
+   "model_bars": 960,
+   "model_lengths": [
+    1570.5
+   ],
+   "model_shapes": [
+    "52"
+   ]
+  },
+  {
+   "schedule": "4529-01",
+   "member": "B2 to B48",
+   "mark": "02",
+   "type": "H20",
+   "members": "24",
+   "total": "72",
+   "length": "6475",
+   "shape": "11",
+   "weight": "1149.7",
+   "model_bars": 72,
+   "model_lengths": [
+    6462.66
+   ],
+   "model_shapes": [
+    "11"
+   ]
+  },
+  {
+   "schedule": "4529-01",
+   "member": "B2 to B48",
+   "mark": "03",
+   "type": "H20",
+   "members": "24",
+   "total": "72",
+   "length": "4225",
+   "shape": "11",
+   "weight": "750.2",
+   "model_bars": 72,
+   "model_lengths": [
+    4223.16
+   ],
+   "model_shapes": [
+    "11"
+   ]
+  },
+  {
+   "schedule": "4529-01",
+   "member": "B2 to B48",
+   "mark": "04",
+   "type": "H8",
+   "members": "24",
+   "total": "960",
+   "length": "1575",
+   "shape": "52",
+   "weight": "596.6",
+   "model_bars": 960,
+   "model_lengths": [
+    1570.5
+   ],
+   "model_shapes": [
+    "52"
+   ]
+  }
+ ],
+ "problems": [
+  [
+   "weight",
+   "('4512-01', 'C1 to C35', '03')",
+   "03",
+   "481.1",
+   "481.4"
+  ],
+  [
+   "weight",
+   "('4512-01', 'C4 to C36', '03')",
+   "03",
+   "150.9",
+   "151.0"
+  ],
+  [
+   "weight",
+   "('4529-01', 'B1 to B47', '04')",
+   "04",
+   "596.6",
+   "597.2"
+  ],
+  [
+   "weight",
+   "('4529-01', 'B2 to B48', '04')",
+   "04",
+   "596.6",
+   "597.2"
+  ]
+ ],
+ "checked": {
+  "weight": 43,
+  "rows": 43
+ }
+}

@@ -173,7 +173,7 @@ class Utils:
                 params["PROJECT: File Name"] = doc.Title.replace('.rvt', '')
             
         except Exception as e:
-            logger.warning("Error obteniendo parámetros del proyecto", e)
+            logger.warning("Error reading project parameters", e)
         
         return params
     
@@ -240,7 +240,7 @@ class Utils:
             return detected_size, orientation
             
         except Exception as e:
-            logger.warning("Error detectando papel", e)
+            logger.warning("Error detecting paper size", e)
             return None, None
     
     @staticmethod

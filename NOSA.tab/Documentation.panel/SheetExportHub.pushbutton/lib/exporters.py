@@ -7,6 +7,7 @@ from nosa_utils.logging import Logger
 from nosa_utils.telemetry import log_swallowed
 from config import Config
 from utils import Utils
+import file_bundle
 _LOG = u'SheetExportHub/exporters'
 try:
     from pyrevit import script
@@ -36,7 +37,7 @@ class ExportManager:
     _AUTO_IMAGE_EXTS = ('.png', '.jpg', '.jpeg', '.bmp', '.tif', '.tiff', '.gif')
 
     def __init__(self, doc, elements, naming_builder, output_folder, export_formats, preset, project_params=None,
-                 is_views=False, dwg_setup_name=None, combined_pdf_name=None):
+                 is_views=False, dwg_setup_name=None, combined_pdf_name=None, dwg_zip_name=None):
         self.doc = doc
         self.elements = elements  # Can be sheets or views
         self.is_views = is_views  # Flag to indicate if exporting views
@@ -54,6 +55,10 @@ class ExportManager:
         # PDF produced when export_formats['pdf_combine'] is set — additive
         # to, not a replacement for, per-sheet PDFs.
         self.combined_pdf_name = combined_pdf_name or "Combined Export"
+        self.combined_pdf_path = None
+        # dwg_zip_name: filename (no extension) of the ZIP holding every DWG
+        # of the run, made when export_formats['dwg_zip'] is set.
+        self.dwg_zip_name = dwg_zip_name or self.combined_pdf_name
         
         self.results = {
             'success': 0,
@@ -66,6 +71,7 @@ class ExportManager:
         }
         
         self.pdf_files = []
+        self.dwg_files = []
         self.preset_config = self._get_preset_config()
     
     def _get_preset_config(self):
@@ -86,14 +92,14 @@ class ExportManager:
             for batch_start in range(0, total_elements, batch_size):
                 # Verificar cancelación antes de cada lote
                 if cancellation_token and hasattr(cancellation_token, 'CancellationPending') and cancellation_token.CancellationPending:
-                    logger.info("Exportación cancelada por el usuario")
-                    return False, "Exportación cancelada"
+                    logger.info("Export cancelled by the user")
+                    return False, "Export cancelled"
                 
                 batch_end = min(batch_start + batch_size, total_elements)
                 batch = self.elements[batch_start:batch_end]
                 
                 if progress_callback:
-                    progress_callback("Procesando lote {}-{} de {}...".format(
+                    progress_callback("Processing batch {}-{} of {}...".format(
                         batch_start + 1, batch_end, total_elements
                     ))
                 
@@ -103,8 +109,8 @@ class ExportManager:
                     
                     # Verificar cancelación
                     if cancellation_token and hasattr(cancellation_token, 'CancellationPending') and cancellation_token.CancellationPending:
-                        logger.info("Exportación cancelada por el usuario")
-                        return False, "Exportación cancelada"
+                        logger.info("Export cancelled by the user")
+                        return False, "Export cancelled"
                     
                     try:
                         element_name = element.Name if self.is_views else (element.SheetNumber if hasattr(element, 'SheetNumber') else str(element.Id))
@@ -129,6 +135,7 @@ class ExportManager:
                             if self.is_views:
                                 if self.export_view_pdf(element, filename):
                                     self.results['by_format']['pdf'] += 1
+                                    self.pdf_files.append(os.path.join(self.output_folder, filename + '.pdf'))
                                     debug_print("    - PDF Export: **SUCCESS**")
                                 else:
                                     element_success = False
@@ -136,6 +143,7 @@ class ExportManager:
                             else:
                                 if self.export_sheet_pdf(element, filename):
                                     self.results['by_format']['pdf'] += 1
+                                    self.pdf_files.append(os.path.join(self.output_folder, filename + '.pdf'))
                                     debug_print("    - PDF Export: **SUCCESS**")
                                 else:
                                     element_success = False
@@ -149,6 +157,7 @@ class ExportManager:
                             if self.is_views:
                                 if self.export_view_dwg(element, filename):
                                     self.results['by_format']['dwg'] += 1
+                                    self.dwg_files.append(os.path.join(self.output_folder, filename + '.dwg'))
                                     debug_print("    - DWG Export: **SUCCESS**")
                                 else:
                                     element_success = False
@@ -156,6 +165,7 @@ class ExportManager:
                             else:
                                 if self.export_sheet_dwg(element, filename):
                                     self.results['by_format']['dwg'] += 1
+                                    self.dwg_files.append(os.path.join(self.output_folder, filename + '.dwg'))
                                     debug_print("    - DWG Export: **SUCCESS**")
                                 else:
                                     element_success = False
@@ -199,7 +209,7 @@ class ExportManager:
                         if progress_callback:
                             progress_callback("✗ Error in {}: {}".format(element_name, str(e)))
                         self.results['failed'] += 1
-                        logger.error("Error exportando elemento {}".format(element_name), e)
+                        logger.error("Error exporting element {}".format(element_name), e)
                 
                 # Limpieza de memoria después de cada lote
                 import gc
@@ -217,10 +227,18 @@ class ExportManager:
                 if progress_callback:
                     progress_callback("Combined PDF: {}".format("SUCCESS" if combined_ok else "FAILED"))
                 self.results['combined_pdf'] = combined_ok
+                if combined_ok and self.export_formats.get('pdf_delete_individual'):
+                    self._delete_loose(self.pdf_files, self.combined_pdf_path, 'PDF', progress_callback)
+
+            if self.export_formats.get('dwg') and self.export_formats.get('dwg_zip'):
+                zip_path = self.export_dwg_zip(progress_callback)
+                self.results['dwg_zip'] = bool(zip_path)
+                if zip_path and self.export_formats.get('dwg_delete_individual'):
+                    self._delete_loose(self.dwg_files, zip_path, 'DWG', progress_callback)
 
             self.results['elapsed_time'] = time.time() - start_time
 
-            return True, "Exportación completada"
+            return True, "Export completed"
 
         except Exception as e:
             return False, "Error: {}".format(str(e))
@@ -319,6 +337,7 @@ class ExportManager:
                      "PDFs currently there: {}".format(expected_path, timeout, after_files or "(none)"))
                 return False
 
+            self.combined_pdf_path = expected_path
             return True
 
         except Exception as e:
@@ -326,6 +345,40 @@ class ExportManager:
                 e, self.combined_pdf_name))
             logger.error("Error exporting combined PDF", e)
             return False
+
+    def export_dwg_zip(self, progress_callback=None):
+        """One ZIP with every DWG exported in this run; returns its path, or None."""
+        def _log(msg):
+            logger.warning(msg)
+            if progress_callback:
+                progress_callback("  " + msg)
+        name = Utils.sanitize_filename(self.dwg_zip_name or u'')
+        zip_path = os.path.join(self.output_folder, u'{}.zip'.format(name))
+        if not self.dwg_files:
+            _log("DWG ZIP: no DWG was exported, nothing to compress.")
+            return None
+        if progress_callback:
+            progress_callback("\nCompressing {} DWG file(s) into '{}.zip'...".format(len(self.dwg_files), name))
+        try:
+            zipped = file_bundle.zip_files(self.dwg_files, zip_path)
+        except Exception as e:
+            _log("DWG ZIP: could not create '{}' ({}). The DWG files are kept.".format(zip_path, e))
+            logger.error("Error creating DWG ZIP", e)
+            return None
+        if not zipped:
+            _log("DWG ZIP: none of the exported DWG files were found in the destination folder.")
+            return None
+        if progress_callback:
+            progress_callback("DWG ZIP: SUCCESS ({} file(s))".format(len(zipped)))
+        return zip_path
+
+    def _delete_loose(self, paths, keep, label, progress_callback=None):
+        """Remove the individual files once they are inside the combined PDF / ZIP."""
+        deleted, failed = file_bundle.delete_files(paths, keep=[keep])
+        if progress_callback:
+            progress_callback("Individual {} files deleted: {}".format(label, len(deleted)))
+            for path, err in failed:
+                progress_callback("  Could not delete '{}' ({})".format(os.path.basename(path), err))
 
     def export_sheet_pdf(self, sheet, filename):
         """Exporta sheet a PDF"""
@@ -385,7 +438,7 @@ class ExportManager:
                 new_pdf = self._find_newest_pdf(before_files)
             
             if not new_pdf:
-                logger.warning("No se detectó PDF creado para {}".format(filename))
+                logger.warning("No PDF was detected for {}".format(filename))
                 debug_print("      - PDF Created but file not found in folder.")
                 return False
             
@@ -401,7 +454,7 @@ class ExportManager:
                 if self.progress_callback:
                     self.progress_callback("     ✅ PDF Exported: **{}**".format(os.path.basename(new_path)))
             except Exception as rename_err:
-                logger.warning("No se pudo renombrar PDF temporal {} -> {} ({})".format(
+                logger.warning("Could not rename temporary PDF {} -> {} ({})".format(
                     new_pdf, new_path, str(rename_err)
                 ))
                 if self.progress_callback:
@@ -410,7 +463,7 @@ class ExportManager:
             return True
             
         except Exception as e:
-            logger.error("Error exportando PDF {}: {}".format(filename, str(e)), e)
+            logger.error("Error exporting PDF {}: {}".format(filename, str(e)), e)
             debug_print("      - **ERROR in PDF Export**: {}".format(str(e)))
             return False
     
@@ -441,7 +494,7 @@ class ExportManager:
             return newest
             
         except Exception as e:
-            logger.warning("Error buscando PDF más reciente", e)
+            logger.warning("Error finding the most recent PDF", e)
             return None
 
     def _snapshot_folder(self):
@@ -542,7 +595,7 @@ class ExportManager:
                     os.rename(old_path, new_path)
                 debug_print("      - PDF Renamed: `{}` -> `{}`".format(os.path.basename(old_path), os.path.basename(new_path)))
             except Exception as rename_err:
-                logger.warning("No se pudo renombrar PDF temporal {} -> {} ({})".format(
+                logger.warning("Could not rename temporary PDF {} -> {} ({})".format(
                     new_pdf, new_path, str(rename_err)
                 ))
                 debug_print("      - **ERROR Renaming PDF**: {}".format(str(rename_err)))
@@ -550,7 +603,7 @@ class ExportManager:
             return True
             
         except Exception as e:
-            logger.error("Error exportando PDF de vista {}: {}".format(filename, str(e)), e)
+            logger.error("Error exporting view PDF {}: {}".format(filename, str(e)), e)
             debug_print("      - **ERROR in PDF Export**: {}".format(str(e)))
             return False
     
@@ -697,7 +750,7 @@ class ExportManager:
                  
             return result
         except Exception as e:
-            logger.error("Error exportando DWG {}".format(filename), e)
+            logger.error("Error exporting DWG {}".format(filename), e)
             if self.progress_callback:
                 self.progress_callback("     ❌ Error DWG: {}".format(str(e)))
             return False
@@ -760,7 +813,7 @@ class ExportManager:
                  return False
             
         except Exception as e:
-            logger.error("Error exportando DXF {}: {}".format(filename, str(e)), e)
+            logger.error("Error exporting DXF {}: {}".format(filename, str(e)), e)
             if self.progress_callback:
                 self.progress_callback("  - **ERROR in DXF Export**: {}".format(str(e)))
             return False

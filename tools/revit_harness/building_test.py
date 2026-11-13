@@ -401,6 +401,22 @@ try:
                                   ('issue_schedules', u'BBS (issue_schedules)'),
                                   ('review_drawings', u'drawing review (review_drawings)')):
                 setattr(_rv, _name, _phase(_label, getattr(_rv, _name)))
+            _review = _rv.review_drawings
+
+            def _kept_review(*a, **k):
+                # every incident kept (OUTDIR/drawing_review.json), to compare runs and Revit versions one by one
+                out = _review(*a, **k)
+                try:
+                    if not os.path.isdir(OUTDIR):
+                        os.makedirs(OUTDIR)
+                    rows = [dict((key, u'{}'.format(v)) for key, v in (i.items() if isinstance(i, dict) else
+                                                                       [('issue', i)])) for i in out.get('issues', [])]
+                    with io.open(os.path.join(OUTDIR, 'drawing_review.json'), 'w', encoding='utf-8') as fh:
+                        fh.write(u'{}'.format(json.dumps(rows, ensure_ascii=True, indent=1)))
+                except Exception as e:
+                    _log.append(u'== drawing review dump EXCEPTION {}'.format(e))
+                return out
+            _rv.review_drawings = _kept_review
             if not DRAWING_QA:
                 _rv._buildability = lambda *a, **k: None
         import rebar_presentation as _rp

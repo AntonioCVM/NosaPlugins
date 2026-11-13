@@ -1,0 +1,6342 @@
+{
+ "mode": "proposal only, nothing applied", 
+ "rows": [
+  {
+   "beam": "1513530", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513486: -22 mm clear to the column bar at 0 (25 needed); 1513501: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513530, 
+   "bar_id": 1514155, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513486", 
+    "1513501"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513530", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513486: -22 mm clear to the column bar at 0 (25 needed); 1513501: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513530, 
+   "bar_id": 1514157, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513486", 
+    "1513501"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513532", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513486: -22 mm clear to the column bar at 0 (25 needed); 1513491: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513532, 
+   "bar_id": 1514167, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513486", 
+    "1513491"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513532", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513486: -22 mm clear to the column bar at 0 (25 needed); 1513491: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513532, 
+   "bar_id": 1514169, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513486", 
+    "1513491"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513534", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513501: -22 mm clear to the column bar at 0 (25 needed); 1513516: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513534, 
+   "bar_id": 1514156, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513501", 
+    "1513516"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513501 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513516 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513534", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513501: -22 mm clear to the column bar at 0 (25 needed); 1513516: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513534, 
+   "bar_id": 1514161, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513501", 
+    "1513516"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513536", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513491: -22 mm clear to the column bar at 0 (25 needed); 1513496: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513536, 
+   "bar_id": 1514168, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513491", 
+    "1513496"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513491 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513496 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513536", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513491: -22 mm clear to the column bar at 0 (25 needed); 1513496: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513536, 
+   "bar_id": 1514173, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513491", 
+    "1513496"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513538", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513491: -22 mm clear to the column bar at 0 (25 needed); 1513506: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513538, 
+   "bar_id": 1514179, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513491", 
+    "1513506"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513538", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513491: -22 mm clear to the column bar at 0 (25 needed); 1513506: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513538, 
+   "bar_id": 1514181, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513491", 
+    "1513506"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513540", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513501: -22 mm clear to the column bar at 0 (25 needed); 1513506: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513540, 
+   "bar_id": 1514191, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513501", 
+    "1513506"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513540", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513501: -22 mm clear to the column bar at 0 (25 needed); 1513506: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513540, 
+   "bar_id": 1514193, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513501", 
+    "1513506"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513542", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513506: -22 mm clear to the column bar at 0 (25 needed); 1513521: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513542, 
+   "bar_id": 1514180, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513506", 
+    "1513521"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513506 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513521 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513542", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513506: -22 mm clear to the column bar at 0 (25 needed); 1513521: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513542, 
+   "bar_id": 1514185, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513506", 
+    "1513521"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513544", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513506: -22 mm clear to the column bar at 0 (25 needed); 1513511: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513544, 
+   "bar_id": 1514192, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513506", 
+    "1513511"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513506 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513511 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513544", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513506: -22 mm clear to the column bar at 0 (25 needed); 1513511: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513544, 
+   "bar_id": 1514197, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513506", 
+    "1513511"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513546", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513496: -22 mm clear to the column bar at 0 (25 needed); 1513511: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513546, 
+   "bar_id": 1514203, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513496", 
+    "1513511"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513546", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513496: -22 mm clear to the column bar at 0 (25 needed); 1513511: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513546, 
+   "bar_id": 1514205, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513496", 
+    "1513511"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513548", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513516: -22 mm clear to the column bar at 0 (25 needed); 1513521: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513548, 
+   "bar_id": 1514215, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513516", 
+    "1513521"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513548", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513516: -22 mm clear to the column bar at 0 (25 needed); 1513521: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513548, 
+   "bar_id": 1514217, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513516", 
+    "1513521"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513550", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513511: -22 mm clear to the column bar at 0 (25 needed); 1513526: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513550, 
+   "bar_id": 1514204, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513511", 
+    "1513526"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513511 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513526 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513550", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513511: -22 mm clear to the column bar at 0 (25 needed); 1513526: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513550, 
+   "bar_id": 1514209, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513511", 
+    "1513526"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513552", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513521: -22 mm clear to the column bar at 0 (25 needed); 1513526: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513552, 
+   "bar_id": 1514216, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513521", 
+    "1513526"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513521 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513526 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513552", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513521: -22 mm clear to the column bar at 0 (25 needed); 1513526: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513552, 
+   "bar_id": 1514221, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513521", 
+    "1513526"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513562", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513487: -22 mm clear to the column bar at 0 (25 needed); 1513502: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513562, 
+   "bar_id": 1514227, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513487", 
+    "1513502"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513562", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513487: -22 mm clear to the column bar at 0 (25 needed); 1513502: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513562, 
+   "bar_id": 1514229, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513487", 
+    "1513502"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513564", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513487: -22 mm clear to the column bar at 0 (25 needed); 1513492: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513564, 
+   "bar_id": 1514239, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513487", 
+    "1513492"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -225.00000000000003)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0000000000009, 6225.0)", 
+     "value": "(5105.0000000000009, 5775.0000000000009)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513564", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513487: -22 mm clear to the column bar at 0 (25 needed); 1513492: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513564, 
+   "bar_id": 1514241, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513487", 
+    "1513492"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -225.00000000000003)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0000000000009, 6225.0)", 
+     "value": "(5105.0000000000009, 5775.0000000000009)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513566", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513502: -22 mm clear to the column bar at 0 (25 needed); 1513517: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513566, 
+   "bar_id": 1514228, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513502", 
+    "1513517"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513502 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513517 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513566", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513502: -22 mm clear to the column bar at 0 (25 needed); 1513517: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513566, 
+   "bar_id": 1514233, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513502", 
+    "1513517"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513568", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513492: -22 mm clear to the column bar at 0 (25 needed); 1513497: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513568, 
+   "bar_id": 1514240, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513492", 
+    "1513497"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513492 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513497 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -225.00000000000082)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513568", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513492: -22 mm clear to the column bar at 0 (25 needed); 1513497: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513568, 
+   "bar_id": 1514245, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513492", 
+    "1513497"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -225.00000000000082)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513570", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513492: -22 mm clear to the column bar at 0 (25 needed); 1513507: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513570, 
+   "bar_id": 1514251, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513492", 
+    "1513507"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513570", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513492: -22 mm clear to the column bar at 0 (25 needed); 1513507: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513570, 
+   "bar_id": 1514253, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513492", 
+    "1513507"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513572", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513502: -22 mm clear to the column bar at 0 (25 needed); 1513507: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513572, 
+   "bar_id": 1514263, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513502", 
+    "1513507"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -225.00000000000003)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0000000000009, 6225.0)", 
+     "value": "(5105.0000000000009, 5775.0000000000009)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513572", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513502: -22 mm clear to the column bar at 0 (25 needed); 1513507: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513572, 
+   "bar_id": 1514265, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513502", 
+    "1513507"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -225.00000000000003)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0000000000009, 6225.0)", 
+     "value": "(5105.0000000000009, 5775.0000000000009)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513574", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513507: -22 mm clear to the column bar at 0 (25 needed); 1513522: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513574, 
+   "bar_id": 1514252, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513507", 
+    "1513522"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513507 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513522 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513574", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513507: -22 mm clear to the column bar at 0 (25 needed); 1513522: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513574, 
+   "bar_id": 1514257, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513507", 
+    "1513522"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513576", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513507: -22 mm clear to the column bar at 0 (25 needed); 1513512: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513576, 
+   "bar_id": 1514264, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513507", 
+    "1513512"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513507 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513512 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -225.00000000000082)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513576", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513507: -22 mm clear to the column bar at 0 (25 needed); 1513512: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513576, 
+   "bar_id": 1514269, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513507", 
+    "1513512"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -225.00000000000082)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513578", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513497: -22 mm clear to the column bar at 0 (25 needed); 1513512: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513578, 
+   "bar_id": 1514275, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513497", 
+    "1513512"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513578", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513497: -22 mm clear to the column bar at 0 (25 needed); 1513512: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513578, 
+   "bar_id": 1514277, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513497", 
+    "1513512"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513580", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513517: -22 mm clear to the column bar at 0 (25 needed); 1513522: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513580, 
+   "bar_id": 1514287, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513517", 
+    "1513522"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -225.00000000000003)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0000000000009, 6225.0)", 
+     "value": "(5105.0000000000009, 5775.0000000000009)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513580", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513517: -22 mm clear to the column bar at 0 (25 needed); 1513522: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513580, 
+   "bar_id": 1514289, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513517", 
+    "1513522"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -225.00000000000003)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0000000000009, 6225.0)", 
+     "value": "(5105.0000000000009, 5775.0000000000009)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513582", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513512: -22 mm clear to the column bar at 0 (25 needed); 1513527: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513582, 
+   "bar_id": 1514276, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513512", 
+    "1513527"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513512 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513527 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513582", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513512: -22 mm clear to the column bar at 0 (25 needed); 1513527: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513582, 
+   "bar_id": 1514281, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513512", 
+    "1513527"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513584", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513522: -22 mm clear to the column bar at 0 (25 needed); 1513527: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513584, 
+   "bar_id": 1514288, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513522", 
+    "1513527"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513522 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513527 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -225.00000000000082)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513584", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513522: -22 mm clear to the column bar at 0 (25 needed); 1513527: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513584, 
+   "bar_id": 1514293, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513522", 
+    "1513527"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -225.00000000000082)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513594", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513488: -22 mm clear to the column bar at 0 (25 needed); 1513503: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513594, 
+   "bar_id": 1514299, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513488", 
+    "1513503"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513594", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513488: -22 mm clear to the column bar at 0 (25 needed); 1513503: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513594, 
+   "bar_id": 1514301, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513488", 
+    "1513503"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513596", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513488: -22 mm clear to the column bar at 0 (25 needed); 1513493: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513596, 
+   "bar_id": 1514311, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513488", 
+    "1513493"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -224.99999999999994)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0, 6225.0)", 
+     "value": "(5105.0, 5775.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513596", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513488: -22 mm clear to the column bar at 0 (25 needed); 1513493: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513596, 
+   "bar_id": 1514313, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513488", 
+    "1513493"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -224.99999999999994)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0, 6225.0)", 
+     "value": "(5105.0, 5775.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513598", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513503: -22 mm clear to the column bar at 0 (25 needed); 1513518: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513598, 
+   "bar_id": 1514300, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513503", 
+    "1513518"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513503 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513518 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513598", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513503: -22 mm clear to the column bar at 0 (25 needed); 1513518: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513598, 
+   "bar_id": 1514305, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513503", 
+    "1513518"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513600", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513493: -22 mm clear to the column bar at 0 (25 needed); 1513498: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513600, 
+   "bar_id": 1514312, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513493", 
+    "1513498"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513493 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513498 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -224.99999999999974)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513600", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513493: -22 mm clear to the column bar at 0 (25 needed); 1513498: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513600, 
+   "bar_id": 1514317, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513493", 
+    "1513498"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -224.99999999999974)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513602", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513493: -22 mm clear to the column bar at 0 (25 needed); 1513508: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513602, 
+   "bar_id": 1514323, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513493", 
+    "1513508"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513602", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513493: -22 mm clear to the column bar at 0 (25 needed); 1513508: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513602, 
+   "bar_id": 1514325, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513493", 
+    "1513508"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513604", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513503: -22 mm clear to the column bar at 0 (25 needed); 1513508: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513604, 
+   "bar_id": 1514335, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513503", 
+    "1513508"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -224.99999999999994)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0, 6225.0)", 
+     "value": "(5105.0, 5775.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513604", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513503: -22 mm clear to the column bar at 0 (25 needed); 1513508: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513604, 
+   "bar_id": 1514337, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513503", 
+    "1513508"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -224.99999999999994)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0, 6225.0)", 
+     "value": "(5105.0, 5775.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513606", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513508: -22 mm clear to the column bar at 0 (25 needed); 1513523: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513606, 
+   "bar_id": 1514324, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513508", 
+    "1513523"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513508 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513523 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513606", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513508: -22 mm clear to the column bar at 0 (25 needed); 1513523: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513606, 
+   "bar_id": 1514329, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513508", 
+    "1513523"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513608", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513508: -22 mm clear to the column bar at 0 (25 needed); 1513513: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513608, 
+   "bar_id": 1514336, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513508", 
+    "1513513"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513508 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513513 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -224.99999999999974)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513608", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513508: -22 mm clear to the column bar at 0 (25 needed); 1513513: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513608, 
+   "bar_id": 1514341, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513508", 
+    "1513513"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -224.99999999999974)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513610", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513498: -22 mm clear to the column bar at 0 (25 needed); 1513513: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513610, 
+   "bar_id": 1514347, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513498", 
+    "1513513"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513610", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513498: -22 mm clear to the column bar at 0 (25 needed); 1513513: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513610, 
+   "bar_id": 1514349, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513498", 
+    "1513513"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513612", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513518: -22 mm clear to the column bar at 0 (25 needed); 1513523: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513612, 
+   "bar_id": 1514359, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513518", 
+    "1513523"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -224.99999999999994)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0, 6225.0)", 
+     "value": "(5105.0, 5775.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513612", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513518: -22 mm clear to the column bar at 0 (25 needed); 1513523: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513612, 
+   "bar_id": 1514361, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513518", 
+    "1513523"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(225.00000000000003, -224.99999999999994)", 
+     "value": "(225.00000000000003, 895.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(5775.0, 6225.0)", 
+     "value": "(5105.0, 5775.0)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513614", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513513: -22 mm clear to the column bar at 0 (25 needed); 1513528: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513614, 
+   "bar_id": 1514348, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513513", 
+    "1513528"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513513 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513528 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513614", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513513: -22 mm clear to the column bar at 0 (25 needed); 1513528: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513614, 
+   "bar_id": 1514353, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513513", 
+    "1513528"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513616", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513523: -22 mm clear to the column bar at 0 (25 needed); 1513528: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513616, 
+   "bar_id": 1514360, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513523", 
+    "1513528"
+   ], 
+   "layer": "top", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear along its length of secondary beam, slab and hairpin bars (EC2 8.2(2), decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513523 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-43.2", 
+     "check": "clear to the column bars at 1513528 (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -224.99999999999974)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to secondary beam, slab and hairpin bars (EC2 8.2(2), decision 2)"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513616", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513523: -22 mm clear to the column bar at 0 (25 needed); 1513528: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513616, 
+   "bar_id": 1514365, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513523", 
+    "1513528"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "(224.99999999999974, -224.99999999999974)", 
+     "value": "(224.99999999999974, 894.99999999999977)", 
+     "check": "crank within the clear span (decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513626", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513489: -22 mm clear to the column bar at 0 (25 needed); 1513504: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513626, 
+   "bar_id": 1514373, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513489", 
+    "1513504"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513628", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513489: -22 mm clear to the column bar at 0 (25 needed); 1513494: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513628, 
+   "bar_id": 1514387, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513489", 
+    "1513494"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513630", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513504: -22 mm clear to the column bar at 0 (25 needed); 1513519: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513630, 
+   "bar_id": 1514377, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513504", 
+    "1513519"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513632", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513494: -22 mm clear to the column bar at 0 (25 needed); 1513499: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513632, 
+   "bar_id": 1514391, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513494", 
+    "1513499"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513634", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513494: -22 mm clear to the column bar at 0 (25 needed); 1513509: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513634, 
+   "bar_id": 1514105, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513494", 
+    "1513509"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513636", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513504: -22 mm clear to the column bar at 0 (25 needed); 1513509: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513636, 
+   "bar_id": 1514119, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513504", 
+    "1513509"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513638", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513509: -22 mm clear to the column bar at 0 (25 needed); 1513524: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513638, 
+   "bar_id": 1514109, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513509", 
+    "1513524"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513640", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513509: -22 mm clear to the column bar at 0 (25 needed); 1513514: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513640, 
+   "bar_id": 1514123, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513509", 
+    "1513514"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513642", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513499: -22 mm clear to the column bar at 0 (25 needed); 1513514: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513642, 
+   "bar_id": 1514131, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513499", 
+    "1513514"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513644", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513519: -22 mm clear to the column bar at 0 (25 needed); 1513524: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513644, 
+   "bar_id": 1514145, 
+   "crank_mm": null, 
+   "mark": "02", 
+   "y_mm": -0.0, 
+   "supports": [
+    "1513519", 
+    "1513524"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513646", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513514: -22 mm clear to the column bar at 0 (25 needed); 1513529: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513646, 
+   "bar_id": 1514135, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513514", 
+    "1513529"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }, 
+  {
+   "beam": "1513648", 
+   "dia": 20.0, 
+   "rule": "R3", 
+   "shift_mm": null, 
+   "reason": "1513524: -22 mm clear to the column bar at 0 (25 needed); 1513529: -22 mm clear to the column bar at 0 (25 needed) - no shift or crank meets every check: manual review (second layer, smaller bars or the column bars moved, all design changes)", 
+   "beam_id": 1513648, 
+   "bar_id": 1514149, 
+   "crank_mm": null, 
+   "mark": "01", 
+   "y_mm": 0.0, 
+   "supports": [
+    "1513524", 
+    "1513529"
+   ], 
+   "layer": "bottom", 
+   "support": null, 
+   "status": "proposed", 
+   "checks": [
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "45.1", 
+     "value": "47.0", 
+     "check": "shift within half the pitch and 50 mm (P2, decision 3)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }, 
+    {
+     "ok": false, 
+     "limit": "compression_all, no tension", 
+     "value": "None", 
+     "check": "compression at the joint in every combination, by the model's forces (EC2 8.3, decision 1)"
+    }, 
+    {
+     "ok": false, 
+     "limit": "40.0", 
+     "value": "47.0", 
+     "check": "offset <= min(75 mm, 2 dia.) (SMDSC, decision 2)"
+    }, 
+    {
+     "ok": false, 
+     "limit": ">= max(bar, agg + 5, 20)", 
+     "value": "-47.0", 
+     "check": "clear to the layer at the joint (EC2 8.2(2))"
+    }
+   ]
+  }
+ ], 
+ "forces": null
+}
