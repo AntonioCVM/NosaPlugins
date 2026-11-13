@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from pyrevit import forms, DB, revit
-from pyrevit.forms import WPFWindow
 import os
 import sys
 import System.Windows
@@ -21,7 +20,7 @@ def _ensure_extension_lib():
         sys.path.append(lib_path)
 
 _ensure_extension_lib()
-from nosa_utils.theme import ThemeManager
+from nosa_utils.base_window import NOSAWindow
 
 class CategoryItem(object):
     def __init__(self, data):
@@ -47,55 +46,30 @@ class AssignmentItem(object):
         self.TagSymbol = tag_symbol
         self.BicName = bic_name
 
-class TagAllWindow(WPFWindow):
+class TagAllWindow(NOSAWindow):
     def __init__(self, doc):
         self.doc = doc
         self.logic = TagLogic(doc)
-        
-        # DIAGNOSTIC RUN (Removed for performance)
-        # try:
-        #      self.logic.diagnose_tags_in_project()
-        # (diagnostic block removed)
-        
+
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'tag_all')
+        self.ChkDarkMode.IsChecked = self.dark_mode
 
         # Collections
         self.all_categories = []
-        self.all_views = [] 
+        self.all_views = []
         self.assignments = ObservableCollection[AssignmentItem]()
         self.GridAssignments.ItemsSource = self.assignments
-        
+
         # Internal Map
-        self.current_tag_map = {} 
-        
+        self.current_tag_map = {}
+
         # Load Data
         self.LoadCategories()
         self.LoadViews()
-        
+
         # Events
         self.ListCategories.SelectionChanged += self.OnCategorySelectionChanged
-
-        # Theme
-        self._dark_mode = ThemeManager.load_theme()
-        self.ChkDarkMode.IsChecked = self._dark_mode
-        self.ApplyTheme()
-
-    def ApplyTheme(self):
-        colors = ThemeManager.get_colors(self._dark_mode)
-        try:
-            self.Resources["BgColor"].Color = colors['bg']
-            self.Resources["PanelColor"].Color = colors['panel']
-            self.Resources["TextColor"].Color = colors['text']
-            self.Resources["AccentColor"].Color = colors['accent']
-            self.Resources["BorderColor"].Color = colors['border']
-        except Exception:
-            pass
-
-    def Theme_Toggled(self, sender, args):
-        self._dark_mode = bool(self.ChkDarkMode.IsChecked)
-        ThemeManager.save_theme(self._dark_mode)
-        self.ApplyTheme()
 
     def LoadCategories(self):
         cats = self.logic.get_categories()

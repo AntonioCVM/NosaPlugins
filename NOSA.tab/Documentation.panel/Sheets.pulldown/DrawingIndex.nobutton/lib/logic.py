@@ -13,30 +13,10 @@ if _lib not in sys.path:
     sys.path.insert(0, _lib)
 from nosa_utils import sheet_protocol as _sp
 
-# NOSA File Naming Protocol fields — in display order
-_NOSA_PARAM_ORDER = [
-    # Core identification (NOSA protocol fields 1-8)
-    'Sheet Number',           # F1+F2+F3+F4+F5+F6+F7 encoded
-    'Sheet Name',             # Description
-    'Project Number',         # Field 1
-    'Originator',             # Field 2 (NOSA)
-    'Functional Breakdown',   # Field 3 (DT, GA, SC...)
-    'Spatial Breakdown',      # Field 4 (000, FND, ZZZ...)
-    'Form',                   # Field 5 — read/write via sheet + title blocks
-    'Discipline',             # Field 6 (S, C, X...)
-    'Document Number',        # Field 7 (2200, 4000...)
-    'Current Revision',       # Field 8 (P01, I01, C01...)
-    'Current Revision Date',
-    'Current Revision Description',
-    # Standard sheet params
-    'Scale',
-    'Drawn By',
-    'Checked By',
-    'Designed By',
-    'Approved By',
-    'Sheet Issue Date',
-    'File Path',
-]
+# NOSA File Naming Protocol fields — in display order.
+# Single source of truth lives in nosa_utils/sheet_protocol.py (shared with
+# Sheet Export Hub's "NOSA Protocols" column preset).
+_NOSA_PARAM_ORDER = _sp.NOSA_PARAM_ORDER
 
 def _get_id(eid):
     if hasattr(eid, 'Value'): return eid.Value

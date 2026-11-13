@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from pyrevit import forms, DB, revit
-from pyrevit.forms import WPFWindow
 import os
 import sys
 import System.Windows
@@ -20,7 +19,7 @@ def _ensure_extension_lib():
         sys.path.append(lib_path)
 
 _ensure_extension_lib()
-from nosa_utils.theme import ThemeManager
+from nosa_utils.base_window import NOSAWindow
 
 class ViewportItem(object):
     def __init__(self, data):
@@ -38,14 +37,15 @@ class SheetSetItem(object):
     def __repr__(self):
         return self.Name
 
-class AlignTitlesWindow(WPFWindow):
+class AlignTitlesWindow(NOSAWindow):
     def __init__(self, doc):
         self.doc = doc
         self.uidoc = revit.uidoc
         self.logic = AlignLogic(doc)
-        
+
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'align_view_titles')
+        self.ChkDarkMode.IsChecked = self.dark_mode
 
         # State
         self.ref_vp = None
@@ -56,35 +56,14 @@ class AlignTitlesWindow(WPFWindow):
         # UI Collections
         self.preview_items = ObservableCollection[ViewportItem]()
         self.GridPreview.ItemsSource = self.preview_items
-        
+
         self.sheet_sets = ObservableCollection[SheetSetItem]()
         # We need to bind specific ListBox props if we use custom class, or just strings?
         # Standard WPF ListBox supports objects.
         self.ListSheetSets.ItemsSource = self.sheet_sets
-        
+
         # Load Sets
         self.LoadSheetSets()
-
-        # Theme
-        self._dark_mode = ThemeManager.load_theme()
-        self.ChkDarkMode.IsChecked = self._dark_mode
-        self.ApplyTheme()
-
-    def ApplyTheme(self):
-        colors = ThemeManager.get_colors(self._dark_mode)
-        try:
-            self.Resources["BgColor"].Color = colors['bg']
-            self.Resources["PanelColor"].Color = colors['panel']
-            self.Resources["TextColor"].Color = colors['text']
-            self.Resources["AccentColor"].Color = colors['accent']
-            self.Resources["BorderColor"].Color = colors['border']
-        except Exception:
-            pass
-
-    def Theme_Toggled(self, sender, args):
-        self._dark_mode = bool(self.ChkDarkMode.IsChecked)
-        ThemeManager.save_theme(self._dark_mode)
-        self.ApplyTheme()
 
     def LoadSheetSets(self):
         sets = self.logic.get_sheet_sets()

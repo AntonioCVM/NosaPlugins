@@ -17,7 +17,6 @@ from System.Windows.Input import Keyboard, ModifierKeys
 from System.Collections.ObjectModel import ObservableCollection
 
 from pyrevit import revit, DB, UI, forms
-from pyrevit.forms import WPFWindow
 
 from managers import ViewSetManager, NamingProfileManager, LanguageManager
 from utils import Utils
@@ -25,6 +24,7 @@ from view_collector import ViewCollector
 from exporters import ExportManager
 from naming import NamingBuilder
 from nosa_utils.logging import Logger
+from nosa_utils.base_window import NOSAWindow
 from nosa_utils.theme import ThemeManager
 from nosa_utils.i18n import Localization
 from config import Config
@@ -63,16 +63,20 @@ class NamingProfileItem(object):
     def __str__(self):
         return self.Name
 
-class ExportSheetsProForm(WPFWindow):
+class ExportSheetsProForm(NOSAWindow):
     """Modern WPF UI for Export Sheets Pro v4.2"""
-    
+
     def __init__(self, doc):
         self.doc = doc
-        
+
         # Determine XAML path
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml_file)
-        
+        # NOSAWindow.__init__ loads the XAML, merges the shared theme, and
+        # calls self.ApplyTheme(self.dark_mode) — dispatches to THIS
+        # class's own ApplyTheme override below (it also syncs
+        # ChkDarkMode), so no separate theme init call is needed here.
+        NOSAWindow.__init__(self, xaml_file, 'export_sheets')
+
         # Managers
         self.naming_builder = NamingBuilder()
         self.output_folder = ""
@@ -81,19 +85,15 @@ class ExportSheetsProForm(WPFWindow):
         self._last_checked_index = -1
         self._loaded_config = {}
         self._is_initializing = True
-        
+
         # Data
         self.all_sheets = []
         self.sheet_items = ObservableCollection[SheetItem]()
         self.project_params = {}  # Store project parameters
-        
+
         # Setup UI
         self.ListSheets.ItemsSource = self.sheet_items
-        
-        # Theme
-        self.dark_mode = ThemeManager.load_theme()
-        self.ApplyTheme(self.dark_mode)
-        
+
         # Setup Tabs (Sidebar Navigation)
         self.tabs = {
             "BtnTabSheets": self.TabSheets,

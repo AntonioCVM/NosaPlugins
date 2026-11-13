@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from pyrevit import forms, DB, revit
-from pyrevit.forms import WPFWindow
 import os
 import sys
 import System.Windows
@@ -16,7 +15,7 @@ def _ensure_extension_lib():
         sys.path.append(lib_path)
 
 _ensure_extension_lib()
-from nosa_utils.theme import ThemeManager
+from nosa_utils.base_window import NOSAWindow
 
 class ViewItem(object):
     def __init__(self, element):
@@ -27,44 +26,25 @@ class ViewItem(object):
     def __repr__(self):
         return self.Name
 
-class DimensionWallsWindow(WPFWindow):
+class DimensionWallsWindow(NOSAWindow):
     def __init__(self, doc):
         self.doc = doc
         self.logic = DimensionLogic(doc)
-        
+
         self.all_views = []
         self.visible_views = []
-        
+
         # Init list before XAML loads to be safe
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml_file)
+        NOSAWindow.__init__(self, xaml_file, 'dimension_walls')
+        self.ChkDarkMode.IsChecked = self.dark_mode
 
         # Load Data
         self.LoadDimensionTypes()
         self.LoadViews()
-        
+
         # Events (Defensive)
         self.TxtFilterViews.TextChanged += self.FilterViews_Changed
-
-        self._dark_mode = ThemeManager.load_theme()
-        self.ChkDarkMode.IsChecked = self._dark_mode
-        self.ApplyTheme()
-
-    def ApplyTheme(self):
-        colors = ThemeManager.get_colors(self._dark_mode)
-        try:
-            self.Resources["BgColor"].Color = colors['bg']
-            self.Resources["PanelColor"].Color = colors['panel']
-            self.Resources["TextColor"].Color = colors['text']
-            self.Resources["AccentColor"].Color = colors['accent']
-            self.Resources["BorderColor"].Color = colors['border']
-        except Exception:
-            pass
-
-    def Theme_Toggled(self, sender, args):
-        self._dark_mode = bool(self.ChkDarkMode.IsChecked)
-        ThemeManager.save_theme(self._dark_mode)
-        self.ApplyTheme()
 
     def LoadDimensionTypes(self):
         types = self.logic.get_dimension_types()

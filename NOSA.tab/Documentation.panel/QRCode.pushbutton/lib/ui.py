@@ -10,7 +10,7 @@ generate_nosa_qr() returns:
 import os
 import sys
 
-from pyrevit.forms import WPFWindow
+from nosa_utils.base_window import NOSAWindow
 import System.Windows
 import System.Windows.Media as Media
 import System.Windows.Input as Input
@@ -137,12 +137,12 @@ def _result_to_wpf_bitmap(result):
 # Window
 # ---------------------------------------------------------------------------
 
-class QRCodeWindow(WPFWindow):
+class QRCodeWindow(NOSAWindow):
     """Main QR Code Generator window (generation + titleblock placement)."""
 
     def __init__(self, doc=None, uidoc=None):
         xaml = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        WPFWindow.__init__(self, xaml)
+        NOSAWindow.__init__(self, xaml, 'qr_code')
         self._doc      = doc    # Revit Document (may be None outside Revit context)
         self._result   = None   # PIL Image or temp PNG path
         self._tmp_path = None   # last temp file (IronPython path); cleaned up on close

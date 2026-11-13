@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from pyrevit import forms, revit, DB, script
-import wpf
 import sys
 import os
 import System
 from System.Collections.ObjectModel import ObservableCollection
+
+from nosa_utils.base_window import NOSAWindow
 
 # Import Logic Modules (absolute — lib_path injected by script.py)
 from logic_coords import CoordinateLogic
@@ -29,14 +30,16 @@ class ScopeBoxItem:
         self.Name = name
         self.IsSelected = False
 
-class PileMasterWindow(forms.WPFWindow):
+class PileMasterWindow(NOSAWindow):
     def __init__(self):
         xaml_file = os.path.join(os.path.dirname(__file__), 'ui.xaml')
-        wpf.LoadComponent(self, xaml_file)
-        
+        NOSAWindow.__init__(self, xaml_file, 'pile_master')
+        if hasattr(self, 'ChkDarkMode'):
+            self.ChkDarkMode.IsChecked = self.dark_mode
+
         self.doc = revit.doc
         self.uidoc = revit.uidoc
-        
+
         # Initialize Logic
         self.logic_coords = CoordinateLogic(self.doc)
         self.logic_num = NumberingLogic(self.doc)
