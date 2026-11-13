@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"$CLAUDE_PROJECT_DIR/tools/nosa_lint_hook.py\"",
+            "timeout": 30,
+            "statusMessage": "Running nosa_lint..."
+          }
+        ]
+      }
+    ]
+  }
+}

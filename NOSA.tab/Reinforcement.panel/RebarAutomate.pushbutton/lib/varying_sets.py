@@ -76,10 +76,13 @@ def _offset(a, b, normal):
     return _dot(_sub(b[0], a[0]), normal)
 
 
-def split_runs(chains, spacing_tol_mm=1.0, min_bars=2):
+MAX_RUN_STEP_MM = 600.0     # bars further apart are no rows of one set (2026-10-17: S20's two edge rows, 4770 apart)
+
+
+def split_runs(chains, spacing_tol_mm=1.0, min_bars=2, max_step_mm=MAX_RUN_STEP_MM):
     """
     Consecutive chains that one varying set can represent: same segment family, all in parallel
-    planes (square to one normal) at one constant step. Returns [[index, ...], ...] in order;
+    planes (square to one normal) at one constant step, no more than max_step_mm. Returns [[index, ...], ...] in order;
     chains no run can take come back as runs of one.
     """
     runs = []
@@ -104,7 +107,7 @@ def split_runs(chains, spacing_tol_mm=1.0, min_bars=2):
                 d = _offset(prev, chain, n)
                 # the bars must sit in parallel planes: no drift inside the plane is allowed
                 # beyond what the face constraints give (checked on the whole chain later)
-                ok = d > spacing_tol_mm and (step is None or abs(d - step) <= spacing_tol_mm)
+                ok = spacing_tol_mm < d <= max_step_mm and (step is None or abs(d - step) <= spacing_tol_mm)
                 if ok and normal is None:
                     normal = n
                 if ok and step is None:

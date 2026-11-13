@@ -34,6 +34,7 @@ from exporters import ExportManager
 from naming import NamingBuilder
 from validation import ExportValidator
 import column_presets
+import file_bundle
 import param_editor
 
 logger = Logger()
@@ -126,7 +127,11 @@ class SheetExportHubWindow(NOSAWindow):
         # None = use the fixed NOSA quality preset; otherwise the name of a
         # DWG Export Setup already saved in this document.
         self.dwg_setup_name = None
-        self.combined_pdf_name = "Combined Export"
+        # Combined PDF / DWG ZIP names always start as the Revit file name
+        # (never persisted: a name saved in one project is wrong in the next).
+        self.revit_name = self._revit_file_name()
+        self.combined_pdf_name = self.revit_name
+        self.dwg_zip_name = self.revit_name
         # Sheets and Views need different columns (Sheet Number / Project
         # Number / Originator etc. don't apply to views) — tracked
         # separately per mode, active_column_preset is just whichever of
@@ -166,6 +171,9 @@ class SheetExportHubWindow(NOSAWindow):
         self._load_sheet_sets()
 
         self._apply_config(self.LoadConfig())
+        self.TxtCombinedPdfName.Text = self.combined_pdf_name
+        self.TxtZipDwgName.Text = self.dwg_zip_name
+        self._refresh_bundle_controls()
         self._sync_active_preset()
 
         self.LoadData()
@@ -751,6 +759,7 @@ class SheetExportHubWindow(NOSAWindow):
     def Format_Changed(self, sender, args):
         if self._is_initializing:
             return
+        self._refresh_bundle_controls()
         self.UpdateStatus()
         self.SaveLastConfig()
 
@@ -792,8 +801,53 @@ class SheetExportHubWindow(NOSAWindow):
     def CombinedPdfName_Changed(self, sender, args):
         if self._is_initializing:
             return
-        self.combined_pdf_name = self.TxtCombinedPdfName.Text or "Combined Export"
-        self.SaveLastConfig()
+        self.combined_pdf_name = (self.TxtCombinedPdfName.Text or u'').strip() or self.revit_name
+
+    def ZipDwgName_Changed(self, sender, args):
+        if self._is_initializing:
+            return
+        self.dwg_zip_name = (self.TxtZipDwgName.Text or u'').strip() or self.revit_name
+
+    def _revit_file_name(self):
+        """Revit file name without .rvt; the central model's name for a workshared local copy."""
+        path = u''
+        try:
+            if self.doc.IsWorkshared:
+                central = self.doc.GetWorksharingCentralModelPath()
+                if central is not None:
+                    path = DB.ModelPathUtils.ConvertModelPathToUserVisiblePath(central)
+        except Exception:
+            log_swallowed(_LOG, u'_revit_file_name')
+        try:
+            name = file_bundle.revit_base_name(path or self.doc.PathName, self.doc.Title)
+        except Exception:
+            name = u''
+        return name or u'Combined Export'
+
+    def _refresh_bundle_controls(self):
+        """Combined PDF / DWG ZIP sub-options are only editable when their parent options are ticked."""
+        combine = self.ChkCombinePdf.IsChecked == True
+        dwg = self.ChkDWG.IsChecked == True
+        self.PanelCombinePdf.IsEnabled = combine
+        self.ChkDeletePdfs.IsEnabled = combine and self.ChkPDF.IsChecked == True
+        self.ChkZipDwg.IsEnabled = dwg
+        self.PanelZipDwg.IsEnabled = dwg and self.ChkZipDwg.IsChecked == True
+
+    def _export_formats(self):
+        pdf = self.ChkPDF.IsChecked == True
+        dwg = self.ChkDWG.IsChecked == True
+        combine = self.ChkCombinePdf.IsChecked == True
+        dwg_zip = dwg and self.ChkZipDwg.IsChecked == True
+        return {
+            'pdf': pdf,
+            'dwg': dwg,
+            'dxf': self.ChkDXF.IsChecked == True,
+            'pdf_combine': combine,
+            'pdf_delete_individual': pdf and combine and self.ChkDeletePdfs.IsChecked == True,
+            'dwg_zip': dwg_zip,
+            'dwg_delete_individual': dwg_zip and self.ChkDeleteDwgs.IsChecked == True,
+            'force_black': self._force_black(),
+        }
 
     def _pre_export_check(self, elements):
         if not (hasattr(self, 'ChkPreExportCheck') and self.ChkPreExportCheck.IsChecked == True):
@@ -873,6 +927,10 @@ class SheetExportHubWindow(NOSAWindow):
         self.ChkDWG.IsChecked = formats.get('dwg', False)
         self.ChkDXF.IsChecked = formats.get('dxf', False)
         self.ChkCombinePdf.IsChecked = formats.get('pdf_combine', False)
+        self.ChkDeletePdfs.IsChecked = formats.get('pdf_delete_individual', False)
+        self.ChkZipDwg.IsChecked = formats.get('dwg_zip', False)
+        self.ChkDeleteDwgs.IsChecked = formats.get('dwg_delete_individual', False)
+        self._refresh_bundle_controls()
 
         if data.get('force_black'):
             self.RbForceBlack.IsChecked = True
@@ -885,9 +943,6 @@ class SheetExportHubWindow(NOSAWindow):
         if target in items:
             self.ComboDwgSetup.SelectedIndex = items.index(target)
 
-        self.combined_pdf_name = data.get('combined_pdf_name') or "Combined Export"
-        self.TxtCombinedPdfName.Text = self.combined_pdf_name
-
         self.UpdateStatus()
         self.SaveLastConfig()
 
@@ -896,16 +951,12 @@ class SheetExportHubWindow(NOSAWindow):
         name = ask_for_string(prompt="Enter a name for this export preset:", title="Save Export Preset")
         if not name:
             return
-        export_formats = {
-            'pdf': self.ChkPDF.IsChecked == True,
-            'dwg': self.ChkDWG.IsChecked == True,
-            'dxf': self.ChkDXF.IsChecked == True,
-            'pdf_combine': self.ChkCombinePdf.IsChecked == True,
-        }
+        export_formats = self._export_formats()
+        export_formats.pop('force_black', None)
         ok = ExportPresetManager.save_preset(
             name.strip(), self.naming_builder, self.output_folder, self.subfolder,
             export_formats, self._force_black(),
-            dwg_setup_name=self.dwg_setup_name, combined_pdf_name=self.combined_pdf_name
+            dwg_setup_name=self.dwg_setup_name
         )
         if ok:
             self._load_export_presets()
@@ -937,13 +988,7 @@ class SheetExportHubWindow(NOSAWindow):
         if hasattr(self, 'BtnApplyEdits'):
             self.BtnApplyEdits.IsEnabled = len(self._pending_changes) > 0
 
-        export_formats = {
-            'pdf': self.ChkPDF.IsChecked == True,
-            'dwg': self.ChkDWG.IsChecked == True,
-            'dxf': self.ChkDXF.IsChecked == True,
-            'pdf_combine': self.ChkCombinePdf.IsChecked == True,
-            'force_black': self._force_black(),
-        }
+        export_formats = self._export_formats()
         elements = [item.Element for item in checked]
         output_folder = self._effective_output_folder()
 
@@ -988,13 +1033,7 @@ class SheetExportHubWindow(NOSAWindow):
 
         self.LoadProjectParameters()
 
-        export_formats = {
-            'pdf': self.ChkPDF.IsChecked == True,
-            'dwg': self.ChkDWG.IsChecked == True,
-            'dxf': self.ChkDXF.IsChecked == True,
-            'pdf_combine': self.ChkCombinePdf.IsChecked == True,
-            'force_black': self._force_black(),
-        }
+        export_formats = self._export_formats()
 
         # Create the destination folder before validating/confirming, so the
         # confirm dialog's disk checks (existence, permissions, space) see
@@ -1006,10 +1045,6 @@ class SheetExportHubWindow(NOSAWindow):
             except Exception as e:
                 MessageBox.Show("Could not create destination folder: {}".format(e))
                 return
-
-        selected_elements = self._drawing_check_gate(selected_elements)
-        if not selected_elements:
-            return
 
         from confirm_export_dialog import ConfirmExportDialog
         dlg = ConfirmExportDialog(
@@ -1045,7 +1080,8 @@ class SheetExportHubWindow(NOSAWindow):
         mgr = ExportManager(
             self.doc, selected_elements, self.naming_builder, output_folder,
             export_formats, self.quality_preset, self.project_params, self.is_exporting_views,
-            dwg_setup_name=self.dwg_setup_name, combined_pdf_name=self.combined_pdf_name
+            dwg_setup_name=self.dwg_setup_name, combined_pdf_name=self.combined_pdf_name,
+            dwg_zip_name=self.dwg_zip_name
         )
 
         progress_re = re.compile(r'^PROCESSING (\d+)/(\d+)')
@@ -1081,29 +1117,6 @@ class SheetExportHubWindow(NOSAWindow):
         sheets = [e for e in elements if isinstance(e, DB.ViewSheet)]
         labels = [u'{} - {}'.format(s.SheetNumber, s.Name) for s in sheets]
         return sheets, labels, sheet_checks.check_sheets(self.doc, sheets)
-
-    def _drawing_check_gate(self, elements):
-        """NOSA protocol + content check before exporting sheets: export all, compliant only, or cancel."""
-        if self.is_exporting_views:
-            return elements
-        try:
-            sheets, labels, findings = self._drawing_findings(elements)
-        except Exception as e:
-            logger.error("Drawing check failed", e)
-            return elements
-        if not findings:
-            return elements
-        from protocol_report_dialog import ProtocolReportDialog, ALL, COMPLIANT
-        dlg = ProtocolReportDialog(findings, labels, for_export=True)
-        dlg.Owner = self
-        dlg.ShowDialog()
-        if dlg.choice == ALL:
-            return elements
-        if dlg.choice == COMPLIANT:
-            keep = set(dlg.compliant_labels)
-            return [e for e in elements if not isinstance(e, DB.ViewSheet) or
-                    u'{} - {}'.format(e.SheetNumber, e.Name) in keep]
-        return []
 
     def CheckDrawings_Click(self, sender, args):
         selected = [item.Element for item in self.sheet_items if item.IsChecked]
@@ -1164,13 +1177,16 @@ class SheetExportHubWindow(NOSAWindow):
                 'format_dwg': self.ChkDWG.IsChecked == True,
                 'format_dxf': self.ChkDXF.IsChecked == True,
                 'format_pdf_combine': self.ChkCombinePdf.IsChecked == True,
+                'format_pdf_delete_individual': self.ChkDeletePdfs.IsChecked == True,
+                'format_dwg_zip': self.ChkZipDwg.IsChecked == True,
+                'format_dwg_delete_individual': self.ChkDeleteDwgs.IsChecked == True,
                 'force_black': self._force_black(),
                 'quality_preset': self.quality_preset,
                 'sheet_column_preset': self.sheet_column_preset,
                 'view_column_preset': self.view_column_preset,
                 'dwg_setup_name': self.dwg_setup_name,
-                'combined_pdf_name': self.combined_pdf_name,
             })
+            cfg.pop('combined_pdf_name', None)
             self.SaveConfig(cfg)
         except Exception:
             log_swallowed(_LOG, u'SaveLastConfig')
@@ -1194,6 +1210,9 @@ class SheetExportHubWindow(NOSAWindow):
         self.ChkDWG.IsChecked = cfg.get('format_dwg', False)
         self.ChkDXF.IsChecked = cfg.get('format_dxf', False)
         self.ChkCombinePdf.IsChecked = cfg.get('format_pdf_combine', False)
+        self.ChkDeletePdfs.IsChecked = cfg.get('format_pdf_delete_individual', False)
+        self.ChkZipDwg.IsChecked = cfg.get('format_dwg_zip', False)
+        self.ChkDeleteDwgs.IsChecked = cfg.get('format_dwg_delete_individual', False)
         if cfg.get('force_black'):
             self.RbForceBlack.IsChecked = True
         else:
@@ -1207,9 +1226,6 @@ class SheetExportHubWindow(NOSAWindow):
         target = self.dwg_setup_name if self.dwg_setup_name in items else self._DWG_SETUP_DEFAULT_LABEL
         if target in items:
             self.ComboDwgSetup.SelectedIndex = items.index(target)
-
-        self.combined_pdf_name = cfg.get('combined_pdf_name') or "Combined Export"
-        self.TxtCombinedPdfName.Text = self.combined_pdf_name
 
         self.sheet_column_preset = cfg.get('sheet_column_preset', column_presets.DEFAULT_PRESET_NAME)
         self.view_column_preset = cfg.get('view_column_preset', column_presets.DEFAULT_VIEW_PRESET_NAME)

@@ -44,12 +44,12 @@ class ExportValidator:
                         
                         # Solo registrar info disponible, sin advertencias
                         self.info.append(
-                            "Espacio en disco: {:.2f} GB disponibles".format(free_gb)
+                            "Disk space: {:.2f} GB available".format(free_gb)
                         )
                     else:
-                        logger.warning("No se pudo obtener información del disco")
+                        logger.warning("Could not read disk information")
                 else:
-                    logger.warning("No se pudo determinar la unidad de disco")
+                    logger.warning("Could not determine the disk drive")
             else:
                 # Para sistemas no-Windows, intentar con shutil si está disponible
                 try:
@@ -60,12 +60,12 @@ class ExportValidator:
                         
                         # Solo registrar info disponible, sin advertencias
                         self.info.append(
-                            "Espacio en disco: {:.2f} GB disponibles".format(free_gb)
+                            "Disk space: {:.2f} GB available".format(free_gb)
                         )
                 except Exception:
-                    logger.warning("No se pudo verificar espacio en disco (método alternativo no disponible)")
+                    logger.warning("Could not check disk space (fallback method not available)")
         except Exception as e:
-            logger.warning("No se pudo verificar espacio en disco", e)
+            logger.warning("Could not check disk space", e)
     
     def _check_write_permissions(self, folder_path):
         """Verifica permisos de escritura"""
@@ -75,13 +75,13 @@ class ExportValidator:
                 with open(test_file, 'w') as f:
                     f.write('test')
                 os.remove(test_file)
-                self.info.append("Permisos de escritura: OK")
+                self.info.append("Write permissions: OK")
             except Exception as e:
                 self.errors.append(
-                    "Sin permisos de escritura en la carpeta: {}".format(str(e))
+                    "No write permission on the folder: {}".format(str(e))
                 )
         except Exception as e:
-            logger.warning("No se pudo verificar permisos", e)
+            logger.warning("Could not check write permissions", e)
     
     def _check_existing_files(self, elements, naming_builder, output_folder, export_formats, is_views=False, project_params=None):
         """Verifica archivos existentes que serán sobrescritos"""
@@ -109,10 +109,10 @@ class ExportValidator:
             
             if existing_files:
                 self.warnings.append(
-                    "{} archivo(s) existente(s) serán sobrescritos".format(len(existing_files))
+                    "{} existing file(s) will be overwritten".format(len(existing_files))
                 )
         except Exception as e:
-            logger.warning("Error verificando archivos existentes", e)
+            logger.warning("Error checking existing files", e)
     
     def _check_element_validity(self, elements, is_views=False):
         """Verifica validez de elementos (sheets o views)"""
@@ -131,12 +131,12 @@ class ExportValidator:
                     if element.IsPlaceholder:
                         invalid_elements.append(element.SheetNumber)
             except Exception as e:
-                logger.warning("Error validando elemento", e)
+                logger.warning("Error validating element", e)
                 invalid_elements.append(str(element.Id))
         
         if invalid_elements:
             self.warnings.append(
-                "{} elemento(s) pueden tener problemas: {}".format(
+                "{} item(s) may have problems: {}".format(
                     len(invalid_elements),
                     ", ".join(invalid_elements[:5])  # Mostrar solo primeros 5
                 )
@@ -148,23 +148,23 @@ class ExportValidator:
         self.warnings = []
         self.info = []
         
-        logger.info("Iniciando validación de exportación...")
+        logger.info("Starting export validation...")
         
         # Validación básica
         if not elements or len(elements) == 0:
-            self.errors.append("No hay elementos seleccionados para exportar")
-            logger.error("No hay elementos seleccionados")
+            self.errors.append("No items selected for export")
+            logger.error("No items selected")
         
         # Verificar que al menos un formato esté seleccionado (excluyendo pdf_combine)
         format_keys = ['pdf', 'dwg', 'dxf']
         if not any([export_formats.get(key, False) for key in format_keys]):
-            self.errors.append("Debe seleccionar al menos un formato de exportación")
-            logger.error("No hay formatos seleccionados")
+            self.errors.append("Select at least one export format")
+            logger.error("No formats selected")
         
         # Validación de carpeta
         if not output_folder:
-            self.errors.append("La carpeta de destino no está especificada")
-            logger.error("Carpeta de destino vacía")
+            self.errors.append("No destination folder has been specified")
+            logger.error("Empty destination folder")
         else:
             # Expandir variables de entorno (Passing doc=None currently, need to fix expand_path_variables to handle doc or pass valid doc)
             # expand_path_variables in Utils uses 'doc' global which is not available here. 
@@ -188,10 +188,10 @@ class ExportValidator:
                 # If variable expansion didn't work, this might fail spuriously.
                 # I'll check if it looks like a variable path
                 if '%' in expanded_folder:
-                    self.info.append("Ruta contiene variables, verificación de existencia omitida.")
+                    self.info.append("The path contains variables; existence check skipped.")
                 else:
                      self.errors.append(
-                        "La carpeta de destino no existe: {}".format(expanded_folder)
+                        "The destination folder does not exist: {}".format(expanded_folder)
                     )
             else:
                 self._check_write_permissions(expanded_folder)
@@ -207,11 +207,11 @@ class ExportValidator:
                         is_view=is_views
                     )
                     if not test_name or len(test_name) < 1:
-                        self.warnings.append("La nomenclatura genera nombres vacíos")
-                        logger.warning("Nomenclatura genera nombres vacíos")
+                        self.warnings.append("The naming template produces empty names")
+                        logger.warning("Naming template produces empty names")
                 except Exception as e:
-                    self.errors.append("Error al generar nomenclatura: {}".format(str(e)))
-                    logger.error("Error generando nomenclatura", e)
+                    self.errors.append("Error building the file name: {}".format(str(e)))
+                    logger.error("Error building the file name", e)
         
         # Validación de nombres duplicados
         if elements and naming_builder:
@@ -228,11 +228,11 @@ class ExportValidator:
                         duplicates.append(name)
                     names.append(name)
                 except Exception as e:
-                    logger.warning("Error generando nombre para elemento", e)
+                    logger.warning("Error building the file name for an element", e)
             
             if duplicates:
                 self.warnings.append(
-                    "Hay {} nombre(s) duplicado(s). Los archivos se sobrescribirán.".format(len(duplicates))
+                    "{} duplicate file name(s). Those files will be overwritten.".format(len(duplicates))
                 )
         
         # Validación de elementos
@@ -240,7 +240,7 @@ class ExportValidator:
             self._check_element_validity(elements, is_views)
         
         is_valid = len(self.errors) == 0
-        logger.info("Validación completada: {} errores, {} advertencias".format(
+        logger.info("Validation completed: {} error(s), {} warning(s)".format(
             len(self.errors), len(self.warnings)
         ))
         

@@ -338,7 +338,7 @@ def typical_stair_flight():
 
 def stair_section_shapes(run, cover, main_dia, main_spacing, top_dia, top_spacing, dist_dia,
                          dist_spacing, anchorage, slab_anchor=True, ubar_dia=None, starter_dia=None,
-                         starter_mode='cast', starter_lap=600.0, support_depth=500.0):
+                         starter_mode='cast', starter_lap=600.0, support_depth=500.0, a_mm=None):
     """Longitudinal section of one flight (stair_rebar geometry): bars in plane, distribution end-on."""
     import copy
     import stair_rebar
@@ -367,7 +367,7 @@ def stair_section_shapes(run, cover, main_dia, main_spacing, top_dia, top_spacin
         shapes.append({'kind': 'ground', 'x0': -400.0, 'y0': base - depth, 'x1': 900.0, 'y1': base})
     sets = stair_rebar.build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing,
                                     anchorage, top_dia=top_dia, top_spacing=top_spacing,
-                                    slab_anchor=slab_anchor, starters=starters)
+                                    slab_anchor=slab_anchor, starters=starters, a_mm=a_mm)
     labels = []
     for st in sets:
         if st['axis'] == 'v':

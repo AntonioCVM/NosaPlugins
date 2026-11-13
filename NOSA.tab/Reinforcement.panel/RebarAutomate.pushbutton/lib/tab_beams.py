@@ -67,6 +67,7 @@ class BeamsMixin(object):
         if values.get('n_top') == 0 and values.get('n_bottom') == 0:
             errors.append(u'At least one top or bottom bar is required.')
         values['continuous'] = self.ChkBeamContinuous.IsChecked == True
+        values['flexible'] = self.ChkBeamFlexible.IsChecked == True
         if values['continuous'] and values.get('n_top', 0) < 2:
             errors.append(u'A continuous beam needs at least 2 top (hanger) bars.')
         # additional bars (2026-10-05): hogging over the supports, sagging in the spans
@@ -190,6 +191,23 @@ class BeamsMixin(object):
             except Exception:
                 log_swallowed(_LOG, u'RebarAutomateWindow._update_beam_elevation_preview')
 
+        spans = self._beam_line_spans(beams) if len(beams) > 1 else []
+        if spans:
+            # several beams in line: every span between its supports (user 2026-10-18: no preview of a
+            # continuous beam)
+            try:
+                parts = [(x0, rebar_preview.compute_beam_elevation_preview(
+                    x1 - x0, height_mm, cover, bar_dia, bar_dia, st_dia, st_spacing,
+                    end_offset_mm=end_offset, densify_ends=densify,
+                    dense_spacing_mm=dense_spacing, confine_length_mm=confine_length)) for x0, x1 in spans]
+            except Exception:
+                return
+            # the faces between spans; spans meeting at a support's centre line get a nominal 300 mm support
+            supports = [(a1, b0) if b0 - a1 > 1.0 else (a1 - 150.0, a1 + 150.0)
+                        for (_a0, a1), (b0, _b1) in zip(spans, spans[1:])]
+            supports = [(-150.0, 150.0)] + supports + [(spans[-1][1] - 150.0, spans[-1][1] + 150.0)]
+            self._draw_beam_line_preview(canvas, parts, supports, height_mm, spans[-1][1])
+            return
         try:
             data = rebar_preview.compute_beam_elevation_preview(
                 length_mm, height_mm, cover, bar_dia, bar_dia, st_dia, st_spacing,
@@ -198,6 +216,69 @@ class BeamsMixin(object):
         except Exception:
             return
         self._draw_beam_elevation_preview(canvas, data)
+
+    def _beam_line_spans(self, beams):
+        """[(start, end) mm] of beams in one line along the first one's axis, from 0, in order; [] when not in line."""
+        try:
+            axes = [beam_rebar.get_beam_axis(b) for b in beams]
+            d = axes[0].Direction.Normalize()
+            origin = axes[0].GetEndPoint(0)
+            spans = []
+            for ax in axes:
+                if abs(ax.Direction.Normalize().DotProduct(d)) < 0.99:
+                    return []
+                t = sorted((ax.GetEndPoint(i) - origin).DotProduct(d) * 304.8 for i in (0, 1))
+                spans.append((t[0], t[1]))
+        except Exception:
+            return []
+        spans.sort()
+        base = spans[0][0]
+        return [(a - base, b - base) for a, b in spans]
+
+    def _draw_beam_line_preview(self, canvas, parts, supports, h_mm, total_mm):
+        """The elevation of a line of spans: each span's bars and links, the supports between cut (as on the drawings)."""
+        canvas.Children.Clear()
+        cw = canvas.Width or 700.0
+        ch = canvas.Height or 220.0
+        margin = 16.0
+        lo = min([0.0] + [a for a, _b in supports])
+        hi = max([total_mm] + [b for _a, b in supports])
+        scale = min((cw - 2 * margin) / max(hi - lo, 1.0), (ch - 2 * margin) / (h_mm * 2.0))
+        off_x = (cw - (hi - lo) * scale) / 2.0 - lo * scale
+        off_y = ch / 2.0
+
+        def sx(x_mm):
+            return off_x + x_mm * scale
+
+        def sy(y_mm):
+            return off_y - (y_mm - h_mm / 2.0) * scale
+
+        def rect(x0, x1, y0, y1, fill):
+            r = SWS.Rectangle()
+            r.Width, r.Height = max(1.0, (x1 - x0) * scale), max(1.0, (y1 - y0) * scale)
+            r.Stroke, r.StrokeThickness, r.Fill = _PREVIEW_CONCRETE_STROKE, 1.5, fill
+            SWC.Canvas.SetLeft(r, sx(x0))
+            SWC.Canvas.SetTop(r, sy(y1))
+            canvas.Children.Add(r)
+        rect(0.0, total_mm, 0.0, h_mm, _PREVIEW_ELEVATION_FILL)
+        for a, b in supports:
+            if b - a > 1.0:
+                rect(a, b, -h_mm * 0.6, h_mm, _PREVIEW_SECTION_FILL)
+        for x0, data in parts:
+            for st in data.get('stirrups', []):
+                line = SWS.Line()
+                line.X1 = line.X2 = sx(x0 + st['x_mm'])
+                line.Y1, line.Y2 = sy(st['y0_mm']), sy(st['y1_mm'])
+                line.Stroke = _PREVIEW_BAR_FILL
+                line.StrokeThickness = max(1.0, float(st.get('diameter_mm') or 8.0) * scale * 0.6)
+                canvas.Children.Add(line)
+            for bar in data.get('bars', []):
+                line = SWS.Line()
+                line.X1, line.Y1 = sx(x0 + bar['x0_mm']), sy(bar['y0_mm'])
+                line.X2, line.Y2 = sx(x0 + bar['x1_mm']), sy(bar['y1_mm'])
+                line.Stroke = _PREVIEW_BAR_FILL
+                line.StrokeThickness = max(1.5, float(bar.get('diameter_mm') or 16.0) * scale)
+                canvas.Children.Add(line)
 
     def _draw_beam_elevation_preview(self, canvas, data):
         canvas.Children.Clear()
@@ -227,9 +308,9 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(0.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)
@@ -372,7 +453,7 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
@@ -481,9 +562,9 @@ class BeamsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 2.0
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(0.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)
@@ -561,6 +642,33 @@ class BeamsMixin(object):
             anchorage = 40.0 * bar_dia
         return lap, anchorage
 
+    def _create_spacers(self, wrapper, host_groups, errors, created_rebars):
+        """Spacer bars between two layers of main bars at 1 m centres (SMDSC MB1), listed in the BBS."""
+        for host, group in host_groups:
+            bar_type = re_engine.get_bar_type_by_diameter(self.doc, group['diameter_mm'])
+            if bar_type is None:
+                errors.append(u'Beam {}: no H{:.0f} bar type for the spacer bars between layers.'.format(
+                    get_id_value(host.Id), float(group['diameter_mm'])))
+                continue
+            self._create_long_group(wrapper, host, group, bar_type, u'Beam Spacer Bar', u'spacer', errors,
+                                    created_rebars)
+
+    def _top_drop(self, hosts, cover_mm, values, errors):
+        """T8.49: how much lower the links and top bars of these beams go (a slab on top, a main beam)."""
+        import beam_joints
+        drop = 0.0
+        for host in hosts:
+            try:
+                d, notes = beam_joints.top_drop_mm(self.doc, host, beam_rebar.get_beam_axis(host), cover_mm,
+                                                   values['bar_dia'], re_engine)
+            except Exception:
+                log_swallowed(_LOG, u'top drop')
+                continue
+            if d > drop:
+                drop = d
+            errors.extend(u'Beam {}: {}'.format(get_id_value(host.Id), n) for n in notes)
+        return drop
+
     def _create_long_group(self, wrapper, host, group, bar_type, label, layer, errors, created_rebars):
         """One grouped set of longitudinal bars (one Rebar Set, else bar by bar)."""
         hid = get_id_value(host.Id)
@@ -586,6 +694,9 @@ class BeamsMixin(object):
         first = line[0]
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, first, u'Other', self._standard_default_cover_mm(u'beam'))
+        if is_ground_beam(first) and cover_mm < 75.0 - 1e-6:
+            errors.append(u'Ground beam {}: cover {:.0f} mm — SMDSC 6.7 asks for 75 mm where it is cast '
+                          u'against the ground; set the host cover if so.'.format(get_id_value(first.Id), cover_mm))
         try:
             # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
             import fit_checks
@@ -619,10 +730,14 @@ class BeamsMixin(object):
         except Exception:
             log_swallowed(_LOG, u'beam fit check')
         lap_mm, anchorage_mm = self._beam_lap_anchorage(first, values['bar_dia'])
+        drop_mm = self._top_drop(line, cover_mm, values, errors)
+        values = dict(values, top_drop=drop_mm)
         data = beam_rebar.build_continuous_line(
             self.doc, line, cover_mm, values['bar_dia'], values['n_top'], values['stirrup_dia'],
             values.get('support_dia') or values['bar_dia'], values.get('n_support', 0),
-            values['stock_length'], lap_mm, anchorage_mm)
+            values['stock_length'], lap_mm, anchorage_mm, flexible=values.get('flexible', False),
+            top_drop_mm=drop_mm,
+            n_bottom_bars=values.get('n_bottom') or values['n_top'])
         name = u'Beams {}'.format(u', '.join(str(get_id_value(h.Id)) for h in line))
         errors.extend(u'{}: {}'.format(name, w) for w in data['warnings'])
         if len(data['hanger_sets']) > 1:
@@ -646,6 +761,29 @@ class BeamsMixin(object):
             for host, group in data['support_sets']:
                 self._create_long_group(wrapper, host, group, support_type, u'Beam Support Bar',
                                         u'top_support', errors, created_rebars)
+        if bar_type is not None:
+            for host, group in data.get('splice_sets', []):
+                # a FreeForm group: a shape-driven set in the second layer is re-seated by Revit
+                # onto the first layer's line whenever it regenerates (measured 2026-10-07)
+                chains = group.get('all_curves') or [group['curves']]
+                rebar = wrapper.create_freeform_group(host, chains, bar_type,
+                                                      transaction_name=u'NOSA — Create Beam Bottom Splice Bars')
+                if rebar is None:
+                    errors.append(u'Beam {}: bottom splice bars — {}'.format(get_id_value(host.Id), wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'bottom_splice')
+                    created_rebars.append(rebar)
+            for host, group in data.get('end_u_sets', []):
+                # FreeForm like the splice bars: both legs sit in a second layer
+                chains = group.get('all_curves') or [group['curves']]
+                rebar = wrapper.create_freeform_group(host, chains, bar_type,
+                                                      transaction_name=u'NOSA — Create Beam End U-Bars')
+                if rebar is None:
+                    errors.append(u'Beam {}: end U-bars — {}'.format(get_id_value(host.Id), wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'end_ubar')
+                    created_rebars.append(rebar)
+        self._create_spacers(wrapper, data.get('spacer_sets', []), errors, created_rebars)
         for host in line:      # the line's bars exist now: a failing span must not redo them
             ends = data['spans'].get(get_id_value(host.Id), {})
             try:
@@ -653,7 +791,41 @@ class BeamsMixin(object):
             except Exception as e:
                 errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), e))
 
+    def _process_curved_beam(self, host, values, wrapper, bar_types, errors, created_rebars):
+        """T8.58: a beam curved on plan — arc bars as FreeForm groups, radial closed links one by one."""
+        label = u'Beam {}'.format(get_id_value(host.Id))
+        cover_mm = re_engine.get_native_cover_mm(
+            self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
+        dia = values['bar_dia']
+        lap_mm, anchorage_mm = self._beam_lap_anchorage(host, dia)
+        curves = beam_rebar.build_curved_beam_curves(
+            self.doc, host, cover_mm, dia, values['n_top'], values['n_bottom'], values['stirrup_spacing'],
+            values['stirrup_dia'], end_offset_mm=values['end_offset'], stock_length_mm=values['stock_length'],
+            lap_length_mm=lap_mm, anchorage_mm=anchorage_mm)
+        errors.extend(u'{}: {}'.format(label, w) for w in curves['warnings'])
+        if values.get('densify_ends') or values.get('interior_ties') or values.get('n_support') \
+                or values.get('n_span'):
+            errors.append(u'{}: denser end links, interior links and extra support/span bars are not '
+                          u'detailed on curved beams yet.'.format(label))
+        bar_type = bar_types.get(dia)
+        for layer, name in ((u'top', u'Beam Top Bar'), (u'bottom', u'Beam Bottom Bar')):
+            for group in curves[layer]:
+                rebar = wrapper.create_freeform_group(host, group, bar_type,
+                                                      transaction_name=u'NOSA — Create {}'.format(name), bent=False)
+                self._made(rebar, layer, u'{}: {} (curved)'.format(label, name), wrapper, errors, created_rebars)
+        link_type = bar_types.get(values['stirrup_dia'])
+        for loop, normal in curves['links']:
+            # one link (array 0) with both 135 degree hooks at one corner, BS 8666 shape 52 like a straight beam's
+            # (2026-10-24 audit M5: closed 51 with C = D = 0 on B2)
+            rebar = wrapper.create_rebar_set(host, loop, link_type, 0.0, 0.0, normal=normal,
+                                             style=DBS.RebarStyle.StirrupTie,
+                                             transaction_name=u'NOSA — Create Beam Link',
+                                             link_hook=re_engine.get_link_hook_type(self.doc))
+            self._made(rebar, u'stirrup', u'{}: link (curved)'.format(label), wrapper, errors, created_rebars)
+
     def _process_beam(self, host, values, wrapper, bar_types, errors, created_rebars, span=None):
+        if beam_rebar.get_beam_arc(host) is not None:
+            return self._process_curved_beam(host, values, wrapper, bar_types, errors, created_rebars)
         # A floor that cuts the beam leaves it only the depth below the slab: the bars,
         # links and anchorage legs then lose that depth (found in the 2026-10-01 smoke test).
         try:
@@ -669,6 +841,12 @@ class BeamsMixin(object):
             log_swallowed(_LOG, u'RebarAutomateWindow._process_beam')
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Other', self._standard_default_cover_mm(u'beam'))
+        if is_ground_beam(host):
+            bottom_mm = re_engine.get_native_cover_mm(self.doc, host, u'Bottom', cover_mm)
+            if min(bottom_mm, cover_mm) < 75.0 - 1e-6:
+                errors.append(u'Ground beam {}: cover {:.0f} mm (bottom {:.0f}) — SMDSC 6.7 asks for 75 mm where it '
+                              u'is cast against the ground; set the host cover if so.'.format(
+                                  get_id_value(host.Id), cover_mm, bottom_mm))
         try:
             # T8.47, SMDSC 5.2/5.3: do the top and bottom layers fit inside the links?
             import fit_checks
@@ -720,6 +898,20 @@ class BeamsMixin(object):
         except Exception:
             anchorage_mm = None
 
+        import nib_rebar
+        from nosa_utils import nibs
+        half = nib_rebar.half_joint_params(host)
+        half_frame = None
+        bottom_stop = (span or {}).get('bottom_stop_mm', (None, None))
+        bottom_leg = (False, False)
+        if half:
+            # SMDSC 6.9 / EC2 Annex J: full-depth links only past the hanger links at each notch
+            half_frame = nib_rebar.frame(host)
+            stop = -(half[0] + cover_mm - half_frame['axis_offset'])
+            bottom_stop, bottom_leg = (stop, stop), (True, True)
+            hangers_end = (half[0] + cover_mm + values['stirrup_dia'] / 2.0
+                           + (nibs.HANGER_LINKS - 1) * nibs.HANGER_PITCH_MM - half_frame['axis_offset'])
+            values = dict(values, end_offset=max(values['end_offset'], hangers_end + 50.0))
         curves = beam_rebar.build_beam_rebar_curves(
             self.doc, host,
             cover_mm=cover_mm,
@@ -740,11 +932,15 @@ class BeamsMixin(object):
             link_bend_diameter_mm=self._bend_diameter_mm(bar_types.get(values['stirrup_dia'])),
             continuous_ends=(span or {}).get('continuous_ends', (False, False)),
             internal_bottom_ext_mm=(span or {}).get('internal_bottom_ext_mm', (0.0, 0.0)),
+            bottom_stop_mm=bottom_stop,
+            bottom_stop_leg=bottom_leg,
             include_top=span is None,
             n_support_bars=values.get('n_support', 0),
             support_bar_diameter_mm=values.get('support_dia'),
             n_span_bars=values.get('n_span', 0),
-            span_bar_diameter_mm=values.get('span_dia'))
+            span_bar_diameter_mm=values.get('span_dia'),
+            top_drop_mm=values['top_drop'] if 'top_drop' in values else self._top_drop([host], cover_mm, values,
+                                                                                         errors))
 
         for w in curves.get('warnings', []):
             errors.append(u'Beam {}: {}'.format(get_id_value(host.Id), w))
@@ -851,6 +1047,7 @@ class BeamsMixin(object):
             for group in curves.get('span_bar_sets') or []:
                 self._create_long_group(wrapper, host, group, span_type, u'Beam Span Bar',
                                         u'bottom_span', errors, created_rebars)
+        self._create_spacers(wrapper, [(host, g) for g in curves.get('spacer_sets') or []], errors, created_rebars)
         side_groups = curves.get('side_bar_sets') or []
         if side_groups:
             # IStructE SMDSC 6.3: beams 1000 mm deep or more, H16 side bars at <= 250 mm
@@ -934,7 +1131,8 @@ class BeamsMixin(object):
                 with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Pin Beam Longitudinal Bars')) as t:
                     t.Start()
                     for rebar in long_rebars:
-                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, curves['bar_inset_mm'])
+                        re_engine.pin_rebar_to_host_faces(self.doc, rebar, host, curves['bar_inset_mm'],
+                                                          top_extra_mm=curves.get('top_drop_mm') or 0.0)
                     t.Commit()
             except Exception as e:
                 errors.append(u'Beam {}: longitudinal bars left where Revit snapped them '
@@ -945,6 +1143,133 @@ class BeamsMixin(object):
             self._create_interior_tie_sets(
                 host, curves.get('interior_tie_sets') or [], bar_type_st, wrapper, errors,
                 created_rebars, u'Beam')
+        if half:
+            self._reinforce_half_joints(host, half, half_frame, values, cover_mm, bar_types, wrapper, errors,
+                                        created_rebars)
+        self._reinforce_nibs(host, values, cover_mm, bar_types, wrapper, errors, created_rebars)
+
+    def _type_for(self, dia, bar_types):
+        if bar_types.get(dia) is None:
+            bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+        return bar_types[dia]
+
+    def _made(self, rebar, layer, label, wrapper, errors, created_rebars):
+        try:
+            if rebar is not None and not rebar.IsValidObject:
+                rebar = None                     # Revit rejected and undid it
+        except Exception:
+            rebar = None
+        if rebar is None:
+            errors.append(u'{} — {}'.format(label, wrapper.last_error))
+            return
+        self._stamp_layer(rebar, layer)
+        created_rebars.append(rebar)
+
+    def _link_set(self, host, fr, xs, corners, bar_type, wrapper, label, layer, errors, created_rebars):
+        """Closed links in the beam section at the even positions xs."""
+        import nib_rebar
+        xs = sorted(xs)
+        curves = nib_rebar.section_loop(fr, xs[0], corners)
+        if len(xs) > 1:
+            rebar = wrapper.create_rebar_set(
+                host, curves, bar_type, xs[1] - xs[0], xs[-1] - xs[0], normal=fr['ex'],
+                style=DBS.RebarStyle.StirrupTie, transaction_name=u'NOSA — Create {}'.format(label),
+                link_hook=re_engine.get_link_hook_type(self.doc))
+        else:
+            rebar = wrapper.create_from_curves(host, curves, bar_type, normal=fr['ex'], style=DBS.RebarStyle.StirrupTie,
+                                               transaction_name=u'NOSA — Create {}'.format(label))
+        self._made(rebar, layer, u'Beam {}: {}'.format(get_id_value(host.Id), label), wrapper, errors, created_rebars)
+
+    def _reinforce_nibs(self, host, values, cover_mm, bar_types, wrapper, errors, created_rebars):
+        """IStructE SMDSC MN1 (closed links) or MN2 (horizontal U-bars, shallow nibs) along the nibs of an 'RC Beam - Nib'."""
+        import nib_rebar
+        from nosa_utils import nibs
+        info = nib_rebar.nib_sides(host)
+        if info is None:
+            return
+        proj, depth, sides = info
+        b, _h = nib_rebar.section_mm(host)
+        fr = nib_rebar.frame(host)
+        hid = get_id_value(host.Id)
+        link_dia = min(values['stirrup_dia'], nibs.MAX_LINK_DIA_MM)
+        mode, notes = nibs.nib_mode(depth, cover_mm, link_dia)
+        errors.extend(u'Beam {}: {}'.format(hid, n) for n in notes)
+        pitch = nibs.nib_pitch_mm(depth)
+        x0, x1 = cover_mm + link_dia, fr['length'] - cover_mm - link_dia
+        for n_side, side in enumerate(sides):
+            def flip(pts):
+                return [(x, side * y, z) for x, y, z in pts]
+            if mode == 'MN1':
+                corners = [(side * y, z) for y, z in nibs.mn1_link(b, proj, depth, cover_mm, link_dia)]
+                xs = nibs.positions_mm(x0, x1, pitch)
+                self._link_set(host, fr, xs, corners, self._type_for(link_dia, bar_types), wrapper, u'Nib Links',
+                               u'nib_link', errors, created_rebars)
+                bar_dia = 12.0
+                bar_t = self._type_for(bar_dia, bar_types)
+                for y, z in nibs.nib_bar_positions(b, proj, depth, cover_mm, link_dia, bar_dia):
+                    line = nib_rebar.polyline(fr, [(cover_mm, side * y, z), (fr['length'] - cover_mm, side * y, z)])
+                    self._made(wrapper.create_from_curves(host, line, bar_t, normal=fr['ey'],
+                                                          transaction_name=u'NOSA — Create Nib Bar'),
+                               u'nib_bar', u'Beam {}: nib bar'.format(hid), wrapper, errors, created_rebars)
+                if not n_side:
+                    errors.append(u'Beam {}: nib ({:.0f} x {:.0f}) to SMDSC MN1 — H{:.0f} closed links at {:.0f} round '
+                              u'beam and nib, H{:.0f} bars in the nib corners; keep 60 mm overlap with the supported '
+                              u'member\'s steel and size the beam links for the nib load.'.format(
+                                  hid, proj, depth, link_dia, xs[1] - xs[0] if len(xs) > 1 else 0.0, bar_dia))
+            else:
+                dia = min(max(link_dia, 10.0), nibs.MAX_UBAR_DIA_MM)
+                bar_t = self._type_for(dia, bar_types)
+                anchorage = self._beam_lap_anchorage(host, dia)[1]
+                xs = nibs.positions_mm(x0 + 30.0, x1 - 30.0, min(nibs.MAX_UBAR_PITCH_MM, pitch))
+                chains, short = [], 0.0
+                for x in xs:
+                    pts, s = nibs.mn2_ubar(b, proj, depth, cover_mm, dia, anchorage, x)
+                    short = max(short, s)
+                    chains.append(nib_rebar.polyline(fr, flip(pts)))
+                self._made(wrapper.create_freeform_group(host, chains, bar_t,
+                                                         transaction_name=u'NOSA — Create Nib U-Bars'),
+                           u'nib_ubar', u'Beam {}: nib U-bars'.format(hid), wrapper, errors, created_rebars)
+                y, z = nibs.mn2_lacer(b, proj, depth, cover_mm, dia)
+                line = nib_rebar.polyline(fr, [(cover_mm, side * y, z), (fr['length'] - cover_mm, side * y, z)])
+                self._made(wrapper.create_from_curves(host, line, bar_t, normal=fr['ey'],
+                                                      transaction_name=u'NOSA — Create Nib Lacer'),
+                           u'nib_lacer', u'Beam {}: nib lacer'.format(hid), wrapper, errors, created_rebars)
+                if not n_side:
+                    errors.append(u'Beam {}: shallow nib ({:.0f} x {:.0f}) to SMDSC MN2 — {} horizontal H{:.0f} U-bars at '
+                              u'{:.0f} with a lacer bar; wire each to at least two main bars.'.format(
+                                  hid, proj, depth, len(xs), dia, xs[1] - xs[0] if len(xs) > 1 else 0.0))
+                if short > 1.0:
+                    errors.append(u'Beam {}: the nib U-bar legs reach the far side {:.0f} mm short of a tension '
+                                  u'anchorage — bend them down or use smaller bars.'.format(hid, short))
+
+    def _reinforce_half_joints(self, host, half, fr, values, cover_mm, bar_types, wrapper, errors, created_rebars):
+        """IStructE SMDSC 6.9 / EC2 Annex J at both ends of an 'RC Beam - Half Joint'."""
+        import nib_rebar
+        from nosa_utils import nibs
+        hid = get_id_value(host.Id)
+        b, h = nib_rebar.section_mm(host)
+        link_dia = values['stirrup_dia']
+        ubar_dia = min(values['bar_dia'], nibs.MAX_UBAR_DIA_MM)
+        anchorage = self._beam_lap_anchorage(host, ubar_dia)[1]
+        lay = nibs.half_joint(half[0], half[1], h, b, cover_mm, link_dia, ubar_dia, anchorage)
+        errors.extend(u'Beam {}: {}'.format(hid, n) for n in lay['notes'])
+        link_t, u_t = self._type_for(link_dia, bar_types), self._type_for(ubar_dia, bar_types)
+        c = cover_mm + link_dia / 2.0
+        full = [(-b / 2.0 + c, c), (b / 2.0 - c, c), (b / 2.0 - c, h - c), (-b / 2.0 + c, h - c)]
+        for end in (0, 1):
+            def at(x):
+                return x if end == 0 else fr['length'] - x
+            self._link_set(host, fr, [at(x) for x in lay['hangers']], full, link_t, wrapper,
+                           u'Half Joint Hanger Links', u'half_joint_hanger', errors, created_rebars)
+            if lay['nib_links']:
+                self._link_set(host, fr, [at(x) for x in lay['nib_links']], lay['nib_link'], link_t, wrapper,
+                               u'Half Joint Nib Links', u'half_joint_link', errors, created_rebars)
+            chains = [nib_rebar.polyline(fr, u if end == 0 else nib_rebar.mirror_x(fr, u)) for u in lay['ubars']]
+            if chains:
+                self._made(wrapper.create_freeform_group(host, chains, u_t,
+                                                         transaction_name=u'NOSA — Create Half Joint U-Bars'),
+                           u'half_joint_ubar', u'Beam {}: half joint U-bars'.format(hid), wrapper, errors,
+                           created_rebars)
 
     @staticmethod
     def _bend_diameter_mm(bar_type):

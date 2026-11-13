@@ -349,6 +349,26 @@ def get_element_family_name(element):
     return ""
 
 
+GROUND_BEAM_NAME = u'ground beam'
+
+
+def is_ground_beam(element):
+    """
+    A tie/ground beam: Structural Framing whose family or type name says 'Ground Beam' (the NOSA
+    'RC Ground Beam' family), or a line-based Structural Foundation (older models).
+    """
+    from Autodesk.Revit.DB import BuiltInCategory, LocationCurve
+    try:
+        cat = get_id_value(element.Category.Id)
+        if cat == int(BuiltInCategory.OST_StructuralFraming):
+            names = (get_element_family_name(element) + u' ' + get_element_type_name(element)).lower()
+            return GROUND_BEAM_NAME in names
+        return (cat == int(BuiltInCategory.OST_StructuralFoundation)
+                and isinstance(element.Location, LocationCurve))
+    except Exception:
+        return False
+
+
 def get_element_category_name(element):
     """
     Get the category name of an element.

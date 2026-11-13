@@ -1,0 +1,59 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NOSA — Rebar QA" Height="700" Width="1150"
+        MinHeight="480" MinWidth="760"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource BgColor}" FontFamily="Century Gothic, Segoe UI" ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <SolidColorBrush x:Key="BgColor"     Color="#FAFAFA"/>
+        <SolidColorBrush x:Key="PanelColor"  Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="TextColor"   Color="#333333"/>
+        <SolidColorBrush x:Key="AccentColor" Color="#FF5F00"/>
+        <SolidColorBrush x:Key="BorderColor" Color="#E0E0E0"/>
+    </Window.Resources>
+
+    <Grid Margin="18">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                <TextBlock Text="Rebar QA" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource TextColor}"/>
+                <TextBlock TextWrapping="Wrap" FontSize="11" Opacity="0.7" Margin="0,4,0,0" Foreground="{DynamicResource TextColor}"
+                           Text="IStructE SMDSC 4.4 / 4.6 checks per host and drawing: cover against the bar size, the aggregate and the nominal cover; clear spacing with the real bar size (+10 %); pitches and steel ratios within the element's limits; the 75 mm vibrator gaps of beam top layers; bars over the 12 m stock length; bars that clash or crowd each other. Read-only: nothing is changed."/>
+            </StackPanel>
+            <DockPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                <Button DockPanel.Dock="Right" Name="BtnExport" Content="Export CSV..." Click="Export_Click" Padding="16,8" Margin="8,0,0,0"/>
+                <Button DockPanel.Dock="Right" Name="BtnShow" Content="Show element" Click="Show_Click" Padding="16,8" Margin="8,0,0,0"/>
+                <Button DockPanel.Dock="Right" Name="BtnRun" Content="Run check" Click="Run_Click" Padding="16,8"
+                        Background="{DynamicResource AccentColor}" Foreground="White" FontWeight="Bold"/>
+                <CheckBox DockPanel.Dock="Left" Name="ChkSelection" Content="Selection only" IsChecked="True"
+                          VerticalAlignment="Center" Foreground="{DynamicResource TextColor}" Margin="0,0,16,0"/>
+                <TextBlock Name="TxtStatus" VerticalAlignment="Center" FontSize="11" TextWrapping="Wrap"
+                           Foreground="{DynamicResource TextColor}"/>
+            </DockPanel>
+            <DataGrid Name="GridFindings" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal" BorderBrush="{DynamicResource BorderColor}"
+                      Background="{DynamicResource PanelColor}" CanUserSortColumns="True" SelectionMode="Single"
+                      MouseDoubleClick="Show_Click">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Drawing" Binding="{Binding Drawing}" Width="80"/>
+                    <DataGridTextColumn Header="Host" Binding="{Binding Host}" Width="220"/>
+                    <DataGridTextColumn Header="Mark" Binding="{Binding Mark}" Width="80"/>
+                    <DataGridTextColumn Header="Check" Binding="{Binding Check}" Width="110"/>
+                    <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="75"/>
+                    <DataGridTextColumn Header="Issue" Binding="{Binding Issue}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+        </DockPanel>
+
+        <Grid Name="LoadingPanel" Visibility="Collapsed" Background="#CCFAFAFA">
+            <Border Background="White" CornerRadius="6" Padding="24,16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <TextBlock Text="Processing..." HorizontalAlignment="Center" FontSize="13"/>
+                    <ProgressBar Name="ProcessBar" Width="200" Height="10" IsIndeterminate="True"
+                                 Foreground="{DynamicResource AccentColor}"/>
+                    <TextBlock Name="TxtLoading" HorizontalAlignment="Center" FontSize="11" Opacity="0.6" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

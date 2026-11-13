@@ -16,6 +16,7 @@ Scope variables set by the launcher:
     ROLLBACK   optional bool: run inside a TransactionGroup and roll it back; Revit errors roll their
                transaction back instead of opening a dialog, and the new rebars per host are listed
     OUT        optional path: RESULT is also written there (runs longer than the 60 s call)
+    PROJECT    optional JSON merged into the window's project settings (e.g. {"water_retaining": true})
     ASSIMILATE optional bool, with ROLLBACK: keep the run (assimilate the group) so an outer
                TransactionGroup of the caller can go on with it and roll everything back itself
 Result: RESULT (unicode).
@@ -59,12 +60,21 @@ class _RollbackOnError(DB.IFailuresPreprocessor):
         return DB.FailureProcessingResult.ProceedWithRollBack
 
 
+def _is_footing(element):
+    """A pad, strip footing or pile cap (not a foundation slab): the Bases & pile caps tab's."""
+    from nosa_utils.revit_helpers import get_id_value
+    return (not isinstance(element, DB.Floor) and element.Category is not None and
+            get_id_value(element.Category.Id) == int(DB.BuiltInCategory.OST_StructuralFoundation))
+
+
 def _guard_pyrevit_transactions():
     from pyrevit import revit
     original = revit.Transaction
 
     class Guarded(original):
         def __init__(self, *args, **kwargs):
+            if len(args) < 2 and kwargs.get('doc') is None:
+                kwargs['doc'] = doc       # the document under test, not Revit's active one
             original.__init__(self, *args, **kwargs)
             ops = getattr(self, '_fhndlr_ops', None)
             if ops is not None:
@@ -85,6 +95,13 @@ try:
     from Autodesk.Revit.DB.Structure import RebarHostData
     ra_lib = os.path.join(EXT_ROOT, 'NOSA.tab', 'Reinforcement.panel',
                           'RebarAutomate.pushbutton', 'lib')
+    from nosa_utils import transactions as _transactions
+    _revit_transaction = _transactions.revit_transaction
+
+    def _on_doc(name=None, doc_=None, **kwargs):
+        # 2026-10-17: with the template active, every bar of the test model failed 'outside of transaction'
+        return _revit_transaction(name, doc_ or doc, **kwargs)
+    _transactions.revit_transaction = _on_doc
     ui = load_module('rebarautomate_ui', os.path.join(ra_lib, 'ui.py'))
 
     def _alert(msg, *args, **kwargs):
@@ -177,12 +194,25 @@ try:
     win = ui.RebarAutomateWindow(doc)
     win.Show = lambda: None
     win._is_loaded = True
+    try:
+        win.ra_project.update(json.loads(PROJECT or '{}'))     # project settings (water-retaining, ...)
+    except NameError:  # nosa-lint: disable=NOSA006 - PROJECT not given
+        pass
     for name, value in json.loads(CONTROLS or '{}').items():
         control = getattr(win, name)
         if isinstance(value, bool):
             control.IsChecked = value
         else:
             control.Text = unicode(value)
+    if MODE == 'footings_floors':
+        # the tab a user would be on (UI v2): Bases & pile caps for footings, Slabs for floors and foundation slabs
+        picked = [doc.GetElement(element_id_from_int(i)) for i in IDS]
+        bases = all(_is_footing(e) for e in picked)
+        try:
+            win._select_tab('TabBases' if bases else 'TabSlabs')
+        except Exception:
+            pass
+        win._slab_filter = u'footings' if bases else u'floors'
     readers = {'footings_floors': win._read_inputs, 'columns': win._read_column_inputs,
                'beams': win._read_beam_inputs, 'walls': win._read_wall_inputs,
                'stairs': win._read_stair_inputs}

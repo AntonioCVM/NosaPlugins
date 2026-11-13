@@ -51,3 +51,11 @@ def test_end_error_ignores_chain_direction():
     a = _u_bar(0.0, 0.0, 1000.0)
     assert vs.end_error_mm(list(reversed(a)), a) < 1e-9
     assert abs(vs.end_error_mm(_u_bar(0.0, 10.0, 1000.0), a) - 10.0) < 1e-9
+
+
+def test_rows_far_apart_are_no_set():
+    a = [(0.0, 0.0, 0.0), (6000.0, 0.0, 0.0)]
+    b = [(0.0, 4770.0, 0.0), (6000.0, 4770.0, 0.0)]
+    assert vs.split_runs([a, b]) == [[0], [1]]
+    c = [(0.0, 150.0, 0.0), (6000.0, 150.0, 0.0)]
+    assert vs.split_runs([a, c]) == [[0, 1]]

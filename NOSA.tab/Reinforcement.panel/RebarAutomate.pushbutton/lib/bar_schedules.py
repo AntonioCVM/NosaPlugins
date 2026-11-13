@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — A4 bar schedules (T8.33/T8.34, IStructE SMDSC 4.5.1, BS 8666:2020).
+NOSA.RebarAutomate — A4 bar schedules (T8.33/T8.34, IStructE SMDSC 4th ed. 4.5.1, BS 8666:2020).
 
 Each reinforcement drawing gets its own schedules, separate A4 sheets numbered 01, 02 ... per
 drawing; the schedule reference is drawing + schedule + revision (4002-01-A, user decision
@@ -30,7 +30,7 @@ def schedule_key(drawing, number):
 
 
 def schedule_ref(key, revision):
-    """'4002-01', 'A' -> '4002-01-A' (SMDSC 4.5.1: last character reserved for the revision)."""
+    """'4002-01', 'A' -> '4002-01-A' (SMDSC 4th ed. 4.5.1: last character reserved for the revision)."""
     revision = (revision or u'').strip()
     return u'{}-{}'.format(key, revision) if revision else key
 
@@ -61,7 +61,7 @@ def pack(members, capacity=ROWS_PER_A4):
 def plan(drawings, capacity=ROWS_PER_A4):
     """
     {drawing: [(level elevation, member, rows)]} -> {member: schedule key}, schedules numbered
-    01, 02 ... per drawing, members level by level then in natural order (SMDSC 4.5.1).
+    01, 02 ... per drawing, members level by level then in natural order (SMDSC 4th ed. 4.5.1).
     """
     out = {}
     for drawing in sorted(drawings, key=natural_key):
@@ -74,7 +74,7 @@ def plan(drawings, capacity=ROWS_PER_A4):
 
 def schedule_marks(bars):
     """
-    SMDSC 4.5.1 / D9: marks unique within a schedule. bars: [(member order, old mark number,
+    SMDSC 4th ed. 4.5.1 / D9: marks unique within a schedule. bars: [(member order, old mark number,
     identity key, bar id)] of ONE schedule -> {bar id: new number}: 1, 2 ... in member order then
     old mark order; identical bars (same identity key) share a number across members.
     """
@@ -84,6 +84,36 @@ def schedule_marks(bars):
             numbers[key] = len(numbers) + 1
         out[bar] = numbers[key]
     return out
+
+
+def stale_schedules(names, keys):
+    """
+    The drawing schedules left without bars ('BBS 4506-01' once PC10 joined drawing 4505, m6 2026-10-25): the names
+    of the form 'BBS dddd-nn' whose key is not among the current keys.
+    """
+    out = []
+    for name in names:
+        m = re.match(u'^' + MASTER_BBS + u' ([0-9]{4}-[0-9]{2})$', name or u'')
+        if m and m.group(1) not in keys:
+            out.append(name)
+    return out
+
+
+def drawing_marks(bars):
+    """
+    SMDSC 4th ed. 4.5.1 (user 2026-10-11): marks unique per drawing, so per schedule too. bars: [(member order,
+    old mark number, identity key, bar id)] of ONE drawing, its identical members' copies included -> {bar id:
+    number}. Marks that already tell the bars apart are kept (the calling-ups drawn carry them; 2026-10-24 audit:
+    a BBS renumbered per schedule left '06' on the S3 plan for its bars 03, '01' twice on drawing 4502 and the
+    links of the copies C2, C3 as '03', the C5 circular link's mark); otherwise 1, 2 ... as schedule_marks.
+    """
+    by_key, by_number = {}, {}
+    for _order, old, key, _bar in bars:
+        by_key.setdefault(key, set()).add(old)
+        by_number.setdefault(old, set()).add(key)
+    if all(len(n) == 1 and 0 not in n for n in by_key.values()) and all(len(k) == 1 for k in by_number.values()):
+        return dict((b[3], b[1]) for b in bars)
+    return schedule_marks(bars)
 
 
 def params_file():
@@ -113,11 +143,18 @@ def _set(element, name, value):
     return True
 
 
-def stamp_drawing(doc, rebars, drawing):
-    """Create Views: the drawing a member is detailed on, kept from its first drawing. In a transaction."""
+def stamp_drawing(doc, rebars, drawing, force=False):
+    """
+    Create Views: the drawing a member is detailed on, kept from its first drawing while that sheet
+    exists (a deleted one gives way to the new drawing); force: the drawing is made anew for these members
+    (T9.7 grouped drawings: an old stamp would point at a sheet that now shows other members). In a transaction.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    sheets = set(s.SheetNumber for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet))
     n = 0
     for rebar in rebars:
-        if not _text(rebar, DRAWING_PARAM) and _set(rebar, DRAWING_PARAM, drawing):
+        old = _text(rebar, DRAWING_PARAM)
+        if (force or not old or old not in sheets) and old != drawing and _set(rebar, DRAWING_PARAM, drawing):
             n += 1
     return n
 
@@ -159,35 +196,58 @@ def _rows_per_member(doc):
     return rows
 
 
+def _copies(doc, members):
+    """{drawing: {member: [rebar]}}: bars of identical members' copies, left out of the BBS (Show in schedule = No)."""
+    from Autodesk.Revit import DB  # Lazy import
+    import rebar_schedule
+    out = {}
+    for rebar in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Rebar) \
+            .WhereElementIsNotElementType():
+        if rebar_schedule.shows_in_schedule(rebar) or not _text(rebar, u'NOSA_Rebar_Batch_Id'):
+            continue
+        drawing, member = _text(rebar, DRAWING_PARAM), rebar_schedule._partition_of(rebar)
+        if member in members.get(drawing, {}):
+            out.setdefault(drawing, {}).setdefault(member, []).append(rebar)
+    return out
+
+
 def _renumber(doc, members, keys, order):
-    """Give each schedule's bars marks unique within it (rebar_marking keeps per-member ones before)."""
+    """Marks unique per drawing across its schedules, the copies of identical members marked as their original."""
     from Autodesk.Revit import DB  # Lazy import
     import rebar_marking
     from nosa_utils.revit_helpers import get_id_value
-    per_schedule = {}
-    for found in members.values():
+    copies = _copies(doc, members)
+    per_drawing = {}
+    for drawing, found in members.items():
         for name, entry in found.items():
-            for rebar in entry[2]:
+            for rebar in entry[2] + copies.get(drawing, {}).get(name, []):
                 varying = _text(rebar, u'NOSA_Rebar_Mark_Suffix') != u''
                 try:
                     identity = rebar_marking._dedup_key(doc, rebar, 5.0, varying)
                 except Exception:  # nosa-lint: disable=NOSA006 - unreadable bar: a mark of its own
                     identity = ('bar', get_id_value(rebar.Id))
-                per_schedule.setdefault(keys[name], []).append(
-                    (order[name], rebar_marking.mark_number(_text(rebar, u'NOSA_Rebar_Mark')), identity, rebar))
+                per_drawing.setdefault(drawing, []).append(
+                    ((natural_key(keys[name]),) + tuple(order[name]),
+                     rebar_marking.mark_number(_text(rebar, u'NOSA_Rebar_Mark')), identity, rebar))
     changed = 0
-    for bars in per_schedule.values():
-        for rebar, number in schedule_marks(bars).items():
+    for bars in per_drawing.values():
+        for rebar, number in drawing_marks(bars).items():
             mark = rebar_marking.format_mark(number)
-            if _text(rebar, u'NOSA_Rebar_Mark') == mark:
+            old = _text(rebar, u'NOSA_Rebar_Mark')
+            if old == mark:
                 continue
             _set(rebar, u'NOSA_Rebar_Mark', mark)
+            callout = _text(rebar, u'NOSA_Rebar_Callout')
+            if old and u'-' + old in callout:
+                # a calling-up drawn before keeps naming the bar (its first '-mark' after the size)
+                _set(rebar, u'NOSA_Rebar_Callout', callout.replace(u'-' + old, u'-' + mark, 1))
             p = rebar.LookupParameter(u'NOSA_Rebar_Number')
             if p is not None and not p.IsReadOnly:
                 p.Set(number)
             native = rebar.get_Parameter(DB.BuiltInParameter.REBAR_ELEM_SCHEDULE_MARK)
             if native is not None and not native.IsReadOnly:
-                native.Set(mark)
+                from nosa_utils import couplers
+                native.Set(couplers.schedule_mark(rebar, mark))      # 'E' before a coupled bar's mark (T8.52)
             changed += 1
     return changed
 
@@ -206,6 +266,18 @@ def _field_index(definition, name):
     return None
 
 
+def _plain_totals(view):
+    """
+    2026-10-24 audit: the grand total row read 'Grand total: 17', Revit elements counted as if bars. The fields keep
+    their totals: within a row they add the elements of one mark up ('No. of bars in each' 4 + 4 = 8).
+    """
+    from nosa_utils.telemetry import log_swallowed
+    try:
+        view.Definition.ShowGrandTotalCount = False
+    except Exception:
+        log_swallowed(u'rebarautomate', u'grand total count')
+
+
 def _schedule_view(doc, master, key):
     """'BBS 4002-01': the master BBS duplicated and filtered to this schedule key."""
     from Autodesk.Revit import DB  # Lazy import
@@ -213,9 +285,11 @@ def _schedule_view(doc, master, key):
     name = u'{} {}'.format(MASTER_BBS, key)
     for view in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule):
         if element_name(view) == name:
+            _plain_totals(view)
             return view, False
     view = doc.GetElement(master.Duplicate(DB.ViewDuplicateOption.Duplicate))
     view.Name = name
+    _plain_totals(view)
     definition = view.Definition
     index = _field_index(definition, SCHEDULE_PARAM)
     if index is None:
@@ -297,11 +371,16 @@ def create(doc, capacity=ROWS_PER_A4):
         try:
             view, _new = _schedule_view(doc, master, key)
             sheet = _sheet_for(doc, key)
-            if sheet is None:
+            new = sheet is None
+            if new:
                 sheet = DB.ViewSheet.Create(doc, titleblock.Id)
                 sheet.SheetNumber = _next_number(doc, taken)
                 sheet.Name = u'Bar schedule {}'.format(key)
                 report['new_sheets'].append(sheet.SheetNumber)
+            import rebar_views
+            import drawing_registry
+            rebar_views.classify_sheet(doc, sheet)      # also a sheet filed before in 4500's (user 2026-10-24)
+            drawing_registry.stamp_issue_date(sheet, new)
             revision = _text(sheet, u'NOSA_BBS_Revision')
             if not _text(sheet, u'NOSA_BBS_Status'):
                 _set(sheet, u'NOSA_BBS_Status', DEFAULT_STATUS)
@@ -320,4 +399,45 @@ def create(doc, capacity=ROWS_PER_A4):
                         schedule_ref(key, revision), used[key], capacity))
         except Exception as e:
             report['errors'].append(u'{}: {}'.format(key, e))
+    _retire_stale(doc, set(keys.values()), report)
     return report
+
+
+def _retire_stale(doc, keys, report):
+    """
+    A schedule left without bars goes, its A4 sheet with it when that holds nothing else and was never issued;
+    an issued one stays, reported.
+    """
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import element_name
+    views = dict((element_name(v), v) for v in DB.FilteredElementCollector(doc).OfClass(DB.ViewSchedule))
+    for name in stale_schedules(list(views), keys):
+        view = views[name]
+        key = name[len(MASTER_BBS) + 1:]
+        sheet = _sheet_for(doc, key)
+        if sheet is not None and _text(sheet, u'NOSA_BBS_Revision'):
+            report['errors'].append(u'{}: no bars are scheduled on it any more; kept, it was issued (revision {}).'
+                                    .format(name, _text(sheet, u'NOSA_BBS_Revision')))
+            continue
+        try:
+            if sheet is not None and _only_schedules(doc, sheet, view):
+                doc.Delete(sheet.Id)
+            doc.Delete(view.Id)
+            report.setdefault('retired', []).append(name)
+            report['errors'].append(u'{}: no bars are scheduled on it any more; removed with its sheet.'.format(name))
+        except Exception as e:
+            report['errors'].append(u'{}: left without bars, not removed ({}).'.format(name, e))
+
+
+def _only_schedules(doc, sheet, view):
+    """A BBS sheet holding its title block, its schedule and the title block's revision table only."""
+    from Autodesk.Revit import DB  # Lazy import
+    from nosa_utils.revit_helpers import get_id_value
+    for e in DB.FilteredElementCollector(doc, sheet.Id).OwnedByView(sheet.Id):
+        if isinstance(e, DB.ScheduleSheetInstance):
+            if e.ScheduleId != view.Id and not e.IsTitleblockRevisionSchedule:
+                return False
+        elif not (isinstance(e, DB.FamilyInstance) and e.Category is not None and
+                  get_id_value(e.Category.Id) == int(DB.BuiltInCategory.OST_TitleBlocks)):
+            return False
+    return True

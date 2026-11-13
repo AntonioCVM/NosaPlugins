@@ -1259,7 +1259,7 @@ def build_perimeter_closure_ubar_sets(host,
 
 
 def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_mm, spacing_mm,
-                         bottom_clear_mm=None, top_clear_mm=None):
+                         bottom_clear_mm=None, top_clear_mm=None, lateral_extra_mm=0.0):
     """
     A closed rectangular perimeter ("skin"/anti-crack) reinforcement
     shape, with its X/Y vertices sized from the BOTTOM face's own plan
@@ -1340,7 +1340,8 @@ def build_side_rebar_set(doc, host, bottom_cover_mm, top_cover_mm, bar_diameter_
     if global_bbox is None:
         raise ValueError(u'Could not read this footing\'s global bounding box.')
 
-    inset_ft = (bottom_cover_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
+    # lateral_extra_mm: further in than the side cover (0: the lacers are the outermost bars, SMDSC 4th ed. MD PC1)
+    inset_ft = (bottom_cover_mm + lateral_extra_mm + bar_diameter_mm / 2.0) / _MM_PER_FT
     bbox = bottom_face.face.GetBoundingBox()
     u0, u1 = bbox.Min.U + inset_ft, bbox.Max.U - inset_ft
     v0, v1 = bbox.Min.V + inset_ft, bbox.Max.V - inset_ft
@@ -1425,6 +1426,7 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
 
     cages = []
     contact = []
+    groups = []
     skipped_columns = []
     fallback_columns = []
     columns = engine.find_columns_above(doc, host)
@@ -1440,7 +1442,11 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
                 lap_ft = (column_bar_dia_mm + bar_diameter_mm) / 2.0 / _MM_PER_FT
                 points = [p + d.Multiply(lap_ft) for p, d in zip(layout['points'], layout['inward'])]
                 outward = [d.Negate() for d in layout['inward']]
-                contact.append((points, outward))
+                try:
+                    col_hand = DB.XYZ(column.HandOrientation.X, column.HandOrientation.Y, 0.0).Normalize()
+                except Exception:
+                    col_hand = DB.XYZ.BasisX
+                contact.append((points, outward, col_hand))
                 continue
             except Exception:
                 fallback_columns.append(column.Id)
@@ -1470,16 +1476,20 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
     bars = []
     normals = []
     for centre, hand, facing, offsets in cages:
+        first = len(bars)
         for du_mm, dv_mm in offsets:
             p = centre + hand.Multiply(du_mm / _MM_PER_FT) + facing.Multiply(dv_mm / _MM_PER_FT)
             bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
             normals.append(engine.starter_hook_plane_normal(DB.XYZ(p.X - centre.X, p.Y - centre.Y, 0.0)))
-    for points, outward in contact:
+        groups.append({'bars': bars[first:], 'hand': hand})
+    for points, outward, col_hand in contact:
+        first = len(bars)
         for p, hook_dir in zip(points, outward):
             bars.append(DB.Line.CreateBound(DB.XYZ(p.X, p.Y, bottom_z_ft), DB.XYZ(p.X, p.Y, top_z_ft)))
             normals.append(engine.starter_hook_plane_normal(hook_dir))
+        groups.append({'bars': bars[first:], 'hand': col_hand})
 
-    return {'bars': bars, 'normals': normals,
+    return {'bars': bars, 'normals': normals, 'groups': groups,
             'embedded_mm': (own.Max.Z - bottom_z_ft) * _MM_PER_FT,
             'anchor_length_mm': anchor_length_mm,
             'columns': len(columns), 'skipped_columns': skipped_columns,
@@ -1504,9 +1514,212 @@ def build_dowel_curves(doc, host, cover_mm, n_dowels, anchor_length_mm,
 # topology versions as primary.
 # ══════════════════════════════════════════════════════════════════════════
 
+def pile_centres_ft(host, tol_mm=10.0):
+    """Plan centres (x, y) of the piles nested in a pile-cap family: nested solids under the cap's own body."""
+    engine = _ensure_engine()
+    own = engine.get_isolated_solid_bbox(host)
+    if own is None:
+        return []
+    centres = []
+    try:      # shared nested piles: their own elements, reaching below the cap
+        for sid in host.GetSubComponentIds():
+            box = host.Document.GetElement(sid).get_BoundingBox(None)
+            if box is not None and box.Min.Z < own.Min.Z - tol_mm / _MM_PER_FT:
+                centres.append(((box.Min.X + box.Max.X) / 2.0, (box.Min.Y + box.Max.Y) / 2.0))
+    except Exception:
+        centres = []
+    if centres:
+        return centres
+    try:
+        geometry = host.get_Geometry(DB.Options())
+    except Exception:
+        return []
+    def _solids(items):
+        for obj in items or []:
+            if isinstance(obj, DB.GeometryInstance):
+                for sub in _solids(obj.GetInstanceGeometry()):
+                    yield sub
+            elif isinstance(obj, DB.Solid) and obj.Volume > 0.0:
+                yield obj
+
+    for sub in _solids(geometry):
+        pts = [p for edge in sub.Edges for p in edge.Tessellate()]
+        if not pts or min(p.Z for p in pts) > own.Min.Z - tol_mm / _MM_PER_FT:
+            continue                         # not reaching below the cap: the cap itself
+        x = (min(p.X for p in pts) + max(p.X for p in pts)) / 2.0
+        y = (min(p.Y for p in pts) + max(p.Y for p in pts)) / 2.0
+        if all(abs(x - a) > 1e-3 or abs(y - b) > 1e-3 for a, b in centres):
+            centres.append((x, y))
+    return centres
+
+
+def pile_cap_anchorage_notes(host, side_cover_mm, cover_mm, top_cover_mm, dia_x_mm, dia_y_mm,
+                             anchorage_x_mm, anchorage_y_mm):
+    """
+    IStructE SMDSC 4th ed. 6.7 / MD F2: a full tension anchorage from the centre line of the edge pile to the end
+    of the bar (along the mat, then up the bent end). Notes where the cap is too small for it.
+    """
+    engine = _ensure_engine()
+    own = engine.get_isolated_solid_bbox(host)
+    piles = pile_centres_ft(host)
+    if own is None or not piles:
+        return []
+    height_mm = (own.Max.Z - own.Min.Z) * _MM_PER_FT
+    leg_mm = height_mm - cover_mm - (top_cover_mm or cover_mm)
+    notes = []
+    for axis, k, dia, need in ((u'X', 0, dia_x_mm, anchorage_x_mm), (u'Y', 1, dia_y_mm, anchorage_y_mm)):
+        lo, hi = (own.Min.X, own.Max.X) if k == 0 else (own.Min.Y, own.Max.Y)
+        pmin, pmax = min(p[k] for p in piles), max(p[k] for p in piles)
+        reach = min(pmin - lo, hi - pmax) * _MM_PER_FT - side_cover_mm - dia / 2.0
+        have = reach + leg_mm
+        if have < need - 1.0:
+            notes.append(u'pile cap {} bars: {:.0f} mm from the edge pile centre to the bar end, under the '
+                         u'{:.0f} mm tension anchorage SMDSC 4th ed. MD F2 asks for — larger bends or a bigger cap.'.format(
+                             axis, have, need))
+    return notes
+
+
+def pile_size_mm(host, default_mm=300.0):
+    """Plan size of the nested piles (the narrower side of their boxes), mm."""
+    sizes = []
+    try:
+        for sid in host.GetSubComponentIds():
+            box = host.Document.GetElement(sid).get_BoundingBox(None)
+            if box is not None:
+                sizes.append(min(box.Max.X - box.Min.X, box.Max.Y - box.Min.Y) * _MM_PER_FT)
+    except Exception:
+        sizes = []
+    return min(sizes) if sizes else default_mm
+
+
+def build_pile_cap_bands(doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm, bar_dia_mm, pitch_mm,
+                         lacer_dia_mm, lacer_spacing_mm):
+    """
+    IStructE SMDSC 4th ed. Table 6.7, 3- and 7-pile caps: design bars in bands over the lines joining the piles
+    (nosa_utils.pile_caps), one layer per direction, bent up at both ends (shape 21), and lacers round
+    the cap's own outline above the nominal mat. None for any other cap.
+    Returns {'bands': [[chain]], 'layers': n, 'reach_mm', 'leg_mm', 'nominal_cover_mm', 'lacers'}.
+    """
+    from nosa_utils import pile_caps
+    piles = pile_centres_ft(host)
+    if not pile_caps.uses_tie_bands(len(piles)):
+        return None
+    engine = _ensure_engine()
+    topo = _ensure_topology()
+    bottom_face = get_footing_bottom_face(engine.CoverGeometryManager(doc, host))
+    box = _footing_bbox(host)
+    if bottom_face is None or box is None:
+        return None
+    outer, _holes, _n = topo.classify_loops(topo.extract_loops_mm(bottom_face.face))
+    # the bands stand in by the lacer's diameter: the lacers run round the outside of their bent-up ends (MD PC1)
+    poly = topo.offset_polygon_mm(outer, side_cover_mm + lacer_dia_mm + bar_dia_mm / 2.0)
+    piles_mm = [(x * _MM_PER_FT, y * _MM_PER_FT) for x, y in piles]
+    layers = pile_caps.layout(poly, piles_mm, pitch_mm, pile_size_mm(host))
+    face_z = bottom_face.origin.Z * _MM_PER_FT
+    top_z = box.Max.Z * _MM_PER_FT - (top_cover_mm or bottom_cover_mm) - bar_dia_mm / 2.0
+    bands = []
+    for k, layer in enumerate(layers):
+        z = face_z + bottom_cover_mm + bar_dia_mm / 2.0 + k * bar_dia_mm
+        chains = []
+        for (x0, y0), (x1, y1) in layer['bars']:
+            a, b = DB.XYZ(x0 / _MM_PER_FT, y0 / _MM_PER_FT, z / _MM_PER_FT), DB.XYZ(x1 / _MM_PER_FT, y1 / _MM_PER_FT, z / _MM_PER_FT)
+            up = DB.XYZ(0.0, 0.0, (top_z - z) / _MM_PER_FT)
+            chains.append([DB.Line.CreateBound(a + up, a), DB.Line.CreateBound(a, b), DB.Line.CreateBound(b, b + up)])
+        bands.append(chains)
+    nominal_cover = bottom_cover_mm + len(layers) * bar_dia_mm
+    # lacers round the outside of the bent ends, the cover to them, between the nominal mat and the top (MD PC1)
+    loop = topo.offset_polygon_mm(outer, side_cover_mm + lacer_dia_mm / 2.0)
+    z0 = face_z + nominal_cover + 2.0 * pile_caps.NOMINAL_DIA_MM + lacer_dia_mm / 2.0
+    z1 = box.Max.Z * _MM_PER_FT - (top_cover_mm or bottom_cover_mm) - bar_dia_mm - lacer_dia_mm / 2.0
+    pts = [DB.XYZ(x / _MM_PER_FT, y / _MM_PER_FT, z0 / _MM_PER_FT) for x, y in loop]
+    lacers = None
+    if z1 > z0:
+        lacers = {'curves': [DB.Line.CreateBound(pts[i], pts[(i + 1) % len(pts)]) for i in range(len(pts))],
+                  'array_length_mm': z1 - z0, 'spacing_mm': lacer_spacing_mm, 'face_normal': DB.XYZ.BasisZ}
+    reach = min(l['reach_mm'] for l in layers) if layers else 0.0
+    return {'bands': bands, 'layers': len(layers), 'reach_mm': reach, 'leg_mm': top_z - face_z - bottom_cover_mm,
+            'nominal_cover_mm': nominal_cover, 'lacers': lacers}
+
+
+def _plan_extent_ft(bbox, direction):
+    """(min, max) of a bounding box's plan corners along a horizontal direction, ft."""
+    values = [DB.XYZ(x, y, 0.0).DotProduct(direction)
+              for x in (bbox.Min.X, bbox.Max.X) for y in (bbox.Min.Y, bbox.Max.Y)]
+    return min(values), max(values)
+
+
+def apply_column_band(doc, host, mat, cover_mm, dia_x_mm, dia_y_mm, max_pitch_mm=300.0):
+    """
+    IStructE SMDSC 4th ed. 6.7: where a footing is longer than 1.5 (c + 3d) across a mat direction, two thirds
+    of that direction's bars go in a band c + 3d wide centred on the column, the rest in the outer
+    strips (at most max_pitch apart). Only for one column on a plain rectangular mat (one Set per
+    direction); the mat dict is changed in place and a note added.
+    """
+    from nosa_utils import mesh_rules
+    from nosa_utils.revit_helpers import get_id_value
+    engine = _ensure_engine()
+    columns = engine.find_columns_above(doc, host)
+    own = engine.get_isolated_solid_bbox(host) or host.get_BoundingBox(None)
+    if len(columns) != 1 or own is None:
+        return
+    column_box = columns[0].get_BoundingBox(None)
+    if column_box is None:
+        return
+    thickness_mm = (own.Max.Z - own.Min.Z) * _MM_PER_FT
+    for key, dia_mm in (('along_x', dia_x_mm), ('along_y', dia_y_mm)):
+        grouped = mat.get(key) or {}
+        sets = grouped.get('sets') or []
+        if len(sets) != 1 or grouped.get('bars'):
+            continue
+        st = sets[0]
+        spacing_mm, length_mm = st.get('spacing_mm') or 0.0, st.get('array_length_mm') or 0.0
+        if spacing_mm <= 0.0 or length_mm <= 0.0:
+            continue
+        n = DB.XYZ(st['normal'].X, st['normal'].Y, 0.0)
+        if n.GetLength() < 1e-9:
+            continue
+        n = n.Normalize()
+        count = int(math.ceil(length_mm / spacing_mm - 1e-6)) + 1
+        start = st['curves'][0].GetEndPoint(0)
+        lo = DB.XYZ(start.X, start.Y, 0.0).DotProduct(n) * _MM_PER_FT
+        f0, f1 = _plan_extent_ft(own, n)
+        c0, c1 = _plan_extent_ft(column_box, n)
+        d_mm = thickness_mm - cover_mm - dia_mm
+        band = mesh_rules.footing_band_mm((f1 - f0) * _MM_PER_FT, (c1 - c0) * _MM_PER_FT, d_mm)
+        if band is None:
+            continue
+        centre = (c0 + c1) / 2.0 * _MM_PER_FT
+        layout = mesh_rules.band_layout_mm(lo, lo + length_mm, count, centre - band / 2.0,
+                                           centre + band / 2.0, max_pitch_mm)
+        notes = grouped.setdefault('notes', [])
+        if layout is None:
+            notes.append(u'Footing {}: SMDSC 4th ed. 6.7 asks for two thirds of the {} bars in a {:.0f} mm band '
+                         u'under the column: at this bar count they would be closer than 100 mm. Use a larger bar '
+                         u'size or detail the band by hand.'.format(get_id_value(host.Id), key.replace(u'_', u' '), band))
+            continue
+        new_sets, new_bars = [], []
+        for run in layout:
+            if not run:
+                continue
+            shift = DB.Transform.CreateTranslation(n.Multiply((run[0] - lo) / _MM_PER_FT))
+            curves = [c.CreateTransformed(shift) for c in st['curves']]
+            if len(run) == 1:
+                new_bars.append({'curves': curves, 'normal': st['normal']})
+                continue
+            piece = dict((k, v) for k, v in st.items() if k != 'materialized_bars')
+            piece.update({'curves': curves, 'spacing_mm': (run[1] - run[0]) + 0.01,
+                          'array_length_mm': run[-1] - run[0]})
+            new_sets.append(piece)
+        grouped['sets'], grouped['bars'] = new_sets, new_bars
+        notes.append(u'Footing {}: {} of {} {} bars in a {:.0f} mm band under the column '
+                     u'(SMDSC 4th ed. 6.7: footing {:.0f} mm > 1.5 (c + 3d)).'.format(
+                         get_id_value(host.Id), len(layout[0]), sum(len(r) for r in layout),
+                         key.replace(u'_', u' '), band, (f1 - f0) * _MM_PER_FT))
+
+
 def build_mat_bars_topology(doc, host, is_top, cover_mm, dia_x_mm, dia_y_mm,
                              spacing_x_mm, spacing_y_mm, max_stock_length_mm=12000.0,
-                             target_z_mm=None, leg_direction=None):
+                             target_z_mm=None, leg_direction=None, side_inset_mm=None):
     """
     PHASE 3.5.7 item 3 — topology-aware counterpart of build_mat_bar_set:
     same Z-layering convention (along_x = Layer 1, along_y = Layer 2 —
@@ -1555,7 +1768,8 @@ def build_mat_bars_topology(doc, host, is_top, cover_mm, dia_x_mm, dia_y_mm,
 
     raw_loops = topo.extract_loops_mm(face_info.face)
     raw_outer, raw_holes, _n_small = topo.classify_loops(raw_loops)
-    outer = topo.offset_polygon_mm(raw_outer, cover_mm)
+    # side_inset_mm: the bar ends (and bent-up legs) further in than the cover, inside the lacers (MD PC1)
+    outer = topo.offset_polygon_mm(raw_outer, cover_mm if side_inset_mm is None else side_inset_mm)
     large_holes = [topo.offset_polygon_mm(h, -cover_mm) for h in raw_holes]
     xmin_mm, xmax_mm, ymin_mm, ymax_mm = topo.polygon_bbox_mm(outer)
 
@@ -1830,13 +2044,18 @@ def build_footing_reinforcement(doc, host,
                               u'full-depth U-bar legs — covers exceed this '
                               u'footing\'s thickness.')
 
+    # IStructE SMDSC 4th ed. MD PC1 (user 2026-10-12): the lacers run round the outside of the bent-up legs, the
+    # cover to them; the main bars stand in by the lacer's diameter
+    side_inset = bottom_cover_mm + side_diameter_mm if include_side_rebar and side_diameter_mm else None
     bottom_mat = build_mat_bars_topology(
         doc, host, is_top=False, cover_mm=bottom_cover_mm,
         dia_x_mm=bottom_dia_x_mm, dia_y_mm=bottom_dia_y_mm,
         spacing_x_mm=bottom_spacing_mm, spacing_y_mm=bottom_spacing_mm,
         max_stock_length_mm=max_stock_length_mm,
         target_z_mm=bottom_target_z_mm,
-        leg_direction=DB.XYZ.BasisZ if bottom_hooks else None)
+        leg_direction=DB.XYZ.BasisZ if bottom_hooks else None, side_inset_mm=side_inset)
+
+    apply_column_band(doc, host, bottom_mat, bottom_cover_mm, bottom_dia_x_mm, bottom_dia_y_mm)
 
     result = {'bottom_mat': bottom_mat, 'top_mat': None, 'dowels': None, 'side_rebar': None,
               'perimeter_closure_ubars': None}
@@ -1864,7 +2083,8 @@ def build_footing_reinforcement(doc, host,
             spacing_x_mm=top_spacing_mm, spacing_y_mm=top_spacing_mm,
             max_stock_length_mm=max_stock_length_mm,
             target_z_mm=top_target_z_mm,
-            leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None)
+            leg_direction=DB.XYZ.BasisZ.Multiply(-1.0) if top_hooks else None,
+            side_inset_mm=(top_cover_mm + side_diameter_mm) if include_side_rebar and side_diameter_mm else None)
         result['top_mat'] = top_mat
 
     if include_dowels:

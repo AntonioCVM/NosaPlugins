@@ -32,6 +32,10 @@ FIELDS = [
      [('re', r'Limited to a single\s+(?P<v>\d+\s?mm) diameter', None)]),
     (u'Column_Hole_Clear', u'Hole beside a column — minimum from column face', u'Concrete', u'275mm',
      [('re', r'Minimum from f/c of hole\s+(?P<v>\d+\s?mm)', None)]),
+    # read by the notes of each RC drawing (T9.6), not written on 0900
+    (u'Cover_Deviation', u'Allowance for deviation in cover (Δc,dev)', u'Concrete', u'10mm', []),
+    (u'Aggregate_Max', u'Maximum aggregate size', u'Concrete', u'20mm', []),
+    (u'GA_Drawings', u'GA drawings referenced by the RC drawings', u'Concrete', u'', []),
     (u'Fire_Resistance', u'Fire resistance (REI minutes)', u'Fire & movement', u'60',
      [('re', r'REI\s+(?P<v>\d+) min', None)]),
     (u'Deflection_Total', u'Deflection limit — total load (L/x)', u'Fire & movement', u'250',

@@ -1,0 +1,44 @@
+# -*- coding: utf-8 -*-
+"""T8.49 joint coordination rules (no Revit)."""
+from __future__ import absolute_import, division, print_function, unicode_literals
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+from nosa_utils import joints  # noqa: E402
+
+
+def test_leg_step():
+    assert joints.leg_step_mm(20.0, 20.0) == 50.0          # 22 + 25 = 47 -> 50
+    assert joints.leg_step_mm(20.0, 16.0) == 45.0          # 19.8 + 25
+    assert joints.leg_step_mm(32.0, 32.0) == 70.0          # 35.2 + 32
+
+
+def test_nested_legs():
+    assert joints.nested_leg_insets_mm(20.0, 20.0) == {'support': 0.0, 'bottom': 50.0}
+    assert joints.nested_leg_insets_mm(20.0, 20.0, 16.0) == {'support': 45.0, 'bottom': 90.0}
+
+
+def test_drops():
+    assert joints.slab_on_beam_drop_mm(25.0, (12.0, 12.0), 30.0) == 19.0
+    assert joints.slab_on_beam_drop_mm(25.0, (10.0, 10.0), 50.0) == 0.0
+    assert joints.secondary_drop_mm(20.0) == 20.0 and joints.secondary_drop_mm(None) == 0.0
+
+
+def test_beam_bars_between_column_bars():
+    cols = [-150.0, 0.0, 150.0]
+    assert joints.bars_between(cols, [-75.0, 75.0], 25.0, 20.0) == []
+    hits = joints.bars_between(cols, [-140.0, 75.0], 25.0, 20.0)
+    assert len(hits) == 1 and hits[0][0] == -140.0
+
+
+def test_inner_leg_stays_under_the_bend():
+    assert joints.bend_radius_mm(20.0) == 80.0 and joints.bend_radius_mm(12.0) == 30.0
+    room = joints.nested_leg_room_mm(480.0, 48.0, 20.0, 20.0)     # bend 80, 32 in from its centre: 7 mm lower
+    assert 452.0 < room < 454.0
+    assert joints.nested_leg_room_mm(480.0, 100.0, 20.0, 20.0) == 460.0
+
+
+def test_t_beam_flange_belongs_to_the_slab():
+    note = joints.flange_note(u'1234')
+    assert u'1234' in note and u'detailed with the slab' in note and u'EC2 6.2.4' in note

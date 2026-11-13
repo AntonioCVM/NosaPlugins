@@ -26,6 +26,27 @@ from Autodesk.Revit import DB
 _COLLECTOR_CLASS = []
 
 
+def _only_dimensions(accessor, message):
+    """An error whose failing elements are all dimensions (they can be deleted without losing the model change)."""
+    try:
+        ids = list(message.GetFailingElementIds())
+        doc = accessor.GetDocument()
+        return bool(ids) and all(isinstance(doc.GetElement(i), DB.Dimension) for i in ids)
+    except Exception:
+        return False
+
+
+def _failing(accessor, message):
+    """' [Rebar 123, Dimension 456]': what an error names, for the report."""
+    try:
+        doc = accessor.GetDocument()
+        ids = list(message.GetFailingElementIds()) + list(message.GetAdditionalElementIds())
+        names = [u'{} {}'.format(type(doc.GetElement(i)).__name__, i) for i in ids[:4]]
+        return u' [{}]'.format(u', '.join(names)) if names else u''
+    except Exception:
+        return u''
+
+
 def FailureCollector():
     """
     A failures preprocessor that never lets Revit open its failure dialog (T8.1): warnings are
@@ -39,17 +60,25 @@ def FailureCollector():
                 self.errors = []
 
             def PreprocessFailures(self, accessor):
-                failed = False
+                failed = resolved = False
                 for message in list(accessor.GetFailureMessages()):
                     text = message.GetDescriptionText()
                     if message.GetSeverity() == DB.FailureSeverity.Warning:
                         self.warnings.append(text)
                         accessor.DeleteWarning(message)
+                    elif _only_dimensions(accessor, message):
+                        # a dimension Revit can no longer measure goes, not the whole change with it (2026-10-18,
+                        # Revit 2026: one dimension on an inclined beam undid the beam's whole drawing)
+                        accessor.DeleteElements(message.GetFailingElementIds())
+                        self.warnings.append(text + u' (dimension removed)')
+                        resolved = True
                     else:
-                        self.errors.append(text)
+                        self.errors.append(text + _failing(accessor, message))
                         failed = True
                 if failed:
                     return DB.FailureProcessingResult.ProceedWithRollBack
+                if resolved:
+                    return DB.FailureProcessingResult.ProceedWithCommit
                 return DB.FailureProcessingResult.Continue
         _COLLECTOR_CLASS.append(_FailureCollector)
     return _COLLECTOR_CLASS[0]()

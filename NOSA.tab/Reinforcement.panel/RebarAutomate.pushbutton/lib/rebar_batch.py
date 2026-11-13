@@ -56,7 +56,7 @@ _OST_REBAR_LIKE_CATEGORY_NAMES = (
 
 # IStructE / BS 8666 bar location shown on the bar label (read from Comments).
 LOCATION_CODES = {u'bottom_x': u'B1', u'bottom_y': u'B2', u'top_x': u'T1', u'top_y': u'T2'}
-# near face = towards the slab, far face = outside the building; 1 = outer layer (SMDSC 4.2.1)
+# near face = towards the slab, far face = outside the building; 1 = outer layer (SMDSC 4th ed. 4.2.1)
 WALL_FACE_CODES = (u'N1', u'N2', u'F1', u'F2')
 _LEGACY_FACE_CODES = (u'NF', u'FF')   # before 2026-10-07: replaced on the next generation
 
@@ -166,7 +166,7 @@ class BatchResult(object):
         self.summary = summary    # the raw dict generate_fn() returned, untouched
 
 
-# lower-case sub-marks 1a, 1b ... (IStructE SMDSC 4.5.1, decision D8 2026-10-07)
+# lower-case sub-marks 1a, 1b ... (IStructE SMDSC 4th ed. 4.5.1, decision D8 2026-10-07)
 SUBMARK_SUFFIX = u'a'
 
 
@@ -197,9 +197,23 @@ def bent_bar_size_mm(rebar):
         return None
 
 
+def short_end_leg_mm(rebar):
+    """The shorter straight end of a bent rebar's first bar, mm, or None when it has no bend."""
+    try:
+        from Autodesk.Revit.DB.Structure import MultiplanarOption
+        from Autodesk.Revit import DB
+        curves = list(rebar.GetCenterlineCurves(False, False, False, MultiplanarOption.IncludeOnlyPlanarCurves, 0))
+        lines = [c for c in curves if isinstance(c, DB.Line)]
+        if len(lines) < 2:
+            return None
+        return min(lines[0].Length, lines[-1].Length) * 304.8
+    except Exception:
+        return None
+
+
 def ensure_varying_submarks(doc):
     """
-    Varying rebar sets numbered as a whole, bars suffixed a, b, c ... (SMDSC 4.5.1): the BBS then
+    Varying rebar sets numbered as a whole, bars suffixed a, b, c ... (SMDSC 4th ed. 4.5.1): the BBS then
     lists every bar of a set cut by a chamfer as its own sub-mark (01a, 01b) with its real
     dimensions. In a transaction; True when the project setting had to change.
     """
@@ -279,6 +293,11 @@ class RebarBatch(object):
                                 elem, u'NOSA_Rebar_Layer', layer)
                             results['Comments'] = stamp_location(
                                 elem, layer, self.locations.get(get_id_value(elem.Id)))
+                            from nosa_utils import rule_flags
+                            rule = rule_flags.flag_text(layer)
+                            if rule:
+                                # T9.15: a bar added by a detailing rule, not the design (user 2026-10-11)
+                                results[rule_flags.PARAM] = shared_params.write(elem, rule_flags.PARAM, rule)
                         results['Number of Members'] = default_members(elem)
                         results['NOSA_Rebar_Show_In_Schedule'] = default_schedule_flag(elem)
                         failed_fields = [name for name, ok in results.items() if not ok]
@@ -313,10 +332,24 @@ class RebarBatch(object):
                                 rebar_engine.round_straight_like_total(elem)
                             else:
                                 size = bent_bar_size_mm(elem)
+                                leg = short_end_leg_mm(elem)
+                                try:
+                                    from Autodesk.Revit.DB.Structure import RebarStyle
+                                    dia = doc.GetElement(elem.GetTypeId()).BarModelDiameter * 304.8
+                                    shape = doc.GetElement(elem.GetShapeId())
+                                    link = shape is not None and shape.RebarStyle == RebarStyle.StirrupTie
+                                except Exception:
+                                    dia, link = None, False
+                                if leg is not None and dia and not link and \
+                                        leg < standards.min_end_projection_mm(dia) - 1.0:
+                                    stamp_errors.append(
+                                        u'Element {}: straight end of {:.0f} mm past a bend, under the 5d = {:.0f} mm '
+                                        u'P of SMDSC Table B1 / BS 8666.'.format(
+                                            get_id_value(elem.Id), leg, standards.min_end_projection_mm(dia)))
                                 if size and not standards.transportable(*size):
                                     stamp_errors.append(
                                         u'Element {}: bent bar {:.0f} x {:.0f} mm does not travel (shorter side '
-                                        u'over 2.75 m, SMDSC 5.1.6): split it with a lap or a coupler.'.format(
+                                        u'over 2.75 m, SMDSC 4th ed. 5.1.7): split it with a lap or a coupler.'.format(
                                             get_id_value(elem.Id), size[0], size[1]))
                     except Exception as shape_err:
                         stamp_errors.append(u'Shape classification failed: {}'.format(shape_err))

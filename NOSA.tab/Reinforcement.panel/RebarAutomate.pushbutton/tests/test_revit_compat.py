@@ -145,3 +145,25 @@ if __name__ == '__main__':
             print(u'{}: FAILED -- {}'.format(t.__name__, e))
     print(u'\n{}/{} tests passed'.format(len(tests) - failures, len(tests)))
     sys.exit(1 if failures else 0)
+
+
+def test_free_form_rebar_on_2024_to_2026_and_on_2027():
+    # Revit 2027 dropped CreateFreeForm(doc, type, host, loops) for one taking a RebarStyle (T8.57, 2026-10-25)
+    import types
+    import rebar_engine
+
+    def old_api(doc, bar_type, host, loops, *rest):
+        if rest:
+            raise TypeError(u'no such overload')
+        return ('rebar', 'Success')
+
+    def new_api(doc, bar_type, host, loops, *rest):
+        if not rest:
+            raise TypeError(u'expected Guid, got RebarBarType')
+        assert rest[0] == 'Standard'
+        return types.SimpleNamespace(Rebar='rebar', Error='Success')      # RebarFreeFormCreationResult
+    for api, style in ((old_api, 'Success'), (new_api, 'Success')):
+        dbs = types.SimpleNamespace(Rebar=types.SimpleNamespace(CreateFreeForm=api),
+                                    RebarStyle=types.SimpleNamespace(Standard='Standard'))
+        assert rebar_engine.create_free_form(dbs, 'doc', 'H16', 'host', ['loop']) == ('rebar', style)
+    print(u'[PASS] test_free_form_rebar_on_2024_to_2026_and_on_2027')

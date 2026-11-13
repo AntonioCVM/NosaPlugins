@@ -18,7 +18,10 @@ def test_meshes_every_direction():
 
 
 def test_beam_and_column_layers():
-    assert fc.beam_notes(300.0, 40.0, 8.0, 20.0, 3, 3) == []
+    assert fc.beam_notes(300.0, 40.0, 8.0, 20.0, 2, 3) == []
+    # 3H20 fit a 300 beam but leave no 75 mm space for the poker vibrator (SMDSC MB1)
+    notes = fc.beam_notes(300.0, 40.0, 8.0, 20.0, 3, 3)
+    assert len(notes) == 1 and u'vibrator' in notes[0]
     assert fc.beam_notes(300.0, 40.0, 8.0, 25.0, 5, 3)          # 5H25 in a 300 beam
     rect = {'shape': 'rect', 'width_mm': 300.0, 'depth_mm': 300.0}
     assert fc.column_notes(rect, 40.0, 8.0, 16.0, 8, (3, 3)) == []

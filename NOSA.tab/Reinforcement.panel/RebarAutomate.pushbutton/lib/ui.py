@@ -52,6 +52,7 @@ rebar_detailing = load_module('rebar_detailing', os.path.join(_HERE, 'rebar_deta
 column_rebar = load_module('column_rebar', os.path.join(_HERE, 'column_rebar.py'))
 beam_rebar = load_module('beam_rebar', os.path.join(_HERE, 'beam_rebar.py'))
 floor_rebar = load_module('floor_rebar', os.path.join(_HERE, 'floor_rebar.py'))
+punching_rebar = load_module('punching_rebar', os.path.join(_HERE, 'punching_rebar.py'))
 wall_rebar = load_module('wall_rebar', os.path.join(_HERE, 'wall_rebar.py'))
 rebar_modify = load_module('rebar_modify', os.path.join(_HERE, 'rebar_modify.py'))
 rebar_partitions = load_module('rebar_partitions', os.path.join(_HERE, 'rebar_partitions.py'))
@@ -77,6 +78,7 @@ rebar_schedule = load_module('rebar_schedule', os.path.join(_HERE, 'rebar_schedu
 rebar_export_bvbs = load_module('rebar_export_bvbs', os.path.join(_HERE, 'rebar_export_bvbs.py'))
 rebar_marking = load_module('rebar_marking', os.path.join(_HERE, 'rebar_marking.py'))
 rebar_content = load_module('rebar_content', os.path.join(_HERE, 'rebar_content.py'))
+rebar_manage = load_module('rebar_manage', os.path.join(_HERE, 'rebar_manage.py'))  # Phase 11
 
 _CAT_ID_CACHE = {}
 
@@ -90,7 +92,9 @@ def _cat_id(bic_name):
 
 _PREVIEW_BAR_FILL = SolidColorBrush(Color.FromRgb(51, 51, 51))
 _PREVIEW_SECTION_STROKE = SolidColorBrush(Color.FromRgb(255, 95, 0))
-_PREVIEW_SECTION_FILL = SolidColorBrush(Color.FromArgb(15, 255, 95, 0))
+_PREVIEW_SECTION_FILL = SolidColorBrush(Color.FromRgb(253, 198, 166))     # concrete cut, as on the drawings
+_PREVIEW_ELEVATION_FILL = SolidColorBrush(Color.FromRgb(232, 232, 232))  # concrete seen (Phase 10)
+_PREVIEW_CONCRETE_STROKE = SolidColorBrush(Color.FromRgb(51, 51, 51))
 # Phase 2.1 — Perimeter Closure U-Bars preview: 'primary' (X-Bars
 # Anchoring, B1/T1) drawn solid, matching the main mat's own bar
 # colour; 'weave' (Y-Bars Anchoring, B2/T2) drawn semi-transparent in
@@ -122,6 +126,12 @@ class _CategorySelectionFilter(ISelectionFilter):
 
     def AllowReference(self, ref, point):
         return True
+
+
+def is_ground_beam(element):
+    """The NOSA 'RC Ground Beam' tie beam (nosa_utils.revit_helpers): reinforced as a beam."""
+    from nosa_utils.revit_helpers import is_ground_beam as _is_ground_beam
+    return _is_ground_beam(element)
 
 
 def _is_valid_rebar_host(element):
@@ -164,8 +174,9 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralColumns')])
                 prompt = u'Select Structural Columns to reinforce, then click Finish.'
             elif mode == 'beams':
-                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFraming')])
-                prompt = u'Select Structural Framing (beams) to reinforce, then click Finish.'
+                sel_filter = _CategorySelectionFilter([_cat_id('OST_StructuralFraming'),
+                                                       _cat_id('OST_StructuralFoundation')])
+                prompt = u'Select Structural Framing (beams) or ground beams to reinforce, then click Finish.'
             elif mode == 'walls':
                 sel_filter = _CategorySelectionFilter([_cat_id('OST_Walls')])
                 prompt = u'Select Walls to reinforce, then click Finish.'
@@ -220,6 +231,8 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                 window._show_column_result(elements, summary)
                 window._refresh_batch_list()
             elif mode == 'beams':
+                elements = [e for e in elements if get_id_value(e.Category.Id) ==
+                            _cat_id('OST_StructuralFraming') or is_ground_beam(e)]
                 if not elements:
                     forms.alert(u'No Structural Framing (beams) selected.')
                     return
@@ -257,7 +270,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_wall_reinforcement(elements, values))
                     summary = dict(batch_result.summary)
-                    import fit_checks   # T8.47, SMDSC 5.2: clear gaps and pitch of the meshes
+                    import fit_checks   # T8.47, SMDSC 4th ed. 5.2: clear gaps and pitch of the meshes
                     summary['errors'] = list(batch_result.errors) + fit_checks.mesh_notes('walls', values)
                 except Exception as e:
                     forms.alert(u'Wall reinforcement generation failed:\n{}'.format(e))
@@ -295,8 +308,11 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                             get_id_value(e.Category.Id) == _cat_id('OST_StructuralFoundation')]
                 floors = [e for e in elements if e.Category is not None and
                           get_id_value(e.Category.Id) == _cat_id('OST_Floors')]
+                # Phase 10: the Slabs tab acts on floors and foundation slabs, Bases & pile caps on the rest
+                footings, floors = window._slab_tab_hosts(footings, floors)
                 if not footings and not floors:
-                    forms.alert(u'No Structural Foundations or Floors selected.')
+                    forms.alert(u'Nothing this tab reinforces is selected: floors and foundation slabs on Slabs, '
+                                u'pad and strip footings and pile caps on Bases & pile caps.')
                     return
 
                 footings_only_extras = (values['include_side_rebar'] or values['include_dowels']
@@ -317,7 +333,7 @@ class _ReinforcementEventHandler(IExternalEventHandler):
                     batch_result = batch.run(
                         lambda: window._run_reinforcement(footings, floors, values))
                     summary = dict(batch_result.summary)
-                    import fit_checks   # T8.47, SMDSC 5.2: clear gaps and pitch of the meshes
+                    import fit_checks   # T8.47, SMDSC 4th ed. 5.2: clear gaps and pitch of the meshes
                     summary['errors'] = (list(batch_result.errors)
                                          + fit_checks.mesh_notes('footings_floors', values))
                 except Exception as e:
@@ -370,9 +386,11 @@ _tab_beams = load_module('ra_tab_beams', os.path.join(_HERE, 'tab_beams.py'))
 _tab_walls = load_module('ra_tab_walls', os.path.join(_HERE, 'tab_walls.py'))
 _tab_stairs = load_module('ra_tab_stairs', os.path.join(_HERE, 'tab_stairs.py'))
 _tab_tools = load_module('ra_tab_tools', os.path.join(_HERE, 'tab_tools.py'))
+_tab_shell = load_module('ra_tab_shell', os.path.join(_HERE, 'tab_shell.py'))
 
 
-class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab_walls.WallsMixin, _tab_stairs.StairsMixin, _tab_tools.ToolsMixin, NOSAWindow):
+class RebarAutomateWindow(_tab_shell.ShellMixin, _tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab_walls.WallsMixin,
+                          _tab_stairs.StairsMixin, _tab_tools.ToolsMixin, NOSAWindow):
 
     def __init__(self, doc):
         # PHASE 3.6 FIX — a live crash ("Initialization of
@@ -460,6 +478,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         # enough; no separate "diff the selection" tracking needed.
         self.Loaded += self._on_window_loaded
         self._wire_live_previews()
+        self._init_shell()            # Phase 10: navigation, selection bar, action bar
+        self._init_manage()           # Phase 11: layers, marks, copies, issues
 
         self._is_loaded = True
         self._refresh_batch_list()
@@ -622,6 +642,23 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         for label in _STAIR_STARTER_TYPES:
             self.CboStairStarterType.Items.Add(label)
         self.CboStairStarterType.SelectedIndex = 0
+        # T8.53 water-retaining structures (SMDSC chapter 9)
+        self.CmbTightness.Items.Clear()
+        for cls in (u'0', u'1', u'2', u'3'):
+            self.CmbTightness.Items.Add(cls)
+        self.CmbTightness.SelectedIndex = int(self.ra_project.get('tightness', 1))
+        self.ChkWaterRetaining.IsChecked = bool(self.ra_project.get('water_retaining', False))
+        # T8.51 welded fabric (wired here, never in the XAML: see the ComboBox load crash note)
+        from nosa_utils import fabric as _fabric
+        self.CmbFabricRef.Items.Clear()
+        for ref in _fabric.references():
+            self.CmbFabricRef.Items.Add(ref)
+        self.CmbFabricRef.SelectedItem = _fabric.GROUND_SLAB_FABRIC
+        for combo, items in ((self.CmbFabricFace, (u'Bottom', u'Top')), (self.CmbFabricDir, (u'X', u'Y'))):
+            combo.Items.Clear()
+            for item in items:
+                combo.Items.Add(item)
+            combo.SelectedIndex = 0
         current_status = self.ra_project.get('status', u'Design')
         if current_status in statuses:
             self.CmbProjectStatus.SelectedItem = current_status
@@ -681,6 +718,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             forms.alert(u'Default concrete fck must be between 12 and 90 MPa.', title=u'RebarAutomate')
             return
         self.ra_project['lap_rules'] = u'bs8110' if self.CmbLapRules.SelectedIndex == 1 else u'ec2'
+        self.ra_project['water_retaining'] = self.ChkWaterRetaining.IsChecked == True
+        self.ra_project['tightness'] = max(0, self.CmbTightness.SelectedIndex)
         rebar_project.save(self.doc, self.ra_project)
         forms.alert(u'Project settings saved.', title=u'RebarAutomate')
     
@@ -979,10 +1018,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     for grandchild in descendants(child):
                         yield grandchild
 
-        for index, handler in enumerate(handlers):
-            if index >= self.MainTabControl.Items.Count:
-                break
-            for control in descendants(self.MainTabControl.Items[index]):
+        tabs = (self.TabSlabs, self.TabColumns, self.TabBeams, self.TabWalls, self.TabStairs)
+        for tab, handler in zip(tabs, handlers):
+            for control in descendants(tab):
                 if isinstance(control, SWC.CheckBox):
                     control.Click += handler
                 elif isinstance(control, SWC.TextBox):
@@ -1040,7 +1078,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         return re_engine.get_native_cover_mm(self.doc, host, face_type_name, default_mm)
 
     def _update_preview(self):
-        footings, floors = self._selected_hosts()
+        footings, floors = self._slab_tab_hosts(*self._selected_hosts())
         preview_host = (footings + floors)[0] if (footings or floors) else None
         preview_kind = u'foundation' if footings else (u'slab' if floors else None)
 
@@ -1213,7 +1251,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 rect.Width = max(1.0, (sh['x1'] - sh['x0']) * scale)
                 rect.Height = max(1.0, (sh['y1'] - sh['y0']) * scale)
                 if kind == 'concrete':
-                    rect.Stroke, rect.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                    rect.Stroke, rect.Fill = _PREVIEW_CONCRETE_STROKE, _PREVIEW_SECTION_FILL
                 elif kind == 'ground':
                     rect.Stroke = colours['ghost']
                     rect.Fill = SolidColorBrush(Color.FromArgb(40, 128, 128, 128))
@@ -1228,13 +1266,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 poly = SWS.Polygon()
                 for x, y in sh['points']:
                     poly.Points.Add(System.Windows.Point(sx(x), sy(y)))
-                poly.Stroke, poly.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                poly.Stroke, poly.Fill = _PREVIEW_CONCRETE_STROKE, _PREVIEW_SECTION_FILL
                 poly.StrokeThickness = 1.2
                 canvas.Children.Add(poly)
             elif kind == 'circle':
                 ell = SWS.Ellipse()
                 ell.Width = ell.Height = 2 * sh['r'] * scale
-                ell.Stroke, ell.Fill = _PREVIEW_SECTION_STROKE, _PREVIEW_SECTION_FILL
+                ell.Stroke, ell.Fill = _PREVIEW_CONCRETE_STROKE, _PREVIEW_SECTION_FILL
                 ell.StrokeThickness = 1.2
                 SWC.Canvas.SetLeft(ell, sx(sh['x'] - sh['r']))
                 SWC.Canvas.SetTop(ell, sy(sh['y'] + sh['r']))
@@ -1316,7 +1354,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 1.5
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
@@ -1506,6 +1544,15 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             values['top_spacing'] = self._read_number(self.TxtTopSpacing.Text, u'Top spacing', errors)
             values['top_hooks'] = self.ChkTopHooks.IsChecked == True
 
+        values['punching'] = self.ChkPunching.IsChecked == True
+        if values['punching']:
+            try:
+                values['punch_ved'] = max(float(self.TxtPunchVEd.Text or 0), 0.0)   # 0: the columns' own VEd only
+            except ValueError:
+                errors.append(u'"Punching VEd" must be a number.')
+            values['punch_beta'] = self._read_number(self.TxtPunchBeta.Text, u'Punching beta', errors)
+            values['stud_dia'] = self._read_number(self.TxtStudDia.Text, u'Stud diameter', errors)
+
         values['include_side_rebar'] = self.ChkIncludeSideRebar.IsChecked == True
         if values['include_side_rebar']:
             values['side_diameter'] = self._read_number(
@@ -1558,6 +1605,14 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 self.TxtYAnchorUBarSpacing.Text, u'Y-Bars Anchoring U-Bar spacing', errors)
 
         values['include_opening_diagonals'] = self.ChkOpeningDiagonals.IsChecked == True
+        values['corner_torsion'] = self.ChkCornerTorsion.IsChecked == True
+        values['top_over_supports'] = self.ChkTopOverSupports.IsChecked == True
+        values['flat_slab'] = self.ChkFlatSlab.IsChecked == True
+        values['fabric'] = self.ChkFabric.IsChecked == True
+        values['fabric_ref'] = u'{}'.format(self.CmbFabricRef.SelectedItem or u'A193')
+        values['fabric_face'] = u'{}'.format(self.CmbFabricFace.SelectedItem or u'Bottom').lower()
+        values['fabric_dir'] = u'{}'.format(self.CmbFabricDir.SelectedItem or u'X').lower()
+        values['alternate_bottom'] = self.ChkAlternateBottom.IsChecked == True
         if values['include_opening_diagonals']:
             values['opening_diagonal_dia'] = self._read_number(
                 self.TxtOpeningDiagonalDia.Text, u'Opening corner diagonal bar diameter', errors)
@@ -1658,7 +1713,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             host, side_rebar['curves'], bar_type,
             side_rebar['spacing_mm'], side_rebar['array_length_mm'],
             normal=side_rebar['face_normal'], style=DBS.RebarStyle.StirrupTie,
-            transaction_name=u'NOSA — Create Footing Side Rebar')
+            transaction_name=u'NOSA — Create Footing Side Rebar',
+            # closed like every link: both 135 degree hooks at one corner, BS 8666 shape 52 (2026-10-24 audit M5:
+            # PC1 lacers were a closed 51 with C = D = 0, which no bender can make)
+            link_hook=re_engine.get_link_hook_type(self.doc))
         if rebar is None:
             errors.append(u'Footing {}: side rebar — {}'.format(get_id_value(host.Id), wrapper.last_error))
         else:
@@ -1693,6 +1751,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             else:
                 self._stamp_layer(rebar, u'dowel')
                 created_rebars.append(rebar)
+        self._create_starter_links(
+            wrapper, [dict(g, foundation=host) for g in dowels.get('groups', [])], bar_dia_mm, cover_mm,
+            errors, created_rebars, u'Footing', host)
         if short_feet:
             errors.append(u'Footing {}: {} dowel foot/feet shortened to {:.0f} mm to stay inside the '
                           u'footing (450 mm recommended).'.format(
@@ -1713,6 +1774,62 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             errors.append(u'Footing {}: dowels embedded only {:.0f} mm, less than the {:.0f} mm '
                           u'anchorage asked for — check the footing depth.'.format(
                               get_id_value(host.Id), embedded, dowels['anchor_length_mm']))
+
+    def _create_starter_links(self, wrapper, groups, bar_dia_mm, cover_mm, errors, created_rebars,
+                              label, host):
+        """IStructE SMDSC 4th ed. MD F1 / MD C1: H10-300 links (3 at least) round each rectangular cage of starters."""
+        from nosa_utils import links
+        if not groups:
+            return
+        bar_type = re_engine.get_bar_type_by_diameter(self.doc, links.STARTER_LINK_DIA_MM)
+        if bar_type is None:
+            errors.append(u'{} {}: no H10 bar type in the project — starter links (SMDSC 4th ed. MD F1) '
+                          u'not created.'.format(label, get_id_value(host.Id)))
+            return
+        skipped = 0
+        for group in groups:
+            top_cover = re_engine.get_native_cover_mm(self.doc, group['foundation'], u'Top', cover_mm)
+            link_set = re_engine.starter_link_set(group['bars'], group['hand'], group['foundation'],
+                                                  links.STARTER_LINK_DIA_MM, bar_dia_mm, top_cover)
+            if link_set is None:
+                skipped += 1
+                continue
+            self._create_grouped_bars(wrapper, group['foundation'], {'sets': [link_set], 'bars': []},
+                                      bar_type, errors, created_rebars, u'Starter Link',
+                                      layer=u'starter_link')
+        if skipped:
+            errors.append(u'{} {}: {} starter cage(s) without links — not rectangular or no room in '
+                          u'the foundation; add H10-300 (3 at least, SMDSC 4th ed. MD F1) by hand.'.format(
+                              label, get_id_value(host.Id), skipped))
+
+    def _foundation_starter_mm(self, typed_mm, bar_dia_mm, host, errors, min_kicker_mm=0.0):
+        """Foundation starter projection (SMDSC 4th ed. MD F1 / MD C1 / MD W1): lap + kicker + 150 level tolerance."""
+        try:
+            base_ft = host.get_BoundingBox(None).Min.Z
+        except Exception:
+            base_ft = None
+        return (self._splice_mm(typed_mm, bar_dia_mm, host, errors, u'Starter splice')
+                + max(self._kicker_at_mm(base_ft, host, errors), min_kicker_mm)
+                + standards.FOUNDATION_LEVEL_TOLERANCE_MM)
+
+    def _ground_level_ft(self):
+        """Elevation of the project's ground level: the level named 'Ground…', else 0."""
+        try:
+            for level in DB.FilteredElementCollector(self.doc).OfClass(DB.Level):
+                if level.Name.lower().startswith(u'ground'):
+                    return level.Elevation
+        except Exception:
+            log_swallowed(_LOG, u'RebarAutomateWindow._ground_level_ft')
+        return 0.0
+
+    def _kicker_at_mm(self, base_ft, host, errors):
+        """Kicker height at a base: the set one, at least 150 mm below ground (SMDSC 4th ed. MD F1 / MD C1 / MD W1)."""
+        kicker = self._kicker_mm()
+        if base_ft is None or kicker >= 150.0 or base_ft >= self._ground_level_ft() - 50.0 / 304.8:
+            return kicker
+        errors.append(u'{} {}: base below ground — kicker 150 mm (SMDSC 4th ed. MD F1 / MD W1), not {:.0f}.'.format(
+            host.Category.Name if host.Category else u'Element', get_id_value(host.Id), kicker))
+        return 150.0
 
     def _create_foundation_starter_bars(self, wrapper, host, starters, bar_type, hook_type,
                                          label, errors, created_rebars):
@@ -1818,6 +1935,16 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         except Exception:
             return False
 
+    @staticmethod
+    def _straight_runs(bars):
+        """Straight bars in runs at one pitch (varying_sets.split_runs), each run a list of bars."""
+        if not bars:
+            return []
+        chains = [[(p.X * 304.8, p.Y * 304.8, p.Z * 304.8)
+                   for p in [b['curves'][0].GetEndPoint(0)] + [c.GetEndPoint(1) for c in b['curves']]]
+                  for b in bars]
+        return [[bars[i] for i in run] for run in varying_sets.split_runs(chains)]
+
     def _create_varying_runs(self, wrapper, host, bars, bar_type, style, label, layer, created_rebars):
         """Varying rebar sets for the runs of `bars` one set can hold; returns the bars left over."""
         chains = [[(p.X * 304.8, p.Y * 304.8, p.Z * 304.8)
@@ -1899,10 +2026,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 rebar = None
                 wrapper.last_error = u'rows step along an inclined edge'
             else:
+                # a closed link is bent with its hooks (shape 52, decision 4 of 2026-10-24) wherever it is made:
+                # starter links round a column's cage were still shape 51 (2026-10-25, Revit 2024/2025 F10-06)
                 rebar = wrapper.create_rebar_set(
                     host, s['curves'], bar_type, s['spacing_mm'], s['array_length_mm'],
                     normal=s['normal'], style=style,
-                    transaction_name=u'NOSA — Create {}'.format(label))
+                    transaction_name=u'NOSA — Create {}'.format(label),
+                    link_hook=re_engine.get_link_hook_type(self.doc) if s.get('style') == 'StirrupTie' else None)
             propagated = rebar is not None and not (
                 wrapper.last_error and u'propagation failed' in wrapper.last_error)
             if propagated:
@@ -2001,6 +2131,25 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 wrapper, host, freeform_candidates, bar_type, None, label, layer, created_rebars)
         fallback_bars = [b for b in loose_bars
                           if b.get('style') is not None or b.get('is_hole')]
+        # a lone straight bar is a bar of its own, with its own mark and real Shape: a FreeForm group of them
+        # drew S20's two edge rows, 4770 apart, as one set (2026-10-17)
+        straight = [b for b in freeform_candidates
+                    if len(b['curves']) == 1 and isinstance(b['curves'][0], DB.Line)]
+        freeform_candidates = [b for b in freeform_candidates if not any(b is s for s in straight)]
+        # but a run of them at one pitch along a curved edge (no varying set follows a curved face) is one
+        # group of bars varying in length, called up once (a to f) (user 2026-10-18, S3: six loose B2 bars)
+        for run in self._straight_runs(straight):
+            if len(run) < 2:
+                fallback_bars = fallback_bars + run
+                continue
+            rebar = wrapper.create_freeform_group(
+                host, [b['curves'] for b in run], bar_type,
+                transaction_name=u'NOSA — Create {} (varying lengths)'.format(label))
+            if rebar is None:
+                fallback_bars = fallback_bars + run
+                continue
+            self._stamp_layer(rebar, layer)
+            created_rebars.append(rebar)
 
         if len(freeform_candidates) >= 2:
             curve_groups = [b['curves'] for b in freeform_candidates]
@@ -2049,7 +2198,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                         errors.append(u'Footing {}: could not create the {}-axis '
                                       u'detail section.'.format(get_id_value(host.Id), axis))
                     else:
-                        rebar_views.ensure_fine(section)
+                        rebar_views.ensure_coarse(section)
                         created += 1
         return created
 
@@ -2074,6 +2223,7 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                             self.doc, host, u'Top', self._standard_default_cover_mm(u'foundation'))
                         if values['include_top_mat'] else None)
         values = self._smdsc_mesh_review(host, values, bottom_cover_mm, top_cover_mm, errors, foundation=True)
+        values = self._pile_cap_values(host, values, bar_types, errors)
         reinforcement = footing_rebar.build_footing_reinforcement(
             self.doc, host,
             bottom_cover_mm=bottom_cover_mm,
@@ -2093,7 +2243,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             dowel_anchor_length_mm=values.get('dowel_anchor'),
             dowel_splice_length_mm=self._splice_mm(
                 values.get('dowel_splice'), values.get('dowel_diameter') or 16.0, host, errors,
-                u'Dowel splice') + self._kicker_mm(),
+                u'Dowel splice') + self._kicker_at_mm(footing_rebar._footing_bbox(host).Max.Z, host, errors)
+            + standards.FOUNDATION_LEVEL_TOLERANCE_MM,
             dowel_column_width_mm=values.get('dowel_col_width', 400.0),
             dowel_column_depth_mm=values.get('dowel_col_depth', 400.0),
             dowel_column_bar_count=values.get('dowel_col_bar_count'),
@@ -2109,6 +2260,38 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             y_anchor_ubar_spacing_mm=values.get('y_anchor_ubar_spacing'),
             max_stock_length_mm=values['max_stock_length'],
             std=self._host_std(host))
+        if self._is_pile_cap(host):
+            side_cover_mm = re_engine.get_native_cover_mm(self.doc, host, u'Exterior', bottom_cover_mm)
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            import math
+            for axis in (u'x', u'y'):
+                dia = values[u'dia_' + axis]
+                need = standards.bearing_mandrel_mm(dia, values['spacing'], side_cover_mm, fck)
+                if need > standards.standard_mandrel_mm(dia) + 1.0:
+                    errors.append(u'Pile cap {}: {} bars bent at the ends need a large radius bend — mandrel '
+                                  u'{:.0f} mm for a fully stressed H{:.0f} at {:.0f} (EC2 8.3, SMDSC 4th ed. 5.1.9; '
+                                  u'BS 8666 standard {:.0f}); specify it (shape 99) or check the bar stress.'.format(
+                                      get_id_value(host.Id), axis.upper(), 25.0 * math.ceil(need / 25.0), dia,
+                                      values['spacing'], standards.standard_mandrel_mm(dia)))
+            bands = footing_rebar.build_pile_cap_bands(
+                self.doc, host, bottom_cover_mm, side_cover_mm, top_cover_mm, values['dia_x'], values['spacing'],
+                values.get('side_diameter') or 12.0, values.get('side_spacing') or 10000.0)
+            if bands is not None:
+                reinforcement = self._pile_cap_band_mats(host, reinforcement, bands, values, bottom_cover_mm,
+                                                         top_cover_mm, bar_types, errors)
+                need = self._anchorage_mm(host, values['dia_x'])
+                if bands['reach_mm'] + bands['leg_mm'] < need - 1.0:
+                    errors.append(u'Pile cap {}: tie bars {:.0f} mm from the edge pile centre to the bar end, under '
+                                  u'the {:.0f} mm tension anchorage SMDSC 4th ed. MD F2 asks for — larger bends or a bigger '
+                                  u'cap.'.format(get_id_value(host.Id), bands['reach_mm'] + bands['leg_mm'], need))
+            else:
+                errors.extend(u'Pile cap {}: {}'.format(get_id_value(host.Id), n)
+                              for n in footing_rebar.pile_cap_anchorage_notes(
+                                  host, side_cover_mm, bottom_cover_mm, top_cover_mm, values['dia_x'], values['dia_y'],
+                                  self._anchorage_mm(host, values['dia_x']), self._anchorage_mm(host, values['dia_y'])))
 
         # PHASE 3.5.7 item 3 — bottom_mat/top_mat/perimeter_closure_ubars
         # now come from footing_rebar's topology-aware builders (real
@@ -2119,12 +2302,22 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         # single-Set _create_mat_bar_set/_create_perimeter_closure_ubars
         # (which assumed one uniform Set spans the whole rectangular
         # footing with no holes).
+        for k, chains in enumerate(reinforcement.get('tie_bands') or []):
+            rebar = wrapper.create_freeform_group(host, chains, bar_types.get(values['dia_x']),
+                                                  transaction_name=u'NOSA — Create Pile Cap Tie Bars')
+            if rebar is None:
+                errors.append(u'Pile cap {}: tie bars, layer {} — {}'.format(get_id_value(host.Id), k + 1,
+                                                                             wrapper.last_error))
+            else:
+                self._stamp_layer(rebar, u'tie_band')
+                created_rebars.append(rebar)
         bottom = reinforcement['bottom_mat']
+        mat_dia = reinforcement.get('mat_dia') or {}
         self._create_grouped_bars(
-            wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
+            wrapper, host, bottom['along_x'], bar_types.get(mat_dia.get('x', values['dia_x'])),
             errors, created_rebars, u'Footing Bottom Mat (B1)', layer=u'bottom_x')
         self._create_grouped_bars(
-            wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
+            wrapper, host, bottom['along_y'], bar_types.get(mat_dia.get('y', values['dia_y'])),
             errors, created_rebars, u'Footing Bottom Mat (B2)', layer=u'bottom_y')
 
         if reinforcement['top_mat'] is not None:
@@ -2163,9 +2356,76 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 bar_types.get(values.get('dowel_diameter')),
                 hook_type, errors, created_rebars)
 
+    def _pile_cap_band_mats(self, host, reinforcement, bands, values, bottom_cover_mm, top_cover_mm, bar_types,
+                            errors):
+        """
+        IStructE SMDSC 4th ed. Table 6.7, 3- and 7-pile caps: the design bars go in the tie bands over the pile
+        lines; the mat above them is nominal H16 at 200 and the lacers follow the cap's outline.
+        """
+        from nosa_utils import pile_caps
+        nominal = pile_caps.NOMINAL_DIA_MM
+        if bar_types.get(nominal) is None:
+            bar_types[nominal] = re_engine.get_bar_type_by_diameter(self.doc, nominal)
+        box = footing_rebar._footing_bbox(host)
+        target = box.Max.Z * 304.8 - (top_cover_mm or bottom_cover_mm) - values['dia_x']
+        reinforcement = dict(reinforcement)
+        reinforcement['bottom_mat'] = footing_rebar.build_mat_bars_topology(
+            self.doc, host, False, bands['nominal_cover_mm'], nominal, nominal, pile_caps.NOMINAL_PITCH_MM,
+            pile_caps.NOMINAL_PITCH_MM, values['max_stock_length'], target_z_mm=target, leg_direction=DB.XYZ.BasisZ)
+        reinforcement['mat_dia'] = {'x': nominal, 'y': nominal}
+        reinforcement['tie_bands'] = bands['bands']
+        if bands['lacers'] is not None:
+            reinforcement['side_rebar'] = bands['lacers']
+        errors.append(u'Pile cap {}: {} piles — H{:.0f} tie bars at {:.0f} in bands over the pile lines ({} layers, '
+                      u'bent up at both ends), nominal H16 at 200 above them and lacers round the cap '
+                      u'(SMDSC 4th ed. Table 6.7).'.format(get_id_value(host.Id), len(footing_rebar.pile_centres_ft(host)),
+                                                   float(values['dia_x']), float(values['spacing']), bands['layers']))
+        return reinforcement
+
+    def _place_punching_studs(self, floors, values, errors):
+        """EC2 6.4 at every column under the floors, shear stud rails where needed (punching_rebar)."""
+        try:
+            punching_rebar.bind(self.doc)
+        except Exception as e:
+            errors.append(u'Punching parameters NOSA_Punching_VEd/Beta not bound to the columns: {}'.format(e))
+        with nosa_tx.revit_transaction(u'NOSA — Punching Shear Studs'):
+            for host in floors:
+                try:
+                    bottom = re_engine.get_native_cover_mm(self.doc, host, u'Bottom',
+                                                           self._standard_default_cover_mm(u'slab'))
+                    top = re_engine.get_native_cover_mm(self.doc, host, u'Top', self._standard_default_cover_mm(u'slab'))
+                    try:
+                        fck = standards.concrete_fck_mpa(self._host_std(host))
+                    except Exception:
+                        fck = 30.0
+                    punching_rebar.place(self.doc, host, values, bottom, top, fck, footing_rebar, column_rebar, errors)
+                except Exception as e:
+                    errors.append(u'Floor {}: punching studs — {}'.format(get_id_value(host.Id), e))
+
+    def _is_pile_cap(self, host):
+        try:
+            return u'pile' in host.Symbol.FamilyName.lower() or bool(footing_rebar.pile_centres_ft(host))
+        except Exception:
+            return False
+
+    def _pile_cap_values(self, host, values, bar_types, errors):
+        """IStructE SMDSC 4th ed. MD F2 / Table 6.10: main bars bent at both ends, two layers of H12 lacers."""
+        if not self._is_pile_cap(host):
+            return values
+        label = u'Pile cap {}'.format(get_id_value(host.Id))
+        if not values.get('bottom_hooks'):
+            values = dict(values, bottom_hooks=True)
+            errors.append(u'{}: main bars bent up at both ends (SMDSC 4th ed. MD F2, Table 6.10).'.format(label))
+        if not values.get('include_side_rebar'):
+            values = dict(values, include_side_rebar=True, side_diameter=12.0, side_spacing=10000.0)
+            if bar_types.get(12.0) is None:
+                bar_types[12.0] = re_engine.get_bar_type_by_diameter(self.doc, 12.0)
+            errors.append(u'{}: two layers of H12 lacers added (SMDSC 4th ed. MD F2).'.format(label))
+        return values
+
     def _smdsc_mesh_review(self, host, values, bottom_cover_mm, top_cover_mm, errors, foundation):
         """
-        T8.39/T8.41 — IStructE SMDSC 6.2 (slabs) / 6.7 (foundations) for this host's mats: pitches
+        T8.39/T8.41 — IStructE SMDSC 4th ed. 6.2 (slabs) / 6.7 (foundations) for this host's mats: pitches
         over the maxima come down (values copied, never the shared dict), the rest is reported.
         """
         try:
@@ -2204,10 +2464,33 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                     h_mm, bottom_cover_mm, values['dia_x'], values['dia_y'], values['spacing'], fck, top=top,
                     label=label)
             errors.extend(notes)
+            if self.ra_project.get('water_retaining'):
+                # T8.53, SMDSC 3rd ed. 9.2: both directions of a slab carry tension: 250 mm at most
+                from nosa_utils import water_retaining
+                spacing, _d, wr_notes = water_retaining.review(
+                    h_mm, bottom_cover_mm, spacing, water_retaining.MAX_DISTRIBUTION_PITCH_MM,
+                    int(self.ra_project.get('tightness', 1)), label=label)
+                if top:
+                    top_spacing = min(top_spacing, spacing)
+                errors.extend(wr_notes)
             if spacing != values['spacing'] or (top and top_spacing != values['top_spacing']):
                 values = dict(values, spacing=spacing)
                 if top:
                     values['top_spacing'] = top_spacing
+            if not foundation and values.get('include_perimeter_ubars'):
+                # SMDSC 4th ed. MD S2: the edge U-bars carry half the area of the bottom bars they close
+                for axis in (u'x', u'y'):
+                    key, sp_key = u'{}_anchor_ubar_dia'.format(axis), u'{}_anchor_ubar_spacing'.format(axis)
+                    if not values.get(key) or not values.get(sp_key):
+                        continue
+                    need = mesh_rules.edge_ubar_dia_mm(values[key], values[sp_key], values[u'dia_' + axis],
+                                                       values['spacing'])
+                    if need > values[key]:
+                        errors.append(u'{}: {} edge U-bars H{:g} raised to H{:g} — SMDSC 4th ed. MD S2 asks for half the '
+                                      u'area of the bottom bars (H{:g} at {:g}).'.format(
+                                          label, axis.upper(), values[key], need, values[u'dia_' + axis],
+                                          values['spacing']))
+                        values = dict(values, **{key: need})
         except Exception:
             log_swallowed(_LOG, u'RebarAutomateWindow._smdsc_mesh_review')
         return values
@@ -2229,6 +2512,9 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                             self.doc, host, u'Top', self._standard_default_cover_mm(u'slab'))
                         if values['include_top_mat'] else None)
         values = self._smdsc_mesh_review(host, values, bottom_cover_mm, top_cover_mm, errors, foundation=False)
+        for dia in (values.get('x_anchor_ubar_dia'), values.get('y_anchor_ubar_dia')):
+            if dia and bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
         reinforcement = floor_rebar.build_floor_reinforcement(
             self.doc, host,
             bottom_cover_mm=bottom_cover_mm,
@@ -2251,17 +2537,40 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             std=self._host_std(host),
             include_opening_diagonals=values.get('include_opening_diagonals', False),
             opening_diagonal_dia_mm=values.get('opening_diagonal_dia'),
-            stagger_laps=values.get('stagger_laps', False))
+            stagger_laps=values.get('stagger_laps', False),
+            corner_torsion=values.get('corner_torsion', False),
+            top_over_supports=values.get('top_over_supports', False),
+            flat_slab=values.get('flat_slab', False),
+            alternate_bottom=values.get('alternate_bottom', False))
+
+        fabric_face = values.get('fabric_face') if values.get('fabric') else None
+        if fabric_face:
+            # T8.51: welded fabric (BS 4483) in place of that face's bar mat
+            import fabric_rebar
+            from nosa_utils import standards
+            try:
+                fck = standards.concrete_fck_mpa(self._host_std(host))
+            except Exception:
+                fck = 30.0
+            try:
+                with nosa_tx.revit_transaction(u'NOSA — Welded Fabric'):
+                    _area, notes = fabric_rebar.place(self.doc, host, values['fabric_ref'], fabric_face,
+                                                      values.get('fabric_dir', u'x'), fck)
+                    fabric_rebar.ensure_schedule(self.doc)       # SMDSC 3rd ed. Table 4.3
+                errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n) for n in notes)
+            except Exception as e:
+                errors.append(u'Floor {}: welded fabric not placed — {}'.format(get_id_value(host.Id), e))
 
         bottom = reinforcement['bottom_mat']
-        self._create_grouped_bars(
-            wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
-            errors, created_rebars, u'Floor Bottom Mat (B1)', layer=u'bottom_x')
-        self._create_grouped_bars(
-            wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
-            errors, created_rebars, u'Floor Bottom Mat (B2)', layer=u'bottom_y')
+        if fabric_face != u'bottom':
+            self._create_grouped_bars(
+                wrapper, host, bottom['along_x'], bar_types.get(values['dia_x']),
+                errors, created_rebars, u'Floor Bottom Mat (B1)', layer=u'bottom_x')
+            self._create_grouped_bars(
+                wrapper, host, bottom['along_y'], bar_types.get(values['dia_y']),
+                errors, created_rebars, u'Floor Bottom Mat (B2)', layer=u'bottom_y')
 
-        if reinforcement['top_mat'] is not None:
+        if reinforcement['top_mat'] is not None and fabric_face != u'top':
             top = reinforcement['top_mat']
             self._create_grouped_bars(
                 wrapper, host, top['along_x'], bar_types.get(values['top_dia_x']),
@@ -2296,7 +2605,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
         diagonals = reinforcement.get('opening_diagonals')
         if diagonals is not None:
-            diagonal_type = bar_types.get(values.get('opening_diagonal_dia'))
+            diagonal_dia = reinforcement.get('opening_diagonal_dia_mm') or values.get('opening_diagonal_dia')
+            if bar_types.get(diagonal_dia) is None:
+                bar_types[diagonal_dia] = re_engine.get_bar_type_by_diameter(self.doc, diagonal_dia)
+            diagonal_type = bar_types.get(diagonal_dia)
             for mat, layer in (('bottom', u'diagonal_bottom'), ('top', u'diagonal_top')):
                 if diagonals.get(mat) is not None:
                     self._create_grouped_bars(
@@ -2308,8 +2620,25 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                               u'opening for a 45° diagonal bar — detail by hand.'.format(
                                   get_id_value(host.Id), diagonals['n_skipped']))
 
+        for layer, dia, grouped in reinforcement.get('corner_torsion') or []:
+            if bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+            self._create_grouped_bars(
+                wrapper, host, grouped, bar_types.get(dia), errors, created_rebars,
+                u'Floor Corner Torsion Bar', layer=layer)
+        errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n)
+                      for n in (reinforcement.get('torsion_notes') or []) + (reinforcement.get('top_notes') or []))
+        for layer, dia, grouped in reinforcement.get('hole_trimmers') or []:
+            if bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+            self._create_grouped_bars(
+                wrapper, host, grouped, bar_types.get(dia), errors, created_rebars,
+                u'Floor Opening Trimmer', layer=layer)
+        errors.extend(u'Floor {}: {}'.format(get_id_value(host.Id), n)
+                      for n in reinforcement.get('hole_notes') or [])
+
         if reinforcement.get('n_small_holes_ignored'):
-            errors.append(u'Floor {}: {} small opening(s) (≤200x200mm) ignored — '
+            errors.append(u'Floor {}: {} small opening(s) (sides ≤ 150 mm, SMDSC 4th ed. 6.2) ignored — '
                           u'main reinforcement runs through uncut, by design.'.format(
                               get_id_value(host.Id), reinforcement['n_small_holes_ignored']))
 
@@ -2345,6 +2674,10 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
         created_rebars = []
 
         for host in footings:
+            if is_ground_beam(host):
+                errors.append(u'Footing {}: a ground beam — reinforce it from the Beams tab.'.format(
+                    get_id_value(host.Id)))
+                continue
             try:
                 self._process_footing(host, values, wrapper, bar_types, hook_type,
                                       errors, created_rebars)
@@ -2356,6 +2689,8 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
                 self._process_floor(host, values, wrapper, bar_types, errors, created_rebars)
             except Exception as e:
                 errors.append(u'Floor {}: {}'.format(get_id_value(host.Id), e))
+        if values.get('punching') and floors:
+            self._place_punching_studs(floors, values, errors)
 
         created = len(created_rebars)
 
@@ -2373,7 +2708,13 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
             # attempting (and failing) it per bar.
             skip_reason = None
             try:
-                if isinstance(view, DB.View3D) and not view.IsLocked:
+                if view is None or view.IsTemplate or view.ViewType in (
+                        DB.ViewType.DrawingSheet, DB.ViewType.Schedule, DB.ViewType.Legend):
+                    # no view to tag in (the model not the active document, a sheet or schedule open): one clear
+                    # line, not a failed tag per bar (pyRevit log, 2026-10-17)
+                    skip_reason = (u'no model view is active in "{}" - open a plan, section or elevation and '
+                                   u'tag the bars from Detailing & Tools.').format(self.doc.Title)
+                elif isinstance(view, DB.View3D) and not view.IsLocked:
                     skip_reason = (u'active 3D view "{}" is not locked — lock it '
                                     u'(View tab → Lock 3D View, or right-click the '
                                     u'view cube) or switch to a 2D/plan view before '
@@ -2414,5 +2755,5 @@ class RebarAutomateWindow(_tab_columns.ColumnsMixin, _tab_beams.BeamsMixin, _tab
 
 
 # the tab modules use the same shared names as this module
-for _tab in (_tab_columns, _tab_beams, _tab_walls, _tab_stairs, _tab_tools,):
+for _tab in (_tab_columns, _tab_beams, _tab_walls, _tab_stairs, _tab_tools, _tab_shell):
     _tab.bind(globals())

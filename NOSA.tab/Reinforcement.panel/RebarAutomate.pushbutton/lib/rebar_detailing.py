@@ -560,7 +560,7 @@ def list_rebar_tag_types(doc):
 
 FULL_LABEL = u'Full label'
 MARK_ONLY = u'Mark only'
-NO_CENTRES = u'No centres'   # NOSA Rebar Tag 1.1.0: number, size and mark only (SMDSC 4.2.1)
+NO_CENTRES = u'No centres'   # NOSA Rebar Tag 1.1.0: number, size and mark only (SMDSC 4th ed. 4.2.1)
 _LINK_LAYER_WORDS = (u'stirrup', u'tie', u'link')
 _CUT_VIEW_TYPES = (u'Section', u'Detail')
 
@@ -572,7 +572,7 @@ def label_kind_for_view_type(view_type_name):
 
 def label_kind_for_bar(host_kind, layer, view_kind):
     """
-    SMDSC 4.2.1: beam and column main bars are labelled without centres or layer (4H25-03);
+    SMDSC 4th ed. 4.2.1: beam and column main bars are labelled without centres or layer (4H25-03);
     their links, and every slab or wall bar, keep the full label. view_kind wins when it is
     not the full label (Mark only in sections).
     """

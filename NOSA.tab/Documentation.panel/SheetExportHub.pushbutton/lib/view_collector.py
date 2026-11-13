@@ -144,10 +144,10 @@ class ViewCollector:
                          # Algunas vistas pueden no tener CanBePrinted, incluirlas de todas formas
                         filtered_views.append(view)
                 except Exception as e:
-                    logger.warning("Error procesando vista: {}".format(str(e)))
+                    logger.warning("Error processing view: {}".format(str(e)))
                     continue
             
-            logger.info("Vistas encontradas: {} (de {} totales)".format(
+            logger.info("Views found: {} (of {} in total)".format(
                 len(filtered_views), len(all_views)
             ))
             return filtered_views

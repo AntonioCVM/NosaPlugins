@@ -13,6 +13,7 @@ if _LIB_ROOT not in sys.path:
 # Importar helpers internos de rebar_marking sin Revit
 sys.path.insert(0, os.path.join(_HERE, '..', 'lib'))
 from rebar_marking import _round_to_tolerance, _parse_shape_params, format_mark, variant_suffix, suffix_range
+from rebar_marking import listed_bars
 
 
 def test_round_to_tolerance():
@@ -154,10 +155,19 @@ def test_suffix_range_for_the_tag():
     print(u"[PASS] test_suffix_range_for_the_tag")
 
 
+def test_suffix_range_names_every_bar_the_bbs_lists():
+    # 2026-10-24 audit, S3: 33 bars of 17 lengths listed 01a..01ag, the label read '(a to q)'
+    assert suffix_range(listed_bars(17, 33)) == u'(a to ag)'
+    assert suffix_range(listed_bars(6, 6)) == u'(a to f)'
+    assert suffix_range(listed_bars(1, 40)) == u''
+    print(u"[PASS] test_suffix_range_names_every_bar_the_bbs_lists")
+
+
 if __name__ == "__main__":
     test_format_mark_is_plain_sequential_number()
     test_variant_suffix_follows_revit_and_rolls_over()
     test_suffix_range_for_the_tag()
+    test_suffix_range_names_every_bar_the_bbs_lists()
     test_round_to_tolerance()
     test_parse_shape_params()
     test_mark_format_tokens()

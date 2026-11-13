@@ -154,6 +154,20 @@ _MM_PER_FT = 304.8
 # SECTION 1 — Geometry & Cover
 # ══════════════════════════════════════════════════════════════════════════
 
+def create_free_form(dbs, doc, bar_type, host, loops):
+    """
+    Rebar.CreateFreeForm across versions: up to 2026 (doc, bar type, host, loops) with the validation result out;
+    Revit 2027 dropped that overload for one taking a RebarStyle and returning a RebarFreeFormCreationResult
+    (2026-10-25, T8.57: every FreeForm group failed with 'expected Guid, got RebarBarType', so curved beams lost
+    their top and bottom bars). Returns (rebar, validation) on every version.
+    """
+    try:
+        return dbs.Rebar.CreateFreeForm(doc, bar_type, host, loops)
+    except TypeError:
+        made = dbs.Rebar.CreateFreeForm(doc, bar_type, host, loops, dbs.RebarStyle.Standard)
+        return getattr(made, 'Rebar', None), getattr(made, 'Error', None)
+
+
 class HostFaceInfo(object):
     """
     A single planar face of a host element's solid, with its outward
@@ -295,11 +309,17 @@ def get_isolated_solid_bbox(host):
                 continue
             if curve is None:
                 continue
+            try:
+                # the whole edge, not its two ends: an arc edge bulges past them (curved beam, 2026-10-11)
+                points = list(edge.Tessellate())
+            except Exception:
+                points = []
             for i in (0, 1):
                 try:
-                    p = curve.GetEndPoint(i)
+                    points.append(curve.GetEndPoint(i))
                 except Exception:
                     continue
+            for p in points:
                 xs.append(p.X)
                 ys.append(p.Y)
                 zs.append(p.Z)
@@ -826,6 +846,65 @@ def build_contact_starters(doc, bar_points, inward_dirs, base_z_ft, main_dia_mm,
     return result
 
 
+def starter_link_set(bar_lines, hand, foundation, link_dia_mm, bar_dia_mm, cover_mm):
+    """
+    IStructE SMDSC 4th ed. MD F1 / MD C1: one Set of closed links (H10-300, at least 3) round a rectangular cage
+    of column starters, inside the foundation from below its top cover down to above the feet.
+    bar_lines run from the foot (start) up; hand is the column's width direction. None when the
+    cage is not rectangular (a circular cage) or the foundation leaves no room.
+    """
+    from nosa_utils import links
+    if len(bar_lines) < 4 or foundation is None:
+        return None
+    u = DB.XYZ(hand.X, hand.Y, 0.0)
+    if u.GetLength() < 1e-9:
+        u = DB.XYZ.BasisX
+    u = u.Normalize()
+    v = DB.XYZ.BasisZ.CrossProduct(u)
+    origin = bar_lines[0].GetEndPoint(1)
+    origin = DB.XYZ(origin.X, origin.Y, 0.0)
+    uv = []
+    for line in bar_lines:
+        p = line.GetEndPoint(1)
+        d = DB.XYZ(p.X, p.Y, 0.0) - origin
+        uv.append((d.DotProduct(u) * _MM_PER_FT, d.DotProduct(v) * _MM_PER_FT))
+    u0, u1 = min(a for a, _b in uv), max(a for a, _b in uv)
+    v0, v1 = min(b for _a, b in uv), max(b for _a, b in uv)
+    tol = max(bar_dia_mm, 10.0)
+    if u1 - u0 < 2.0 * tol or v1 - v0 < 2.0 * tol:
+        return None
+    if not all(min(abs(a - u0), abs(a - u1), abs(b - v0), abs(b - v1)) <= tol for a, b in uv):
+        return None
+    bbox = get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
+    if bbox is None:
+        return None
+    top_mm = bbox.Max.Z * _MM_PER_FT - cover_mm - link_dia_mm / 2.0
+    feet_mm = min(line.GetEndPoint(0).Z for line in bar_lines) * _MM_PER_FT
+    # the lowest link clear of the starters' bend into their feet: BS 8666 mandrels give it up to 4 dia. to the
+    # bar's axis (H20 and over), so 6 dia. + a link: some 50 mm over the bend (2026-10-17: at 2 dia. it ran
+    # through the bends of F10, at 4.5 dia. it touched their tops)
+    levels = links.starter_link_levels_mm(top_mm, feet_mm + 6.0 * bar_dia_mm + link_dia_mm)
+    if not levels:
+        return None
+    # round the bars at their real size (+10 %) and 2 mm more: Revit seats a link shape up to 5 mm inwards on one
+    # side (2026-10-17: F10's links ran 10 mm from the starters' axes, through the bars)
+    e = 1.1 * (bar_dia_mm + link_dia_mm) / 2.0 + 2.0
+    corners_uv = ((u0 - e, v0 - e), (u1 + e, v0 - e), (u1 + e, v1 + e), (u0 - e, v1 + e))
+
+    def _loop(z_mm):
+        pts = [origin + u.Multiply(a / _MM_PER_FT) + v.Multiply(b / _MM_PER_FT) for a, b in corners_uv]
+        pts = [DB.XYZ(p.X, p.Y, z_mm / _MM_PER_FT) for p in pts]
+        return [DB.Line.CreateBound(pts[k], pts[(k + 1) % 4]) for k in range(4)]
+
+    rising = sorted(levels)
+    step = rising[1] - rising[0]
+    return {'curves': _loop(rising[0]), 'normal': DB.XYZ.BasisZ, 'style': 'StirrupTie',
+            'array_length_mm': rising[-1] - rising[0], 'spacing_mm': step + 0.01,
+            'label': u'Starter Link',
+            'materialized_bars': [{'curves': _loop(z), 'normal': DB.XYZ.BasisZ, 'style': 'StirrupTie'}
+                                  for z in rising]}
+
+
 def _curves_min_corner(curves):
     xs, ys, zs = [], [], []
     for curve in curves:
@@ -1013,6 +1092,19 @@ def _bars_follow(rebar, wanted, tolerance_mm, count):
     return True
 
 
+def set_varying(rebar):
+    """
+    A shape-driven set's bars made to vary with their constraints: DistributionType = VaryingLength up to Revit
+    2025, RebarShapeDrivenAccessor.UseRebarConstraintsToProduceVaryingBars from 2026 (the property was removed;
+    every varying set failed there and curved slab edges came out as dozens of loose bars, 2026-10-18).
+    """
+    kind = getattr(DBS, 'DistributionType', None)
+    if kind is not None and hasattr(rebar, 'DistributionType'):
+        rebar.DistributionType = kind.VaryingLength
+        return
+    rebar.GetShapeDrivenAccessor().UseRebarConstraintsToProduceVaryingBars = True
+
+
 def _varying_error_mm(rebar, wanted):
     import varying_sets as vs
     worst = 0.0
@@ -1132,7 +1224,7 @@ def inset_bar_ends(doc, rebar, margin_mm):
     return False
 
 
-def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
+def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=(), top_extra_mm=0.0):
     """
     Replace Revit's snaps of this rebar to other bars with a fixed distance
     (inset_mm, to the bar centreline) from the nearest host face. Call inside
@@ -1146,6 +1238,8 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
     beam's side cover, 20 mm inside the column's (2026-10-05).
     foreign_handles: the handle types re-pinned when they target another element — ('Edge',)
     for column links; never for beam bars, whose legs rightly sit in the column they anchor in.
+    top_extra_mm: the top bars of a beam sit that much lower (T8.49, under a slab or a main beam): a handle
+    nearer that design distance than the plain inset is pinned to it.
     Returns the number of handles re-pinned.
     """
     foreign = [getattr(DBS.RebarHandleType, name) for name in foreign_handles]
@@ -1171,13 +1265,28 @@ def pin_rebar_to_host_faces(doc, rebar, host, inset_mm, foreign_handles=()):
         if not candidates:
             continue
         nearest = min(candidates, key=lambda cand: abs(cand.GetDistanceToTargetHostFace()))
-        nearest.SetDistanceToTargetHostFace(-inset_mm / _MM_PER_FT)
+        target = inset_mm
+        if top_extra_mm:
+            now = abs(nearest.GetDistanceToTargetHostFace()) * _MM_PER_FT
+            target = min((inset_mm, inset_mm + top_extra_mm), key=lambda o: abs(o - now))
+        nearest.SetDistanceToTargetHostFace(-target / _MM_PER_FT)
         if hasattr(mgr, 'SetPreferredConstraint'):
             mgr.SetPreferredConstraint(nearest)
         else:
             mgr.SetPreferredConstraintForHandle(handle, nearest)  # Revit 2024
         pinned += 1
     return pinned
+
+
+_API_CAPABILITIES = {}
+
+
+def api_capabilities():
+    """T8.55: {capability: bool} of the running Revit's API (nosa_utils.revit_capabilities), read once."""
+    if not _API_CAPABILITIES:
+        from nosa_utils import revit_capabilities
+        _API_CAPABILITIES.update(revit_capabilities.api_flags(DB, DBS))
+    return _API_CAPABILITIES
 
 
 def hook_orientation_left():
@@ -1265,7 +1374,7 @@ def starter_l_curves(line, hook_dir, bar_dia_mm, foundation=None, cover_mm=None)
     [foot, vertical] centreline curves of an L-shaped dowel/starter.
 
     `line` runs from the top of the mat the foot rests on (its start) up to
-    the lap end. The foot is max(450 mm, 12 d) long (IStructE SMDSC 6.7:
+    the lap end. The foot is max(450 mm, 12 d) long (IStructE SMDSC 4th ed. 6.7:
     column starters need a horizontal leg of at least 450 mm) along
     hook_dir, shortened only where it would leave the foundation's cover.
     Built as explicit curves, not a hook type, so length and direction are
@@ -1310,6 +1419,31 @@ def set_workshop_bent(rebar):
         return bool(param is not None and not param.IsReadOnly and param.Set(0))
     except Exception:
         return False
+
+
+def create_helix(doc, host, bar_type, shape, centre, radius_mm, height_mm, pitch_mm):
+    """
+    One helical bar (the project's spiral RebarShape, BS 8666 shape 77) round the vertical axis
+    through centre, from centre.Z up height_mm; r / Height / Pitch are its own instance parameters.
+    Revit drops the spiral at an offset from the given origin, so it is moved onto the centre after.
+    Call inside a Transaction. Returns the Rebar or None.
+    """
+    rebar = DBS.Rebar.CreateFromRebarShape(doc, shape, bar_type, host, centre, DB.XYZ.BasisX, DB.XYZ.BasisY)
+    if rebar is None:
+        return None
+    for name, value in ((u'r', radius_mm), (u'Height', height_mm), (u'Pitch', pitch_mm)):
+        param = rebar.LookupParameter(name)
+        if param is None or param.IsReadOnly:
+            return None
+        param.Set(value / _MM_PER_FT)
+    doc.Regenerate()
+    box = rebar.get_BoundingBox(None)
+    if box is not None:
+        here = DB.XYZ((box.Min.X + box.Max.X) / 2.0, (box.Min.Y + box.Max.Y) / 2.0, box.Min.Z)
+        bar_r = bar_type.BarModelDiameter / 2.0
+        target = DB.XYZ(centre.X, centre.Y, centre.Z - bar_r)
+        DB.ElementTransformUtils.MoveElement(doc, rebar.Id, target - here)
+    return rebar
 
 
 def find_rebar_shape(doc, name):
@@ -1997,10 +2131,11 @@ class RebarWrapper(object):
                     self.last_error = u'Rebar.CreateFromCurves returned None.'
                     return None
                 try:
-                    accessor = rebar.GetShapeDrivenAccessor()
-                    accessor.SetLayoutAsMaximumSpacing(
-                        spacing_ft, array_length_ft, bars_on_normal_side,
-                        include_first_bar, include_last_bar)
+                    if array_length_ft > 1e-9:       # 0: one bar, as created
+                        accessor = rebar.GetShapeDrivenAccessor()
+                        accessor.SetLayoutAsMaximumSpacing(
+                            spacing_ft, array_length_ft, bars_on_normal_side,
+                            include_first_bar, include_last_bar)
                 except Exception as e:
                     self.last_error = (u'Rebar created as a single bar, but Rebar Set '
                                         u'propagation failed: {}'.format(e))
@@ -2049,7 +2184,7 @@ class RebarWrapper(object):
                     # bars propagated away from the rows: the other side of the plane
                     rebar.GetShapeDrivenAccessor().SetLayoutAsFixedNumber(
                         count, length_mm / _MM_PER_FT, False, True, True)
-                rebar.DistributionType = DBS.DistributionType.VaryingLength
+                set_varying(rebar)
                 self.doc.Regenerate()
                 error = fit_varying_ends(self.doc, rebar, host, wanted)
                 if error > tolerance_mm:
@@ -2152,7 +2287,7 @@ class RebarWrapper(object):
             return None
 
     def create_freeform_group(self, host, curve_groups, bar_type,
-                               transaction_name=u'NOSA — Create FreeForm Rebar Group'):
+                               transaction_name=u'NOSA — Create FreeForm Rebar Group', bent=True):
         """
         PHASE 2.4 (signature corrected in Phase 2.5 from a live error) —
         groups several DISTINCT, independently-shaped bar curve chains
@@ -2256,14 +2391,14 @@ class RebarWrapper(object):
 
         try:
             with nosa_tx.revit_transaction(transaction_name):
-                result = DBS.Rebar.CreateFreeForm(self.doc, bar_type, host, loop_list)
+                result = create_free_form(DBS, self.doc, bar_type, host, loop_list)
                 if isinstance(result, tuple):
                     rebar, validation = result[0], result[1]
                 else:
                     rebar, validation = result, None
                 # no Bent for arc chains: Revit finds no shape for them and stops on an error
                 # dialog (curved-wall end U-bars, 2026-10-03)
-                if rebar is not None and all(len(chain) > 1 for chain in curve_groups) and not any(
+                if bent and rebar is not None and all(len(chain) > 1 for chain in curve_groups) and not any(
                         isinstance(c, DB.Arc) for chain in curve_groups for c in chain):
                     set_workshop_bent(rebar)
             if rebar is None:

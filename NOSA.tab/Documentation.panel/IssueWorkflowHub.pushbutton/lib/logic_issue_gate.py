@@ -130,10 +130,20 @@ def check_duplicates(doc):
     return {'status': ('fail' if items else 'pass'), 'count': dup_count, 'items': items}
 
 
+def check_rc(doc):
+    """T9.13: the reinforcement drawings (marks, schedule, sections, texts, references, title block)."""
+    try:
+        from nosa_utils import rc_issue
+        return rc_issue.gate(rc_issue.check(doc))
+    except Exception as e:
+        return {'status': 'error', 'count': 0, 'items': [], 'error': str(e)}
+
+
 def run_all(doc):
     return {
         'protocol':   check_protocol(doc),
         'revisions':  check_revisions(doc),
         'titleblock': check_titleblock(doc),
         'duplicates': check_duplicates(doc),
+        'rc':         check_rc(doc),
     }

@@ -336,6 +336,218 @@ class ToolsMixin(object):
         self.TxtDetailingStatus.Text = u'{} bar element(s) shown as {} in "{}".'.format(
             len(rebars), u'solids' if shown else u'wires', element_name(view))
 
+    # ── Phase 11: layers and marks, copies, issues ─────────────────────
+
+    def _init_manage(self):
+        self.CmbLayerGroup.Items.Clear()
+        for key, label in rebar_manage.LAYER_GROUPS:
+            item = SWC.ComboBoxItem()
+            item.Content = label
+            item.Tag = key
+            self.CmbLayerGroup.Items.Add(item)
+        self.CmbLayerGroup.SelectedIndex = 0
+        self.CmbIssueStatus.Items.Clear()
+        for code, label in ((u'P', u'P - Preliminary'), (u'T', u'T - Tender'), (u'C', u'C - Construction')):
+            item = SWC.ComboBoxItem()
+            item.Content = label
+            item.Tag = code
+            self.CmbIssueStatus.Items.Add(item)
+        self.CmbIssueStatus.SelectedIndex = 2
+        self._refresh_drawings()
+        self.CmbIssueDrawing.SelectionChanged += self._show_issue_history
+
+    def _manage_status(self, msg):
+        self.TxtManageStatus.Text = msg
+
+    def _frozen_selection(self):
+        """Generating on issued hosts would double their bars: say so and stop."""
+        try:
+            hosts = [self.doc.GetElement(i) for i in self.uidoc.Selection.GetElementIds()]
+            frozen = rebar_manage.frozen_hosts(self.doc, [h for h in hosts if h is not None])
+        except Exception:
+            return False
+        if not frozen:
+            return False
+        forms.alert(u'{} selected element(s) carry issued (Finalized) bars: {}.\nReopen their drawing for revision '
+                    u'in Check & manage, delete the old bars, then generate again.'.format(
+                        len(frozen), u', '.join(str(get_id_value(h.Id)) for h in frozen[:8])),
+                    title=u'RebarAutomate — Issued bars')
+        return True
+
+    def _layer_key(self):
+        item = self.CmbLayerGroup.SelectedItem
+        return getattr(item, 'Tag', None)
+
+    def _view_bars(self, key=None, marks=None, whole_model=False):
+        view = self.doc.ActiveView
+        bars = rebar_manage.model_rebars(self.doc, None if whole_model else view)
+        if key is not None:
+            bars = rebar_manage.bars_in_group(bars, key)
+        if marks is not None:
+            bars = rebar_manage.bars_with_marks(bars, marks)
+        return view, bars
+
+    def _temporary(self, action, bars, what):
+        view = self.doc.ActiveView
+        if not bars:
+            self._manage_status(u'No bars of {} in "{}".'.format(what, element_name(view)))
+            return
+        ids = List[DB.ElementId]([b.Id for b in bars])
+        with nosa_tx.revit_transaction(u'NOSA — Bars by layer or mark'):
+            if action == 'isolate':
+                view.IsolateElementsTemporary(ids)
+            else:
+                view.HideElementsTemporary(ids)
+        self._manage_status(u'{} bar element(s) of {} {} in "{}" (temporary).'.format(
+            len(bars), what, u'isolated' if action == 'isolate' else u'hidden', element_name(view)))
+
+    def IsolateLayer_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(lambda: self._temporary('isolate', self._view_bars(self._layer_key())[1],
+                                                   self.CmbLayerGroup.Text))
+
+    def HideLayer_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(lambda: self._temporary('hide', self._view_bars(self._layer_key())[1],
+                                                   self.CmbLayerGroup.Text))
+
+    def SelectLayer_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(lambda: self._select_bars(self._view_bars(self._layer_key())[1],
+                                                     self.CmbLayerGroup.Text))
+
+    def _select_bars(self, bars, what):
+        self.uidoc.Selection.SetElementIds(List[DB.ElementId]([b.Id for b in bars]))
+        self._manage_status(u'{} bar element(s) of {} selected.'.format(len(bars), what))
+
+    def _marks(self):
+        marks = rebar_manage.parse_marks(self.TxtMarks.Text)
+        if not marks:
+            self._manage_status(u'Type one or more bar marks first, e.g. 01, 05.')
+        return marks
+
+    def SelectMarks_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        marks = self._marks()
+        if marks:
+            whole = bool(self.ChkMarksWholeModel.IsChecked)
+            self._in_revit(lambda: self._select_bars(self._view_bars(marks=marks, whole_model=whole)[1],
+                                                     u'mark(s) ' + u', '.join(marks)))
+
+    def IsolateMarks_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        marks = self._marks()
+        if marks:
+            self._in_revit(lambda: self._temporary('isolate', self._view_bars(marks=marks)[1],
+                                                   u'mark(s) ' + u', '.join(marks)))
+
+    def ResetVisibility_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(self._reset_visibility)
+
+    def _reset_visibility(self):
+        view = self.doc.ActiveView
+        with nosa_tx.revit_transaction(u'NOSA — Reset temporary view'):
+            view.DisableTemporaryViewMode(DB.TemporaryViewMode.TemporaryHideIsolate)
+        self._manage_status(u'"{}" shows every bar again.'.format(element_name(view)))
+
+    def CopyIdentical_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(self._copy_identical)
+
+    def _copy_identical(self):
+        from Autodesk.Revit.DB.Structure import Rebar, RebarHostData
+        chosen = [self.doc.GetElement(i) for i in self.uidoc.Selection.GetElementIds()]
+        hosts = [e for e in chosen if e is not None and not isinstance(e, Rebar)
+                 and RebarHostData.GetRebarHostData(e) is not None]
+        if len(hosts) != 1:
+            forms.alert(u'Select one reinforced member (and nothing else) to copy its bars from.',
+                        title=u'RebarAutomate — Copy to identical members')
+            return
+        source = hosts[0]
+        targets = rebar_manage.identical_members(self.doc, source)
+        if not targets:
+            self._manage_status(u'No member of the same type and size without bars was found.')
+            return
+        if not forms.alert(u'Copy the bars of {} to {} identical member(s) ({})?'.format(
+                get_id_value(source.Id), len(targets),
+                u', '.join(str(get_id_value(t.Id)) for t in targets[:10]) + (u' ...' if len(targets) > 10 else u'')),
+                title=u'RebarAutomate — Copy to identical members', yes=True, no=True):
+            return
+        with nosa_tx.revit_transaction(u'NOSA — Copy bars to identical members'):
+            report = rebar_manage.copy_bars(self.doc, source, targets)
+        msg = u'{} bar element(s) copied to {} member(s). Run Partitions... to schedule them once with No. of mbrs.'.format(
+            report['bars'], report['members'])
+        if report['errors']:
+            msg += u'\n' + u'\n'.join(report['errors'][:6])
+        self._manage_status(msg)
+        self._refresh_batch_list()
+
+    def _refresh_drawings(self):
+        current = self._issue_drawing()
+        self.CmbIssueDrawing.Items.Clear()
+        try:
+            found = rebar_manage.drawings(self.doc)
+        except Exception:
+            found = []
+        for drawing in found:
+            self.CmbIssueDrawing.Items.Add(drawing)
+        if found:
+            self.CmbIssueDrawing.SelectedIndex = found.index(current) if current in found else 0
+        self._show_issue_history()
+
+    def RefreshDrawings_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._refresh_drawings()
+
+    def _issue_drawing(self):
+        item = self.CmbIssueDrawing.SelectedItem
+        return unicode(item) if item is not None else None
+
+    def _show_issue_history(self, sender=None, args=None):
+        drawing = self._issue_drawing()
+        issues = (rebar_project.load(self.doc).get('issues') or {}).get(drawing, []) if drawing else []
+        self.TxtIssueHistory.Text = rebar_manage.history_text(issues)
+
+    def IssueDrawing_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(self._issue)
+
+    def _issue(self):
+        import datetime
+        drawing = self._issue_drawing()
+        if not drawing:
+            self._manage_status(u'No drawing carries NOSA bars yet: create the drawings first.')
+            return
+        status = getattr(self.CmbIssueStatus.SelectedItem, 'Tag', u'C')
+        project = rebar_project.load(self.doc)
+        last = ((project.get('issues') or {}).get(drawing) or [{}])[-1].get('revision', u'')
+        if not forms.alert(u'Issue drawing {} as revision {} ({})? Its bars are frozen until it is reopened.'.format(
+                drawing, rebar_manage.next_revision(last), status),
+                title=u'RebarAutomate — Issue drawing', yes=True, no=True):
+            return
+        with nosa_tx.revit_transaction(u'NOSA — Issue drawing'):
+            entry = rebar_manage.issue(self.doc, drawing, status, datetime.date.today().isoformat(), project)
+        rebar_project.save(self.doc, {'issues': project['issues']})
+        self._show_issue_history()
+        self._manage_status(u'{} issued as revision {} ({}): {} mark(s) frozen, {} schedule sheet(s) updated.{}'.format(
+            drawing, entry['revision'], status, len(entry['bars']), entry['sheets'],
+            u' Changes: ' + u'; '.join(entry['changes']) if entry['changes'] else u''))
+
+    def ReopenDrawing_Click(self, sender, args):
+        if getattr(self, '_is_loaded', False):
+            self._in_revit(self._reopen)
+
+    def _reopen(self):
+        drawing = self._issue_drawing()
+        if not drawing:
+            return
+        with nosa_tx.revit_transaction(u'NOSA — Reopen drawing'):
+            n = rebar_manage.reopen(self.doc, drawing)
+        self._manage_status(u'{}: {} bar element(s) unfrozen for revision; issue it again when done.'.format(drawing, n))
+
     # ── Detailing (Phase F6) ─────────────────────────────────────────────
 
     def _populate_detailing_combos(self):
@@ -469,30 +681,89 @@ class ToolsMixin(object):
         beams = [h for h in hosts if rebar_views.host_kind(h) == 'beam']
         groups = [[h] for h in hosts if rebar_views.host_kind(h) != 'beam']
         groups += beam_rebar.group_beam_lines(beams) if beams else []
+        import drawing_registry
+        kinds = sorted(set(rebar_views.host_kind(g[0]) for g in groups))
+        mode = None
+        if self.ChkViewsSheets.IsChecked == True and drawing_registry.own_views(self.doc, kinds):
+            mode = self._drawing_mode()
+            if mode is None:
+                return
         existing = [s.SheetNumber for s in DB.FilteredElementCollector(self.doc).OfClass(DB.ViewSheet)]
         numbers = view_plan.next_sheet_numbers(existing, 10 * len(groups) + 5)
         views = sheets = tags = 0
         errors = []
-        self.SetLoading(True, u'Creating views…')
+        update_text = u''
+        self.SetLoading(True, u'Updating drawings…' if mode == drawing_registry.UPDATE else u'Creating views…')
         try:
-            for group in groups:
-                report = rebar_views.build_element_views(
+            if self.ChkViewsSheets.IsChecked == True:
+                # T9.7: the elements of one kind share a drawing (consultancy practice, user 2026-10-11)
+                # T12.9: drawings made before are updated (the user's changes kept) or regenerated on their own
+                # sheets, all in one undoable step
+                group = DB.TransactionGroup(self.doc, u'NOSA — {} drawings'.format(
+                    u'Update' if mode == drawing_registry.UPDATE else u'Create'))
+                group.Start()
+                try:
+                    updater = drawing_registry.Updater(self.doc, mode or drawing_registry.REGENERATE)
+                    with nosa_tx.revit_transaction(u'NOSA — Drawings made before'):
+                        updater.prepare(kinds)
+                    numbers = updater.free(numbers)
+                    reports = [rebar_views.build_drawings(
+                        self.doc, groups, re_engine, rebar_detailing, view_plan, numbers, beam_rebar=beam_rebar,
+                        stair_host=stair_host, tag=self.ChkViewsTags.IsChecked == True, updater=updater)]
+                    with nosa_tx.revit_transaction(u'NOSA — Drawings recorded'):
+                        log = updater.finish(reports[0])
+                    if mode is not None:
+                        update_text = drawing_registry.summary(log)
+                    group.Assimilate()
+                except Exception:
+                    group.RollBack()
+                    rebar_views.REUSE_SHEETS = {}
+                    rebar_views.UPDATE = None
+                    raise
+            else:
+                reports = [rebar_views.build_element_views(
                     self.doc, group, re_engine, rebar_detailing, view_plan, numbers,
-                    beam_rebar=beam_rebar, stair_host=stair_host,
-                    place_on_sheets=self.ChkViewsSheets.IsChecked == True,
-                    tag=self.ChkViewsTags.IsChecked == True)
+                    beam_rebar=beam_rebar, stair_host=stair_host, place_on_sheets=False,
+                    tag=self.ChkViewsTags.IsChecked == True) for group in groups]
+            reviews = []
+            for report in reports:
                 views += len(report['views'])
                 sheets += len(report['sheets'])
                 tags += report['tags']
                 errors.extend(report['errors'])
+                if report.get('review'):
+                    reviews.append(report['review']['text'])
         finally:
             self.SetLoading(False)
         msg = u'{} view(s), {} sheet(s) and {} tag(s) created for {} element(s).'.format(
             views, sheets, tags, len(groups))
-        if errors:
+        if update_text:
+            msg += u'\n\n' + update_text
+        if reviews:
+            # T12.8: the automatic review of the drawings just made, their warnings grouped
+            msg += u'\n\n' + u'\n'.join(reviews)
+        elif errors:
             msg += u'\n\n{} issue(s):\n{}'.format(len(errors), u'\n'.join(errors[:10]))
         self.TxtDetailingStatus.Text = msg
         forms.alert(msg, title=u'NOSA — Create Views')
+
+    def _drawing_mode(self):
+        """T12.9: drawings already made of these members - updated (default) or regenerated; None to cancel."""
+        import drawing_registry
+        preset = getattr(self, 'drawing_mode', None)
+        if preset in (drawing_registry.UPDATE, drawing_registry.REGENERATE):
+            return preset
+        update = u'Update drawings (keep my changes)'
+        regenerate = u'Regenerate drawings (replace them)'
+        choice = forms.CommandSwitchWindow.show(
+            [update, regenerate],
+            message=u'These members already have drawings. Update keeps moved views and calling-ups, your own '
+                    u'annotations, crops and scales; Regenerate draws them again from scratch on the same sheets.')
+        if choice == update:
+            return drawing_registry.UPDATE
+        if choice == regenerate:
+            return drawing_registry.REGENERATE
+        return None
 
     def AutoTag_Click(self, sender, args):
         if not getattr(self, '_is_loaded', False):
@@ -626,7 +897,7 @@ class ToolsMixin(object):
         self._in_revit(self._create_bar_schedules)
 
     def _create_bar_schedules(self):
-        """T8.33/T8.34 — A4 bar schedules per drawing (IStructE SMDSC 4.5.1)."""
+        """T8.33/T8.34 — A4 bar schedules per drawing (IStructE SMDSC 4th ed. 4.5.1)."""
         import bar_schedules
         try:
             bar_schedules.bind(self.doc)
@@ -661,6 +932,54 @@ class ToolsMixin(object):
             sys.path.insert(0, hub_lib)
         hub = load_module('rebarhub_ui', os.path.join(hub_lib, 'ui.py'))
         launch_nosa_window(hub.RebarHubWindow, self.doc, self.uidoc)
+
+    def RebarQA_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._open_rebar_qa)
+
+    def TypeSchedules_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._type_schedules)
+
+    def _type_schedules(self):
+        """T8.54 — SMDSC 4th ed. 4.1.1 / 6.4.4 / 6.7.4 tabular method: column and base schedules by type."""
+        import tabular_schedules
+        from pyrevit import forms
+        try:
+            tabular_schedules.bind(self.doc)
+            with nosa_tx.revit_transaction(u'NOSA — Column and Base Schedules'):
+                n_cols, n_bases, n_groups = tabular_schedules.update(self.doc)
+                tabular_schedules.ensure_schedules(self.doc)
+        except Exception as e:
+            forms.alert(u'Column and base schedules not made: {}'.format(e), title=u'RebarAutomate')
+            return
+        forms.alert(u'{} column(s) and {} base(s) with bars, in {} type(s): see the schedules "{}" and "{}" '
+                    u'(IStructE SMDSC 4th ed. 6.4.4 / 6.7.4). Run it again after changing any reinforcement.'.format(
+                        n_cols, n_bases, n_groups, tabular_schedules.COLUMN_SCHEDULE,
+                        tabular_schedules.BASE_SCHEDULE), title=u'RebarAutomate')
+
+    def Robustness_Click(self, sender, args):
+        if not getattr(self, '_is_loaded', False):
+            return
+        self._in_revit(self._open_robustness)
+
+    def _open_robustness(self):
+        """T8.50 — the QA Hub's robustness ties window (SMDSC 4th ed. 5.1.10)."""
+        from nosa_utils.base_window import launch_nosa_window
+        path = os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'QAHub.pushbutton', 'lib', 'robustness',
+                            'ui.py')
+        mod = load_module('robustness_ui', os.path.abspath(path))
+        launch_nosa_window(mod.RobustnessWindow, self.doc)
+
+    def _open_rebar_qa(self):
+        """T8.48 — the QA Hub's Rebar QA window (SMDSC 4th ed. 4.4 / 4.6 checks), shared with the hub."""
+        from nosa_utils.base_window import launch_nosa_window
+        path = os.path.join(_HERE, '..', '..', '..', 'Structures.panel', 'QAHub.pushbutton', 'lib', 'rebar_qa',
+                            'ui.py')
+        qa = load_module('rebarqa_ui', os.path.abspath(path))
+        launch_nosa_window(qa.RebarQAWindow, self.doc)
 
 
 _OWN = set(globals())

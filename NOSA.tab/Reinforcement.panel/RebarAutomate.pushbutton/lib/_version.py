@@ -10,4 +10,4 @@ rebar_batch.py).
 script.py reads this for its own __version__ rather than the other
 way around, so there is exactly one place this number lives.
 """
-RA_VERSION = "1.0.0"
+RA_VERSION = "2.0.0"

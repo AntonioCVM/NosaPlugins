@@ -1,0 +1,101 @@
+# -*- coding: utf-8 -*-
+"""T8.48 reinforcement QA rules (no Revit)."""
+from __future__ import absolute_import, division, print_function, unicode_literals
+import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib'))
+from nosa_utils import rebar_qa as qa  # noqa: E402
+
+
+def test_cover():
+    assert qa.cover_issues(40.0, 16.0, 40.0) == []
+    assert qa.cover_issues(14.0, 16.0)[0][0] == qa.ERROR
+    assert qa.cover_issues(18.0, 12.0)[0][0] == qa.ERROR          # under the 20 mm aggregate
+    assert qa.cover_issues(25.0, 16.0, 40.0)[0][0] == qa.WARNING  # 40 - 10 = 30 needed
+
+
+def test_spacing_with_the_real_bar_size():
+    assert qa.spacing_issue(100.0, 25.0) is None                    # 100 - 27.5 = 72.5
+    assert qa.spacing_issue(50.0, 25.0) is not None                 # 50 - 27.5 = 22.5 < 25
+    assert qa.min_clear_mm(32.0) == 32.0 and qa.min_clear_mm(10.0) == 25.0
+
+
+def test_pitch_and_ratio_limits():
+    assert qa.max_pitch_mm(u'slab', 200.0) == 400.0 and qa.max_pitch_mm(u'slab', 120.0) == 360.0
+    assert qa.max_pitch_mm(u'beam', 600.0) is None
+    assert qa.ratio_issue(u'column', 0.001) and qa.ratio_issue(u'column', 0.05) and not qa.ratio_issue(u'column', 0.02)
+    assert qa.ratio_issue(u'slab', 0.001, 30.0) and not qa.ratio_issue(u'slab', 0.002, 30.0)
+
+
+def test_vibrator_gap():
+    assert qa.vibrator_issue(300.0, [60.0, 80.0]) is None
+    assert qa.vibrator_issue(600.0, [80.0, 50.0, 50.0]) is not None
+    assert [round(g) for g in qa.gaps_clear([0.0, 100.0], [20.0, 20.0])] == [78]
+
+
+def test_segments_clash_and_congestion():
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (1000, 0, 0), (500, -500, 30), (500, 500, 30))
+    assert abs(d - 30.0) < 1e-6 and cos < 0.01
+    assert qa.pair_issue(d, cos, overlap, 16.0, 16.0) is None             # crossing mats touch: 16 + 16 / 2
+    assert qa.pair_issue(10.0, cos, overlap, 16.0, 16.0)[0] == qa.ERROR
+    assert qa.pair_issue(8.0, cos, overlap, 20.0, 8.0, bend=True) is None    # a bar seated in a link's corner
+    assert qa.pair_issue(0.0, cos, overlap, 20.0, 20.0, bend=True)[0] == qa.ERROR
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (1000, 0, 0), (0, 40, 0), (1000, 40, 0))
+    assert cos > 0.99 and overlap == 1000.0
+    assert qa.pair_issue(d, cos, overlap, 20.0, 20.0)[0] == qa.WARNING    # 40 - 22 = 18 < 25
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (1000, 0, 0), (2000, 40, 0), (3000, 40, 0))
+    assert overlap == 0.0 and qa.pair_issue(d, cos, overlap, 20.0, 20.0) is None
+
+
+def test_joint_clash_says_how_to_resolve_it_once():
+    text = qa.joint_advice(u'clash: centrelines 10 mm apart, bars 20 + 25 at (1, 2, 3)')
+    assert u'crank the beam bar' in text and u'second layer' in text and u'smaller bars' in text
+    assert qa.joint_advice(text) == text
+    assert qa.joint_advice(u'congested: clear gap 20 mm') == u'congested: clear gap 20 mm'
+
+
+def test_congestion_layers_and_tight_bars():
+    two = [(-100, 540, 20), (0, 540, 20), (100, 540, 20), (-100, 500, 20), (100, 500, 20), (0, 60, 20)]
+    assert qa.face_layers(two, 300.0) == {u'top': 2, u'bottom': 1}
+    assert qa.congestion_issues(two, 300.0) == []
+    three = two + [(0, 460, 20)]
+    assert u'3 layers in the top face' in qa.congestion_issues(three, 300.0)[0][1]
+    tight = [(-20, 60, 20), (20, 60, 20)]                         # 40 centres, 18 clear < 25
+    assert u'closer than the minimum' in qa.congestion_issues(tight, 300.0)[0][1]
+
+
+def test_column_bar_retention():
+    corners = [(-160, -160), (160, -160), (160, 160), (-160, 160)]
+    bars = [(x, y, 20) for x, y in corners] + [(0, -160, 20), (0, 160, 20)]
+    assert qa.unrestrained_bars(bars, corners) == []                # middle bars 140 clear of a corner bar
+    wide = [(x * 2, y, 20) for x, y in corners] + [(0, -160, 20)]
+    assert qa.unrestrained_bars(wide, [(x * 2, y) for x, y in corners]) == [4]   # 300 clear: needs a tie
+
+
+def test_joint_vibrator_and_buildability_grade():
+    assert qa.joint_vibrator_issue(300.0, [-100, 0, 100], [25, 25, 25]) is not None
+    assert qa.joint_vibrator_issue(300.0, [-110, 0, 110], [16, 16, 16]) is None
+    assert qa.buildability([])[:2] == (100.0, u'A+')
+    assert qa.buildability([qa.WARNING] * 3)[1] == u'A'
+    assert qa.buildability([qa.ERROR])[1] == u'B'
+    assert qa.buildability([qa.ERROR] * 3)[1] == u'C'
+
+
+def test_lap_is_not_a_clash():
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (3000, 0, 0), (2000, 0, 0), (6000, 0, 0))
+    assert qa.is_lap(d, cos, overlap, 3000.0, 4000.0, 20.0, 20.0)          # 1000 mm lap on one line
+    d, cos, overlap, _at = qa.segment_distance((0, 0, 0), (3000, 0, 0), (1000, 0, 0), (2000, 0, 0))
+    assert not qa.is_lap(d, cos, overlap, 3000.0, 1000.0, 20.0, 20.0)      # one bar inside the other: a clash
+
+
+def test_distribution_pitch_md_s1():
+    rows = [('bx', u'bottom', 40.0, 12.0, 150.0), ('by', u'bottom', 52.0, 10.0, 350.0),
+            ('tx', u'top', 260.0, 12.0, 200.0), ('ty', u'top', 248.0, 10.0, 200.0)]
+    issues = qa.distribution_issues(rows, 300.0)
+    assert [k for k, _i in issues] == ['by'] and u'MD S1' in issues[0][1]
+
+
+def test_bars_in_contact_are_not_congested():
+    assert qa.pair_issue(1.1 * 12.0 + 0.5, 1.0, 500.0, 12.0, 12.0) is None       # a hole U-bar beside its cut bar
+    assert qa.pair_issue(25.0, 1.0, 500.0, 12.0, 12.0)[0] == qa.WARNING           # a 12 mm gap is congestion

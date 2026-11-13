@@ -324,6 +324,29 @@ def apply_landing_ubars(data, u_dia, cover, main_dia):
     return notes
 
 
+def wall_at_landing_edge(doc, landing, edge, reach_mm=100.0):
+    """The wall a landing edge ('s_max', 'v_min', 'v_max') is built against, or None."""
+    from Autodesk.Revit import DB  # Lazy import
+    mid_s = (landing['s_min'] + landing['s_max']) / 2.0
+    mid_v = (landing['v_min'] + landing['v_max']) / 2.0
+    s, v = {'s_max': (landing['s_max'] + reach_mm, mid_v), 'v_min': (mid_s, landing['v_min'] - reach_mm),
+            'v_max': (mid_s, landing['v_max'] + reach_mm)}[edge]
+    p = landing['frame'].xyz(s, v, (landing['top'] + landing['bottom']) / 2.0)
+    for wall in DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_Walls) \
+            .WhereElementIsNotElementType():
+        box = wall.get_BoundingBox(None)
+        if box is None or not (box.Min.X <= p.X <= box.Max.X and box.Min.Y <= p.Y <= box.Max.Y
+                               and box.Min.Z <= p.Z <= box.Max.Z):
+            continue
+        try:
+            curve = wall.Location.Curve
+            if curve.Distance(DB.XYZ(p.X, p.Y, curve.GetEndPoint(0).Z)) <= wall.Width / 2.0 + 1e-3:
+                return wall
+        except Exception:
+            continue
+    return None
+
+
 def find_support_below(doc, x_ft, y_ft, base_z_ft, search_depth_ft=10.0, tol_ft=0.01):
     """Foundation, floor or beam right under a point whose top is at or just below base_z_ft."""
     from Autodesk.Revit import DB  # Lazy import

@@ -245,9 +245,9 @@ class ColumnsMixin(object):
         outline = SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 1.5
-        outline.Fill = _PREVIEW_SECTION_FILL
+        outline.Fill = _PREVIEW_ELEVATION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
         SWC.Canvas.SetTop(outline, sy(h_mm))
         canvas.Children.Add(outline)
@@ -334,7 +334,7 @@ class ColumnsMixin(object):
         outline = SWS.Ellipse() if is_circle else SWS.Rectangle()
         outline.Width = w_mm * scale
         outline.Height = h_mm * scale
-        outline.Stroke = _PREVIEW_SECTION_STROKE
+        outline.Stroke = _PREVIEW_CONCRETE_STROKE
         outline.StrokeThickness = 1.5
         outline.Fill = _PREVIEW_SECTION_FILL
         SWC.Canvas.SetLeft(outline, sx(-w_mm / 2.0))
@@ -405,7 +405,7 @@ class ColumnsMixin(object):
             elem = self.doc.GetElement(eid)
             if elem is None or elem.Category is None:
                 continue
-            if get_id_value(elem.Category.Id) == _cat_id('OST_StructuralFraming'):
+            if get_id_value(elem.Category.Id) == _cat_id('OST_StructuralFraming') or is_ground_beam(elem):
                 beams.append(elem)
         return beams
 
@@ -443,7 +443,15 @@ class ColumnsMixin(object):
                 self.TxtColDenseSpacing.Text, u'Densified spacing at nodes', errors)
         values['starter_bars'] = self.ChkColStarterBars.IsChecked == True
         values['cranked_laps'] = self.ChkColCrankedLaps.IsChecked == True
+        values['couplers'] = self.ChkColCouplers.IsChecked == True
         values['crossties'] = self.ChkColCrossties.IsChecked == True
+        values['helical'] = self.ChkColHelical.IsChecked == True
+        values['corbels'] = self.ChkColCorbels.IsChecked == True
+        if values['corbels']:
+            values['corbel_main_dia'] = self._read_number(self.TxtCorbelMainDia.Text, u'Corbel main bar diameter', errors)
+            values['corbel_main_loops'] = self._read_number(self.TxtCorbelMainLoops.Text, u'Corbel main loops', errors)
+            values['corbel_sec_dia'] = self._read_number(self.TxtCorbelSecDia.Text, u'Corbel secondary bar diameter', errors)
+            values['corbel_comp_dia'] = self._read_number(self.TxtCorbelCompDia.Text, u'Corbel compression bar diameter', errors)
         values['crosstie_layout'] = ('alternate' if self.CboCrosstieLayout.SelectedIndex == 1
                                       else 'all')
 
@@ -485,6 +493,29 @@ class ColumnsMixin(object):
             lines.extend(summary['errors'])
         self.TxtColumnResult.Text = u'\n'.join(lines)
 
+    def _coupler_joint_mm(self, values):
+        """T8.52: how far above the kicker the storeys' bars meet for a coupler, or None to lap them."""
+        if not values.get('couplers'):
+            return None
+        from nosa_utils import couplers
+        return couplers.JOINT_ABOVE_SLAB_MM
+
+    def _couple_columns(self, host, vertical_rebars, errors):
+        """T8.52, SMDSC 4th ed. App. D: a coupler at each joint where the storeys' bars meet end to end."""
+        import coupler_rebar
+        from nosa_utils import couplers
+        try:
+            with nosa_tx.revit_transaction(u'NOSA — Column Couplers'):
+                made, notes = coupler_rebar.couple(self.doc, vertical_rebars)
+        except Exception as e:
+            errors.append(u'Column {}: couplers not made — {}'.format(get_id_value(host.Id), e))
+            return
+        errors.extend(u'Column {}: {}'.format(get_id_value(host.Id), n) for n in notes)
+        if made:
+            errors.append(u'Column {}: {} coupler joint(s) instead of laps, {:.0f} mm above the kicker; the coupled '
+                          u'bars are marked E (SMDSC 4th ed. App. D).'.format(get_id_value(host.Id), made,
+                                                                   couplers.JOINT_ABOVE_SLAB_MM))
+
     def _process_column(self, host, values, wrapper, bar_types, errors, created_rebars):
         """
         PHASE 3.2 — vertical bars are now Rebar SETS, one per column
@@ -510,7 +541,14 @@ class ColumnsMixin(object):
         cover_mm = re_engine.get_native_cover_mm(
             self.doc, host, u'Exterior', self._standard_default_cover_mm(u'column'))
         try:
-            # T8.47, SMDSC 5.2/5.3: do the bars fit inside the links at their actual size?
+            section = column_rebar.detect_column_geometry(self.doc, host)
+        except Exception:
+            section = None
+        if section and section.get('shape') == 'poly':
+            return self._process_polygon_column(host, values, section, cover_mm, wrapper, bar_types, errors,
+                                                created_rebars)
+        try:
+            # T8.47, SMDSC 4th ed. 5.2/5.3: do the bars fit inside the links at their actual size?
             import fit_checks
             geom = column_rebar.detect_column_geometry(self.doc, host)
             per_face = (0, 0)
@@ -520,22 +558,26 @@ class ColumnsMixin(object):
             errors.extend(fit_checks.column_notes(
                 geom, cover_mm, values['link_dia'], values['bar_dia'], values['bar_count'], per_face,
                 label=u'Column {}'.format(get_id_value(host.Id))))
-            # T8.38, SMDSC 6.4: link pitch (x 0.6 next to beams, slabs and laps), sizes, restraint
+            # T8.38, SMDSC 4th ed. 6.4: link pitch (x 0.6 next to beams, slabs and laps), sizes, restraint
             from nosa_utils import links
             pitch, dense, link_notes = links.column_review(
                 geom, cover_mm, values['link_dia'], values['bar_dia'], values['bar_count'], per_face,
                 values['link_spacing'], values.get('dense_spacing'), values.get('densify'),
                 values.get('crossties'), label=u'Column {}'.format(get_id_value(host.Id)))
             errors.extend(link_notes)
-            # SMDSC 6.4 / 5.4.3: links against bursting at laps of H20 and over (sum Ast >= As)
+            # SMDSC 4th ed. 6.4 / 5.4.3: links against bursting at laps of H20 and over (sum Ast >= As)
             from nosa_utils import laps
             lap_mm = column_rebar.default_lap_length_mm(values['bar_dia'], std=self._host_std(host))
-            lap_pitch = dense if values.get('densify') else pitch
-            if not laps.lap_transverse_ok(values['bar_dia'], 100.0, lap_mm, values['link_dia'], 2, lap_pitch):
-                errors.append(u'Column {}: the H{:.0f} laps ({:.0f} mm) need links of at least the area of one '
-                              u'bar in each outer third (SMDSC 6.4, Fig. 6.25); H{:.0f} at {:.0f} do not give '
-                              u'it.'.format(get_id_value(host.Id), float(values['bar_dia']), float(lap_mm),
-                                            float(values['link_dia']), float(lap_pitch)))
+            # SMDSC 4th ed. 6.4 / Fig. 6.25: along every lap the links are at the dense pitch, closer for
+            # H20 and over so each outer third holds the area of one lapped bar
+            lap_pitch = dense or pitch
+            burst = laps.lap_link_pitch_mm(values['bar_dia'], lap_mm, values['link_dia'], 2)
+            if burst is not None and burst < lap_pitch:
+                lap_pitch = burst
+                errors.append(u'Column {}: links at {:.0f} along the H{:.0f} laps ({:.0f} mm) so each outer '
+                              u'third holds the area of one bar (SMDSC 4th ed. 6.4, Fig. 6.25).'.format(
+                                  get_id_value(host.Id), float(burst), float(values['bar_dia']), float(lap_mm)))
+            values = dict(values, lap_link_spacing=lap_pitch)
             if pitch != values['link_spacing'] or dense != values.get('dense_spacing'):
                 values = dict(values, link_spacing=pitch, dense_spacing=dense)
         except Exception:
@@ -558,8 +600,10 @@ class ColumnsMixin(object):
             include_crossties=values['crossties'],
             crosstie_layout=values['crosstie_layout'], link_bend_diameter_mm=link_bend_mm,
             std=self._host_std(host), kicker_mm=self._kicker_mm(),
+            lap_link_spacing_mm=values.get('lap_link_spacing'),
             slab_top_mat_mm=self._preview_number(self.TxtTopDiaX, 12.0)
-            + self._preview_number(self.TxtTopDiaY, 12.0))
+            + self._preview_number(self.TxtTopDiaY, 12.0),
+            coupler_joint_mm=self._coupler_joint_mm(values))
 
         for w in reinforcement.get('warnings', []):
             errors.append(u'Column {}: {}'.format(get_id_value(host.Id), w))
@@ -621,6 +665,24 @@ class ColumnsMixin(object):
                     created_rebars.append(rebar)
 
         vertical_rebars = created_rebars[first_vertical:]
+        if values.get('couplers') and len(vertical_rebars) > 1:
+            self._couple_columns(host, vertical_rebars, errors)
+        if bar_type_vert is not None:
+            for us in reinforcement.get('top_ubar_sets', []):
+                if us['count'] > 1:
+                    rebar = wrapper.create_rebar_set_fixed_number(
+                        host, us['curves'], bar_type_vert, us['count'], us['array_length_mm'],
+                        normal=us['normal'], transaction_name=u'NOSA — Create Column Top U-Bars')
+                else:
+                    rebar = wrapper.create_from_curves(
+                        host, us['curves'], bar_type_vert, normal=us['normal'],
+                        transaction_name=u'NOSA — Create Column Top U-Bar')
+                if rebar is None:
+                    errors.append(u'Column {}: top U-bars (SMDSC 4th ed. MD C4) — {}'.format(
+                        get_id_value(host.Id), wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'top_ubar')
+                    created_rebars.append(rebar)
 
         bar_type_link = bar_types.get(values['link_dia'])
         link_rebars = []
@@ -629,6 +691,9 @@ class ColumnsMixin(object):
                 style = DBS.RebarStyle.StirrupTie if s.get('style') == 'StirrupTie' else None
                 rebar = None
                 circle = s.get('circle')
+                if circle and values.get('helical') and self._create_helix(
+                        host, bar_type_link, circle, s, errors, created_rebars, link_rebars):
+                    continue
                 if circle:
                     rebar = wrapper.create_lapped_circle_set(
                         host, bar_type_link, circle['centre'], circle['radius_mm'],
@@ -652,6 +717,12 @@ class ColumnsMixin(object):
                     if wrapper.last_error:
                         errors.append(u'Column {}: links (set) — {}'.format(
                             get_id_value(host.Id), wrapper.last_error))
+
+        if bar_type_link is not None:
+            self._crank_knuckle_links(host, reinforcement, bar_type_link, wrapper, errors, created_rebars)
+        if values.get('corbels'):
+            self._reinforce_corbels(host, values, cover_mm, reinforcement, bar_type_link, wrapper, errors,
+                                    created_rebars)
 
         # PHASE F7.18 (2026-09-02, explicit request — "Starter bars con
         # forma de L en columnas y muros... unidas a la cimentación") —
@@ -700,8 +771,7 @@ class ColumnsMixin(object):
             starters = column_rebar.build_column_foundation_starters(
                 self.doc, host, points, values['bar_dia'], values['bar_dia'],
                 values['foundation_anchor_mm'],
-                self._splice_mm(values['foundation_splice_mm'], values['bar_dia'], host, errors,
-                                u'Starter splice') + self._kicker_mm(),
+                self._foundation_starter_mm(values['foundation_splice_mm'], values['bar_dia'], host, errors),
                 foundation_cover_mm=cover_mm)
             hook_90 = re_engine.get_hook_type_by_angle(self.doc, 90.0)
             if hook_90 is None:
@@ -711,6 +781,201 @@ class ColumnsMixin(object):
             self._create_foundation_starter_bars(
                 wrapper, host, starters, bar_type_vert, hook_90, u'Column',
                 errors, created_rebars)
+            try:
+                hand = DB.XYZ(host.HandOrientation.X, host.HandOrientation.Y, 0.0)
+            except Exception:
+                hand = DB.XYZ.BasisX
+            by_foundation = {}
+            for line, foundation in zip(starters.get('bars', []), starters.get('hosts', [])):
+                by_foundation.setdefault(get_id_value(foundation.Id), (foundation, []))[1].append(line)
+            self._create_starter_links(
+                wrapper, [{'bars': lines, 'hand': hand, 'foundation': foundation}
+                          for foundation, lines in by_foundation.values()],
+                values['bar_dia'], cover_mm, errors, created_rebars, u'Column', host)
+
+    def _process_polygon_column(self, host, values, section, cover_mm, wrapper, bar_types, errors, created_rebars):
+        """
+        T8.58 (2026-10-25): an L, T or other square-cornered column - a bar at every corner of the section and of
+        its links, bars between where the gap is over 200, one closed link per leg in each link zone.
+        """
+        from nosa_utils import polygon_section
+        label = u'Column {}'.format(get_id_value(host.Id))
+        lay = polygon_section.layout(section['outline_mm'], cover_mm, values['link_dia'], values['bar_dia'])
+        if lay is None:
+            errors.append(u'{}: section not square-cornered - not reinforced.'.format(label))
+            return
+        axis = column_rebar.get_column_axis(host)
+        z0, z1 = sorted((axis.GetEndPoint(0).Z, axis.GetEndPoint(1).Z))
+        x0, y0 = axis.GetEndPoint(0).X, axis.GetEndPoint(0).Y
+        lap_mm = column_rebar.default_lap_length_mm(values['bar_dia'], std=self._host_std(host))
+        above = None
+        try:
+            above = column_rebar.find_column_above(self.doc, host, z1, x0, y0)
+        except Exception:
+            log_swallowed(_LOG, u'polygon column above')
+        top = z1 + lap_mm / 304.8 if above is not None else z1 - cover_mm / 304.8
+        bar_type = bar_types.get(values['bar_dia'])
+        for x, y in lay['bars']:
+            line = DB.Line.CreateBound(DB.XYZ(x / 304.8, y / 304.8, z0), DB.XYZ(x / 304.8, y / 304.8, top))
+            rebar = wrapper.create_from_curves(host, [line], bar_type, normal=DB.XYZ.BasisX,
+                                               transaction_name=u'NOSA — Create Column Vertical Bar')
+            if rebar is None:
+                errors.append(u'{}: vertical bar - {}'.format(label, wrapper.last_error))
+                continue
+            self._stamp_layer(rebar, u'vertical')
+            created_rebars.append(rebar)
+        clear_mm = (z1 - z0) * 304.8
+        xs = [p[0] for p in section['outline_mm']]
+        ys = [p[1] for p in section['outline_mm']]
+        joint = column_rebar.default_joint_zone_length_mm(max(max(xs) - min(xs), max(ys) - min(ys)), clear_mm,
+                                                          std=self._host_std(host))
+        zones = column_rebar.generate_column_stirrup_zones(
+            clear_mm, joint, values.get('dense_spacing') or values['link_spacing'], values['link_spacing'],
+            values['densify'])
+        link_type = bar_types.get(values['link_dia'])
+        hook = re_engine.get_link_hook_type(self.doc)
+        for rect in lay['links']:
+            for zone in zones:
+                z = z0 + zone['start_mm'] / 304.8
+                pts = [DB.XYZ(px / 304.8, py / 304.8, z) for px, py in rect]
+                curves = [DB.Line.CreateBound(pts[k], pts[(k + 1) % 4]) for k in range(4)]
+                rebar = wrapper.create_rebar_set(
+                    host, curves, link_type, zone['spacing_mm'], zone['end_mm'] - zone['start_mm'],
+                    normal=DB.XYZ.BasisZ, style=DBS.RebarStyle.StirrupTie,
+                    transaction_name=u'NOSA — Create Column Links', link_hook=hook)
+                if rebar is None:
+                    errors.append(u'{}: links - {}'.format(label, wrapper.last_error))
+                    continue
+                self._stamp_layer(rebar, u'stirrup')
+                created_rebars.append(rebar)
+        errors.append(u'{}: {}-sided section - {} bars, {} closed link(s) per level, one per leg (T8.58); starters '
+                      u'into the foundation and cranked laps are not made for this section yet - detail them by '
+                      u'hand.'.format(label, len(section['outline_mm']), len(lay['bars']), len(lay['links'])))
+
+    def _create_helix(self, host, bar_type, circle, zone, errors, created_rebars, link_rebars):
+        """IStructE SMDSC 4th ed. MD C6: the zone's circular links as helical binding, 12 m pieces lapped one turn."""
+        from nosa_utils import links
+        shape = re_engine.find_rebar_shape(self.doc, u'77')
+        if shape is None:
+            errors.append(u'Column {}: no spiral shape 77 in the project — circular links used '
+                          u'instead of a helix.'.format(get_id_value(host.Id)))
+            return False
+        pieces = links.helix_pieces_mm(zone['array_length_mm'], zone['spacing_mm'], circle['radius_mm'])
+        made = []
+        try:
+            with nosa_tx.guard(DB.Transaction(self.doc, u'NOSA — Create Helical Links')) as t:
+                t.Start()
+                for z0, height in pieces:
+                    centre = circle['centre'] + DB.XYZ(0.0, 0.0, z0 / 304.8)
+                    rebar = re_engine.create_helix(self.doc, host, bar_type, shape, centre,
+                                                   circle['radius_mm'], height, zone['spacing_mm'])
+                    if rebar is None:
+                        raise ValueError(u'the spiral shape would not take r / Height / Pitch')
+                    made.append(rebar)
+                t.Commit()
+        except Exception as e:
+            errors.append(u'Column {}: helical links — {}; circular links used instead.'.format(
+                get_id_value(host.Id), e))
+            return False
+        for rebar in made:
+            self._stamp_layer(rebar, u'stirrup')
+            created_rebars.append(rebar)
+            link_rebars.append(rebar)
+        if len(made) > 1:
+            errors.append(u'Column {}: helical links in {} pieces of up to 12 m of bar, lapped one turn '
+                          u'(SMDSC 4th ed. MD C6).'.format(get_id_value(host.Id), len(made)))
+        return True
+
+    def _crank_knuckle_links(self, host, reinforcement, bar_type_link, wrapper, errors, created_rebars):
+        """IStructE SMDSC 4th ed. MD C2: one more link at the knuckle of each crank, where the bars push outwards."""
+        self._links_at(host, reinforcement, reinforcement.get('crank_knuckles_ft') or [], bar_type_link, wrapper,
+                       errors, created_rebars, u'crank_link', u'link at the crank knuckle')
+
+    def _links_at(self, host, reinforcement, levels_ft, bar_type_link, wrapper, errors, created_rebars, layer, what):
+        """One loose column link at each level, a copy of the column's own rectangular link."""
+        rect = [s for s in reinforcement.get('stirrup_sets', []) if not s.get('circle')]
+        if not rect or not levels_ft:
+            return
+        template = rect[0]
+        z0 = template['curves'][0].GetEndPoint(0).Z
+        for z in levels_ft:
+            shift = DB.Transform.CreateTranslation(DB.XYZ(0.0, 0.0, z - z0))
+            curves = [c.CreateTransformed(shift) for c in template['curves']]
+            rebar = wrapper.create_rebar_set(
+                host, curves, bar_type_link, template['spacing_mm'], 0.0, normal=template['normal'],
+                style=DBS.RebarStyle.StirrupTie, transaction_name=u'NOSA — Create Column Link',
+                link_hook=re_engine.get_link_hook_type(self.doc))
+            if rebar is None:
+                errors.append(u'Column {}: {} — {}'.format(get_id_value(host.Id), what, wrapper.last_error))
+                continue
+            self._stamp_layer(rebar, layer)
+            created_rebars.append(rebar)
+
+    def _reinforce_corbels(self, host, values, cover_mm, reinforcement, bar_type_link, wrapper, errors,
+                           created_rebars):
+        """IStructE SMDSC 4th ed. MD CB1: main loops, secondary U-bars, compression bars and two links at every corbel."""
+        import corbel_rebar
+        from nosa_utils import corbels
+        hid = get_id_value(host.Id)
+        col, found = corbel_rebar.find_corbels(host, cover_mm)
+        if not found:
+            errors.append(u'Column {}: no corbels found on it.'.format(hid))
+            return
+        main_dia, sec_dia, comp_dia = values['corbel_main_dia'], values['corbel_sec_dia'], values['corbel_comp_dia']
+        types = dict((d, re_engine.get_bar_type_by_diameter(self.doc, d)) for d in (main_dia, sec_dia, comp_dia))
+        if any(t is None for t in types.values()):
+            errors.append(u'Column {}: a corbel bar size is missing from the project — corbels skipped.'.format(hid))
+            return
+        bars = {'main_dia': main_dia, 'main_loops': max(1, int(values['corbel_main_loops'])),
+                'secondary_dia': sec_dia, 'compression_dia': comp_dia,
+                'lap_mm': self._splice_mm(None, main_dia, host), 'anchorage_mm': self._anchorage_mm(host, comp_dia)}
+        seen = set()
+        top_levels = []
+        for k, c in enumerate(found):
+            column = {'depth': c['column_depth'], 'half_along': c['half_along'], 'cover': cover_mm,
+                      'link_dia': values['link_dia'], 'bar_dia': values['bar_dia'], 'base': col['base']}
+            out = corbels.build(c, column, bars)
+            label = u'Column {} corbel {} ({:.0f} top {:.0f})'.format(hid, k + 1, c['projection'], c['top'])
+            for note in out['notes']:
+                key = note.split(u':')[0]
+                if key not in seen:
+                    seen.add(key)
+                    errors.append(u'{}: {}'.format(label, note))
+            for kind, dia, layer in ((u'main', main_dia, u'corbel_main'), (u'secondary', sec_dia, u'corbel_secondary')):
+                chains = [corbel_rebar.to_world(c, pl) for pl in out[kind]]
+                if not chains:
+                    continue
+                # the main loops bend in two planes: no planar shape matches them, so not workshop-bent
+                rebar = wrapper.create_freeform_group(host, chains, types[dia],
+                                                      transaction_name=u'NOSA — Create Corbel {} Bars'.format(kind.title()),
+                                                      bent=(kind != u'main'))
+                if rebar is None or not rebar.IsValidObject:
+                    errors.append(u'{}: {} bars — {}'.format(label, kind, wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, layer)
+                    created_rebars.append(rebar)
+            comp = out['compression']
+            if comp:
+                curves = corbel_rebar.to_world(c, comp[0])
+                if len(comp) > 1:
+                    pitch = abs(comp[1][0][1] - comp[0][0][1])
+                    rebar = wrapper.create_rebar_set(host, curves, types[comp_dia], pitch + 0.01,
+                                                     pitch * (len(comp) - 1), normal=c['a'],
+                                                     transaction_name=u'NOSA — Create Corbel Compression Bars')
+                else:
+                    rebar = wrapper.create_from_curves(host, curves, types[comp_dia], normal=c['a'],
+                                                       transaction_name=u'NOSA — Create Corbel Compression Bar')
+                if rebar is None or not rebar.IsValidObject:
+                    errors.append(u'{}: compression bars — {}'.format(label, wrapper.last_error))
+                else:
+                    self._stamp_layer(rebar, u'corbel_compression')
+                    created_rebars.append(rebar)
+            for z in out['top_links']:
+                if z < col['top'] - cover_mm and all(abs(z - t) > 50.0 for t in top_levels):
+                    top_levels.append(z)
+        self._links_at(host, reinforcement, [z / 304.8 for z in top_levels], bar_type_link, wrapper, errors,
+                       created_rebars, u'corbel_link', u'link at a corbel top')
+        errors.append(u'Column {}: {} corbel(s) reinforced to IStructE SMDSC 4th ed. MD CB1.'.format(hid, len(found)))
 
     def _run_column_reinforcement(self, columns, values):
         """

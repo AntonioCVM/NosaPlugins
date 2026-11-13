@@ -39,3 +39,114 @@ def test_stair_review():
     m, d, t, notes = mr.stair_review(120, 25, 16, 400, 6, 500, 30, top_dia=10, top_spacing=500)
     assert m == 350 and d == 400 and t == 350                   # 3h = 360, 3.5h = 420
     assert any(u'20 %' in n for n in notes)                     # H6@400 = 71 < 0.2 x H16@350 = 115
+
+
+def test_footing_band():
+    assert mr.footing_band_mm(1500, 450, 430) is None              # 1500 < 1.5 x 1740
+    assert mr.footing_band_mm(3000, 450, 400) == 1650.0            # 3000 > 1.5 x 1650
+    band, left, right = mr.band_layout_mm(0, 3000, 16, 600, 2400)
+    assert len(band) == 12 and band[0] == 600 and band[-1] == 2400  # 12 of 16 >= 2/3 under the column
+    assert left == [0.0, 300.0] and right == [2700.0, 3000.0]       # outer strips at <= 300
+    assert len(band) >= 2 * (len(left) + len(right))
+    assert mr.band_layout_mm(0, 3000, 16, 1400, 1500) is None       # band closer than 100 mm
+
+
+def test_edge_ubars_carry_half_the_bottom_area():
+    assert mr.edge_ubar_dia_mm(10, 200, 12, 200) == 10.0          # 100 >= 0.5 x 144
+    assert mr.edge_ubar_dia_mm(10, 200, 16, 150) == 16.0          # 0.5 x 256/150 = 0.85 > 144/200
+    assert mr.edge_ubar_dia_mm(10, 300, 20, 150) == 20.0          # 400/300 = 0.5 x 400/150 exactly
+
+
+def test_slab_holes():
+    assert mr.slab_hole_class(150, 100) == u'ignore' and mr.slab_hole_class(300, 300) == u'bottom'
+    assert mr.slab_hole_class(600, 300) == u'both' and mr.slab_hole_class(1200, 300) == u'design'
+    assert mr.trimmers_per_side(300, 200) == 1 and mr.trimmers_per_side(600, 200) == 2
+    assert mr.trimmers_per_side(1000, 150) == 4                     # 7 bars cut: 4 each side
+
+
+def test_corner_torsion():
+    assert mr.torsion_extra_spacing_mm(12, 200, 12, 200) is None          # top = bottom: 3/4 already there
+    assert mr.torsion_extra_spacing_mm(12, 200) == 250.0                  # 144/266 -> 250
+    assert mr.torsion_extra_spacing_mm(16, 150, 10, 200) == 325.0         # 1.28 - 0.5 = 0.78 -> 256/0.78 = 328
+    square = [(0, 0), (4000, 0), (4000, 3000), (0, 3000)]
+    assert sorted(mr.slab_corners(square)) == [(0, 0, 1.0, 1.0), (0, 3000, 1.0, -1.0),
+                                               (4000, 0, -1.0, 1.0), (4000, 3000, -1.0, -1.0)]
+    l_shape = [(0, 0), (4000, 0), (4000, 2000), (2000, 2000), (2000, 3000), (0, 3000)]
+    assert len(mr.slab_corners(l_shape)) == 5                             # the re-entrant one is skipped
+    assert len(mr.slab_corners(list(reversed(square)))) == 4
+
+
+def test_top_bars_over_supports():
+    # walls at 0, 5000 and 9000 under a 9000 slab: edge, internal, edge
+    assert mr.support_strips_mm([0.0, 5000.0, 9000.0], 0.0, 9000.0) == [(0.0, 1500.0), (3500.0, 6200.0),
+                                                                         (7800.0, 9000.0)]
+    assert mr.support_strips_mm([2000.0], 0.0, 6000.0) == [(0.0, 6000.0)]     # a lone support: cantilevers
+    assert mr.support_strips_mm([], 0.0, 6000.0) == []
+    assert mr.row_runs(0.0, 200.0, 6, [(300.0, 700.0)]) == [(False, 0, 1), (True, 2, 3), (False, 4, 5)]
+
+
+def test_ms1_alternate_bottom_bars():
+    odd, even = mr.alternate_bottom_mm(0.0, 10000.0, [5000.0], 600.0)
+    assert odd == [(0.0, 4000.0), (4700.0, 9000.0)]
+    assert even == [(1000.0, 5300.0), (6000.0, 10000.0)]
+    assert mr.alternate_bottom_mm(0.0, 5000.0, [], 600.0) == ([], [])
+
+
+def test_flat_slab_strips_share_the_steel():
+    strips = mr.flat_slab_strips_mm(0.0, 12000.0, [0.0, 6000.0, 12000.0], 6000.0, 200.0)
+    # column line at 6000: central half +-750 at 100, outer halves to +-1500 at 200, middle strip 400
+    assert (5250.0, 6750.0, 100.0) in strips
+    assert (4500.0, 5250.0, 200.0) in strips and (6750.0, 7500.0, 200.0) in strips
+    assert (1500.0, 4500.0, 400.0) in strips
+    # the average stays the user's pitch: bars over one panel 0..6000
+    n = sum((min(b, 6000.0) - max(a, 0.0)) / p for a, b, p in strips if b > 0.0 and a < 6000.0)
+    assert abs(n - 6000.0 / 200.0) < 0.5
+    bottom = mr.flat_slab_strips_mm(0.0, 12000.0, [6000.0], 6000.0, 200.0, top=False)
+    assert (4500.0, 7500.0, 180.0) in bottom and bottom[0][2] == 220.0
+
+
+def test_strip_rows_and_bars_through():
+    runs = mr.strip_rows_mm(0.0, 1000.0, [(0.0, 400.0, 200.0), (400.0, 1000.0, 100.0)])
+    assert runs[0] == (0.0, 200.0, 3) and runs[1] == (500.0, 100.0, 6)
+    assert mr.bars_through([0.0, 100.0, 200.0, 300.0], 150.0, 150.0) == 2
+
+
+def test_md_s1_4th_edition():
+    assert mr.md_s1_top_reach_mm(5000.0) == (750.0, 1500.0)
+    assert mr.md_s1_top_reach_mm(2000.0, 640.0) == (640.0, 640.0)          # or l_bd, whichever is greater
+    assert mr.distribution_pitch_mm(200.0, 10.0) == 300
+    assert mr.distribution_pitch_mm(210.0, 12.0) == 400                     # next tabulated depth up
+    assert mr.distribution_pitch_mm(150.0, 16.0) is None                    # H16 not used in 150 slabs
+    assert mr.distribution_pitch_mm(450.0, 10.0) is None
+    # from the supports' faces: 300 wide supports at 0 / 5000 / 9000, clear spans 4700 / 3700
+    bands = mr.support_strips_mm([0.0, 5000.0, 9000.0], 0.0, 9000.0, widths_mm={0.0: 300.0, 5000.0: 300.0,
+                                                                                 9000.0: 300.0})
+    assert bands[1] == (5000.0 - 150.0 - 0.3 * 4700.0, 5000.0 + 150.0 + 0.3 * 3700.0)
+
+
+def test_strip_bands():
+    bands = mr.strip_bands_mm(0.0, 12000.0, [0.0, 6000.0, 12000.0], 6000.0)
+    assert bands == [(0.0, 1500.0, mr.COLUMN_STRIP), (1500.0, 4500.0, mr.MIDDLE_STRIP),
+                     (4500.0, 7500.0, mr.COLUMN_STRIP), (7500.0, 10500.0, mr.MIDDLE_STRIP),
+                     (10500.0, 12000.0, mr.COLUMN_STRIP)]
+    assert mr.strip_bands_mm(0.0, 3000.0, [1000.0, 1500.0], 2000.0) == [(0.0, 500.0, mr.MIDDLE_STRIP),
+                                                                        (500.0, 2000.0, mr.COLUMN_STRIP),
+                                                                        (2000.0, 3000.0, mr.MIDDLE_STRIP)]
+
+
+def test_trimmers_contact_or_clear_never_between():
+    rows = [22350.0 + 150.0 * k for k in range(-3, 4)]
+    out = mr.clear_of_rows([22368.0, 22418.0, 22468.0], rows, 16.0, 16.0, 1.0)
+    for t in out:
+        d = min(abs(t - r) for r in rows)
+        assert d >= 17.6 + 25.0 - 1e-6 or 17.6 - 1e-6 <= d <= 17.6 + 1.0
+
+
+def test_trimmer_reach_is_the_anchorage_450_min():
+    assert mr.trimmer_reach_mm(400.0) == 450.0          # H10: the 4th ed. minimum governs
+    assert mr.trimmer_reach_mm(640.0) == 640.0          # H16: its l_bd
+    assert mr.trimmer_reach_mm(None) == 450.0
+
+
+def test_distribution_pitch_is_a_float():
+    assert isinstance(mr.distribution_pitch_mm(200.0, 10.0), float)

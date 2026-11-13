@@ -20,6 +20,59 @@ import math
 
 _MIN_LEG_MM = 50.0
 MIN_STARTER_FOOT_MM = 450.0
+A_MIN_MM = 500.0                 # SMDSC 4th ed. MD ST1: 'A' = max(0.1 design span, tension anchorage, 500)
+NO_FINISH_TOP_COVER_MM = 10.0    # SMDSC 4th ed. 6.8: 10 mm more top cover where the stair has no finish
+UBAR_AREA_SHARE = 0.5            # SMDSC 4th ed. MD ST1: landing U-bars 50 % of the main bottom area
+
+
+def a_length_mm(span_mm, anchorage_mm):
+    """SMDSC 4th ed. MD ST1 'A': how far the top bars reach into the flight from each knee (25 mm up)."""
+    a = max(0.1 * float(span_mm), float(anchorage_mm), A_MIN_MM)
+    return 25.0 * math.ceil(a / 25.0 - 1e-9)
+
+
+def landing_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing):
+    """The smallest bar from u_dia up whose U-bars at u_spacing give 50 % of the main bottom area (MD ST1)."""
+    from nosa_utils import mesh_rules
+    return mesh_rules.edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, UBAR_AREA_SHARE)
+
+
+def lower_tops(runs, landings, extra_mm):
+    """Copies of the runs and landings with their top faces extra_mm lower, for the bars only (no finish)."""
+    out_runs = []
+    for run in runs:
+        r = dict(run)
+        r['pitch_z0'] = run['pitch_z0'] - extra_mm / _cos(run['slope'])
+        r['lower'] = dict(run['lower'], top=run['lower']['top'] - extra_mm)
+        r['upper'] = dict(run['upper'], top=run['upper']['top'] - extra_mm)
+        out_runs.append(r)
+    return out_runs, [dict(landing, top=landing['top'] - extra_mm) for landing in landings]
+
+
+def _slope_span(pts):
+    """Index i of the rising segment pts[i] -> pts[i + 1] of a flight bar, or None."""
+    for i in range(len(pts) - 1):
+        if pts[i + 1][0] - pts[i][0] > 1.0 and pts[i + 1][1] - pts[i][1] > 1.0:
+            return i
+    return None
+
+
+def split_top_bar(pts, run, cover, dia, a_mm, min_gap_mm=100.0):
+    """
+    SMDSC 4th ed. MD ST1: the flight top bar as two bars, each reaching 'A' along the slope from its knee;
+    (lower, upper, (s_a, s_b)) or None when they would meet (keep it continuous).
+    """
+    i = _slope_span(pts)
+    if i is None:
+        return None
+    _bottom, line = flight_lines(run, cover, dia, dia)
+    ds = a_mm * _cos(run['slope'])
+    s_a, s_b = pts[i][0] + ds, pts[i + 1][0] - ds
+    if s_b - s_a < min_gap_mm * _cos(run['slope']):
+        return None
+    lower = _dedupe(pts[:i + 1] + [(s_a, line.z(s_a))])
+    upper = _dedupe([(s_b, line.z(s_b))] + pts[i + 1:])
+    return lower, upper, (s_a, s_b)
 
 
 class Line(object):
@@ -258,7 +311,7 @@ def uncovered(interval, strips, min_width):
 
 
 def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anchorage,
-                 top_dia=None, top_spacing=None, slab_anchor=True, starters=None):
+                 top_dia=None, top_spacing=None, slab_anchor=True, starters=None, a_mm=None):
     """
     Every set of one flight in its local frame.
     run: length, slope, soffit_z0, pitch_z0, v_min, v_max and lower/upper ends
@@ -266,6 +319,8 @@ def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anc
     slab_anchor: with no landing at the top, lap the bars into the floor slab beyond (else stop
                  at the end face).
     starters: None, or {'dia', 'lap', 'support'} (see starter_bars) for a flight on a support.
+    a_mm: SMDSC 4th ed. MD ST1 'A' — the top bars (and their distribution bars) stop this far along the
+          slope from each knee; None keeps them continuous.
     Returns a list of {'label','layer','dia','points':[(s,z)],'axis':'v'|'slope',
                        'first','array','count','spacing'} (for axis 'v' points are in the s-z plane
                        at v=first; for axis 'slope' the bar runs across the width and is spaced
@@ -285,8 +340,13 @@ def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anc
 
     along(u'Stair Flight Bottom', u'stair_bottom', main_dia, main_spacing,
           bottom_bar(run, cover, main_dia, anchorage, slab_anchor, with_starters), True)
-    along(u'Stair Flight Top', u'stair_top', top_dia, top_spacing,
-          top_bar(run, cover, top_dia, anchorage, slab_anchor, with_starters), False)
+    top_pts = top_bar(run, cover, top_dia, anchorage, slab_anchor, with_starters)
+    split = split_top_bar(top_pts, run, cover, top_dia, a_mm) if a_mm else None
+    if split:
+        along(u'Stair Flight Top', u'stair_top', top_dia, top_spacing, split[0], False)
+        along(u'Stair Flight Top', u'stair_top', top_dia, top_spacing, split[1], False)
+    else:
+        along(u'Stair Flight Top', u'stair_top', top_dia, top_spacing, top_pts, False)
     along(u'Stair Upper Knee', u'stair_knee', main_dia, main_spacing,
           upper_knee_bar(run, cover, main_dia, top_dia, anchorage), False)
     along(u'Stair Lower Knee', u'stair_knee', top_dia, top_spacing,
@@ -303,8 +363,16 @@ def build_flight(run, cover, main_dia, main_spacing, dist_dia, dist_spacing, anc
     bottom_line, top_line = flight_distribution(run, cover, main_dia, top_dia, dist_dia)
     v0 = run['v_min'] + cover + dist_dia / 2.0
     v1 = run['v_max'] - cover - dist_dia / 2.0
-    for label, line in ((u'Stair Flight Distribution Bottom', bottom_line),
-                        (u'Stair Flight Distribution Top', top_line)):
+    lines = [(u'Stair Flight Distribution Bottom', bottom_line)]
+    if split and top_line is not None:
+        (s0, z0), (s1, z1) = top_line
+        k = (z1 - z0) / (s1 - s0)
+        for a, b in ((s0, min(s1, split[2][0])), (max(s0, split[2][1]), s1)):
+            if b - a > _MIN_LEG_MM:
+                lines.append((u'Stair Flight Distribution Top', ((a, z0 + k * (a - s0)), (b, z0 + k * (b - s0)))))
+    else:
+        lines.append((u'Stair Flight Distribution Top', top_line))
+    for label, line in lines:
         if line is None:
             continue
         (s0, z0), (s1, z1) = line
@@ -435,6 +503,53 @@ def build_landing(landing, cover, main_dia, dist_dia, dist_spacing, infill_spaci
                      'dia': u_dia, 'points_vz': pts, 'axis': 's',
                      'first': s0 + (dist_dia + u_dia) / 2.0, 'array': s1 - s0, 'count': count,
                      'spacing': dist_spacing})
+    return sets
+
+
+PULLOUT_MAX_DIA_MM = 12.0     # SMDSC 4th ed. MD W3: pull-out U-bars class B/C, size 12 at most
+
+
+def pullout_bars(landing, edge, cover, wall_cover, u_dia, lap, spacing, fix_dia):
+    """
+    IStructE SMDSC 4th ed. MD W3 (half landing cast after the wall): U-bars cast in the wall along a landing
+    edge, back behind the wall face at the wall cover, legs running a tension lap into the landing
+    at its top and bottom cover; two fixing bars inside the U. edge: 's_max', 'v_min' or 'v_max'.
+    Returns stair_rebar sets in the landing frame (hosted in the wall by the caller).
+    """
+    u = min(float(u_dia), PULLOUT_MAX_DIA_MM)
+    zt, zb = landing['top'] - cover - u / 2.0, landing['bottom'] + cover + u / 2.0
+    if zt - zb < 2.0 * u + fix_dia or not ubar_fits(zt - zb, u):
+        return []                    # no room to bend the U inside the landing's covers
+    inset = wall_cover + u / 2.0
+    zf_top, zf_bot = zt - (u + fix_dia) / 2.0, zb + (u + fix_dia) / 2.0
+    sets = []
+    if edge == 's_max':
+        back = landing['s_max'] + inset
+        tip = landing['s_max'] - lap
+        first, array, count = width_layout(landing['v_min'], landing['v_max'], cover, u, spacing)
+        sets.append({'label': u'Stair Landing Pull-out U-Bar', 'layer': u'stair_pullout', 'dia': u,
+                     'points': [(tip, zt), (back, zt), (back, zb), (tip, zb)], 'axis': 'v',
+                     'first': first, 'array': array, 'count': count, 'spacing': spacing})
+        s_fix = back - (u + fix_dia) / 2.0
+        sets.append({'label': u'Stair Landing Pull-out Fixing Bar', 'layer': u'stair_pullout', 'dia': fix_dia,
+                     'points': [(s_fix, zf_bot)], 'v_range': (landing['v_min'] + cover, landing['v_max'] - cover),
+                     'axis': 'slope', 'direction': (0.0, 1.0), 'array': zf_top - zf_bot, 'count': 2,
+                     'spacing': zf_top - zf_bot})
+        return sets
+    sign = 1.0 if edge == 'v_min' else -1.0
+    face = landing[edge]
+    back = face - sign * inset
+    tip = face + sign * lap
+    s0, s1 = landing['s_min'] + cover + u / 2.0, landing['s_max'] - cover - u / 2.0
+    count, _pitch = spaced_count(s1 - s0, spacing)
+    sets.append({'label': u'Stair Landing Pull-out U-Bar', 'layer': u'stair_pullout', 'dia': u,
+                 'points_vz': [(tip, zt), (back, zt), (back, zb), (tip, zb)], 'axis': 's',
+                 'first': s0, 'array': s1 - s0, 'count': count, 'spacing': spacing})
+    v_fix = back + sign * (u + fix_dia) / 2.0
+    for z in (zf_top, zf_bot):
+        sets.append({'label': u'Stair Landing Pull-out Fixing Bar', 'layer': u'stair_pullout', 'dia': fix_dia,
+                     'points': [(s0, z), (s1, z)], 'axis': 'v', 'first': v_fix, 'array': 0.0, 'count': 1,
+                     'spacing': spacing})
     return sets
 
 

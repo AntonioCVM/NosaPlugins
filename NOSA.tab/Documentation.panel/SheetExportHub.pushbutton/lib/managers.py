@@ -203,7 +203,7 @@ class ExportPresetManager:
                 json.dump(data, f, indent=2)
             return True
         except Exception as e:
-            logger.error("Error guardando preset de exportación", e)
+            logger.error("Error saving export preset", e)
             return False
 
     @staticmethod
@@ -214,7 +214,7 @@ class ExportPresetManager:
                 with open(filepath, 'r') as f:
                     return json.load(f)
         except Exception as e:
-            logger.error("Error cargando preset de exportación", e)
+            logger.error("Error loading export preset", e)
         return None
 
     @staticmethod
@@ -288,7 +288,7 @@ class RecentExportsManager:
                 json.dump(history, f, indent=2)
 
         except Exception as e:
-            logger.warning("Error guardando historial", e)
+            logger.warning("Error saving export history", e)
 
     @staticmethod
     def get_recent_exports():

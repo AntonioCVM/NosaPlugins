@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-nosa_utils.mesh_rules — bar meshes of slabs (IStructE SMDSC 6.2) and foundations (SMDSC 6.7),
+nosa_utils.mesh_rules — bar meshes of slabs (IStructE SMDSC 4th ed. 6.2) and foundations (SMDSC 4th ed. 6.7),
 EC2 9.3 / 9.8 with the UK NA. Pure Python.
 
 Every mat direction is checked against the minimum tension steel 0.26 fctm/fyk bt d >= 0.0013 bt d
@@ -37,7 +37,7 @@ def slab_max_pitch_mm(h_mm):
 
 
 def foundation_max_pitch_mm(ratio):
-    """SMDSC 6.7: 300 up to 0.5 % of steel, 225 up to 1 %, 175 beyond."""
+    """SMDSC 4th ed. 6.7: 300 up to 0.5 % of steel, 225 up to 1 %, 175 beyond."""
     if ratio <= 0.005 + 1e-9:
         return 300.0
     if ratio < 0.01 - 1e-9:
@@ -68,7 +68,7 @@ def _min_steel(h_mm, cover_mm, layers, fck, label, notes):
 
 def slab_review(h_mm, cover_mm, dia_x, dia_y, spacing, fck_mpa, top=None, label=u'Slab'):
     """
-    SMDSC 6.2 review of a slab mesh. top: (top dia x, top dia y, top spacing, top cover) or None.
+    SMDSC 4th ed. 6.2 review of a slab mesh. top: (top dia x, top dia y, top spacing, top cover) or None.
     Returns (spacing, top spacing, notes).
     """
     h, cover = float(h_mm), float(cover_mm)
@@ -84,41 +84,381 @@ def slab_review(h_mm, cover_mm, dia_x, dia_y, spacing, fck_mpa, top=None, label=
         top_spacing = _clamp(ts, most, label, u'top bars', u'min(3h, 400)', notes)
         for dia in (tx, ty):
             if dia < SLAB_MIN_DIA_MM:
-                notes.append(u'{}: H{:.0f} under the preferred H10 (SMDSC 6.2).'.format(label, dia))
+                notes.append(u'{}: H{:.0f} under the preferred H10 (SMDSC 4th ed. 6.2).'.format(label, dia))
     for dia in (dia_x, dia_y):
         if dia < SLAB_MIN_DIA_MM:
-            notes.append(u'{}: H{:.0f} under the preferred H10 (SMDSC 6.2).'.format(label, dia))
+            notes.append(u'{}: H{:.0f} under the preferred H10 (SMDSC 4th ed. 6.2).'.format(label, dia))
     return spacing, top_spacing, _unique(notes)
 
 
 def foundation_review(h_mm, cover_mm, dia_x, dia_y, spacing, fck_mpa, top=None, piled=False,
                       label=u'Foundation'):
-    """SMDSC 6.7 review of a footing / pile cap / raft mesh. Returns (spacing, top spacing, notes)."""
+    """SMDSC 4th ed. 6.7 review of a footing / pile cap / raft mesh. Returns (spacing, top spacing, notes)."""
     h, cover = float(h_mm), float(cover_mm)
     dia_x, dia_y, spacing = float(dia_x), float(dia_y), float(spacing)
     notes = []
     ratio = area_per_m(max(dia_x, dia_y), spacing) / (1000.0 * max(h - cover, 1.0))
     spacing = _clamp(spacing, foundation_max_pitch_mm(ratio), label, u'bottom bars',
-                     u'the SMDSC 6.7 maximum for {:.2f} % of steel'.format(100 * ratio), notes)
+                     u'the SMDSC 4th ed. 6.7 maximum for {:.2f} % of steel'.format(100 * ratio), notes)
     if spacing < FOUNDATION_MIN_PITCH_MM - 1e-6:
-        notes.append(u'{}: bars at {:.0f} under the 100 mm minimum (SMDSC 6.7).'.format(label, spacing))
+        notes.append(u'{}: bars at {:.0f} under the 100 mm minimum (SMDSC 4th ed. 6.7).'.format(label, spacing))
     _min_steel(h, cover, [(u'bottom X', dia_x, spacing, 0.0), (u'bottom Y', dia_y, spacing, dia_x)],
                fck_mpa, label, notes)
     need_cover = PILED_BOTTOM_COVER_MM if piled else FOUNDATION_COVER_MM
     if cover < need_cover - 1e-6:
-        notes.append(u'{}: bottom cover {:.0f} under the {:.0f} mm SMDSC 6.7 gives {}.'.format(
+        notes.append(u'{}: bottom cover {:.0f} under the {:.0f} mm SMDSC 4th ed. 6.7 gives {}.'.format(
             label, cover, need_cover, u'a pile cap' if piled else u'foundations'))
     dias = [dia_x, dia_y]
     top_spacing = None
     if top:
         tx, ty, ts, tc = [float(v) for v in top]
         top_spacing = _clamp(ts, foundation_max_pitch_mm(ratio), label, u'top bars',
-                             u'the SMDSC 6.7 maximum', notes)
+                             u'the SMDSC 4th ed. 6.7 maximum', notes)
         dias += [tx, ty]
     for dia in dias:
         if dia < FOUNDATION_MIN_DIA_MM:
-            notes.append(u'{}: H{:.0f} under H16, the smallest SMDSC 6.7 allows (lacers apart).'.format(label, dia))
+            notes.append(u'{}: H{:.0f} under H16, the smallest SMDSC 4th ed. 6.7 allows (lacers apart).'.format(label, dia))
     return spacing, top_spacing, _unique(notes)
+
+
+BAR_SIZES_MM = (8, 10, 12, 16, 20, 25, 32, 40)
+EDGE_UBAR_SHARE = 0.5      # SMDSC 4th ed. MD S2 / MD ST1: edge U-bars carry half the area of the main bottom bars
+
+
+def edge_ubar_dia_mm(u_dia, u_spacing, main_dia, main_spacing, share=EDGE_UBAR_SHARE):
+    """The smallest bar from u_dia up whose U-bars at u_spacing give `share` of the main bottom area."""
+    need = share * float(main_dia) ** 2 / float(main_spacing)
+    for size in BAR_SIZES_MM:
+        if size >= u_dia - 1e-6 and size ** 2 / float(u_spacing) >= need - 1e-9:
+            return float(size)
+    return float(BAR_SIZES_MM[-1])
+
+
+HOLE_IGNORE_MM, HOLE_BOTTOM_MM, HOLE_TOP_MM = 150.0, 500.0, 1000.0   # SMDSC 4th ed. 6.2 holes in slabs
+TRIMMER_MIN_MM = 450.0      # SMDSC 4th ed. 6.2.2.12: trimmers 450 min. (nominal anchorage) past the hole
+
+
+def trimmer_reach_mm(lbd_mm):
+    """
+    How far a slab trimmer or corner diagonal runs past the hole (user 2026-10-17): its tension anchorage l_bd
+    (it replaces the area of the bars cut, so it must develop its stress), never under the 450 of SMDSC 4th ed.
+    6.2.2.12. Was 45 dia. (3rd ed.).
+    """
+    return max(TRIMMER_MIN_MM, float(lbd_mm or 0.0))
+
+
+def slab_hole_class(width_mm, length_mm):
+    """
+    SMDSC 4th ed. 6.2 for an isolated hole: 'ignore' (sides <= 150, bars run through), 'bottom' (<= 500: bars
+    cut and trimmed with bars of equal area), 'both' (<= 1000: the top trimmed too, diagonals if
+    h > 250) or 'design' (over 1000: the designer specifies it).
+    """
+    side = max(float(width_mm), float(length_mm))
+    if side <= HOLE_IGNORE_MM + 1e-6:
+        return u'ignore'
+    if side <= HOLE_BOTTOM_MM + 1e-6:
+        return u'bottom'
+    if side <= HOLE_TOP_MM + 1e-6:
+        return u'both'
+    return u'design'
+
+
+def trimmers_per_side(cut_extent_mm, spacing_mm):
+    """Bars each side of a hole replacing the bars it cuts (equal area, half each side, at least one)."""
+    cut = max(1, int(math.ceil(float(cut_extent_mm) / float(spacing_mm) - 1e-9)))
+    return max(1, int(math.ceil(cut / 2.0)))
+
+
+TORSION_SHARE = 0.75     # SMDSC 4th ed. Fig. 6.7 / EC2 9.3.1.3: each leg 3/4 of the mid-span steel
+TORSION_REACH = 0.2      # ... over a fifth of the shorter span from the corner
+
+
+def torsion_extra_spacing_mm(bottom_dia, bottom_spacing, top_dia=None, top_spacing=None, extra_dia=None):
+    """
+    Pitch of the extra top bars (extra_dia, default the bottom size) a held-down slab corner needs so
+    the top gives 3/4 of the bottom area (the bottom mat already runs through the corner); None
+    when the top mat already does. 25 mm steps down, never under 100.
+    """
+    need = TORSION_SHARE * float(bottom_dia) ** 2 / float(bottom_spacing)
+    have = float(top_dia) ** 2 / float(top_spacing) if top_dia and top_spacing else 0.0
+    if have >= need - 1e-9:
+        return None
+    dia = float(extra_dia or bottom_dia)
+    pitch = dia ** 2 / (need - have)
+    return max(FOUNDATION_MIN_PITCH_MM, 25.0 * math.floor(pitch / 25.0 + 1e-9))
+
+
+def slab_corners(polygon):
+    """
+    Convex right-angled corners of a plan polygon whose edges run along X and Y: [(x, y, dx, dy)],
+    (dx, dy) pointing into the slab along each edge.
+    """
+    pts = list(polygon)
+    if len(pts) > 1 and abs(pts[0][0] - pts[-1][0]) < 1e-6 and abs(pts[0][1] - pts[-1][1]) < 1e-6:
+        pts = pts[:-1]
+    n = len(pts)
+    area = sum(pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1] for i in range(n))
+    out = []
+    for i in range(n):
+        a, v, b = pts[i - 1], pts[i], pts[(i + 1) % n]
+        e1 = (v[0] - a[0], v[1] - a[1])
+        e2 = (b[0] - v[0], b[1] - v[1])
+        if (e1[0] * e2[1] - e1[1] * e2[0]) * area <= 0.0:
+            continue                                   # re-entrant (or straight) vertex
+        along_x = [p for p in (a, b) if abs(p[1] - v[1]) < 1.0 and abs(p[0] - v[0]) > 1.0]
+        along_y = [p for p in (a, b) if abs(p[0] - v[0]) < 1.0 and abs(p[1] - v[1]) > 1.0]
+        if len(along_x) != 1 or len(along_y) != 1:
+            continue
+        out.append((v[0], v[1], 1.0 if along_x[0][0] > v[0] else -1.0, 1.0 if along_y[0][1] > v[1] else -1.0))
+    return out
+
+
+TOP_BAR_SPAN_SHARE = 0.3   # SMDSC 4th ed. MD S1: top bars 0.3 x clear span (or l_bd) past the support face
+MD_S1_ALL_SHARE = 0.15     # ... every top bar at least 0.15 x clear span (or l_bd) past it
+
+
+def md_s1_top_reach_mm(clear_span_mm, lbd_mm=0.0):
+    """
+    SMDSC 4th ed. MD S1 (continuous slab, simplified curtailment): how far past an interior support's face the
+    top bars run: (all of them, half of them) = (0.15 l, 0.3 l), each 'or l_bd, whichever is greater'.
+    """
+    return (max(MD_S1_ALL_SHARE * clear_span_mm, lbd_mm), max(TOP_BAR_SPAN_SHARE * clear_span_mm, lbd_mm))
+
+
+MD_S1_DEPTHS = (100, 125, 150, 175, 200, 225, 250, 275, 300, 325, 350, 375, 400)
+MD_S1_DISTRIBUTION = {     # SMDSC 4th ed. MD S1 table: pitch of distribution bars (mm) by bar size and slab depth
+    10: (350, 425, 425, 350, 300, 275, 225, 200, 200, 175, 150, 150, 125),
+    12: (None, None, 450, 450, 450, 400, 350, 325, 275, 250, 250, 250, 200),
+    16: (None, None, None, None, None, 450, 450, 450, 450, 450, 425, 400, 375),
+}
+
+
+def distribution_pitch_mm(depth_mm, dia_mm):
+    """
+    SMDSC 4th ed. MD S1: the largest pitch of distribution bars of dia_mm in a slab depth_mm deep, read at the
+    next tabulated depth up (the safe side past 150 mm); None when the table has no value (size not used at that
+    depth, or off the table).
+    """
+    row = MD_S1_DISTRIBUTION.get(int(round(dia_mm)))
+    if row is None or depth_mm > MD_S1_DEPTHS[-1] + 1e-6:
+        return None
+    for d, pitch in zip(MD_S1_DEPTHS, row):
+        if depth_mm <= d + 1e-6:
+            return float(pitch) if pitch is not None else None    # a float: IronPython formats no int as {:.0f}
+    return None
+
+
+def support_strips_mm(positions_mm, lo_mm, hi_mm, share=TOP_BAR_SPAN_SHARE, widths_mm=None, lbd_mm=0.0):
+    """
+    Bands lo..hi (one coordinate) holding the top bars over supports at positions_mm: share x the span
+    either side of each support; past the end supports they run on to the slab edge (edge support or
+    cantilever). Overlapping bands merge. [] with no support. With widths_mm ({position: support width})
+    SMDSC 4th ed. MD S1: share x the clear span, or l_bd if greater, past each support's face.
+    """
+    sup = sorted(p for p in positions_mm if lo_mm - 1e-6 <= p <= hi_mm + 1e-6)
+    half = dict((p, (widths_mm or {}).get(p, 0.0) / 2.0) for p in sup)
+    bands = []
+    for i, p in enumerate(sup):
+        if widths_mm is None:
+            a = p - share * (p - sup[i - 1]) if i > 0 else lo_mm
+            b = p + share * (sup[i + 1] - p) if i + 1 < len(sup) else hi_mm
+        else:
+            a = (p - half[p] - max(share * ((p - half[p]) - (sup[i - 1] + half[sup[i - 1]])), lbd_mm)
+                 if i > 0 else lo_mm)
+            b = (p + half[p] + max(share * ((sup[i + 1] - half[sup[i + 1]]) - (p + half[p])), lbd_mm)
+                 if i + 1 < len(sup) else hi_mm)
+        bands.append((max(lo_mm, a), min(hi_mm, b)))
+    merged = []
+    for a, b in sorted(bands):
+        if merged and a <= merged[-1][1] + 1e-6:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], b))
+        else:
+            merged.append((a, b))
+    return merged
+
+
+def row_runs(first_mm, pitch_mm, count, bands_mm):
+    """Consecutive rows (first + k pitch) grouped by whether they lie in a band: [(inside, k0, k1)]."""
+    runs = []
+    for k in range(count):
+        x = first_mm + k * pitch_mm
+        inside = any(a - 1e-6 <= x <= b + 1e-6 for a, b in bands_mm)
+        if runs and runs[-1][0] == inside:
+            runs[-1] = (inside, runs[-1][1], k)
+        else:
+            runs.append((inside, k, k))
+    return runs
+
+
+BOTTOM_BAR_SPAN_SHARE = 0.8   # SMDSC 4th ed. MD S1: bottom bars 0.8 x span + 0.5 x tension lap, alternately reversed
+
+
+def alternate_bottom_mm(lo_mm, hi_mm, supports_mm, lap_mm, share=BOTTOM_BAR_SPAN_SHARE, min_mm=100.0):
+    """
+    SMDSC 4th ed. MD S1 bottom bars of a continuous slab, along one coordinate lo..hi with interior supports: in each
+    span every other bar runs from its left support (half a tension lap past it) to 0.8 x span, the others
+    reversed from the right one, so both overlap over the middle 0.6 span. Over an end support the bars run
+    on to the slab edge. Returns (pieces of the odd bars, pieces of the even bars): [(a, b)]; ([], []) when
+    there is no interior support (one span: the bars stay continuous).
+    """
+    inner = sorted(p for p in supports_mm if lo_mm + min_mm < p < hi_mm - min_mm)
+    if not inner:
+        return [], []
+    edges = [lo_mm] + inner + [hi_mm]
+    odd, even = [], []
+    for i in range(len(edges) - 1):
+        s0, s1 = edges[i], edges[i + 1]
+        span = s1 - s0
+        a0 = s0 - 0.5 * lap_mm if i > 0 else lo_mm
+        b1 = s1 + 0.5 * lap_mm if i + 2 < len(edges) else hi_mm
+        for out, (a, b) in ((odd, (a0, s0 + share * span)), (even, (s1 - share * span, b1))):
+            a, b = max(lo_mm, a), min(hi_mm, b)
+            if b - a >= min_mm:
+                out.append((a, b))
+    return odd, even
+
+
+FLAT_SLAB_NEGATIVE = (0.75, 2.0 / 3.0)   # SMDSC 4th ed. 6.2.2.9: column strip 75 %, 2/3 of it in its central half
+FLAT_SLAB_POSITIVE = 0.55                # ... and 55 % of the positive moment
+
+
+def _floor_to(value, step):
+    return step * math.floor(value / step + 1e-9)
+
+
+def flat_slab_strips_mm(lo_mm, hi_mm, lines_mm, short_span_mm, pitch_mm, top=True, min_pitch_mm=100.0,
+                        max_pitch_mm=400.0):
+    """
+    SMDSC 4th ed. 6.2 / Fig. 6.6 / Table 6.2 for the bars spaced across column lines lines_mm (one coordinate
+    lo..hi): the column strip is half the shorter panel either side ... a quarter each side of the line, the
+    rest the middle strip. The uniform pitch the user gave is the average: top (negative moment) 75 % in the
+    column strip, 2/3 of that in its central half (pitch / 2 there, the pitch in its outer halves, twice the
+    pitch in the middle strip); bottom 55 / 45 % (pitch / 1.1 and / 0.9). Pitches floor to 5 mm, kept within
+    min..max. Returns [(a, b, pitch)] covering lo..hi in order.
+    """
+    q = float(short_span_mm) / 4.0
+    if top:
+        bands = [(1.0 / 8.0, pitch_mm / 2.0), (1.0 / 4.0, pitch_mm)]
+        middle = 2.0 * pitch_mm
+    else:
+        bands = [(1.0 / 4.0, pitch_mm / (2.0 * FLAT_SLAB_POSITIVE))]
+        middle = pitch_mm / (2.0 * (1.0 - FLAT_SLAB_POSITIVE))
+
+    def clamp(p):
+        return min(max_pitch_mm, max(min_pitch_mm, _floor_to(p, 5.0)))
+    cuts = []                                   # (a, b, pitch, rank) rank 0 = densest
+    for c in sorted(lines_mm):
+        prev = 0.0
+        for rank, (half, p) in enumerate(bands):
+            w = half * 4.0 * q
+            for a, b in ((c - w, c - prev), (c + prev, c + w)):
+                if b > a:
+                    cuts.append((a, b, clamp(p), rank))
+            prev = w
+    points = sorted(set([lo_mm, hi_mm] + [x for a, b, _p, _r in cuts for x in (a, b) if lo_mm < x < hi_mm]))
+    out = []
+    for a, b in zip(points, points[1:]):
+        m = (a + b) / 2.0
+        hit = [c for c in cuts if c[0] <= m <= c[1]]
+        p = min(hit, key=lambda c: c[3])[2] if hit else clamp(middle)
+        if out and abs(out[-1][2] - p) < 1e-6:
+            out[-1] = (out[-1][0], b, p)
+        else:
+            out.append((a, b, p))
+    return out
+
+
+COLUMN_STRIP = u'COLUMN STRIP'
+MIDDLE_STRIP = u'MIDDLE STRIP'
+
+
+def strip_bands_mm(lo_mm, hi_mm, lines_mm, short_span_mm, min_mm=1.0):
+    """
+    SMDSC 4th ed. 6.2.2.9 / Fig. 6.4 / MD S5: [(a, b, COLUMN_STRIP | MIDDLE_STRIP)] covering lo..hi across the
+    column lines, the column strip half the shorter panel wide (a quarter of it each side of the line).
+    """
+    q = float(short_span_mm) / 4.0
+    cols = []
+    for c in sorted(lines_mm):
+        a, b = max(lo_mm, c - q), min(hi_mm, c + q)
+        if b - a < min_mm:
+            continue
+        if cols and a <= cols[-1][1]:
+            cols[-1] = (cols[-1][0], max(cols[-1][1], b))
+        else:
+            cols.append((a, b))
+    out, at = [], lo_mm
+    for a, b in cols:
+        if a - at >= min_mm:
+            out.append((at, a, MIDDLE_STRIP))
+        out.append((a, b, COLUMN_STRIP))
+        at = b
+    if hi_mm - at >= min_mm:
+        out.append((at, hi_mm, MIDDLE_STRIP))
+    return out
+
+
+def strip_rows_mm(first_mm, last_mm, strips):
+    """Bar positions first..last laid at each strip's pitch: [(start, pitch, count)] runs, in order."""
+    lo, hi = min(first_mm, last_mm), max(first_mm, last_mm)
+    runs, last = [], None
+    for a, b, p in strips:
+        s, e = max(a, lo), min(b, hi)
+        if e < s - 1e-6:
+            continue
+        x = s if last is None else max(s, last + p)
+        xs = []
+        while x <= e + 1e-6:
+            xs.append(x)
+            x += p
+        if not xs:
+            continue
+        runs.append((xs[0], p, len(xs)))
+        last = xs[-1]
+    return runs
+
+
+def bars_through(rows_mm, centre_mm, width_mm):
+    """How many bars at rows_mm pass through a column of width_mm centred at centre_mm (SMDSC: at least 2)."""
+    return sum(1 for r in rows_mm if abs(r - centre_mm) <= width_mm / 2.0 + 1e-6)
+
+
+BAND_FACTOR = 1.5          # SMDSC 4th ed. 6.7: a band under the column when l > 1.5 (c + 3d)
+BAND_SHARE = 2.0 / 3.0
+
+
+def footing_band_mm(l_mm, c_mm, d_mm):
+    """Width c + 3d of the band under the column for the bars spaced along l (SMDSC 4th ed. 6.7), else None."""
+    band = float(c_mm) + 3.0 * float(d_mm)
+    return band if float(l_mm) > BAND_FACTOR * band + 1e-6 else None
+
+
+def band_layout_mm(lo_mm, hi_mm, count, band_lo_mm, band_hi_mm, max_pitch_mm=300.0,
+                   min_pitch_mm=FOUNDATION_MIN_PITCH_MM):
+    """
+    Positions of `count` bars from lo to hi with at least two thirds of them in band_lo..band_hi (bars
+    on both band edges) and the rest evenly in the outer strips, never wider than max_pitch apart;
+    returns (band, left, right) position lists, or None if the band would be closer than min_pitch.
+    """
+    band_lo, band_hi = max(float(lo_mm), float(band_lo_mm)), min(float(hi_mm), float(band_hi_mm))
+    wl, wr, wb = band_lo - lo_mm, hi_mm - band_hi, band_hi - band_lo
+    if wb <= 0.0:
+        return None
+    n_out = count - int(math.ceil(BAND_SHARE * count - 1e-9))
+    if abs(wl - wr) < 1.0:
+        nl = nr = n_out // 2
+    else:
+        nl = int(math.floor(n_out * wl / (wl + wr) + 0.5))
+        nr = n_out - nl
+    nl = 0 if wl < 1.0 else max(nl, int(math.ceil(wl / max_pitch_mm - 1e-9)))
+    nr = 0 if wr < 1.0 else max(nr, int(math.ceil(wr / max_pitch_mm - 1e-9)))
+    nb = max(count - nl - nr, 2 * (nl + nr), 2)
+    if wb / (nb - 1) < min_pitch_mm - 1e-6:
+        return None
+    band = [band_lo + wb * k / (nb - 1) for k in range(nb)]
+    left = [band_lo - wl * k / nl for k in range(nl, 0, -1)] if nl else []
+    right = [band_hi + wr * k / nr for k in range(1, nr + 1)] if nr else []
+    return band, left, right
 
 
 def _unique(notes):
@@ -132,7 +472,7 @@ def _unique(notes):
 def stair_review(throat_mm, cover_mm, main_dia, main_spacing, dist_dia, dist_spacing, fck_mpa,
                  top_dia=None, top_spacing=None, label=u'Stair'):
     """
-    SMDSC 6.8 (slab rules of 6.2 on the waist): main bars <= min(3h, 400) and As,min, distribution
+    SMDSC 4th ed. 6.8 (slab rules of 6.2 on the waist): main bars <= min(3h, 400) and As,min, distribution
     bars <= min(3.5h, 450) and >= 20 % of the main steel, top bars as main bars.
     Returns (main spacing, distribution spacing, top spacing, notes).
     """
@@ -145,9 +485,48 @@ def stair_review(throat_mm, cover_mm, main_dia, main_spacing, dist_dia, dist_spa
                           u'min(3.5h, 450)', notes)
     _min_steel(h, cover, [(u'main', main_dia, main_spacing, 0.0)], fck_mpa, label, notes)
     if area_per_m(dist_dia, dist_spacing) < 0.2 * area_per_m(main_dia, main_spacing) - 1e-6:
-        notes.append(u'{}: distribution bars under 20 % of the main steel (SMDSC 6.2).'.format(label))
+        notes.append(u'{}: distribution bars under 20 % of the main steel (SMDSC 4th ed. 6.2).'.format(label))
     if top_dia and top_spacing:
         top_spacing = _clamp(float(top_spacing), slab_max_pitch_mm(h), label, u'top bars', u'min(3h, 400)', notes)
     if main_dia < SLAB_MIN_DIA_MM:
-        notes.append(u'{}: H{:.0f} main bars under the preferred H10 (SMDSC 6.2).'.format(label, main_dia))
+        notes.append(u'{}: H{:.0f} main bars under the preferred H10 (SMDSC 4th ed. 6.2).'.format(label, main_dia))
     return main_spacing, dist_spacing, top_spacing, _unique(notes)
+
+
+TRIMMER_CLEAR_MM = 25.0       # SMDSC 4th ed. 5.2.5 / EC2 8.2: the least clear gap from a trimmer to a mesh bar
+
+
+def clear_of_rows(positions, rows, own_dia_mm, row_dia_mm, outward, step_mm=5.0, clear_mm=TRIMMER_CLEAR_MM):
+    """
+    Trimmer positions across their bars, the group moved away from the opening (outward +1 / -1) as one, keeping
+    its pitch, until every trimmer stands the clear gap from every mesh row, or failing that touches it (QA
+    2026-10-17: S10's trimmers lay 2 mm into a mat bar, W10's 12 mm from the wall mesh). Real bar sizes (+10 %).
+    """
+    touch = 1.1 * (own_dia_mm + row_dia_mm) / 2.0
+    full = touch + clear_mm
+
+    def fits(moved, contact):
+        # each trimmer the clear gap from every row - or, failing that, in contact with one: never in between
+        return all(abs(m - r) >= full or (contact and touch - 1e-6 <= abs(m - r) <= touch + 1.0)
+                   for m in moved for r in rows)
+    for contact in (False, True):        # else in contact with the mesh bar, a pair (SMDSC 4th ed. 5.2.5), never through it
+        shift = 0.0
+        while shift <= 4.0 * (full + step_mm):
+            moved = [q + outward * shift for q in positions]
+            if fits(moved, contact):
+                return moved
+            shift += 1.0 if contact else step_mm
+    # no shift fits the whole group (3 trimmers at 50 between rows at 150): each one, outward in turn, at the
+    # first place that fits, at least the group's pitch past the one before
+    order = sorted(positions, key=lambda q: outward * q)
+    pitch = min(abs(b - a) for a, b in zip(order, order[1:])) if len(order) > 1 else 0.0
+    out, at = [], order[0]
+    for q in order:
+        at = max(at, q) if outward > 0 else min(at, q)
+        tries = 0
+        while not fits([at], True) and tries < 1000:
+            at += outward
+            tries += 1
+        out.append(at)
+        at += outward * pitch
+    return out

@@ -36,12 +36,14 @@ _IG_CHECK_DEFS = [
     ('revisions',  u'Revision Completeness'),
     ('titleblock', u'Title Block Parameters'),
     ('duplicates', u'Duplicate Sheet Numbers'),
+    ('rc',         u'RC Drawings'),
 ]
 _IG_SUFFIXES = {
     'protocol':   'Protocol',
     'revisions':  'Revisions',
     'titleblock': 'Titleblock',
     'duplicates': 'Duplicates',
+    'rc':         'Rc',
 }
 _IG_STATUS_ICONS = {
     'pass':    u'✓',
@@ -422,6 +424,35 @@ class IssueWorkflowHubWindow(NOSAWindow):
                 self._ig_show_details(key)
                 return
         self._ig_show_details('protocol')
+
+    def IG_RecordRc_Click(self, sender, args):
+        """T9.14: each RC drawing recorded at its revision, its changes since the last issue tabled on it."""
+        from Autodesk.Revit import DB
+        from nosa_utils import rc_issue, rc_register, sheet_protocol
+        from nosa_utils.transactions import guard
+        clouds = forms.alert(u'Record the reinforcement drawings at their current revision (F8) and table the '
+                             u'changes since their last issue.\n\nAlso draw revision clouds round the changed '
+                             u'bars?', title=u'RC Revision', yes=True, no=True, cancel=True)
+        if clouds is None:
+            return
+        lines = []
+        self.SetLoading(True, u'Recording the RC drawings…')
+        try:
+            with guard(DB.Transaction(self.doc, u'NOSA — Record RC revision')) as t:
+                t.Start()
+                for drawing, sheets in sorted(rc_issue.drawings(self.doc).items()):
+                    revision = sheet_protocol.read_nosa_fields_from_sheet(self.doc, sheets[0]).get(u'f8', u'')
+                    if not revision:
+                        lines.append(u'{}: no revision (F8) set, not recorded.'.format(drawing))
+                        continue
+                    changes = rc_register.revise(self.doc, drawing, sheets[0], revision, clouds=bool(clouds))
+                    lines.append(u'{} {}: {} change(s).'.format(drawing, revision, len(changes)))
+                t.Commit()
+        except Exception as e:
+            lines.append(u'Stopped: {}'.format(e))
+        finally:
+            self.SetLoading(False)
+        forms.alert(u'\n'.join(lines) or u'No reinforcement drawings found.', title=u'RC Revision')
 
     def IG_Card_Click(self, sender, args):
         key = str(sender.Tag) if sender.Tag else None

@@ -83,6 +83,7 @@ _FIXTURE_GUIDS_BY_NAME = {
     u'NOSA_Rebar_Detail_Section_Id': u'2abdcbaa-8f6b-48e1-8607-26d6efc679d0',
     u'NOSA_Rebar_Show_In_Schedule': u'ff5b23e1-7668-48ad-b600-71b754a212bb',
     u'NOSA_Rebar_Shape_Image': u'ffd5b6fe-d563-4da1-96bc-9dc540d2512b',   # T7.5, 2026-10-03
+    u'NOSA_Rebar_Rule': u'125d4d89-d3dc-43ae-aa53-e7e4ad794642',          # T9.15, 2026-10-12
 }
 
 
@@ -92,7 +93,7 @@ _FIXTURE_GUIDS_BY_NAME = {
 
 def test_txt_file_has_exactly_41_params():
     parsed = shared_params.parse_shared_parameters_txt()
-    assert len(parsed['params']) == 42, len(parsed['params'])
+    assert len(parsed['params']) == 43, len(parsed['params'])
 
 
 def test_txt_file_guids_are_unique():

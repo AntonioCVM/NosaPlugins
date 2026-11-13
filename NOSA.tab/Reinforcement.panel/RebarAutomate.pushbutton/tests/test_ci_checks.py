@@ -170,3 +170,17 @@ if __name__ == '__main__':
             print(u'{}: FAILED -- {}'.format(t.__name__, e))
     print(u'\n{}/{} checks passed'.format(len(tests) - failures, len(tests)))
     sys.exit(1 if failures else 0)
+
+
+def test_closed_links_are_hooked_wherever_made():
+    # decision 4 (2026-10-24): closed links are shape 52; starter links were still 51 (2026-10-25, F10-06)
+    import io
+    import re
+    lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
+    src = io.open(os.path.join(lib, 'ui.py'), encoding='utf-8').read()
+    body = src[src.index('def _create_grouped_bars'):]
+    body = body[:body.index('\n    def ', 10)]
+    call = body[body.index('wrapper.create_rebar_set('):]
+    call = call[:call.index(')\n')]
+    assert re.search(r"link_hook=re_engine\.get_link_hook_type\(self\.doc\) if s\.get\('style'\) == 'StirrupTie'", call)
+    print(u'[PASS] test_closed_links_are_hooked_wherever_made')

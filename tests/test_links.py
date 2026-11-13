@@ -53,3 +53,58 @@ def test_column_rules():
     circle = {'shape': 'circle', 'diameter_mm': 400.0}
     _p, _d, notes = links.column_review(circle, 40, 8, 16, 4, (0, 0), 250, 150, True, False)
     assert any(u'at least 6' in n for n in notes)
+
+
+def test_starter_links():
+    assert links.starter_link_levels_mm(1000.0, 100.0) == [1000.0, 700.0, 400.0, 100.0]   # H10-300
+    assert links.starter_link_levels_mm(500.0, 100.0) == [500.0, 300.0, 100.0]            # 3 at least
+    assert links.starter_link_levels_mm(150.0, 100.0) == []                               # no room
+    from nosa_utils import standards
+    assert standards.FOUNDATION_LEVEL_TOLERANCE_MM == 150.0
+
+
+def test_lap_link_pitch():
+    from nosa_utils import laps
+    assert laps.lap_link_pitch_mm(16.0, 825.0, 8.0) is None              # under H20: the links there do
+    assert laps.lap_link_pitch_mm(25.0, 1300.0, 8.0) == 200.0            # 2 H8 legs a link: 3 per third
+    assert laps.lap_transverse_ok(25.0, 100.0, 1300.0, 8.0, 2, 200.0)
+    assert not laps.lap_transverse_ok(25.0, 100.0, 1300.0, 8.0, 2, 225.0)
+
+
+def test_mc4_top_detail():
+    assert links.mc4_min_slab_depth_mm(16.0) == 200.0 and links.mc4_min_slab_depth_mm(25.0) == 250.0
+    assert links.mc4_min_slab_depth_mm(32.0) == 300.0 and links.mc4_min_slab_depth_mm(40.0) == 400.0
+    corners_and_mids = [(-150.0, 150.0), (0.0, 150.0), (150.0, 150.0), (-150.0, -150.0), (0.0, -150.0),
+                        (150.0, -150.0)]
+    assert links.mc4_pairs(corners_and_mids, 'u') == [(-150.0, -150.0, 150.0), (0.0, -150.0, 150.0),
+                                                       (150.0, -150.0, 150.0)]
+    assert links.mc4_pairs([(-150.0, 0.0), (150.0, 0.0)], 'v') == [(0.0, -150.0, 150.0)]
+
+
+def test_helix_pieces():
+    one = links.helix_pieces_mm(2900.0, 100.0, 175.0, stock_mm=50000.0)
+    assert one == [(0.0, 2900.0)]
+    pieces = links.helix_pieces_mm(2900.0, 100.0, 175.0)          # 1.1 m a turn: 10 turns in 12 m
+    assert pieces[0] == (0.0, 900.0) and pieces[1][0] == 800.0    # next piece laps one turn
+    assert abs(pieces[-1][0] + pieces[-1][1] - 2900.0) < 1e-6
+
+
+def test_round_link_pitches():
+    from nosa_utils import links as lk
+    pts = lk.exact_pitch_positions(0.0, 1050.0, 200.0)
+    assert pts == [25.0, 225.0, 425.0, 625.0, 825.0, 1025.0]
+    assert lk.exact_pitch_positions(0.0, 150.0, 200.0) == [75.0]
+    mid = lk.interior_exact_positions(1200.0, 4312.0, 200.0)          # 3112 = 15 x 200 + 112
+    assert all(abs((b - a) - 200.0) < 1e-6 for a, b in zip(mid, mid[1:]))
+    assert 100.0 <= mid[0] - 1200.0 <= 200.0 and 100.0 <= 4312.0 - mid[-1] <= 200.0
+    assert lk.interior_exact_positions(0.0, 1000.0, 200.0) == [200.0, 400.0, 600.0, 800.0]
+
+
+def test_md_b1_side_bars_and_hangers():
+    assert links.md_b1_side_bars(300.0, 600.0) is None
+    assert links.md_b1_side_bars(300.0, 750.0) == (3, 16.0)
+    assert links.md_b1_side_bars(500.0, 800.0) == (4, 20.0)          # next depth and width up
+    assert links.md_b1_side_bars(1000.0, 2100.0) == (8, 20.0)        # 1500 + 2 x 300
+    assert links.hanger_issue(2, 16.0, 2, 25.0) is None
+    assert u'20 %' in links.hanger_issue(2, 12.0, 6, 32.0)
+    assert u'H16' in links.hanger_issue(2, 12.0, 1, 12.0)

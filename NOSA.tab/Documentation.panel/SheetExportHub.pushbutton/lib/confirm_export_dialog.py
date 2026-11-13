@@ -38,9 +38,15 @@ class ConfirmExportDialog(NOSAWindow):
         self.GridFiles.ItemsSource = collection
 
         self.TxtTitle.Text = "{} item(s) ready to export".format(len(elements))
-        fmt_names = [f for f in ('pdf', 'dwg', 'dxf') if export_formats.get(f)]
+        fmt_names = [f.upper() for f in ('pdf', 'dwg', 'dxf') if export_formats.get(f)]
+        if export_formats.get('pdf_combine'):
+            fmt_names.append("combined PDF" + (" (individual PDFs deleted)"
+                                               if export_formats.get('pdf_delete_individual') else ""))
+        if export_formats.get('dwg_zip'):
+            fmt_names.append("DWG ZIP" + (" (individual DWGs deleted)"
+                                          if export_formats.get('dwg_delete_individual') else ""))
         self.TxtSubtitle.Text = "Formats: {}   ·   Destination: {}".format(
-            " + ".join(f.upper() for f in fmt_names) or "none", output_folder
+            " + ".join(fmt_names) or "none", output_folder
         )
 
         validator = ExportValidator()

@@ -1,0 +1,10 @@
+# This is a Revit shared parameter file.
+# NOSA punching shear (2026-10-10): design shear and beta of each slab-column connection, bound to Structural Columns.
+# GUIDs are FINAL - never regenerate. A retired parameter keeps its GUID burned.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Punching
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	0031714d-52c2-4bb2-9597-4a86d21b767f	NOSA_Punching_VEd	NUMBER		1	1	Design punching shear VEd at the slab-column connection above this column, kN (EC2 6.4)	1	0
+PARAM	20911856-265f-43d5-8ec6-a32700840d08	NOSA_Punching_Beta	NUMBER		1	1	Eccentricity factor beta: 1.15 interior, 1.4 edge, 1.5 corner (EC2 6.4.3(6))	1	0

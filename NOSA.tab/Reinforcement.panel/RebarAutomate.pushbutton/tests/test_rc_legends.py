@@ -30,16 +30,77 @@ def test_notation_key_has_every_smdsc_layer():
     print(u'[PASS] test_notation_key_has_every_smdsc_layer')
 
 
-def test_legends_stack_down_panel_b_right_aligned():
-    x0, y0, x1, y1 = rl.PANEL_B
+def test_legends_stack_down_the_box_left_edges_aligned():
+    x0, y0, x1, y1 = rl.LEGEND_BOX
     centres = rl.stack_in_panel([(60.0, 100.0), (90.0, 60.0)])
-    assert centres[0] == (x1 - 30.0, y1 - 50.0)
+    assert centres[0] == (x1 - 90.0 + 30.0, y1 - 50.0)
     assert centres[1] == (x1 - 45.0, y1 - 100.0 - rl.PANEL_GAP_MM - 30.0)
-    print(u'[PASS] test_legends_stack_down_panel_b_right_aligned')
+    print(u'[PASS] test_legends_stack_down_the_box_left_edges_aligned')
 
 
 if __name__ == '__main__':
     test_notes_take_the_project_values()
     test_notes_without_values_point_to_the_general_notes()
     test_notation_key_has_every_smdsc_layer()
-    test_legends_stack_down_panel_b_right_aligned()
+    test_legends_stack_down_the_box_left_edges_aligned()
+
+
+def test_grade_read_from_the_material_name():
+    assert rl.grade_of(u'Concrete C32/40') == u'C32/40'
+    assert rl.grade_of(u'Concrete - Generic', u'C40/50') == u'C40/50'
+
+
+def test_drawing_notes_state_the_model_and_flag_what_is_missing():
+    text, warnings = rl.drawing_notes(
+        u'4002', {u'Beams': u''}, {u'Beams': (40.0, 40.0, 40.0)}, project_grade=u'C40/50',
+        project_cover=u'50mm', schedule_refs=())
+    assert u'beams C40/50' in text and u'beams 40' in text and u'20H16-63-150 B1' in text
+    assert u'(13@100)' in text and u'to be issued (refs 4002-01' in text
+    joined = u' '.join(warnings)
+    assert u'differs from the general notes' in joined and u'NOSA_GN_Cover_Deviation' in joined
+    assert u'NOSA_GN_Aggregate_Max' in joined and u'material' in joined
+    text, warnings = rl.drawing_notes(
+        u'4002', {u'Slabs': u'C32/40'}, {u'Slabs': (25.0, 40.0, 40.0)}, deviation=u'10', aggregate=u'20',
+        schedule_refs=(u'4002-01-A',))
+    assert u'slabs 25 top, 40 bottom, 40 sides' in text and u'includes delta c_dev = 10' in text
+    assert u'4002-01-A' in text and warnings == []
+
+
+def test_fixing_notes_and_buildability_line():
+    assert rl.fixing_notes([u'Beams', u'Unknown'])[0].startswith(u'Beams: links tied')
+    text, _w = rl.drawing_notes(u'4003', {u'Beams': u'C40/50'}, {u'Beams': (40.0, 40.0, 40.0)},
+                                buildability=(94.0, u'A', 0, 2))
+    assert u'12. Fixing: Beams:' in text and u'13. Buildability check: A (94/100; 0 error(s), 2 warning(s))' in text
+
+
+def test_failed_buildability_goes_to_the_review_not_the_drawing():
+    # 2026-10-24 audit (M2): 4501 and 4506 printed 'Buildability check: C (0/100; 14 error(s) ...)'
+    text, warnings = rl.drawing_notes(u'4501', {u'Columns': u'C40/50'}, {u'Columns': (40.0, 40.0, 40.0)},
+                                      buildability=(0.0, u'C', 14, 2))
+    assert u'Buildability' not in text
+    assert any(w.startswith(u'4501: Buildability check: C (0/100; 14 error(s)') for w in warnings)
+
+
+def test_slabs_checked_against_the_slab_cover_of_the_notes():
+    # 2026-10-24 audit (M3): slabs at 40 were warned against the typical 50, though the notes give slabs 40
+    _t, warnings = rl.drawing_notes(u'4502', {u'Slabs': u'C32/40'}, {u'Slabs': (40.0, 40.0, 40.0)},
+                                    project_cover=u'50mm', deviation=u'10', aggregate=u'20', slab_cover=u'40mm')
+    assert not any(u'differs' in w for w in warnings)
+    _t, warnings = rl.drawing_notes(u'4504', {u'Walls': u'C32/40'}, {u'Walls': (40.0, 40.0, 40.0)},
+                                    project_cover=u'50mm', deviation=u'10', aggregate=u'20', slab_cover=u'40mm')
+    assert any(u"differs from the general notes' 50mm" in w for w in warnings)
+
+
+def test_drawing_notes_call_up_the_typical_details():
+    text, _w = rl.drawing_notes(u'4004', {u'Slabs': u'C32/40'}, {}, details=[(u'OP1', u'SMDSC 4th ed. MD OP1 / 6.2.2')],
+                                details_drawing=u'4500')
+    assert u'Typical details: TD OP1 (MD OP1 / 6.2.2) on drawing 4500 (after the SMDSC' in text
+
+
+def test_concrete_class_from_strength():
+    # T12.6: a material named without its class gives it by its compressive strength, cylinder or cube
+    assert rl.class_for_strength(32.0) == u'C32/40'
+    assert rl.class_for_strength(40.0) == u'C40/50'        # 40 is C40's cylinder value before C32's cube one
+    assert rl.class_for_strength(37.0) == u'C30/37'
+    assert rl.class_for_strength(33.3) == u''
+    assert rl.class_for_strength(0.0) == u''

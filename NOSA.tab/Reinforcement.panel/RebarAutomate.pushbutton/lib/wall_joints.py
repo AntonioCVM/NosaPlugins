@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-NOSA.RebarAutomate — how each end of a wall meets the other selected walls (IStructE SMDSC MW2).
+NOSA.RebarAutomate — how each end of a wall meets the other selected walls (IStructE SMDSC 4th ed. MD W2).
 
 Plan geometry in mm, no Revit. An L corner (two wall ends meeting) has one wall running THROUGH to
 the other's outer face and the other STOPPING at its inner face, closed by U-bars looped round the

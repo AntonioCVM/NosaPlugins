@@ -379,7 +379,7 @@ def _shape_dims(shape_params):
 
 
 def bs8666_length_mm(length_mm):
-    """BS 8666:2020 / SMDSC Table 4.2: cut length in multiples of 25 mm, rounded up."""
+    """BS 8666:2020 / SMDSC 4th ed. Table 4.2: cut length in multiples of 25 mm, rounded up."""
     import math
     return int(25 * math.ceil(round(float(length_mm or 0), 3) / 25.0))
 

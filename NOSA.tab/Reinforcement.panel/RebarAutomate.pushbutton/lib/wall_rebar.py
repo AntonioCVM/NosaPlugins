@@ -11,6 +11,7 @@ import math
 import os
 
 from Autodesk.Revit import DB
+from nosa_utils import mesh_rules
 from nosa_utils.telemetry import log_swallowed
 _LOG = u'rebarautomate'
 
@@ -115,7 +116,7 @@ def face_codes(slab_beside, exterior):
 
 
 def layer_code(face, outer):
-    """SMDSC 4.2.1 layer code: N1/N2 near face, F1/F2 far face (1 = outer layer); None without a face."""
+    """SMDSC 4th ed. 4.2.1 layer code: N1/N2 near face, F1/F2 far face (1 = outer layer); None without a face."""
     return u'{}{}'.format(face, 1 if outer else 2) if face else None
 
 
@@ -286,6 +287,291 @@ def top_ubar_positions_mm(vert_positions_mm, length_mm, vert_dia_mm, ubar_dia_mm
     return out
 
 
+# ── IStructE SMDSC 4th ed. MD W4: holes in walls ──────────────────────────────────────────────────────────
+
+BAR_SIZES_MM = (8.0, 10.0, 12.0, 16.0, 20.0, 25.0, 32.0, 40.0, 50.0)
+
+
+def next_bar_size_mm(dia_mm):
+    """The standard bar one size larger (trimmer bars, SMDSC 4th ed. MD W4)."""
+    for size in BAR_SIZES_MM:
+        if size > dia_mm + 1e-6:
+            return size
+    return BAR_SIZES_MM[-1]
+
+
+def single_bar_for_pair_mm(dia_mm):
+    """One bar of at least the area of two of dia_mm (one trimmer in a thin wall, SMDSC 4th ed. MD W4)."""
+    need = 2.0 * dia_mm ** 2
+    for size in BAR_SIZES_MM:
+        if size ** 2 >= need - 1e-6:
+            return size
+    return BAR_SIZES_MM[-1]
+
+
+def cut_interval_mm(lo_mm, hi_mm, holes_mm, min_piece_mm=100.0):
+    """Pieces of the span lo..hi left by the holes [(a, b)] that cross it, none shorter than min_piece_mm."""
+    pieces = [(lo_mm, hi_mm)]
+    for a, b in sorted(holes_mm):
+        out = []
+        for p0, p1 in pieces:
+            if b <= p0 or a >= p1:
+                out.append((p0, p1))
+                continue
+            if a - p0 >= min_piece_mm:
+                out.append((p0, a))
+            if p1 - b >= min_piece_mm:
+                out.append((b, p1))
+        pieces = out
+    return pieces
+
+
+def wall_openings_mm(doc, host, p0, axis_dir, z0, length_mm, height_mm):
+    """
+    Rectangular holes of a wall in its own coordinates (mm): [{'s0', 's1', 'z0', 'z1'}], s along the
+    location line from its start, z up from the wall's base; doors, windows and openings it hosts.
+    """
+    out = []
+    try:
+        ids = list(host.FindInserts(True, False, True, True))
+    except Exception:
+        return out
+    for eid in ids:
+        el = doc.GetElement(eid)
+        box = el.get_BoundingBox(None) if el is not None else None
+        if box is None:
+            continue
+        corners = [DB.XYZ(x, y, 0.0) for x in (box.Min.X, box.Max.X) for y in (box.Min.Y, box.Max.Y)]
+        flat0 = DB.XYZ(p0.X, p0.Y, 0.0)
+        ss = [(c - flat0).DotProduct(axis_dir) * _MM_PER_FT for c in corners]
+        s0, s1 = max(min(ss), 0.0), min(max(ss), length_mm)
+        h0 = max((box.Min.Z - z0) * _MM_PER_FT, 0.0)
+        h1 = min((box.Max.Z - z0) * _MM_PER_FT, height_mm)
+        if s1 - s0 > 1.0 and h1 - h0 > 1.0:
+            out.append({'s0': s0, 's1': s1, 'z0': h0, 'z1': h1, 'id': eid})
+    return out
+
+
+def cut_sets_at_openings(sets, openings, p0, axis_dir, z0, clear_mm, vertical):
+    """
+    Mesh sets of one direction cut where their bars cross a hole (ends at clear_mm from its edge)
+    and regrouped: consecutive bars with the same pieces stay one Set per piece. vertical: True for
+    the vertical mesh (bars cut in z, sets propagated along the wall), False for the horizontals.
+    """
+    if not openings:
+        return sets
+    out = []
+    for st in sets:
+        chain = st['curves']
+        first = chain[0]
+        if not isinstance(first, DB.Line):
+            out.append(st)
+            continue
+        n = max(1, int(st.get('count', 1)))
+        step_mm = st.get('spacing_mm', 0.0) if n > 1 else 0.0
+        normal = st['normal'].Normalize()
+        a, b = first.GetEndPoint(0), first.GetEndPoint(1)
+        bar_dir = (b - a).Normalize()
+        length = a.DistanceTo(b) * _MM_PER_FT
+        bars = []
+        for k in range(n):
+            shift = normal.Multiply(k * step_mm / _MM_PER_FT)
+            start = a + shift
+            if vertical:
+                where = (DB.XYZ(start.X - p0.X, start.Y - p0.Y, 0.0)).DotProduct(axis_dir) * _MM_PER_FT
+                holes = [((o['z0'] - clear_mm) - (start.Z - z0) * _MM_PER_FT,
+                          (o['z1'] + clear_mm) - (start.Z - z0) * _MM_PER_FT)
+                         for o in openings if o['s0'] - clear_mm < where < o['s1'] + clear_mm]
+            else:
+                where = (start.Z - z0) * _MM_PER_FT
+                along0 = (DB.XYZ(start.X - p0.X, start.Y - p0.Y, 0.0)).DotProduct(axis_dir) * _MM_PER_FT
+                sign = 1.0 if bar_dir.DotProduct(axis_dir) >= 0 else -1.0
+                holes = []
+                for o in openings:
+                    if o['z0'] - clear_mm < where < o['z1'] + clear_mm:
+                        e0 = sign * ((o['s0'] - clear_mm) - along0)
+                        e1 = sign * ((o['s1'] + clear_mm) - along0)
+                        holes.append((min(e0, e1), max(e0, e1)))
+            pieces = cut_interval_mm(0.0, length, holes)
+            bars.append((shift, tuple((round(p, 1), round(q, 1)) for p, q in pieces)))
+        groups = []
+        for shift, pieces in bars:
+            if groups and groups[-1][1] == pieces:
+                groups[-1][0].append(shift)
+            else:
+                groups.append(([shift], pieces))
+        for shifts, pieces in groups:
+            for p, q in pieces:
+                start = a + bar_dir.Multiply(p / _MM_PER_FT) + shifts[0]
+                end = a + bar_dir.Multiply(q / _MM_PER_FT) + shifts[0]
+                curves = [DB.Line.CreateBound(start, end)]
+                if abs(q - length) < 1.0 and len(chain) > 1:
+                    curves += [c.CreateTransformed(DB.Transform.CreateTranslation(shifts[0])) for c in chain[1:]]
+                piece = dict(st)
+                piece['curves'] = curves
+                piece['count'] = len(shifts)
+                piece['array_length_mm'] = (shifts[-1] - shifts[0]).GetLength() * _MM_PER_FT if len(shifts) > 1 else 0.0
+                out.append(piece)
+    return out
+
+
+def opening_trims(openings, vert_spacing_mm, horiz_spacing_mm):
+    """The holes that need trimming: isolated holes smaller than the bar pitch need none (SMDSC 4th ed. 6.5)."""
+    return [o for o in openings
+            if (o['s1'] - o['s0']) >= vert_spacing_mm - 1e-6 or (o['z1'] - o['z0']) >= horiz_spacing_mm - 1e-6]
+
+
+def mesh_rows_mm(sets, p0, axis_dir, z0, vertical):
+    """Positions (mm) of a mesh's rows: along the wall for the verticals, up it (from z0) for the horizontals."""
+    out = []
+    for st in sets:
+        first = (st.get('curves') or [None])[0]
+        if not isinstance(first, DB.Line):
+            continue
+        n = max(1, int(st.get('count', 1)))
+        step = st.get('spacing_mm', 0.0) if n > 1 else 0.0
+        normal = st['normal'].Normalize()
+        a = first.GetEndPoint(0)
+        for k in range(n):
+            p = a + normal.Multiply(k * step / _MM_PER_FT)
+            out.append((DB.XYZ(p.X - p0.X, p.Y - p0.Y, 0.0)).DotProduct(axis_dir) * _MM_PER_FT if vertical
+                       else (p.Z - z0) * _MM_PER_FT)
+    return sorted(set(round(v, 1) for v in out))
+
+
+def beside_rows_mm(rows, lo_mm, hi_mm, row_dia_mm, ubar_dia_mm):
+    """
+    SMDSC 4th ed. MD W4: a hole's U-bars close the mesh bars it cuts - one beside each cut row lo..hi, in contact
+    with it (a lap, not a clash nor a 12 mm gap, QA 2026-10-17 W10). Real bar sizes (+10 %). [] with no row cut.
+    """
+    off = 1.1 * (row_dia_mm + ubar_dia_mm) / 2.0
+    out = [r + off for r in rows if lo_mm < r < hi_mm]
+    return [x for x in out if x < hi_mm] or [r - off for r in rows if lo_mm < r < hi_mm]
+
+
+def crossing_depth_mm(depth_mm, dia_mm, others):
+    """
+    Depth (mm along one wall normal) of a trimmer moved towards the wall centre until it crosses the other
+    trimmers [(depth_mm, dia_mm)] in contact, never through them (QA 2026-10-17: W10's side and head trimmers
+    crossed 12 mm apart, 16 + 16 bars). Real bar sizes (+10 %).
+    """
+    inward = -1.0 if depth_mm > 0.0 else 1.0
+    for _ in range(len(others) + 1):
+        moved = False
+        for o_depth, o_dia in others:
+            need = 1.1 * (dia_mm + o_dia) / 2.0
+            if abs(depth_mm - o_depth) < need - 1e-6:
+                depth_mm = o_depth + inward * need
+                moved = True
+        if not moved:
+            break
+    return depth_mm
+
+
+def build_opening_bars(openings, p0, axis_dir, z0, length_mm, height_mm, cover_mm, thickness_mm,
+                       vert_dia_mm, horiz_dia_mm, face_layers, horiz_layers, lap_mm, anchorage_mm,
+                       vert_bottom_z, vert_top_z, vert_rows=(), horiz_rows=()):
+    """
+    IStructE SMDSC 4th ed. MD W4 round each trimmed hole: U-bars of the horizontal size closing the cut bars
+    (top/bottom: a vertical U in the vertical layer, legs a lap up/down; sides: a horizontal U in the
+    horizontal layer, legs a lap along the wall) and trimmer bars one size larger than the verticals
+    inside the U-bars, a tension anchorage past the hole (one bar of equal area in thin walls).
+    face_layers / horiz_layers: [(unit normal, depth ft)] of the vertical / horizontal layer per face.
+    vert_rows / horiz_rows (mm along / up the wall): the mesh rows the trimmers keep clear of (SMDSC 4th ed. 5.2.5).
+    Returns {'ubars': {'sets', 'bars'}, 'trimmers': [{'curves', 'dia_mm', 'normal'}]}: the U-bars of
+    each hole edge are one Rebar Set.
+    """
+    u = horiz_dia_mm
+    trim_dia = next_bar_size_mm(vert_dia_mm)
+    out = {'ubars': {'sets': [], 'bars': []}, 'trimmers': []}
+
+    def _edge_set(chains, step_mm, normal):
+        if len(chains) >= 2:
+            out['ubars']['sets'].append({
+                'curves': chains[0], 'normal': normal, 'array_length_mm': step_mm * (len(chains) - 1),
+                'spacing_mm': step_mm + 0.01, 'label': u'Wall Hole U-Bar',
+                'materialized_bars': [{'curves': c, 'normal': normal} for c in chains]})
+        else:
+            out['ubars']['bars'].extend({'curves': c, 'normal': normal, 'label': u'Wall Hole U-Bar'}
+                                        for c in chains)
+
+    def _inside(depth_ft, dia_mm):
+        """A trimmer inside the U-bar loop: half a U and half a trimmer in from the leg's layer."""
+        if not depth_ft:
+            return 0.0
+        return depth_ft - (u / 2.0 + dia_mm / 2.0) / _MM_PER_FT * (1.0 if depth_ft > 0 else -1.0)
+
+    def _pt(s_mm, normal, depth_ft, z_mm):
+        p = p0 + axis_dir.Multiply(s_mm / _MM_PER_FT) + normal.Multiply(depth_ft)
+        return DB.XYZ(p.X, p.Y, z0 + z_mm / _MM_PER_FT)
+
+    (na, va), (nb, vb) = face_layers[0], face_layers[1]
+    (ha_n, ha), (hb_n, hb) = horiz_layers[0], horiz_layers[1]
+    top_z_mm = (vert_top_z - z0) * _MM_PER_FT
+    bottom_z_mm = (vert_bottom_z - z0) * _MM_PER_FT
+    for o in openings:
+        width, height = o['s1'] - o['s0'], o['z1'] - o['z0']
+        heads = []          # (depth mm along na, dia) of this hole's top / bottom trimmers
+        # top and bottom: vertical U-bars at the vertical pitch across the hole, legs up / down
+        for edge, sign in (('z1', 1.0), ('z0', -1.0)):
+            if (sign > 0 and o['z1'] >= height_mm - cover_mm - 1.0) or (sign < 0 and o['z0'] <= cover_mm + 1.0):
+                continue
+            back = o[edge] + sign * (cover_mm + u / 2.0)
+            reach = min(lap_mm, (top_z_mm - back) if sign > 0 else (back - bottom_z_mm))
+            n_u = max(2, int(math.floor(width / max(vert_dia_mm * 12.0, 150.0))) + 1)
+            spots = beside_rows_mm(vert_rows, o['s0'], o['s1'], vert_dia_mm, u) or                 [o['s0'] + width * (k + 0.5) / n_u for k in range(n_u)]
+            chains = []
+            for s in spots:
+                pa, pb = _pt(s, na, va, back), _pt(s, nb, vb, back)
+                leg = DB.XYZ(0, 0, sign * reach / _MM_PER_FT)
+                chains.append([DB.Line.CreateBound(pa + leg, pa), DB.Line.CreateBound(pa, pb),
+                               DB.Line.CreateBound(pb, pb + leg)])
+            _edge_set(chains, (spots[1] - spots[0]) if len(spots) > 1 else 0.0, axis_dir)
+            # trimmers above / below, inside the U-bars, a tension anchorage past each side
+            z_t = back + sign * (u / 2.0 + trim_dia / 2.0)
+            if horiz_rows:
+                z_t = mesh_rules.clear_of_rows([z_t], horiz_rows, trim_dia, horiz_dia_mm, sign)[0]
+            s_lo = max(o['s0'] - anchorage_mm, cover_mm)
+            s_hi = min(o['s1'] + anchorage_mm, length_mm - cover_mm)
+            layers = [(na, va), (nb, vb)] if thickness_mm >= 250.0 else [(na, 0.0)]
+            dia = trim_dia if thickness_mm >= 250.0 else single_bar_for_pair_mm(trim_dia)
+            for nk, dk in layers:
+                depth = _inside(dk, dia)
+                heads.append((depth * _MM_PER_FT * nk.DotProduct(na), dia))
+                out['trimmers'].append({'curves': [DB.Line.CreateBound(_pt(s_lo, nk, depth, z_t), _pt(s_hi, nk, depth, z_t))],
+                                        'dia_mm': dia, 'normal': DB.XYZ.BasisZ})
+        # sides: horizontal U-bars at the horizontal pitch up the hole, legs along the wall
+        for edge, sign in (('s0', -1.0), ('s1', 1.0)):
+            if (sign < 0 and o['s0'] <= cover_mm + 1.0) or (sign > 0 and o['s1'] >= length_mm - cover_mm - 1.0):
+                continue
+            back = o[edge] + sign * (cover_mm + u / 2.0)
+            reach = min(lap_mm, (back - cover_mm) if sign < 0 else (length_mm - cover_mm - back))
+            n_u = max(2, int(math.floor(height / max(horiz_dia_mm * 12.0, 150.0))) + 1)
+            spots = beside_rows_mm(horiz_rows, o['z0'], o['z1'], horiz_dia_mm, u) or                 [o['z0'] + height * (k + 0.5) / n_u for k in range(n_u)]
+            chains = []
+            for z in spots:
+                pa, pb = _pt(back, ha_n, ha, z), _pt(back, hb_n, hb, z)
+                leg = axis_dir.Multiply(sign * reach / _MM_PER_FT)
+                chains.append([DB.Line.CreateBound(pa + leg, pa), DB.Line.CreateBound(pa, pb),
+                               DB.Line.CreateBound(pb, pb + leg)])
+            _edge_set(chains, (spots[1] - spots[0]) if len(spots) > 1 else 0.0, DB.XYZ.BasisZ)
+            s_t = back + sign * (u / 2.0 + trim_dia / 2.0)
+            if vert_rows:
+                s_t = mesh_rules.clear_of_rows([s_t], vert_rows, trim_dia, vert_dia_mm, sign)[0]
+            z_lo = max(o['z0'] - anchorage_mm, bottom_z_mm)
+            z_hi = min(o['z1'] + anchorage_mm, top_z_mm)
+            layers = [(ha_n, ha), (hb_n, hb)] if thickness_mm > 200.0 else [(ha_n, 0.0)]
+            dia = trim_dia if thickness_mm > 200.0 else single_bar_for_pair_mm(trim_dia)
+            for nk, dk in layers:
+                depth = _inside(dk, dia)
+                if heads:   # the side trimmers cross the head trimmers past the corners: in contact, inside them
+                    along = nk.DotProduct(na) or 1.0
+                    depth = crossing_depth_mm(depth * _MM_PER_FT * along, dia, heads) / _MM_PER_FT / along
+                out['trimmers'].append({'curves': [DB.Line.CreateBound(_pt(s_t, nk, depth, z_lo), _pt(s_t, nk, depth, z_hi))],
+                                        'dia_mm': dia, 'normal': axis_dir})
+    return out
+
+
 def uniform_runs_mm(positions_mm, tol_mm=0.5):
     """Split positions into runs of equal step (each run can be one Rebar Set)."""
     runs = []
@@ -325,6 +611,19 @@ def get_wall_elevation_mm(host):
     return length_mm, height_mm
 
 
+def _foundation_cover_mm(doc, engine, point, z_ft, wall_cover_mm):
+    """The cover the bars of a wall keep in the foundation below point: the foundation's own when it has one."""
+    from nosa_utils import cover_rules
+    try:
+        foundation = engine.find_foundation_below(doc, point.X, point.Y, z_ft)
+    except Exception:
+        foundation = None
+    if foundation is None:
+        return wall_cover_mm
+    theirs = engine.get_native_cover_mm(doc, foundation, u'Bottom', wall_cover_mm)
+    return cover_rules.governing_cover('wall', wall_cover_mm, 'foundation', theirs)
+
+
 def build_wall_foundation_starters(doc, host, bar_points, main_dia_mm, starter_dia_mm,
                                     anchor_length_mm, splice_length_mm,
                                     foundation_cover_mm=25.0, search_depth_mm=3000.0):
@@ -354,6 +653,8 @@ def build_wall_foundation_starters(doc, host, bar_points, main_dia_mm, starter_d
             inward_dirs.append(across.Multiply(-1.0 if side > 0 else 1.0))
 
     base_z_ft = min(p.Z for p in bar_points) if bar_points else origin.Z
+    # the foundation outranks the wall: its own bottom cover governs the starters' feet (T12.5, user 2026-10-18)
+    foundation_cover_mm = _foundation_cover_mm(doc, engine, axis.Evaluate(0.5, True), base_z_ft, foundation_cover_mm)
     return engine.build_contact_starters(
         doc, bar_points, inward_dirs, base_z_ft, main_dia_mm, starter_dia_mm,
         anchor_length_mm, splice_length_mm, foundation_cover_mm,
@@ -376,10 +677,14 @@ def build_wall_reinforcement(doc, host, cover_mm,
                               horiz_lap_length_mm=None,
                               vert_is_outer=True,
                               ubar_lap_length_mm=None,
-                              anchorage_mm=None, stagger_laps=False, end_conditions=None):
+                              anchorage_mm=None, stagger_laps=False, end_conditions=None,
+                              earth_normal=None, earth_cover_mm=50.0):
     """
     Build vertical + horizontal mesh curve sets for one straight wall.
-    end_conditions (IStructE SMDSC MW2, wall_joints.classify): per end, 'free' keeps the end
+    earth_normal (IStructE SMDSC 4th ed. MD RW1/MD RW2, retaining walls): the face looking this way is the earth
+    face — its verticals sit outside, at no less than earth_cover_mm; the other face keeps
+    vert_is_outer and cover_mm.
+    end_conditions (IStructE SMDSC 4th ed. MD W2, wall_joints.classify): per end, 'free' keeps the end
     U-bars; 'through' runs the horizontals on to the other wall's outer face; 'stop' ends the
     mesh at the other wall's inner face and closes it with U-bars of the horizontal size and
     pitch looped round the corner (returned as 'corner_ubars'), two vertical bars inside the
@@ -464,8 +769,12 @@ def build_wall_reinforcement(doc, host, cover_mm,
         mid = p0 + axis_dir.Multiply(axis.Length / 2.0)
         foundation = engine.find_foundation_below(doc, mid.X, mid.Y, z0)
         if foundation is not None:
+            from nosa_utils import cover_rules
             own = engine.get_isolated_solid_bbox(foundation) or foundation.get_BoundingBox(None)
-            vert_bottom_z = own.Min.Z + cover_mm / _MM_PER_FT
+            # the foundation outranks the wall: its bottom cover governs where the bars stop in it (T12.5)
+            bottom_mm = cover_rules.governing_cover(
+                'wall', cover_mm, 'foundation', engine.get_native_cover_mm(doc, foundation, u'Bottom', cover_mm))
+            vert_bottom_z = own.Min.Z + bottom_mm / _MM_PER_FT
             starter_mm = (z0 - vert_bottom_z) * _MM_PER_FT
         else:
             starter_mm = starter_length_mm if starter_length_mm and starter_length_mm > 0 \
@@ -537,7 +846,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         vert_inset_mm = cover_mm + horiz_dia_mm + vert_dia_mm / 2.0
 
     def _horiz_reach(k):
-        """Distance from the line end to the horizontals' end: negative runs past it (MW2)."""
+        """Distance from the line end to the horizontals' end: negative runs past it (MD W2)."""
         if _mode(k) == u'through':
             return -(_half(k) - cover_mm - horiz_dia_mm / 2.0)
         if _mode(k) == u'stop':
@@ -554,9 +863,15 @@ def build_wall_reinforcement(doc, host, cover_mm,
         foot_mm = 25.0 * math.ceil(max(anchor - embed_mm, 12.0 * vert_dia_mm) / 25.0 - 1e-9)
     for face in faces:
         face_normal = face.normal.Normalize()
-        cover_pt = engine.compute_cover_point(face, vert_inset_mm)
+        outer_v, v_inset, h_inset = vert_is_outer, vert_inset_mm, horiz_inset_mm
+        if earth_normal is not None and face_normal.DotProduct(earth_normal) > 0.5:
+            c = max(cover_mm, earth_cover_mm)          # earth face: verticals outside (MD RW1)
+            outer_v = True
+            v_inset = c + vert_dia_mm / 2.0
+            h_inset = c + vert_dia_mm + horiz_dia_mm / 2.0
+        cover_pt = engine.compute_cover_point(face, v_inset)
         depth = (cover_pt - p0).DotProduct(face_normal)
-        horiz_cover_pt = engine.compute_cover_point(face, horiz_inset_mm)
+        horiz_cover_pt = engine.compute_cover_point(face, h_inset)
         horiz_depth = (horiz_cover_pt - p0).DotProduct(face_normal)
         face_depths[id(face)] = (face, face_normal, depth)
 
@@ -584,7 +899,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                 'normal': axis_dir,
                 'count': len(vert_positions),
                 'label': u'Wall Vertical Mesh',
-                'location': layer_code(locations.get(id(face)), vert_is_outer),
+                'location': layer_code(locations.get(id(face)), outer_v),
             })
 
         if horiz_positions:
@@ -609,7 +924,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                     'normal': DB.XYZ.BasisZ,
                     'count': len(horiz_positions),
                     'label': u'Wall Horizontal Mesh',
-                    'location': layer_code(locations.get(id(face)), not vert_is_outer),
+                    'location': layer_code(locations.get(id(face)), not outer_v),
                 })
 
     # Ties — through-wall at intervals
@@ -683,7 +998,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         end_ubar_sets, end_ubar_bars = [], []
         for k, (d_end, inward) in enumerate(((back_mm, axis_dir), (length_mm - back_mm, axis_dir.Multiply(-1.0)))):
             if _mode(k) != u'free':
-                continue        # a wall end met by another wall: MW2 corner bars instead
+                continue        # a wall end met by another wall: MD W2 corner bars instead
             base = p0 + axis_dir.Multiply(d_end / _MM_PER_FT)
 
             def _u_at(h_mm, base=base, inward=inward):
@@ -714,7 +1029,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
     elif include_end_ubars and face_b is None:
         warnings.append(u'End U-bars require both wall faces — skipped.')
 
-    # IStructE SMDSC MW2 (Detail A): a wall end stopping against another wall is closed by U-bars
+    # IStructE SMDSC 4th ed. MD W2 (Detail A): a wall end stopping against another wall is closed by U-bars
     # of the horizontal size and pitch, their back inside the other wall's outer horizontals and
     # their legs a full lap with this wall's horizontals; vertical bars stand inside the loop.
     corner_ubars = {'sets': [], 'bars': []}
@@ -772,7 +1087,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
                         'count': 1, 'label': u'Wall Corner Bar', 'host_id': (ends[k] or {}).get('other_id'),
                         'location': layer_code(locations.get(id(face_k)), vert_is_outer)})
     elif stop_ends:
-        warnings.append(u'Corner U-bars (SMDSC MW2) need both wall faces: skipped.')
+        warnings.append(u'Corner U-bars (SMDSC 4th ed. MD W2) need both wall faces: skipped.')
 
     # Top U-bars — horizontal closure at wall head (both faces).
     # BUG FIX (2026-09-01) — reported live: End U-bars (capa vertical)
@@ -831,6 +1146,36 @@ def build_wall_reinforcement(doc, host, cover_mm,
     elif include_top_ubars and face_b is None:
         warnings.append(u'Top U-bars require both wall faces — skipped.')
 
+    # IStructE SMDSC 4th ed. MD W4: holes cut the mesh, closed by U-bars with trimmer bars inside them
+    opening_bars = {'ubars': {'sets': [], 'bars': []}, 'trimmers': []}
+    openings = wall_openings_mm(doc, host, p0, axis_dir, z0, length_mm, height_mm)
+    if openings:
+        vert_rows = mesh_rows_mm(vertical_sets, p0, axis_dir, z0, True)
+        horiz_rows = mesh_rows_mm(horizontal_sets, p0, axis_dir, z0, False)
+        vertical_sets = cut_sets_at_openings(vertical_sets, openings, p0, axis_dir, z0, cover_mm, True)
+        horizontal_sets = cut_sets_at_openings(horizontal_sets, openings, p0, axis_dir, z0, cover_mm, False)
+        trimmed = opening_trims(openings, vert_spacing_mm, horiz_spacing_mm)
+        if trimmed and face_b is not None and len(faces) >= 2:
+            fa, na, va = face_depths[id(face_a)]
+            fb, nb, vb = face_depths[id(face_b)]
+            ha = (engine.compute_cover_point(fa, horiz_inset_mm) - p0).DotProduct(na)
+            hb = (engine.compute_cover_point(fb, horiz_inset_mm) - p0).DotProduct(nb)
+            thickness_mm = host.Width * _MM_PER_FT
+            hole_lap = horiz_lap_length_mm if horiz_lap_length_mm else max(40.0 * horiz_dia_mm, 300.0)
+            hole_anchor = anchorage_mm if anchorage_mm else 40.0 * next_bar_size_mm(vert_dia_mm)
+            opening_bars = build_opening_bars(
+                trimmed, p0, axis_dir, z0, length_mm, height_mm, cover_mm, thickness_mm, vert_dia_mm,
+                horiz_dia_mm, [(na, va), (nb, vb)], [(na, ha), (nb, hb)], hole_lap, hole_anchor,
+                vert_bottom_z, vert_top_z, vert_rows=vert_rows, horiz_rows=horiz_rows)
+            if thickness_mm < 175.0:
+                warnings.append(u'Wall {:.0f} mm thick with a trimmed hole: SMDSC 4th ed. 6.5 asks for 175 mm.'.format(
+                    thickness_mm))
+        if trimmed and (face_b is None or len(faces) < 2):
+            warnings.append(u'{} hole(s) to trim in a single-mesh wall: U-bars and trimmers not added - detail '
+                            u'them to SMDSC 4th ed. MD W4 / MD OP1.'.format(len(trimmed)))
+        warnings.append(u'{} hole(s): mesh cut round them{}.'.format(
+            len(openings), u', U-bars and trimmer bars added (SMDSC 4th ed. MD W4)' if trimmed else u''))
+
     # Explicit starter bars (when mesh already extended, still list for marking)
     if include_starter_bars and starter_mm > 0:
         for vs in vertical_sets:
@@ -870,7 +1215,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
             bar is shorter (stock − 1.3 l0), so only half the bars are lapped in any section.
             """
             from nosa_utils import standards
-            own_stock_mm = standards.bar_stock_length_mm(own_dia_mm, stock_length_mm)   # SMDSC 4.2.4
+            own_stock_mm = standards.bar_stock_length_mm(own_dia_mm, stock_length_mm)   # SMDSC 4th ed. 4.2.4
             out = []
             for ms in mesh_sets:
                 c0 = ms['curves'][0] if ms.get('curves') else None
@@ -927,6 +1272,7 @@ def build_wall_reinforcement(doc, host, cover_mm,
         'ties': ties,
         'end_ubars': end_ubars,
         'corner_ubars': corner_ubars,
+        'opening_bars': opening_bars,
         'top_ubars': top_ubars,
         'starter_bars': starter_bars,
         'starter_length_mm': starter_mm,
@@ -1050,7 +1396,7 @@ def build_curved_wall_reinforcement(doc, host, cover_mm, vert_dia_mm, vert_spaci
     horiz_lap = _resolve_lap(horiz_lap_length_mm if horiz_lap_length_mm is not None else lap_length_mm)
     stock = stock_length_mm if stock_length_mm and stock_length_mm >= 500.0 else 12000.0
     from nosa_utils import standards
-    vstock = standards.bar_stock_length_mm(vert_dia_mm, stock)     # SMDSC 4.2.4, per bar size
+    vstock = standards.bar_stock_length_mm(vert_dia_mm, stock)     # SMDSC 4th ed. 4.2.4, per bar size
     stock = standards.bar_stock_length_mm(horiz_dia_mm, stock)
 
     vertical_sets, horizontal_sets = [], []

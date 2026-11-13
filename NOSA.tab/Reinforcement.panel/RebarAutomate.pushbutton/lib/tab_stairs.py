@@ -42,6 +42,9 @@ class StairsMixin(object):
             'starters': self.ChkStairStarters.IsChecked == True,
             'starter_mode': 'post' if self.CboStairStarterType.SelectedIndex == 1 else 'cast',
             'landing_ubars': self.ChkStairLandingUBars.IsChecked == True,
+            'curtail_top': self.ChkStairCurtailTop.IsChecked == True,
+            'no_finish': self.ChkStairNoFinish.IsChecked == True,
+            'pullout': self.ChkStairPullout.IsChecked == True,
         }
         if values['starters']:
             values['starter_dia'] = self._read_number(self.TxtStairStarterDia.Text, u'Starter diameter', errors)
@@ -111,6 +114,11 @@ class StairsMixin(object):
             ubar_dia = self._preview_number(self.TxtStairUBarDia, 10.0)
         if self.ChkStairStarters.IsChecked == True:
             starter_dia = self._preview_number(self.TxtStairStarterDia, main_dia)
+        a_mm = None
+        if self.ChkStairCurtailTop.IsChecked == True:
+            lo = run['lower']['s_far'] if run['lower']['kind'] == 'landing' else 0.0
+            hi = run['upper']['s_far'] if run['upper']['kind'] == 'landing' else run['length']
+            a_mm = stair_rebar.a_length_mm(abs(hi - lo), self._anchorage_mm(None, top_dia))
         try:
             shapes = preview_shapes.stair_section_shapes(
                 run, cover, main_dia, main_spacing, top_dia, top_spacing, dist_dia, dist_spacing,
@@ -118,7 +126,7 @@ class StairsMixin(object):
                 slab_anchor=self.ChkStairSlabAnchor.IsChecked == True, ubar_dia=ubar_dia,
                 starter_dia=starter_dia,
                 starter_mode='post' if self.CboStairStarterType.SelectedIndex == 1 else 'cast',
-                starter_lap=self._splice_mm(None, starter_dia or main_dia, None))
+                starter_lap=self._splice_mm(None, starter_dia or main_dia, None), a_mm=a_mm)
         except Exception:
             log_swallowed(_LOG, u'_update_stair_preview shapes')
             return
@@ -133,7 +141,7 @@ class StairsMixin(object):
         self.TxtStairResult.Text = u'\n'.join(lines)
 
     def _smdsc_stair_review(self, host, run, cover, values, errors):
-        """T8.42 — IStructE SMDSC 6.8 on this flight's waist: pitches over the maxima come down, the rest is reported."""
+        """T8.42 — IStructE SMDSC 4th ed. 6.8 on this flight's waist: pitches over the maxima come down, the rest is reported."""
         try:
             import math
             from nosa_utils import mesh_rules, standards
@@ -156,6 +164,14 @@ class StairsMixin(object):
     def _run_stair_reinforcement(self, stairs, values):
         errors = []
         bar_types = {}
+        if values['landing_ubars']:
+            u_dia = stair_rebar.landing_ubar_dia_mm(values['ubar_dia'], values['top_spacing'],
+                                                    values['main_dia'], values['main_spacing'])
+            if u_dia > values['ubar_dia']:
+                errors.append(u'Landing U-bars H{:g} raised to H{:g}: SMDSC 4th ed. MD ST1 asks for 50 % of the area '
+                              u'of the main bottom bars (H{:g} at {:g}).'.format(
+                                  values['ubar_dia'], u_dia, values['main_dia'], values['main_spacing']))
+                values = dict(values, ubar_dia=u_dia)
         diameters = {values['main_dia'], values['top_dia'], values['dist_dia']}
         if values['starters']:
             diameters.add(values['starter_dia'])
@@ -177,18 +193,29 @@ class StairsMixin(object):
             errors.extend(u'Stair {}: {}'.format(hid, w) for w in data['warnings'])
             cover = stair_host.host_cover_mm(host, self._standard_default_cover_mm(u'slab'))
             anchorage = self._anchorage_mm(host, values['main_dia'])
+            if values.get('no_finish'):
+                data['runs'], data['landings'] = stair_rebar.lower_tops(
+                    data['runs'], data['landings'], stair_rebar.NO_FINISH_TOP_COVER_MM)
+                errors.append(u'Stair {}: no finish — top cover {:.0f} + {:.0f} mm (SMDSC 4th ed. 6.8).'.format(
+                    hid, cover, stair_rebar.NO_FINISH_TOP_COVER_MM))
             if values['landing_ubars']:
                 errors.extend(u'Stair {}: {}'.format(hid, note) for note in stair_host.apply_landing_ubars(
                     data, values['ubar_dia'], cover, values['main_dia']))
             jobs = []
             for run in data['runs']:
                 run_values = self._smdsc_stair_review(host, run, cover, values, errors)
+                a_mm = None
+                if values.get('curtail_top'):
+                    lo = run['lower']['s_far'] if run['lower']['kind'] == 'landing' else 0.0
+                    hi = run['upper']['s_far'] if run['upper']['kind'] == 'landing' else run['length']
+                    a_mm = stair_rebar.a_length_mm(
+                        abs(hi - lo), self._anchorage_mm(host, run_values['top_dia']))
                 starters, starter_host = self._stair_starters(host, run, cover, anchorage, values, errors)
                 for bar_set in stair_rebar.build_flight(
                         run, cover, run_values['main_dia'], run_values['main_spacing'], run_values['dist_dia'],
                         run_values['dist_spacing'], anchorage, top_dia=run_values['top_dia'],
                         top_spacing=run_values['top_spacing'], slab_anchor=values['slab_anchor'],
-                        starters=starters):
+                        starters=starters, a_mm=a_mm):
                     jobs.append((run['frame'], bar_set,
                                  starter_host if bar_set['layer'] == u'stair_starter' else host))
                 if run['upper']['kind'] == 'floor' and values['slab_anchor']:
@@ -202,6 +229,8 @@ class StairsMixin(object):
                         u_edges=landing.get('u_edges', ()), top_dia=values['top_dia'],
                         top_spacing=values['top_spacing']):
                     jobs.append((landing['frame'], bar_set, host))
+            if values.get('pullout'):
+                jobs += self._pullout_jobs(host, data, cover, values, bar_types, errors)
             for frame, bar_set, bar_host in jobs:
                 bar_type = bar_types.get(bar_set['dia'])
                 if bar_type is None:
@@ -214,6 +243,35 @@ class StairsMixin(object):
                 self._stamp_location(rebar, self._STAIR_LOCATIONS.get(bar_set['label']))
                 created.append(rebar)
         return created, {'created': len(created), 'errors': errors}
+
+    def _pullout_jobs(self, host, data, cover, values, bar_types, errors):
+        """IStructE SMDSC 4th ed. MD W3: pull-out U-bars in the walls a landing is cast against later."""
+        jobs = []
+        u_dia = min(values.get('ubar_dia') or values['main_dia'], stair_rebar.PULLOUT_MAX_DIA_MM)
+        fix_dia = 12.0
+        for dia in (u_dia, fix_dia):
+            if bar_types.get(dia) is None:
+                bar_types[dia] = re_engine.get_bar_type_by_diameter(self.doc, dia)
+        lap = self._splice_mm(None, u_dia, host)
+        for landing in data['landings']:
+            for edge in (u's_max', u'v_min', u'v_max'):
+                wall = stair_host.wall_at_landing_edge(self.doc, landing, edge)
+                if wall is None:
+                    continue
+                wall_cover = re_engine.get_native_cover_mm(self.doc, wall, u'Exterior', 40.0)
+                sets = stair_rebar.pullout_bars(landing, edge, cover, wall_cover, u_dia, lap,
+                                                values['top_spacing'], fix_dia)
+                jobs += [(landing['frame'], s, wall) for s in sets]
+                if not sets:
+                    errors.append(u'Stair {}: landing {:.0f} mm thick against wall {} — no room to bend H{:g} '
+                                  u'pull-out U-bars inside the covers (SMDSC 4th ed. MD W3): use couplers or drilled '
+                                  u'bars.'.format(get_id_value(host.Id), landing['top'] - landing['bottom'],
+                                                  get_id_value(wall.Id), u_dia))
+                else:
+                    errors.append(u'Stair {}: landing edge against wall {} — H{:g} pull-out U-bars cast in the '
+                                  u'wall, lapped {:.0f} mm (SMDSC 4th ed. MD W3; class B or C steel).'.format(
+                                      get_id_value(host.Id), get_id_value(wall.Id), u_dia, lap))
+        return jobs
 
     def _stair_starters(self, host, run, cover, anchorage, values, errors):
         """(starters for stair_rebar.build_flight, host of the starter bars) — (None, None) if none."""

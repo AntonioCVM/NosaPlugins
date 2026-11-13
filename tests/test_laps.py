@@ -148,3 +148,11 @@ def test_smdsc_stock_lengths_and_transport():
     assert standards.bar_stock_length_mm(20.0, 18000.0) == 12000.0
     assert standards.bar_stock_length_mm(8.0, 5000.0) == 5000.0         # the user's shorter stock
     assert standards.transportable(6370.0, 475.0) and not standards.transportable(3000.0, 2800.0)
+
+
+def test_end_projection_and_bend_bearing():
+    from nosa_utils import standards
+    assert standards.min_end_projection_mm(16) == 80.0 and standards.min_end_projection_mm(10, link=True) == 100.0
+    assert standards.standard_mandrel_mm(16) == 64.0 and standards.standard_mandrel_mm(20) == 140.0
+    need = standards.bearing_mandrel_mm(20.0, 200.0, 75.0, 30.0)      # ab = 85: 136.6 kN x 0.0368 / 17
+    assert 290.0 < need < 300.0
