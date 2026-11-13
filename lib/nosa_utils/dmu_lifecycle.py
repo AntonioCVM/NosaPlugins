@@ -34,7 +34,9 @@ def unregister(app, guid_str=_GUID_STR):
         log_swallowed(_LOG, u'unregister')
 
 
-ALL_GUIDS = (_GUID_STR, COMMENTS_GUID_STR)
+PILE_UNJOIN_GUID_STR = '5D2B7C91-3E48-4F6A-A8D0-91C7E4B2F315'     # Pile Unjoin
+
+ALL_GUIDS = (_GUID_STR, COMMENTS_GUID_STR, PILE_UNJOIN_GUID_STR)
 
 
 def unregister_all(app):

@@ -1,0 +1,12 @@
+# This is a Revit shared parameter file.
+# NOSA Piles (Phase 1): pile and pile cap parameters. GUIDs are FINAL - never regenerate.
+*META	VERSION	MINVERSION
+META	2	1
+*GROUP	ID	NAME
+GROUP	1	NOSA_Piles
+*PARAM	GUID	NAME	DATATYPE	DATACATEGORY	GROUP	VISIBLE	DESCRIPTION	USERMODIFIABLE	HIDEWHENNOVALUE
+PARAM	9543de39-521b-4fc7-980b-d9f8e7eeb4d7	PILE_Length	LENGTH		1	1	Pile length below the underside of the pile cap (instance)	1	0
+PARAM	b05b7e50-f7c0-4936-9c05-ec57daa62691	PILE_CutOff	LENGTH		1	1	DEPRECATED - replaced by PILE_Embedment (not used by any family)	1	0
+PARAM	4f898134-91bd-421c-8a1d-df4bc9ab35a0	PILE_Diameter_or_Side	LENGTH		1	1	Pile diameter (round) or side (square) (type)	1	0
+PARAM	83fc5eae-c36c-4994-90d7-378d68085955	PILE_Embedment	LENGTH		1	1	Pile length embedded in the pile cap; adds to PILE_Length (instance)	1	0
+PARAM	274b4ea4-d182-4454-94d9-c1c13731bd34	Show_Full_Pile_Length	YESNO		1	1	Show the full pile length (instance)	1	0

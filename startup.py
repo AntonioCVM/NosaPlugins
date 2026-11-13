@@ -71,6 +71,15 @@ def _run():
         _register('nosa_logic_dmu_element_comments', _elc_dmu_path,
                   _app, _elc_unregister, 'Element Comments DMU')
 
+    # Pile Unjoin
+    _unjoin_path = os.path.join(_EXT_LIB, 'nosa_utils', 'pile_unjoin_dmu.py')
+    if os.path.isfile(_unjoin_path):
+        def _unjoin_unregister(app):
+            from nosa_utils.dmu_lifecycle import unregister as _u, PILE_UNJOIN_GUID_STR
+            _u(app, PILE_UNJOIN_GUID_STR)
+        _register('nosa_pile_unjoin_dmu', _unjoin_path,
+                  _app, _unjoin_unregister, 'Pile Unjoin DMU')
+
 
 try:
     _run()
