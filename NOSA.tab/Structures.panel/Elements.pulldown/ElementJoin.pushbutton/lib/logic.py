@@ -1,136 +1,148 @@
 ﻿# -*- coding: utf-8 -*-
-"""
-SmartJoin Pro Logic — priority-aware join, unjoin and swap of structural geometry.
-Uses Revit JoinGeometryUtils API.
-"""
-import sys
+"""Element Join logic: priority-aware join, unjoin and swap, with a preview and per-pair rollback."""
+import io
+import json
 import os
+import sys
+
 from Autodesk.Revit import DB
-from nosa_utils.telemetry import log_swallowed
-_LOG = u'elementjoin'
+
 _lib = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', 'lib'))
 if _lib not in sys.path:
     sys.path.insert(0, _lib)
-from nosa_utils.revit_helpers import get_id_value
-from nosa_utils import geometry as _geometry
-from nosa_utils import unit_conversion as _uc10
-from nosa_utils import transactions as nosa_tx  # T8.1: no Revit failure dialogs
-_FT_TO_MM = _uc10.FT_TO_MM
 
-# Default priority: index 0 = highest (cuts everyone below it).
-# Lower index = more dominant (cuts).
-_DEFAULT_PRIORITY = [
-    'Floors',
-    'Framing',
-    'Columns',
-    'Walls',
-    'Foundations',
-]
+from nosa_utils.bootstrap import load_module
+from nosa_utils.revit_helpers import get_id_value, element_name
+from nosa_utils.telemetry import log_swallowed
+from nosa_utils import solids as _solids
+from nosa_utils import unit_conversion as _uc
+from nosa_utils import transactions as nosa_tx
 
-DEFAULT_PRIORITY = _DEFAULT_PRIORITY
+_plan = load_module('elemjoin_plan', os.path.join(os.path.dirname(__file__), 'join_plan.py'))
+
+_LOG = u'elementjoin'
+_FT_TO_MM = _uc.FT_TO_MM
+MIN_OVERLAP_MM3 = 1000.0            # 1 cm3: below this two elements only touch
+
+DEFAULT_PRIORITY = ['Floors', 'Framing', 'Columns', 'Walls', 'Foundations', 'Roofs', 'Ceilings']
+
+_CONFIGS_ROOT = os.path.join(os.getenv('APPDATA', ''), 'pyRevit', 'Extensions', 'NOSA.extension', 'NOSA_Configs')
+_CONFIG_FILE = os.path.join(_CONFIGS_ROOT, '_smartjoin.json')
+
+PREVIEW_STATUS = {u'join': u'will join', u'fix': u'will fix', u'unjoin': u'will unjoin', u'swap': u'will swap'}
+DONE_STATUS = {u'join': u'joined', u'fix': u'fixed', u'unjoin': u'unjoined', u'swap': u'swapped'}
 
 
 def _joinable_bics():
-    """Lazy BuiltInCategory map — avoids module-level API access in IronPython."""
     return {
         'Columns':     DB.BuiltInCategory.OST_StructuralColumns,
         'Framing':     DB.BuiltInCategory.OST_StructuralFraming,
         'Floors':      DB.BuiltInCategory.OST_Floors,
         'Walls':       DB.BuiltInCategory.OST_Walls,
         'Foundations': DB.BuiltInCategory.OST_StructuralFoundation,
+        'Roofs':       DB.BuiltInCategory.OST_Roofs,
+        'Ceilings':    DB.BuiltInCategory.OST_Ceilings,
     }
 
-# Config persistence
-_CONFIGS_ROOT = os.path.join(
-    os.getenv('APPDATA', ''),
-    'pyRevit', 'Extensions', 'NOSA.extension', 'NOSA_Configs'
-)
-_CONFIG_FILE = os.path.join(_CONFIGS_ROOT, '_smartjoin.json')
+
+# ── priority config ─────────────────────────────────────────────────────────
+
+def _read_config():
+    try:
+        if os.path.exists(_CONFIG_FILE):
+            with io.open(_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.loads(f.read())
+    except Exception:
+        log_swallowed(_LOG, u'read_config')
+    return {}
 
 
 def load_priority():
-    """Load saved priority order, falling back to DEFAULT_PRIORITY."""
-    try:
-        import json
-        if os.path.exists(_CONFIG_FILE):
-            with open(_CONFIG_FILE, 'r') as f:
-                data = json.load(f)
-            saved = data.get('priority', [])
-            if saved and set(saved) == set(DEFAULT_PRIORITY):
-                return saved
-    except Exception:
-        log_swallowed(_LOG, u'load_priority')
+    saved = _read_config().get('priority', [])
+    if saved and set(saved) <= set(DEFAULT_PRIORITY):
+        return list(saved) + [c for c in DEFAULT_PRIORITY if c not in saved]
     return list(DEFAULT_PRIORITY)
 
 
 def save_priority(priority_list):
-    """Persist custom priority order."""
     try:
-        import json
         if not os.path.exists(_CONFIGS_ROOT):
             os.makedirs(_CONFIGS_ROOT)
-        with open(_CONFIG_FILE, 'r' if os.path.exists(_CONFIG_FILE) else 'w') as f:
-            try:
-                data = json.load(f)
-            except Exception:
-                data = {}
-        data['priority'] = priority_list
-        with open(_CONFIG_FILE, 'w') as f:
-            json.dump(data, f, indent=2)
+        data = _read_config()
+        data['priority'] = list(priority_list)
+        text = json.dumps(data, indent=2)
+        if isinstance(text, bytes):
+            text = text.decode('utf-8')
+        with io.open(_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            f.write(text)
     except Exception:
         log_swallowed(_LOG, u'save_priority')
 
 
+# ── element collection ──────────────────────────────────────────────────────
+
+def _category_lookup():
+    return dict((int(bic), name) for name, bic in _joinable_bics().items())
 
 
-def _cat_name_for_element(el):
-    """Return the _JOINABLE_BICS key for an element, or None."""
+def _box_of(el):
     try:
-        cat = el.Category
-        if cat is None:
+        bb = el.get_BoundingBox(None)
+        if bb is None:
             return None
-        for name, bic in _joinable_bics().items():
-            try:
-                if cat.Id == DB.ElementId(bic):
-                    return name
-            except Exception:
-                log_swallowed(_LOG, u'_cat_name_for_element')
+        return (bb.Min.X, bb.Min.Y, bb.Min.Z, bb.Max.X, bb.Max.Y, bb.Max.Z)
     except Exception:
-        log_swallowed(_LOG, u'_cat_name_for_element')
-    return None
+        return None
+
+
+def _item(el, category):
+    return {'id': get_id_value(el.Id), 'name': element_name(el) or str(get_id_value(el.Id)),
+            'category': category, 'element': el, 'box': _box_of(el)}
 
 
 def collect_joinable_elements(doc, category_names=None):
-    """Return list of dicts {id, name, category, element}."""
-    if category_names is None:
-        category_names = list(_joinable_bics().keys())
-    elements = []
-    for cat_name in category_names:
-        bic = _joinable_bics().get(cat_name)
+    """Every element of the chosen categories as {id, name, category, element, box}."""
+    names = category_names if category_names is not None else list(_joinable_bics().keys())
+    bics = _joinable_bics()
+    items = []
+    for cat_name in names:
+        bic = bics.get(cat_name)
         if bic is None:
             continue
         try:
-            items = list(
-                DB.FilteredElementCollector(doc)
-                  .OfCategory(bic)
-                  .WhereElementIsNotElementType()
-                  .ToElements()
-            )
-            for el in items:
+            for el in DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType().ToElements():
                 try:
-                    name = getattr(el, 'Name', '') or str(el.Id)
-                    elements.append({
-                        'id':       get_id_value(el.Id),
-                        'name':     name,
-                        'category': cat_name,
-                        'element':  el,
-                    })
+                    items.append(_item(el, cat_name))
                 except Exception:
-                    log_swallowed(_LOG, u'collect_joinable_elements')
+                    log_swallowed(_LOG, u'collect_joinable_elements.item')
         except Exception:
             log_swallowed(_LOG, u'collect_joinable_elements')
-    return elements
+    return items
 
+
+def items_from_ids(doc, ids, category_names):
+    """Selected elements that belong to one of the chosen categories."""
+    lookup = _category_lookup()
+    items = []
+    for eid in ids:
+        try:
+            el = doc.GetElement(eid)
+            cat = el.Category if el is not None else None
+            name = lookup.get(get_id_value(cat.Id)) if cat is not None else None
+            if name in category_names:
+                items.append(_item(el, name))
+        except Exception:
+            log_swallowed(_LOG, u'items_from_ids')
+    return items
+
+
+def item_from_element(el):
+    cat = el.Category
+    name = _category_lookup().get(get_id_value(cat.Id)) if cat is not None else None
+    return _item(el, name or (cat.Name if cat is not None else u''))
+
+
+# ── join primitives ─────────────────────────────────────────────────────────
 
 def is_joined(doc, el1, el2):
     try:
@@ -139,213 +151,199 @@ def is_joined(doc, el1, el2):
         return False
 
 
-def join_elements(doc, el1, el2):
+def cuts(doc, el1, el2):
+    """True when el1 cuts el2 in their join; None when the pair is not joined or the answer is unknown."""
     try:
-        if DB.JoinGeometryUtils.AreElementsJoined(doc, el1, el2):
-            return True, "Already joined."
-        DB.JoinGeometryUtils.JoinGeometry(doc, el1, el2)
-        return True, "Joined."
-    except Exception as e:
-        return False, "Join failed: {}".format(e)
-
-
-def unjoin_elements(doc, el1, el2):
-    try:
-        if not DB.JoinGeometryUtils.AreElementsJoined(doc, el1, el2):
-            return True, "Not joined."
-        DB.JoinGeometryUtils.UnjoinGeometry(doc, el1, el2)
-        return True, "Unjoined."
-    except Exception as e:
-        return False, "Unjoin failed: {}".format(e)
-
-
-def swap_join_order(doc, el1, el2):
-    try:
-        if not DB.JoinGeometryUtils.AreElementsJoined(doc, el1, el2):
-            return False, "Elements are not joined."
-        DB.JoinGeometryUtils.SwitchJoinOrder(doc, el1, el2)
-        return True, "Join order swapped."
-    except Exception as e:
-        return False, "Swap failed: {}".format(e)
-
-
-def join_ordered(doc, dominant_el, subordinate_el):
-    """
-    Join dominant_el cutting subordinate_el.
-    Joins if not already joined, then enforces dominant order via SwitchJoinOrder.
-    Returns (ok, msg).
-    """
-    try:
-        already = DB.JoinGeometryUtils.AreElementsJoined(doc, dominant_el, subordinate_el)
-        if not already:
-            DB.JoinGeometryUtils.JoinGeometry(doc, dominant_el, subordinate_el)
-        try:
-            DB.JoinGeometryUtils.SwitchJoinOrder(doc, dominant_el, subordinate_el)
-        except Exception:
-            log_swallowed(_LOG, u'join_ordered')
-        return True, "{} cuts {}.".format(
-            getattr(dominant_el, 'Name', str(dominant_el.Id)),
-            getattr(subordinate_el, 'Name', str(subordinate_el.Id)),
-        )
-    except Exception as e:
-        return False, "Join ordered failed: {}".format(e)
-
-
-def _bboxes_within_tolerance(el1, el2, tolerance_ft):
-    try:
-        bb1 = el1.get_BoundingBox(None)
-        bb2 = el2.get_BoundingBox(None)
-        return _geometry.bboxes_overlap(bb1, bb2, tolerance_ft)
+        return DB.JoinGeometryUtils.IsCuttingElementInJoin(doc, el1, el2)
     except Exception:
-        return False
+        return None
 
 
-def batch_join_by_proximity(doc, elements, operation='join', tolerance_mm=50):
-    """
-    Batch join/unjoin/swap with proximity filter.
-    operation : 'join' | 'unjoin' | 'swap'
-    """
-    tolerance_ft = tolerance_mm / _FT_TO_MM
-    results = []
-    n = len(elements)
+def _overlap_mm3(a, b, cache):
+    """Overlap volume of two not-yet-joined elements in mm3; None when a solid cannot be read."""
+    solids = []
+    for it in (a, b):
+        key = it['id']
+        if key not in cache:
+            try:
+                cache[key] = _solids.get_element_solid(it['element'])
+            except Exception:
+                log_swallowed(_LOG, u'overlap.solid')
+                cache[key] = None
+        solids.append(cache[key])
+    if solids[0] is None or solids[1] is None:
+        return None
+    return _solids.intersection_volume(solids[0], solids[1]) * _FT_TO_MM ** 3
 
-    _op_funcs = {
-        'join':   join_elements,
-        'unjoin': unjoin_elements,
-        'swap':   swap_join_order,
-    }
-    op_func = _op_funcs.get(operation, join_elements)
 
+# ── planning ────────────────────────────────────────────────────────────────
+
+class Settings(object):
+    def __init__(self, priority=None, tolerance_mm=50.0, fix_existing=True, require_overlap=True, simple=False):
+        self.rank = None if simple else dict((c, i) for i, c in enumerate(priority or DEFAULT_PRIORITY))
+        self.simple = simple
+        self.tolerance_ft = tolerance_mm / _FT_TO_MM
+        self.fix_existing = fix_existing and not simple
+        self.require_overlap = require_overlap
+
+
+def _rank(settings, item):
+    if settings.rank is None:
+        return 0
+    return settings.rank.get(item['category'])
+
+
+def evaluate(doc, a, b, settings, cache, forced=None):
+    """Decide what to do with one pair: {a, b, action, dominant, msg}."""
+    joined = is_joined(doc, a['element'], b['element'])
+    a_cuts = cuts(doc, a['element'], b['element']) if joined else None
+    overlap = None
+    if not joined and settings.require_overlap:
+        mm3 = _overlap_mm3(a, b, cache)
+        overlap = True if mm3 is None else mm3 >= MIN_OVERLAP_MM3
+    action, dominant, msg = _plan.decide(_rank(settings, a), _rank(settings, b), joined, a_cuts, overlap,
+                                         settings.fix_existing, settings.require_overlap, forced)
+    return {'a': a, 'b': b, 'action': action, 'dominant': dominant, 'msg': msg}
+
+
+def plan_join(doc, universe, primary, settings):
+    """Rows for every near pair that has at least one element in `primary` (None = all)."""
+    primary_ids = None if primary is None else set(it['id'] for it in primary)
+    cache, rows = {}, []
+    pairs = _plan.candidate_pairs([it['box'] for it in universe], settings.tolerance_ft)
+    for i, j in pairs:
+        a, b = universe[i], universe[j]
+        if primary_ids is not None and a['id'] not in primary_ids and b['id'] not in primary_ids:
+            continue
+        rows.append(evaluate(doc, a, b, settings, cache))
+    return rows
+
+
+def plan_one_to_many(doc, anchor, universe, settings, anchor_cuts):
+    """Rows pairing `anchor` with every near element of the universe; the anchor cuts them or is cut by them."""
+    cache, rows = {}, []
+    for other in universe:
+        if other['id'] == anchor['id'] or anchor['box'] is None or other['box'] is None:
+            continue
+        if not _plan.boxes_touch(anchor['box'], other['box'], settings.tolerance_ft):
+            continue
+        rows.append(evaluate(doc, anchor, other, settings, cache, forced=u'a' if anchor_cuts else u'b'))
+    return rows
+
+
+def plan_pair(doc, a, b, settings):
+    """The manual pair: always joined, whatever the overlap, with `a` cutting `b`."""
+    settings.require_overlap = False
+    return [evaluate(doc, a, b, settings, {}, forced=u'a')]
+
+
+def plan_joined(doc, universe, primary, operation):
+    """Rows for the joins that already exist (unjoin / swap); both elements must be in the universe."""
+    by_id = dict((it['id'], it) for it in universe)
+    seen, rows = set(), []
+    for it in (universe if primary is None else primary):
+        try:
+            joined_ids = list(DB.JoinGeometryUtils.GetJoinedElements(doc, it['element']))
+        except Exception:
+            log_swallowed(_LOG, u'plan_joined')
+            continue
+        for eid in joined_ids:
+            other = by_id.get(get_id_value(eid))
+            if other is None:
+                continue
+            key = (min(it['id'], other['id']), max(it['id'], other['id']))
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append({'a': it, 'b': other, 'action': operation, 'dominant': None,
+                         'msg': u'Joined'})
+    return rows
+
+
+# ── execution ───────────────────────────────────────────────────────────────
+
+def _ordered(row):
+    """(first, second) with the dominant element first when there is one."""
+    if row['dominant'] == u'b':
+        return row['b'], row['a']
+    return row['a'], row['b']
+
+
+def _result(row, status, msg):
+    first, second = _ordered(row)
+    return {'id1': first['id'], 'name1': first['name'], 'cat1': first['category'],
+            'id2': second['id'], 'name2': second['name'], 'cat2': second['category'],
+            'status': status, 'msg': msg}
+
+
+def _make_cut(doc, dominant, subordinate):
+    if cuts(doc, dominant, subordinate):
+        return
+    DB.JoinGeometryUtils.SwitchJoinOrder(doc, dominant, subordinate)
+    if not cuts(doc, dominant, subordinate):
+        raise Exception(u'Revit would not change the cutting order')
+
+
+def _apply(doc, row):
+    """Do one row inside a SubTransaction; (True, message) or (False, reason) with that pair undone."""
+    first, second = _ordered(row)
+    e1, e2 = first['element'], second['element']
+    action = row['action']
+    st = DB.SubTransaction(doc)
     try:
-        with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Element Join — {}".format(operation.capitalize()))) as t:
-            t.Start()
-            for i in range(n):
-                for j in range(i + 1, n):
-                    a = elements[i]
-                    b = elements[j]
-                    if not _bboxes_within_tolerance(a['element'], b['element'], tolerance_ft):
-                        continue
-                    try:
-                        ok, msg = op_func(doc, a['element'], b['element'])
-                        if ok:
-                            status = ('already_joined' if 'Already' in msg else
-                                      'already_unjoined' if 'Not joined' in msg else
-                                      operation + 'ed' if operation in ('join', 'unjoin') else 'swapped')
-                        else:
-                            status = 'failed'
-                    except Exception as ex:
-                        msg = str(ex)
-                        status = 'failed'
-                    results.append({
-                        'id1': a['id'],   'name1': a['name'], 'cat1': a['category'],
-                        'id2': b['id'],   'name2': b['name'], 'cat2': b['category'],
-                        'status': status, 'msg': msg,
-                    })
-            t.Commit()
-    except Exception as e:
-        return [{'id1': 0, 'name1': '', 'cat1': '', 'id2': 0, 'name2': '',
-                 'cat2': '', 'status': 'failed', 'msg': str(e)}]
-    return results
+        st.Start()
+        if action == u'join':
+            DB.JoinGeometryUtils.JoinGeometry(doc, e1, e2)
+            if row['dominant'] is not None:
+                _make_cut(doc, e1, e2)
+            msg = u'%s cuts %s' % (first['name'], second['name']) if row['dominant'] is not None else u'Joined'
+        elif action == u'fix':
+            _make_cut(doc, e1, e2)
+            msg = u'%s now cuts %s' % (first['name'], second['name'])
+        elif action == u'unjoin':
+            DB.JoinGeometryUtils.UnjoinGeometry(doc, e1, e2)
+            msg = u'Unjoined'
+        else:
+            DB.JoinGeometryUtils.SwitchJoinOrder(doc, e1, e2)
+            msg = u'Join order swapped'
+        st.Commit()
+        return True, msg
+    except Exception as ex:
+        log_swallowed(_LOG, u'apply.%s' % action)
+        try:
+            if st.HasStarted():
+                st.RollBack()
+        except Exception:
+            log_swallowed(_LOG, u'apply.rollback')
+        return False, u'%s failed: %s' % (action, ex)
 
 
-def batch_join_ordered(doc, elements, priority_list, tolerance_mm=50, fix_existing=True):
-    """
-    Priority-aware batch join.
-
-    For every pair within tolerance:
-      1. If not joined: join with the higher-priority element dominant.
-      2. If already joined but order is wrong: swap order.
-      3. If already joined and order is correct: skip.
-
-    priority_list: ordered list of category names, index 0 = highest priority.
-    fix_existing: also correct already-joined pairs with wrong order.
-
-    Returns list of result dicts:
-      {id1, name1, cat1, id2, name2, cat2, status, msg}
-    Status values:
-      'joined'     — pair newly joined with correct priority
-      'fixed'      — order was wrong, swapped to correct priority
-      'ok'         — already joined with correct order
-      'skipped'    — both categories not in priority list
-      'failed'
-    """
-    tolerance_ft = tolerance_mm / _FT_TO_MM
-    priority_rank = {cat: idx for idx, cat in enumerate(priority_list)}
+def execute(doc, rows, preview, tx_name):
+    """Result dicts for the rows; nothing is changed when `preview` is true."""
     results = []
-    n = len(elements)
-
+    todo = [r for r in rows if r['action'] in DONE_STATUS]
+    if preview:
+        for row in rows:
+            if row['action'] in DONE_STATUS:
+                results.append(_result(row, PREVIEW_STATUS[row['action']], row['msg']))
+            else:
+                results.append(_result(row, u'ok' if row['action'] == u'ok' else u'skipped', row['msg']))
+        return results
+    t = None
+    if todo:
+        t = nosa_tx.guard(DB.Transaction(doc, u'NOSA — Element Join — %s' % tx_name))
+        t.Start()
     try:
-        with nosa_tx.guard(DB.Transaction(doc, u"NOSA — Element Join — Priority Join")) as t:
-            t.Start()
-            for i in range(n):
-                for j in range(i + 1, n):
-                    a = elements[i]
-                    b = elements[j]
-                    if not _bboxes_within_tolerance(a['element'], b['element'], tolerance_ft):
-                        continue
-
-                    cat_a = a['category']
-                    cat_b = b['category']
-                    rank_a = priority_rank.get(cat_a, 999)
-                    rank_b = priority_rank.get(cat_b, 999)
-
-                    if rank_a == 999 and rank_b == 999:
-                        results.append({
-                            'id1': a['id'], 'name1': a['name'], 'cat1': cat_a,
-                            'id2': b['id'], 'name2': b['name'], 'cat2': cat_b,
-                            'status': 'skipped', 'msg': 'Neither category in priority list',
-                        })
-                        continue
-
-                    # dominant = lower rank index (higher priority)
-                    if rank_a <= rank_b:
-                        dominant, subordinate = a, b
-                    else:
-                        dominant, subordinate = b, a
-
-                    dom_el  = dominant['element']
-                    sub_el  = subordinate['element']
-
-                    try:
-                        already_joined = DB.JoinGeometryUtils.AreElementsJoined(doc, dom_el, sub_el)
-
-                        if not already_joined:
-                            DB.JoinGeometryUtils.JoinGeometry(doc, dom_el, sub_el)
-                            try:
-                                DB.JoinGeometryUtils.SwitchJoinOrder(doc, dom_el, sub_el)
-                            except Exception:
-                                log_swallowed(_LOG, u'batch_join_ordered')
-                            status = 'joined'
-                            msg = "{} cuts {}.".format(dominant['name'], subordinate['name'])
-
-                        elif fix_existing:
-                            # Check current order — try to switch and catch if already correct
-                            try:
-                                DB.JoinGeometryUtils.SwitchJoinOrder(doc, dom_el, sub_el)
-                                # Switched back to make dominant actually cut subordinate
-                                DB.JoinGeometryUtils.SwitchJoinOrder(doc, sub_el, dom_el)
-                                status = 'ok'
-                                msg = "Order already correct."
-                            except Exception:
-                                # SwitchJoinOrder may fail if order is already dominant→sub
-                                status = 'ok'
-                                msg = "Order already correct."
-
-                        else:
-                            status = 'ok'
-                            msg = "Already joined."
-
-                    except Exception as ex:
-                        status = 'failed'
-                        msg = str(ex)
-
-                    results.append({
-                        'id1': dominant['id'],   'name1': dominant['name'],   'cat1': dominant['category'],
-                        'id2': subordinate['id'], 'name2': subordinate['name'], 'cat2': subordinate['category'],
-                        'status': status, 'msg': msg,
-                    })
+        for row in rows:
+            if row['action'] not in DONE_STATUS:
+                results.append(_result(row, u'ok' if row['action'] == u'ok' else u'skipped', row['msg']))
+                continue
+            ok, msg = _apply(doc, row)
+            results.append(_result(row, DONE_STATUS[row['action']] if ok else u'failed', msg))
+        if t is not None:
             t.Commit()
-    except Exception as e:
-        return [{'id1': 0, 'name1': '', 'cat1': '', 'id2': 0, 'name2': '',
-                 'cat2': '', 'status': 'failed', 'msg': str(e)}]
+    except Exception:
+        if t is not None and t.HasStarted():
+            t.RollBack()
+        raise
     return results

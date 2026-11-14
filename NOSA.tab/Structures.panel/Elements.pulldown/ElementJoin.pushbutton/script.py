@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 __title__   = "Element\nJoin"
-__version__ = "1.0"
-__doc__     = """Element Join v1.0
+__version__ = "2.1"
+__doc__     = """Element Join v2.1
 
 Bulk-manages element joins across structural categories:
 
   - Join / unjoin pairs of structural elements
   - Resolve join order conflicts
   - Select elements by category or filter
-  - Preview joins before applying
+  - Preview joins before applying (overlap check, cutting-order fix, per-pair rollback)
 """
 __author__  = "A. Viñas"
 
